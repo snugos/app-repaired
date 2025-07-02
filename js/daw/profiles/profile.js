@@ -18,6 +18,57 @@ const appServices = {}; // This will be populated locally for this standalone ap
 
 // --- Global UI and Utility Functions (Defined first to ensure availability) ---
 
+// Theme-related functions
+function applyUserThemePreference() {
+    const preference = localStorage.getItem('snugos-theme');
+    const body = document.body;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const themeToApply = preference || (prefersDark ? 'dark' : 'light');
+    if (themeToApply === 'light') {
+        body.classList.remove('theme-dark');
+        body.classList.add('theme-light');
+        localStorage.setItem('snugos-theme', 'light');
+    } else {
+        body.classList.remove('theme-light');
+        body.classList.add('theme-dark');
+        localStorage.setItem('snugos-theme', 'dark');
+    }
+}
+
+async function handleBackgroundUpload(file) {
+    if (!loggedInUser) {
+        showNotification('You must be logged in to save a background.', 3000);
+        return;
+    }
+    try {
+        await storeAsset(`background-for-user-${loggedInUser.id}`, file);
+        loadAndApplyGlobals(); // Re-apply global background
+        showNotification('Background saved locally!', 2000);
+    } catch (error) {
+        showNotification(`Error saving background: ${error.message}`, 3000);
+    }
+}
+
+async function loadAndApplyGlobals() {
+    if (!loggedInUser) return;
+    try {
+        const token = localStorage.getItem('snugos_token');
+        const response = await fetch(`${SERVER_URL}/api/profile/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await response.json();
+        if (data.success && data.profile.background_url) {
+            const desktop = document.getElementById('desktop');
+            if(desktop) {
+                desktop.style.backgroundImage = `url(${data.profile.background_url})`;
+                desktop.style.backgroundSize = 'cover';
+                desktop.style.backgroundPosition = 'center';
+            }
+        }
+    } catch (error) {
+        console.error("Could not apply global settings:", error);
+    }
+}
+
+
 // Authentication/Login/Logout Functions
 function checkLocalAuth() {
     try {
@@ -122,7 +173,7 @@ function showLoginModal() {
     });
 }
 
-// Global UI functions (clock, start menu, full screen, desktop event listeners, theme)
+// Global UI functions (clock, start menu, full screen, desktop event listeners)
 function updateClockDisplay() {
     const clockDisplay = document.getElementById('taskbarClockDisplay');
     if (clockDisplay) {
@@ -179,38 +230,6 @@ function attachDesktopEventListeners() {
     document.getElementById('menuToggleFullScreen')?.addEventListener('click', toggleFullScreen);
 }
 
-async function loadAndApplyGlobals() {
-    if (!loggedInUser) return;
-    try {
-        const token = localStorage.getItem('snugos_token');
-        const response = await fetch(`${SERVER_URL}/api/profile/me`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const data = await response.json();
-        if (data.success && data.profile.background_url) {
-            const desktop = document.getElementById('desktop');
-            if(desktop) {
-                desktop.style.backgroundImage = `url(${data.profile.background_url})`;
-                desktop.style.backgroundSize = 'cover';
-                desktop.style.backgroundPosition = 'center';
-            }
-        }
-    } catch (error) {
-        console.error("Could not apply global settings:", error);
-    }
-}
-
-async function handleBackgroundUpload(file) {
-    if (!loggedInUser) {
-        showNotification('You must be logged in to save a background.', 3000);
-        return;
-    }
-    try {
-        await storeAsset(`background-for-user-${loggedInUser.id}`, file);
-        loadAndApplyGlobals(); // Re-apply global background
-        showNotification('Background saved locally!', 2000);
-    } catch (error) {
-        showNotification(`Error saving background: ${error.message}`, 3000);
-    }
-}
 
 // --- Main Window and UI Functions ---
 
