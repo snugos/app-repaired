@@ -97,7 +97,7 @@ export function openPianoRollWindow(trackId, sequenceIdToEdit = null, savedState
     const lengthInBars = (activeSequence.length / Constants.STEPS_PER_BAR).toFixed(2); 
 
     const contentContainer = document.createElement('div'); 
-    contentContainer.className = 'w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white'; 
+    contentContainer.className = 'w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white sequencer-container'; 
     contentContainer.innerHTML = `
         <div class="flex-shrink-0 p-1 border-b border-gray-400 dark:border-gray-600 flex items-center justify-between text-xs">
             <div class="flex items-center space-x-2">
