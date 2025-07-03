@@ -4,7 +4,8 @@
 
 import { SERVER_URL } from '/app/js/daw/constants.js'; // Corrected absolute path
 import { SnugWindow } from '/app/js/daw/SnugWindow.js'; // Corrected absolute path
-import { showNotification, showCustomModal } from '/app/js/daw/utils.js'; // Use main utils.js
+// UPDATED: Import showNotification and showCustomModal from the main utils.js
+import { showNotification, showCustomModal, createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js'; // Use main utils.js
 import { storeAsset, getAsset } from '/app/js/daw/db.js'; // Use main db.js
 import { initializeAuth, handleBackgroundUpload, handleLogout } from '/app/js/daw/auth.js'; // Corrected absolute path
 
@@ -12,8 +13,8 @@ import { initializeAuth, handleBackgroundUpload, handleLogout } from '/app/js/da
 import { getWindowById, addWindowToStore, removeWindowFromStore, incrementHighestZ, getHighestZ, setHighestZ, getOpenWindows, serializeWindows, reconstructWindows, initializeWindowState } from '/app/js/daw/state/windowState.js';
 import { getCurrentUserThemePreference, setCurrentUserThemePreference, initializeAppState } from '/app/js/daw/state/appState.js';
 
-// Explicitly import createContextMenu and showConfirmationDialog from utils.js (Corrected absolute paths)
-import { createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js';
+// REMOVED DUPLICATE IMPORT:
+// import { createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js';
 
 let appServices = {}; // Define appServices at the top level
 let loggedInUser = null;
@@ -121,11 +122,11 @@ async function initializeWelcomePage() { // Marked as async to allow await
     // Functions that are directly used here, but populated by modules later, start as null.
     appServices = {
         // Core SnugWindow/Window State functions (will be assigned after windowStateModule loads)
-        getWindowById: null, addWindowToStore: null, removeWindowFromStore: null, 
-        incrementHighestZ: null, getHighestZ: null, setHighestZ: null, getOpenWindows: null, 
+        getWindowById: null, addWindowToStore: null, removeWindowFromStore: null,
+        incrementHighestZ: null, getHighestZ: null, setHighestZ: null, getOpenWindows: null,
         serializeWindows: null, reconstructWindows: null,
         initializeWindowState: null, // Initializer for windowState.js
-        
+
         // Theme functions
         getCurrentUserThemePreference: null, setCurrentUserThemePreference: null,
         initializeAppState: null, // Initializer for appState.js
@@ -135,8 +136,9 @@ async function initializeWelcomePage() { // Marked as async to allow await
         handleBackgroundUpload: handleBackgroundUpload, // Imported from auth.js
 
         // Utility access
-        showNotification: showNotification, // Direct import, can be used immediately
-        showCustomModal: showCustomModal,   // Direct import, can be used immediately
+        // UPDATED: Use directly imported functions from utils.js
+        showNotification: showNotification,
+        showCustomModal: showCustomModal,
         createContextMenu: createContextMenu,
         showConfirmationDialog: showConfirmationDialog,
         showLoading: () => document.getElementById('loading-overlay')?.classList.remove('hidden'), // Simple local implementation
@@ -179,9 +181,9 @@ async function initializeWelcomePage() { // Marked as async to allow await
 
 
         // Auth related (will be assigned after authModule loads)
-        initializeAuth: null, 
+        initializeAuth: null,
         handleLogout: null, // Overridden by local handleLogout below which calls auth.js's handleLogout
-        updateUserAuthContainer: null, 
+        updateUserAuthContainer: null,
         showLoginModal: null, // Overridden by local showLoginModal below
         getLoggedInUser: () => loggedInUser, // Provide getter for current user state
 
@@ -208,49 +210,48 @@ async function initializeWelcomePage() { // Marked as async to allow await
     // This is crucial: assign module exports to appServices
     Object.assign(appServices, windowStateModule);
     Object.assign(appServices, appStateModule);
-    Object.assign(appServices, dbModuleExports); // Assign db exports (storeAudio, getAudio, deleteAudio)
-    
+    Object.assign(appServices, dbModuleExports);
+
     // 4. Define `appServices.createWindow` *after* appServices has its core window functions.
     appServices.createWindow = (id, title, content, options) => new SnugWindow(id, title, content, options, appServices);
-    
+
     // 5. Initialize modules that have an `initializeXModule` function.
-    appServices.initializeWindowState(appServices); 
-    appServices.initializeAppState(appServices); 
+    appServices.initializeWindowState(appServices);
+    appServices.initializeAppState(appServices);
 
     // Initialize AuthModule (it sets up its own event listeners and updates auth UI).
-    const authExports = authModuleExports.initializeAuth(appServices); 
-    Object.assign(appServices, authExports); 
+    const authExports = authModuleExports.initializeAuth(appServices);
+    Object.assign(appServices, authExports);
 
 
     // 6. Attach top-level event listeners for the welcome page.
     attachEventListeners();
     updateClockDisplay();
-    
+
     // Theme application and system preference listening
-    appServices.setCurrentUserThemePreference(appServices.getCurrentUserThemePreference() || 'system'); 
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => appServices.setCurrentUserThemePreference('system')); 
-    
+    appServices.setCurrentUserThemePreference(appServices.getCurrentUserThemePreference() || 'system');
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => appServices.setCurrentUserThemePreference('system'));
+
     renderDesktopIcons();
     initAudioOnFirstGesture();
-    
+
     // Attempt to restore window state from previous session
-    const lastSessionState = localStorage.getItem('snugos_welcome_session_windows'); 
-    if (lastSessionState) { 
+    const lastSessionState = localStorage.getItem('snugos_welcome_session_windows');
+    if (lastSessionState) {
         try {
-            const parsedState = JSON.parse(lastSessionState); 
-            if (parsedState && parsedState.length > 0) { 
-                appServices.reconstructWindows(parsedState); 
+            const parsedState = JSON.parse(lastSessionState);
+            if (parsedState && parsedState.length > 0) {
+                appServices.reconstructWindows(parsedState);
+            } else {
+                openDefaultLayout();
             }
         } catch (e) {
-            console.error("Error restoring welcome page window state:", e); 
+            console.error("Error parsing last project data from local storage:", e);
+            openDefaultLayout();
         }
-    } 
-
-    // Add a beforeunload listener to save welcome page window state
-    window.addEventListener('beforeunload', () => { 
-        const currentOpenWindows = appServices.serializeWindows(); 
-        localStorage.setItem('snugos_welcome_session_windows', JSON.stringify(currentOpenWindows)); 
-    }); 
+    } else {
+        openDefaultLayout();
+    }
 
     console.log("Welcome Page Initialized Successfully.");
 }
@@ -262,12 +263,12 @@ async function initializeWelcomePage() { // Marked as async to allow await
 function initAudioOnFirstGesture() {
     const startAudio = async () => {
         if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
-            await Tone.start(); 
-            console.log('AudioContext started successfully.'); 
+            await Tone.start();
+            console.log('AudioContext started successfully.');
         }
-        document.body.removeEventListener('mousedown', startAudio); 
-    }; 
-    document.body.addEventListener('mousedown', startAudio); 
+        document.body.removeEventListener('mousedown', startAudio);
+    };
+    document.body.addEventListener('mousedown', startAudio);
 }
 
 /**
@@ -275,23 +276,23 @@ function initAudioOnFirstGesture() {
  */
 function attachEventListeners() {
     // Top taskbar buttons
-    document.getElementById('loginBtnTop')?.addEventListener('click', showLoginModal); 
+    document.getElementById('loginBtnTop')?.addEventListener('click', showLoginModal);
     document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
     document.getElementById('startButton')?.addEventListener('click', toggleStartMenu);
-    
+
     // Start Menu and Desktop Icon actions
-    document.getElementById('menuLaunchDaw')?.addEventListener('click', launchDaw); 
+    document.getElementById('menuLaunchDaw')?.addEventListener('click', launchDaw);
     document.getElementById('menuOpenBrowser')?.addEventListener('click', openBrowser); // Open new Browser
     document.getElementById('menuViewProfiles')?.addEventListener('click', viewProfiles); // Open Profiles
     document.getElementById('menuOpenMessages')?.addEventListener('click', openMessages); // Open Messages
-    
+
     document.getElementById('menuLogin')?.addEventListener('click', () => {
         toggleStartMenu();
-        showLoginModal(); 
+        showLoginModal();
     });
     document.getElementById('menuLogout')?.addEventListener('click', () => {
         toggleStartMenu();
-        appServices.handleLogout(); 
+        appServices.handleLogout();
     });
     document.getElementById('menuToggleFullScreen')?.addEventListener('click', toggleFullScreen);
     document.getElementById('customBgInput')?.addEventListener('change', (e) => {
@@ -303,16 +304,16 @@ function attachEventListeners() {
     // Add context menu to desktop
     document.getElementById('desktop')?.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (e.target.closest('.window')) return; 
+        if (e.target.closest('.window')) return;
         const menuItems = [
             { label: 'Change Background', action: () => document.getElementById('customBgInput').click() },
             { separator: true },
-            { label: 'Open DAW', action: launchDaw }, 
-            { label: 'Open SnugOS Browser', action: openBrowser }, // New menu item
-            { label: 'View Profile', action: viewProfiles }, // Renamed from 'View Profiles' to singular
-            { label: 'Open Messages', action: openMessages }, // New menu item
+            { label: 'Open DAW', action: launchDaw },
+            { label: 'Open SnugOS Browser', action: openBrowser },
+            { label: 'View Profile', action: viewProfiles },
+            { label: 'Open Messages', action: openMessages },
             { label: 'Play Snugtris', action: openGameWindow },
-            { label: 'Discord Server', action: openDiscordWindow } // New Discord icon action
+            { label: 'Discord Server', action: openDiscordWindow }
         ];
         appServices.createContextMenu(e, menuItems);
     });
@@ -331,37 +332,37 @@ function renderDesktopIcons() {
         {
             id: 'snaw-icon',
             name: 'Snaw',
-            action: launchDaw, 
+            action: launchDaw,
             svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-8z"/></svg>`
         },
         {
             id: 'browser-icon',
             name: 'Browser',
-            action: openBrowser, 
-            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>` // Folder icon
+            action: openBrowser,
+            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`
         },
         {
             id: 'profile-icon',
             name: 'Profile',
-            action: viewProfiles, 
-            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>` // User icon
+            action: viewProfiles,
+            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`
         },
         {
-            id: 'messages-icon', // NEW: Messages icon
+            id: 'messages-icon',
             name: 'Messages',
             action: openMessages,
-            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>` // Message icon
+            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
         },
         {
-            id: 'discord-icon', // NEW: Discord icon
+            id: 'discord-icon',
             name: 'Discord',
             action: openDiscordWindow,
-            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" fill="currentColor" class="w-12 h-12"><path d="M524.531 69.832a1.87 1.87 0 0 0-.01-.01c-26.541-26.82-62.158-39.736-102.822-40.407-1.121-.023-2.253-.023-3.375-.011C354.269 28.147 301.867 36.57 252.093 50.84C180.252 71.077 124.976 112.593 84.7 172.585a1.873 1.873 0 0 0-.01.011C40.669 220.187 16 270.812 16 323.013c0 88.083 49.37 129.418 99.851 129.418 25.166 0 45.418-12.06 63.784-33.829 9.897-11.536 18.232-26.331 22.42-40.485 3.309-11.082 5.922-21.737 5.922-21.737 0 .041-36.438 16.924-81.862 10.36-11.758-1.705-19.26-6.495-19.26-6.495 0-.013 1.05-.724 3.016-1.63 7.15-3.238 12.396-6.848 14.156-8.291 16.295-13.626 27.675-29.62 34.789-48.423 9.489-25.04 14.77-50.605 14.77-75.986 0-106.82-58.41-190.155-155.67-190.155-28.053 0-51.464 8.789-70.198 25.059-3.791 3.344-3.791 8.847 0 12.191C123.637 151.787 150.117 167 180.598 167c17.51 0 31.866-5.467 43.197-16.143 6.945-6.536 12.106-14.47 14.975-23.468 4.795-15.006 7.42-30.825 7.42-46.758 0-68.539-38.35-125.132-90.87-125.132-24.717 0-45.023 8.357-61.944 24.363zm-109.846 179.814c0-3.344 2.685-6.029 6.03-6.029h12.06c3.344 0 6.03 2.685 6.03 6.029v24.119c0 3.344-2.686 6.029-6.03 6.029H410.74c-3.344 0-6.03-2.685-6.03-6.029v-24.119c0-3.344 2.686-6.029 6.03-6.029h12.06c3.344 0 6.03 2.685 6.03 6.029v24.119c0 3.344-2.686 6.029-6.03 6.029H410.74c-3.344 0-6.03-2.685-6.03-6.029v-24.119z"/></svg>`
+            svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" fill="currentColor" class="w-12 h-12"><path d="M524.531 69.832a1.87 1.87 0 0 0-.01-.01c-26.541-26.82-62.158-39.736-102.822-40.407-1.121-.023-2.253-.023-3.375-.011C354.269 28.147 301.867 36.57 252.093 50.84C180.252 71.077 124.976 112.593 84.7 172.585a1.873 1.873 0 0 0-.01.011C40.669 220.187 16 270.812 16 323.013c0 88.083 49.37 129.418 99.851 129.418 25.166 0 45.418-12.06 63.784-33.829 9.897-11.536 18.232-26.331 22.42-40.485 3.309-11.082 5.922-21.737 5.922-21.737 0 .041-36.438 16.924-81.862 10.36-11.758-1.705-19.26-6.495-19.26-6.495 0-.013 1.05-.724 3.016-1.63 7.15-3.238 12.396-6.848 14.156-8.291 16.295-13.626 27.675-29.62 34.789-48.423 9.489-25.04 14.77-50.605 14.77-75.986 0-106.82-58.41-190.155-155.67-190.155-28.053 0-51.464 8.789-70.198 25.059-3.791 3.344-3.791 8.847 0 12.191C123.637 151.787 150.117 167 180.598 167c17.51 0 31.866-5.467 43.197-16.143 6.945-6.536 12.106-14.47 14.975-23.468 4.795-15.006 7.42-30.825 7.42-46.758 0-68.539-38.35-125.132-90.87-125.132-24.717 0-45.023 8.357-61.944 24.363zm-109.846 179.814c0-3.344 2.685-6.029 6.03-6.029h12.06c3.344 0 6.03 2.685 6.03 6.029v24.119c0 3.344-2.686 6.029-6.03 6.029H410.74c-3.344 0-6.03-2.685-6.03-6.029v-24.119c0-3.344 2.686-6.029-6.03-6.029h12.06c3.344 0 6.03 2.685 6.03 6.029v24.119c0 3.344-2.686 6.029-6.03 6.029H410.74c-3.344 0-6.03-2.685-6.03-6.029v-24.119z"/></svg>`
         },
         {
             id: 'game-icon',
             name: 'Game',
-            action: openGameWindow, 
+            action: openGameWindow,
             svgContent: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12"><path d="M21.57,9.36,18,7.05V4a1,1,0,0,0-1-1H7A1,1,0,0,0,6,4V7.05L2.43,9.36a1,1,0,0,0-.43,1V17a1,1,0,0,0,1,1H6v3a1,1,0,0,0,1,1h1V19H16v3h1a1,1,0,0,0,1-1V18h3a1,1,0,0,0,1-1V10.36A1,1,0,0,0,21.57,9.36ZM8,5H16V7H8ZM14,14H12V16H10V14H8V12h2V10h2v2h2Z"/></svg>`
         }
     ];
@@ -370,7 +371,7 @@ function renderDesktopIcons() {
         const iconDiv = document.createElement('div');
         iconDiv.className = 'desktop-icon';
         iconDiv.id = icon.id;
-        
+
         const imgContainer = document.createElement('div');
         imgContainer.className = 'desktop-icon-image';
         imgContainer.innerHTML = icon.svgContent;

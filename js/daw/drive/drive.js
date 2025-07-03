@@ -5,6 +5,12 @@
 // All utilities and constants are now expected to come via appServices,
 // or are defined locally if they are truly unique to this module.
 
+// NEW: Import centralized auth functions
+import { showLoginModal as centralizedShowLoginModal, handleLogin as centralizedHandleLogin, handleRegister as centralizedHandleRegister, handleLogout as centralizedHandleLogout, getLoggedInUser } from '/app/js/daw/auth.js';
+// NEW: Import showNotification and showCustomModal from utils.js (assuming appServices will pass it)
+import { showNotification, showCustomModal, createContextMenu } from '/app/js/daw/utils.js';
+
+
 let appServices = {}; // This will be assigned the actual appServices object from the parent.
 let loggedInUser = null; // Will be set from appServices
 let currentPath = '/';
@@ -21,15 +27,16 @@ function initDrivePageInIframe(injectedAppServices) {
 
     // Check auth state immediately via appServices
     loggedInUser = appServices.getLoggedInUser?.();
-    
+
     // Attach event listeners for Drive-specific UI
     attachDriveEventListeners();
-    
+
     // Initial render of the Drive
     renderApp();
-    
+
     // Update auth UI to reflect parent's state
-    updateAuthUI(loggedInUser);
+    // The parent's updateAuthUI is complex, simplified for iframe context
+    updateAuthUI(loggedInUser); // Call a local updateAuthUI for this iframe
 }
 
 // Make the initialization function globally accessible for the parent window.
@@ -37,14 +44,21 @@ window.initDrivePageInIframe = initDrivePageInIframe;
 
 // --- Utility Functions (Adapted to use appServices for shared features) ---
 
+// Assuming appServices will provide showLoading/hideLoading as it does in main.js
 function showLoading() { appServices.showLoading?.(); }
 function hideLoading() { appServices.hideLoading?.(); }
+// Updated to use centralized showCustomModal
 function showMessage(msg, onConfirm = null, showCancel = false, onCancel = null) {
-    appServices.showCustomModal?.('', msg, [{label: 'OK', action: onConfirm}], { showCancel, onCancel });
+    appServices.showCustomModal?.('Message', `<p class="p-4">${msg}</p>`, [ // Basic content wrapper
+        { label: 'OK', action: onConfirm || (() => {}) },
+        ...(showCancel ? [{ label: 'Cancel', action: onCancel || (() => {}) }] : [])
+    ]);
 }
+// showInputDialog uses appServices.showCustomInputModal, defined in welcome.js/main.js
 function showInputDialog(title, placeholder, initialValue, onConfirmCallback) {
     appServices.showCustomInputModal?.(title, placeholder, initialValue, onConfirmCallback);
 }
+
 
 // --- Icon SVGs (Inline - these are unique to Drive's UI) ---
 const getFolderIcon = () => `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="lucide lucide-folder mr-3 flex-shrink-0" style="color: currentColor;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
@@ -90,20 +104,20 @@ async function fetchFiles() {
         return;
     }
 
-    appServices.showLoading?.(); // Use appServices for loading indicator
+    showLoading(); // Use local loading indicator
     try {
         const token = localStorage.getItem('snugos_token'); // Get token from local storage
         if (!token) {
             // If token is missing even if loggedInUser is set, means desynced.
             // Trigger parent logout for full reset.
-            appServices.handleLogout?.(); 
+            centralizedHandleLogout(); // Use centralized logout
             return;
         }
 
-        let apiUrl = `${appServices.SERVER_URL}/api/files/my?path=${encodeURIComponent(currentPath)}`;
+        let apiUrl = `${SERVER_URL}/api/files/my?path=${encodeURIComponent(currentPath)}`;
         // If 'snaw' and in admin view, fetch all files
         if (loggedInUser.username === 'snaw' && isAdminView) {
-            apiUrl = `${appServices.SERVER_URL}/api/admin/files`;
+            apiUrl = `${SERVER_URL}/api/admin/files`;
         }
 
         const response = await fetch(apiUrl, {
@@ -126,30 +140,30 @@ async function fetchFiles() {
                 renderFileList(sortedItems);
             }
         } else {
-            // Show error message via appServices
-            appServices.showNotification?.(data.message || "Failed to load files.", 4000);
+            // Show error message via centralized notification
+            showNotification(data.message || "Failed to load files.", 4000);
             renderFileList([]); // Render empty list on error
         }
     } catch (error) {
         console.error("Error fetching files:", error);
-        appServices.showNotification?.("Network error while fetching files. Please try again.", 4000);
+        showNotification("Network error while fetching files. Please try again.", 4000);
         renderFileList([]);
     } finally {
-        appServices.hideLoading?.(); // Use appServices for loading indicator
+        hideLoading(); // Use local loading indicator
     }
 }
 
 async function handleCreateFolder() {
-    // Use appServices for input dialog and notification
-    appServices.showCustomInputModal?.('Create New Folder', 'Folder Name', '', async (name) => {
+    // Use centralized input dialog and notification
+    showInputDialog('Create New Folder', 'Folder Name', '', async (name) => {
         if (!name.trim()) {
-            appServices.showNotification?.("Folder name cannot be empty.", 2000);
+            showNotification("Folder name cannot be empty.", 2000);
             return false;
         }
-        appServices.showLoading?.();
+        showLoading();
         try {
             const token = localStorage.getItem('snugos_token');
-            const response = await fetch(`${appServices.SERVER_URL}/api/folders`, {
+            const response = await fetch(`${SERVER_URL}/api/folders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,19 +173,19 @@ async function handleCreateFolder() {
             });
             const data = await response.json();
             if (data.success) {
-                appServices.showNotification?.("Folder created successfully!", 2000);
+                showNotification("Folder created successfully!", 2000);
                 fetchFiles();
                 return true;
             } else {
-                appServices.showNotification?.(data.message || "Failed to create folder.", 4000);
+                showNotification(data.message || "Failed to create folder.", 4000);
                 return false;
             }
         } catch (error) {
             console.error("Error creating folder:", error);
-            appServices.showNotification?.("Network error creating folder.", 4000);
+            showNotification("Network error creating folder.", 4000);
             return false;
         } finally {
-            appServices.hideLoading?.();
+            hideLoading();
         }
     });
 }
@@ -180,7 +194,7 @@ async function handleCreateFolder() {
 async function uploadFiles(filesToUpload) {
     if (!loggedInUser || filesToUpload.length === 0) return;
 
-    appServices.showLoading?.();
+    showLoading();
     let allSuccess = true;
     let messages = [];
 
@@ -192,7 +206,7 @@ async function uploadFiles(filesToUpload) {
 
         try {
             const token = localStorage.getItem('snugos_token');
-            const response = await fetch(`${appServices.SERVER_URL}/api/files/upload`, {
+            const response = await fetch(`${SERVER_URL}/api/files/upload`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -210,9 +224,9 @@ async function uploadFiles(filesToUpload) {
             console.error(`Error uploading "${file.name}":`, error);
         }
     }
-    appServices.showNotification?.(messages.join('\n'), 5000); // Consolidated notification
+    showNotification(messages.join('\n'), 5000); // Consolidated notification
     fetchFiles();
-    appServices.hideLoading?.();
+    hideLoading();
 }
 
 function handleUploadClick() {
@@ -226,16 +240,16 @@ function handleFileInputChange(event) {
 }
 
 function handleRename(item) {
-    // Use appServices for input dialog and notification
-    appServices.showCustomInputModal?.(`Rename ${item.file_name}`, 'New Name', item.file_name, async (newName) => {
+    // Use centralized input dialog and notification
+    showInputDialog(`Rename ${item.file_name}`, 'New Name', item.file_name, async (newName) => {
         if (!newName.trim()) {
-            appServices.showNotification?.("Name cannot be empty.", 2000);
+            showNotification("Name cannot be empty.", 2000);
             return false;
         }
-        appServices.showLoading?.();
+        showLoading();
         try {
             const token = localStorage.getItem('snugos_token');
-            const response = await fetch(`${appServices.SERVER_URL}/api/files/${item.id}/rename`, {
+            const response = await fetch(`${SERVER_URL}/api/files/${item.id}/rename`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -245,54 +259,54 @@ function handleRename(item) {
             });
             const data = await response.json();
             if (data.success) {
-                appServices.showNotification?.("Item renamed successfully.", 2000);
+                showNotification("Item renamed successfully.", 2000);
                 fetchFiles();
                 return true;
             } else {
-                appServices.showNotification?.(data.message || "Failed to rename item.", 4000);
+                showNotification(data.message || "Failed to rename item.", 4000);
                 return false;
             }
         } catch (error) {
             console.error("Error renaming item:", error);
-            appServices.showNotification?.("Network error renaming item.", 4000);
+            showNotification("Network error renaming item.", 4000);
             return false;
         } finally {
-            appServices.hideLoading?.();
+            hideLoading();
         }
     });
 }
 
 function handleDeleteItem(item) {
-    // Use appServices for confirmation dialog and notification
+    // Use centralized confirmation dialog and notification
     appServices.showConfirmationDialog?.(`Are you sure you want to delete "${item.file_name}"?`, 'This action cannot be undone.', async () => {
-        appServices.showLoading?.();
+        showLoading();
         try {
             const token = localStorage.getItem('snugos_token');
-            const response = await fetch(`${appServices.SERVER_URL}/api/files/${item.id}`, {
+            const response = await fetch(`${SERVER_URL}/api/files/${item.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (data.success) {
-                appServices.showNotification?.(`"${item.file_name}" deleted successfully.`, 2000);
+                showNotification(`"${item.file_name}" deleted successfully.`, 2000);
                 fetchFiles();
             } else {
-                appServices.showNotification?.(data.message || "Failed to delete item.", 4000);
+                showNotification(data.message || "Failed to delete item.", 4000);
             }
         } catch (error) {
             console.error("Error deleting item:", error);
-            appServices.showNotification?.("Network error deleting item.", 4000);
+            showNotification("Network error deleting item.", 4000);
         } finally {
-            appServices.hideLoading?.();
+            hideLoading();
         }
     });
 }
 
 async function handleTogglePublic(item) {
-    appServices.showLoading?.();
+    showLoading();
     try {
         const token = localStorage.getItem('snugos_token');
-        const response = await fetch(`${appServices.SERVER_URL}/api/files/${item.id}/toggle-public`, {
+        const response = await fetch(`${SERVER_URL}/api/files/${item.id}/toggle-public`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -302,30 +316,30 @@ async function handleTogglePublic(item) {
         });
         const data = await response.json();
         if (data.success) {
-            appServices.showNotification?.(`"${item.file_name}" is now ${data.file.is_public ? 'public' : 'private'}.`, 2000);
+            showNotification(`"${item.file_name}" is now ${data.file.is_public ? 'public' : 'private'}.`, 2000);
             fetchFiles();
         } else {
-            appServices.showNotification?.(data.message || "Failed to change public status.", 4000);
+            showNotification(data.message || "Failed to change public status.", 4000);
         }
     } catch (error) {
         console.error("Error toggling public status:", error);
-        appServices.showNotification?.("Network error changing public status.", 4000);
+        showNotification("Network error changing public status.", 4000);
     } finally {
-        appServices.hideLoading?.();
+        hideLoading();
     }
 }
 
 async function handleShareLink(item) {
-    appServices.showLoading?.();
+    showLoading();
     try {
         const token = localStorage.getItem('snugos_token');
-        const response = await fetch(`${appServices.SERVER_URL}/api/files/${item.id}/share-link`, {
+        const response = await fetch(`${SERVER_URL}/api/files/${item.id}/share-link`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
         if (data.success) {
             navigator.clipboard.writeText(data.shareUrl).then(() => {
-                appServices.showNotification?.("Share link copied to clipboard!", 2000);
+                showNotification("Share link copied to clipboard!", 2000);
             }).catch(err => {
                 // Fallback for older browsers or if clipboard API fails (e.g., iframe restrictions)
                 const textarea = document.createElement('textarea');
@@ -334,25 +348,25 @@ async function handleShareLink(item) {
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-                appServices.showNotification?.("Share link copied to clipboard! (Fallback method)", 3000);
+                showNotification("Share link copied to clipboard! (Fallback method)", 3000);
                 console.warn("Clipboard API not available, falling back to execCommand.");
             });
         } else {
-            appServices.showNotification?.(data.message || "Failed to generate share link.", 4000);
+            showNotification(data.message || "Failed to generate share link.", 4000);
         }
     } catch (error) {
         console.error("Error generating share link:", error);
-        appServices.showNotification?.("Network error generating share link.", 4000);
+        showNotification("Network error generating share link.", 4000);
     } finally {
-        appServices.hideLoading?.();
+        hideLoading();
     }
 }
 
 async function handleMoveItem(draggedItemId, targetPath) {
-    appServices.showLoading?.();
+    showLoading();
     try {
         const token = localStorage.getItem('snugos_token');
-        const response = await fetch(`${appServices.SERVER_URL}/api/files/${draggedItemId}/move`, {
+        const response = await fetch(`${SERVER_URL}/api/files/${draggedItemId}/move`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -362,16 +376,16 @@ async function handleMoveItem(draggedItemId, targetPath) {
         });
         const data = await response.json();
         if (data.success) {
-            appServices.showNotification?.(data.message || "Item moved successfully.", 2000);
+            showNotification(data.message || "Item moved successfully.", 2000);
             fetchFiles(); // Re-fetch files to update UI
         } else {
-            appServices.showNotification?.(data.message || "Failed to move item.", 4000);
+            showNotification(data.message || "Failed to move item.", 4000);
         }
     } catch (error) {
         console.error("Error moving item:", error);
-        appServices.showNotification?.("Network error moving item.", 4000);
+        showNotification("Network error moving item.", 4000);
     } finally {
-        appServices.hideLoading?.();
+        hideLoading();
     }
 }
 
@@ -502,6 +516,12 @@ function renderFileList(items) {
             itemDiv.dataset.isDropTarget = 'true';
             itemDiv.dataset.dropTargetPath = currentPath + item.file_name + '/'; // Path where dropped item will reside
         } else {
+            // For files, open in File Viewer window instead of direct link
+            nameElement.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent default link behavior
+                appServices.openFileViewerWindow?.(item);
+            });
+            // Original href for right-click open in new tab still works
             nameElement.href = item.s3_url;
             nameElement.target = '_blank';
             nameElement.rel = 'noopener noreferrer';
@@ -535,7 +555,7 @@ function renderFileList(items) {
             togglePublicBtn.className = 'item-action-btn';
             togglePublicBtn.title = item.is_public ? "Make Private" : "Make Public";
             togglePublicBtn.innerHTML = item.is_public ? getEyeOffIcon() : getEyeIcon();
-            togglePublicBtn.onclick = () => handleTogglePublic(item);
+            togglePublicBtn.onclick = () => showShareModal(item, true); // Pass true to indicate toggle privacy
             actionsDiv.appendChild(togglePublicBtn);
 
             // Share Link Button
@@ -543,7 +563,7 @@ function renderFileList(items) {
             shareLinkBtn.className = 'item-action-btn';
             shareLinkBtn.title = 'Get Share Link';
             shareLinkBtn.innerHTML = getShareIcon();
-            shareLinkBtn.onclick = () => handleShareLink(item);
+            shareLinkBtn.onclick = () => showShareModal(item, false); // Pass false for just share link
             actionsDiv.appendChild(shareLinkBtn);
         }
 
@@ -594,7 +614,8 @@ function renderFileListAdmin(items) {
 
         let fileNameDisplay = item.file_name;
         if (!isFolder) {
-            fileNameDisplay = `<a href="${item.s3_url}" target="_blank" rel="noopener noreferrer" class="hover:underline">${item.file_name}</a>`;
+            // For files in admin view, open in file viewer
+            fileNameDisplay = `<button class="hover:underline" onclick="appServices.openFileViewerWindow?.(${JSON.stringify(item).replace(/"/g, '&quot;')})">${item.file_name}</button>`;
         }
 
         row.innerHTML = `
@@ -608,8 +629,8 @@ function renderFileListAdmin(items) {
                 <div class="flex flex-wrap gap-1">
                     <button class="item-action-btn" title="Rename" onclick="handleRename(${JSON.stringify(item).replace(/"/g, '&quot;')})">${getEditIcon()}</button>
                     <button class="item-action-btn" title="Delete" onclick="handleDeleteItem(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="color: #EF4444;">${getTrashIcon()}</button>
-                    ${!isFolder ? `<button class="item-action-btn" title="${item.is_public ? 'Make Private' : 'Make Public'}" onclick="handleTogglePublic(${JSON.stringify(item).replace(/"/g, '&quot;')})">${item.is_public ? getEyeOffIcon() : getEyeIcon()}</button>` : ''}
-                    ${!isFolder ? `<button class="item-action-btn" title="Get Share Link" onclick="handleShareLink(${JSON.stringify(item).replace(/"/g, '&quot;')})">${getShareIcon()}</button>` : ''}
+                    ${!isFolder ? `<button class="item-action-btn" title="${item.is_public ? 'Make Private' : 'Make Public'}" onclick="showShareModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, true)">${item.is_public ? getEyeOffIcon() : getEyeIcon()}</button>` : ''}
+                    ${!isFolder ? `<button class="item-action-btn" title="Get Share Link" onclick="showShareModal(${JSON.stringify(item).replace(/"/g, '&quot;')}, false)">${getShareIcon()}</button>` : ''}
                 </div>
             </td>
         `;
@@ -625,7 +646,7 @@ function handleDropTargetDragOver(e) {
     e.stopPropagation();
     if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/json')) {
         let targetElement = e.currentTarget;
-        if (targetElement.dataset.isDropTarget === 'true' || targetElement.id === 'file-list') {
+        if (targetElement.dataset.isDropTarget === 'true' || targetElement.id === 'file-list-main-area') { // Main area
             targetElement.classList.add('drop-target-hover');
         }
     }
@@ -634,7 +655,7 @@ function handleDropTargetDragOver(e) {
 function handleDropTargetDragLeave(e) {
     e.stopPropagation();
     let targetElement = e.currentTarget;
-    if (targetElement.dataset.isDropTarget === 'true' || targetElement.id === 'file-list') {
+    if (targetElement.dataset.isDropTarget === 'true' || targetElement.id === 'file-list-main-area') {
         targetElement.classList.remove('drop-target-hover');
     }
 }
@@ -656,32 +677,32 @@ async function handleDrop(e) {
         const draggedItemId = draggedItemData.id;
         const draggedItemType = draggedItemData.type;
         const draggedItemName = draggedItemData.name;
-        const draggedItemCurrentPath = draggedItemData.path;
+        const draggedItemCurrentPath = draggedItemData.path; // Path item was dragged from
 
         let dropTargetPath;
 
-        if (targetElement.id === 'file-list') {
-            dropTargetPath = currentPath;
-        } else if (targetElement.dataset.isDropTarget === 'true' && targetElement.dataset.itemType === 'application/vnd.snugos.folder') {
+        if (targetElement.id === 'file-list-main-area') { // Dropped into main file list area
+            dropTargetPath = currentPath.join(''); // Use join('') as currentPath is an array of segments
+        } else if (targetElement.dataset.isDropTarget === 'true' && targetElement.dataset.itemType.includes('folder')) { // Dropped onto a folder
             dropTargetPath = targetElement.dataset.dropTargetPath;
         } else {
-            appServices.showNotification?.("Invalid drop target. You can only drop items into folders or the current directory's main area.", 3000);
+            showNotification("Invalid drop target. You can only drop items into folders or the current directory's main area.", 3000);
             return;
         }
 
-        if (draggedItemId === targetElement.dataset.itemId && dropTargetPath === draggedItemCurrentPath) {
-            appServices.showNotification?.("Cannot drop an item onto itself (already in target location).", 3000);
+        // Prevent dropping onto itself (already in target location)
+        // Adjust this check for folders vs files and correct path formats
+        const draggedItemNormalizedPath = draggedItemCurrentPath.endsWith('/') ? draggedItemCurrentPath : draggedItemCurrentPath + '/';
+        const dropTargetNormalizedPath = dropTargetPath.endsWith('/') ? dropTargetPath : dropTargetPath + '/';
+
+        if (draggedItemNormalizedPath === dropTargetNormalizedPath) {
+            showNotification("Item is already in this location.", 3000);
             return;
         }
-
-        if (dropTargetPath === draggedItemCurrentPath) {
-            appServices.showNotification?.("Item is already in this location.", 3000);
-            return;
-        }
-
-        const draggedItemFullPath = draggedItemCurrentPath + draggedItemName + (draggedItemType === 'application/vnd.snugos.folder' ? '/' : '');
-        if (draggedItemType === 'application/vnd.snugos.folder' && dropTargetPath.startsWith(draggedItemFullPath)) {
-            appServices.showNotification?.("Cannot move a folder into its own subfolder.", 3000);
+        // Prevent moving a folder into its own descendant
+        const draggedItemFullPath = draggedItemCurrentPath + draggedItemName + (draggedItemType.includes('folder') ? '/' : '');
+        if (draggedItemType.includes('folder') && dropTargetNormalizedPath.startsWith(draggedItemFullPath)) {
+            showNotification("Cannot move a folder into its own subfolder.", 3000);
             return;
         }
 
@@ -689,87 +710,174 @@ async function handleDrop(e) {
 
     } catch (error) {
         console.error("Drag and drop error:", error);
-        appServices.showNotification?.("An error occurred during drag and drop. " + error.message, 5000);
+        showNotification("An error occurred during drag and drop. " + error.message, 5000);
     }
 }
 
-// --- Main App Renderer ---
+
+// --- Main Application Initialization ---
+document.addEventListener('DOMContentLoaded', async () => { // Marked async
+    // Populate appServices for this standalone desktop's context
+    Object.assign(appServices, {
+        // Window management from windowState.js (imported above)
+        getWindowById: getWindowById, addWindowToStore: addWindowToStore, removeWindowFromStore: removeWindowFromStore,
+        incrementHighestZ: incrementHighestZ, getHighestZ: getHighestZ, setHighestZ: setHighestZ, getOpenWindows: getOpenWindows,
+        serializeWindows: serializeWindows, reconstructWindows: reconstructWindows,
+
+        // Utilities from utils.js (imported above)
+        showNotification: showNotification, showCustomModal: showCustomModal, createContextMenu: createContextMenu,
+
+        // AppState functions (for theme management)
+        applyUserThemePreference: applyUserThemePreference, // local helper for theme
+        setCurrentUserThemePreference: setCurrentUserThemePreference,
+        getCurrentUserThemePreference: getCurrentUserThemePreference,
+
+        // DB functions from db.js (for asset handling)
+        storeAudio: storeAudio, getAudio: getAudio, deleteAudio: deleteAudio, storeAsset: storeAsset, getAsset: getAsset,
+
+        // File Viewer UI
+        openFileViewerWindow: openFileViewerWindow, // From fileViewerUI.js
+        initializeFileViewerUI: initializeFileViewerUI, // From fileViewerUI.js
+
+        // Core SnugWindow constructor for this browser app to open its own child windows
+        createWindow: (id, title, content, options) => new SnugWindow(id, title, content, options, appServices),
+    });
+
+    // Initialize File Viewer UI module as it's used directly here
+    appServices.initializeFileViewerUI(appServices);
+
+    // Initialize auth module and get logged in user
+    await import('/app/js/daw/auth.js').then(auth => {
+        auth.initializeAuth(appServices); // Initialize auth.js with current appServices
+        loggedInUser = auth.getLoggedInUser(); // Get the current user from auth.js
+        // Add a handler for when auth state changes in auth.js (e.g., login/logout)
+        appServices.onAuthChange = (user) => {
+            loggedInUser = user;
+            renderApp(); // Re-render desktop on auth change
+        };
+    });
+
+
+    // Initial setup of common desktop elements and event listeners
+    attachDesktopEventListeners();
+    applyUserThemePreference();
+    updateClockDisplay();
+    initAudioOnFirstGesture();
+
+    // Initial render of the browser app based on login status
+    renderApp();
+});
+
+
 function renderApp() {
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-    const loggedInUserSpan = document.getElementById('logged-in-user');
-    const logoutBtn = document.getElementById('logout-btn');
-    const snawAdminSection = document.getElementById('snaw-admin-section'); // Ref to admin section
+    const desktop = document.getElementById('desktop');
+    if (!desktop) return; // Ensure desktop exists
 
-    if (appServices.loggedInUser) { // Use injected appServices.loggedInUser
-        loggedInUser = appServices.loggedInUser; // Update local loggedInUser
-        loginPage?.classList.add('hidden');
-        appContent?.classList.remove('hidden');
-        loggedInUserSpan.innerHTML = `Logged in as: <span class="font-semibold" style="color: var(--text-primary);">${loggedInUser.username}</span>`;
-        logoutBtn?.classList.remove('hidden');
+    let appContentHTML = `
+        <div class="flex flex-col h-full bg-window-content">
+            <header class="p-2 border-b border-secondary flex items-center justify-between">
+                <nav class="text-sm">
+                    <ol id="breadcrumbs" class="list-none p-0 inline-flex items-center text-primary">
+                        <li><button class="hover:underline font-medium" id="root-folder-btn">/</button></li>
+                    </ol>
+                </nav>
+                <div class="flex space-x-2">
+                    <button id="my-files-btn" class="px-3 py-1 text-xs border rounded active" style="background-color: var(--bg-button); color: var(--text-button); border-color: var(--border-button);">My Files</button>
+                    <button id="public-files-btn" class="px-3 py-1 text-xs border rounded" style="background-color: var(--bg-button); color: var(--text-button); border-color: var(--border-button);">Public</button>
+                    <button id="admin-files-btn" class="px-3 py-1 text-xs border rounded ${isSnawAdmin() ? '' : 'hidden'}" style="background-color: var(--bg-button); color: var(--text-button); border-color: var(--border-button);">Admin</button>
+                </div>
+            </header>
+            <div class="p-4 flex-grow overflow-y-auto" id="file-list-main-area">
+                </div>
+            <footer class="p-2 border-t border-secondary flex justify-between items-center">
+                <button id="create-folder-btn" class="px-3 py-1 text-xs border rounded" style="background-color: var(--bg-button); color: var(--text-button); border-color: var(--border-button);">New Folder</button>
+                <input type="file" id="actualFileInput" class="hidden" multiple>
+                <button id="upload-file-btn" class="px-3 py-1 text-xs border rounded" style="background-color: var(--bg-button); color: var(--text-button); border-color: var(--border-button);">Upload File</button>
+            </footer>
+        </div>
+    `;
 
-        // Show/hide Snaw admin section
-        if (loggedInUser.username === 'snaw') {
-            snawAdminSection?.classList.remove('hidden');
-        } else {
-            snawAdminSection?.classList.add('hidden');
-            isAdminView = false; // Ensure admin view is off if not 'snaw'
-        }
-
-        renderBreadcrumbs();
-        fetchFiles();
-    } else {
-        loggedInUser = null; // Clear local loggedInUser if appServices.loggedInUser is null
-        loginPage?.classList.remove('hidden');
-        appContent?.classList.add('hidden');
-        loggedInUserSpan.textContent = ''; // Clear user display
-        logoutBtn?.classList.add('hidden');
-        // Reset login/register form if visible
-        const authTitle = document.getElementById('auth-title');
-        const authBtnText = document.getElementById('auth-btn-text');
-        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
-        if (authTitle && authBtnText && toggleAuthModeBtn) {
-            authTitle.textContent = 'Login to SnugOS Drive';
-            authBtnText.textContent = 'Login';
-            toggleAuthModeBtn.textContent = 'Need an account? Register';
-        }
+    if (!loggedInUser) {
+        desktop.innerHTML = `<div class="w-full h-full flex items-center justify-center"><p class="text-xl" style="color:var(--text-primary);">Please log in to use the Browser.</p></div>`;
+        showLoginModalBrowser(); // Show login modal
+        return;
     }
+
+    desktop.innerHTML = appContentHTML; // Replace desktop content with browser UI
+
+    // Attach event listeners for internal UI elements after they are added to the DOM
+    document.getElementById('root-folder-btn')?.addEventListener('click', () => { currentPath = ['/']; renderApp(); });
+    document.getElementById('my-files-btn')?.addEventListener('click', () => { currentViewMode = 'my-files'; isAdminView = false; currentPath = ['/']; renderApp(); });
+    document.getElementById('public-files-btn')?.addEventListener('click', () => { currentViewMode = 'public-files'; isAdminView = false; currentPath = ['/']; renderApp(); });
+    document.getElementById('admin-files-btn')?.addEventListener('click', () => {
+        isAdminView = !isAdminView;
+        currentViewMode = 'my-files'; // Admin view is always "my files" from a flat perspective
+        currentPath = ['/'];
+        renderApp();
+    });
+
+    document.getElementById('create-folder-btn')?.addEventListener('click', handleCreateFolder);
+    document.getElementById('upload-file-btn')?.addEventListener('click', handleFileUpload);
+    document.getElementById('actualFileInput')?.addEventListener('change', handleFileInputChange);
+
+    // Apply drag and drop listeners to the main file-list-main-area
+    const fileListMainArea = document.getElementById('file-list-main-area');
+    if (fileListMainArea) {
+        fileListMainArea.addEventListener('dragover', handleDropTargetDragOver);
+        fileListMainArea.addEventListener('dragleave', handleDropTargetDragLeave);
+        fileListMainArea.addEventListener('drop', handleDrop);
+        fileListMainArea.id = 'file-list-main-area'; // Ensure it has the correct ID
+    }
+
+    renderBreadcrumbs();
+    fetchAndRenderLibraryItems(desktop); // Pass desktop as the container for UI elements
 }
 
-// --- Event Listeners (Adjusted for appServices and correct DOM refs) ---
-function attachDriveEventListeners() {
-    const logoutBtn = document.getElementById('logout-btn');
-    const createFolderBtn = document.getElementById('create-folder-btn');
-    const uploadFileBtn = document.getElementById('upload-file-btn');
-    const fileUploadInput = document.getElementById('file-upload-input');
-    const viewAllFilesBtn = document.getElementById('view-all-files-btn');
-    const fileListDiv = document.getElementById('file-list');
+function renderBreadcrumbs() {
+    const breadcrumbsNav = document.getElementById('breadcrumbs');
+    if (!breadcrumbsNav) return;
 
-    if (logoutBtn) logoutBtn.addEventListener('click', () => appServices.handleLogout?.());
-    if (createFolderBtn) createFolderBtn.addEventListener('click', handleCreateFolder);
-    if (uploadFileBtn) uploadFileBtn.addEventListener('click', handleUploadClick);
-    if (fileUploadInput) fileUploadInput.addEventListener('change', handleFileInputChange);
+    breadcrumbsNav.innerHTML = '';
+    const pathSegments = currentPath.filter(segment => segment !== '/'); // Filter out the initial '/' if present
 
-    // Google Login/Drive buttons (deferring implementation, so remove/comment out listeners for now)
-    // const googleLoginBtn = document.getElementById('google-login-btn');
-    // const importGoogleDriveBtn = document.getElementById('import-google-drive-btn');
-    // if (googleLoginBtn) googleLoginBtn.addEventListener('click', () => appServices.linkGoogleAccount?.()); // Assuming this is linked from main welcome
-    // if (importGoogleDriveBtn) importGoogleDriveBtn.addEventListener('click', () => appServices.createGooglePicker?.()); // Assuming this is linked from main welcome
+    let currentPathAccumulated = '/';
 
-    if (viewAllFilesBtn) {
-        viewAllFilesBtn.addEventListener('click', () => {
-            isAdminView = !isAdminView; // Toggle admin view
-            if (isAdminView) {
-                currentPath = '/'; // Reset current path to root for full file list in admin view
-            }
-            renderApp(); // Re-render to fetch new data
-        });
+    // "My Drive" or "All Files (Admin)" root button
+    let rootLi = document.createElement('li');
+    let rootBtn = document.createElement('button');
+    rootBtn.className = 'hover:underline font-medium';
+    rootBtn.style.setProperty('color', 'var(--text-primary)');
+
+    if (isAdminView && isSnawAdmin()) {
+        rootBtn.textContent = 'All Files (Admin View)';
+        rootBtn.onclick = () => { currentPath = ['/']; isAdminView = true; renderApp(); };
+    } else {
+        rootBtn.textContent = 'My Drive';
+        rootBtn.onclick = () => { currentPath = ['/']; isAdminView = false; renderApp(); };
     }
+    rootLi.appendChild(rootBtn);
+    breadcrumbsNav.appendChild(rootLi);
 
-    // Global drag and drop listeners for the entire file list area
-    if (fileListDiv) {
-        fileListDiv.addEventListener('dragover', handleDropTargetDragOver);
-        fileListDiv.addEventListener('dragleave', handleDropTargetDragLeave);
-        fileListDiv.addEventListener('drop', handleDrop);
+
+    // Add other segments for non-admin view
+    if (!isAdminView) {
+        pathSegments.forEach((segment, index) => {
+            currentPathAccumulated += segment; // segment already includes trailing slash
+            let li = document.createElement('li');
+            li.className = 'flex items-center';
+            li.innerHTML = '<span class="mx-2" style="color: var(--text-secondary);">/</span>';
+            let btn = document.createElement('button');
+            btn.className = 'hover:underline font-medium';
+            btn.style.setProperty('color', 'var(--text-primary)');
+            btn.textContent = segment.replace(/\/$/, ''); // Remove trailing slash for display
+            const navPath = currentPathAccumulated; // Capture path for closure
+            btn.onclick = () => {
+                currentPath = navPath.split('/').filter(s => s !== ''); // Reconstruct array path
+                currentPath = currentPath.length === 0 ? ['/'] : currentPath.map(s => s + '/'); // Add trailing slashes back
+                renderApp();
+            };
+            li.appendChild(btn);
+            breadcrumbsNav.appendChild(li);
+        });
     }
 }

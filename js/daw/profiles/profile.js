@@ -4,21 +4,26 @@
 
 // Corrected imports to be absolute paths
 import { SnugWindow } from '/app/js/daw/SnugWindow.js';
-import { showNotification, showCustomModal, createContextMenu } from '/app/js/daw/utils.js';
+// UPDATED: Import showNotification, showCustomModal, createContextMenu, showConfirmationDialog from utils.js
+import { showNotification, showCustomModal, createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js';
+// UPDATED: Import storeAsset, getAsset from main db.js
 import { storeAsset, getAsset } from '/app/js/daw/db.js';
 import * as Constants from '/app/js/daw/constants.js';
 import { getWindowById, addWindowToStore, removeWindowFromStore, incrementHighestZ, getHighestZ, setHighestZ, getOpenWindows, serializeWindows, reconstructWindows } from '/app/js/daw/state/windowState.js';
 import { getCurrentUserThemePreference, setCurrentUserThemePreference } from '/app/js/daw/state/appState.js';
+// NEW: Import centralized auth functions
+import { showLoginModal as centralizedShowLoginModal, handleLogin as centralizedHandleLogin, handleRegister as centralizedHandleRegister, handleLogout as centralizedHandleLogout, getLoggedInUser } from '/app/js/daw/auth.js';
+
 
 const SERVER_URL = 'https://snugos-server-api.onrender.com';
-let loggedInUser = null;
+let loggedInUser = null; // Will now be managed by auth.js and retrieved via getLoggedInUser()
 let currentProfileData = null;
 let isEditing = false;
 const appServices = {}; // This will be populated locally for this standalone app.
 
-// --- Global UI and Utility Functions (Defined first to ensure availability) ---
+// --- Global UI and Utility Functions (Now mostly proxied from appServices) ---
 
-// Theme-related functions
+// Theme-related functions (can remain local or be moved to appState/utils for DAW if desired)
 function applyUserThemePreference() {
     const preference = localStorage.getItem('snugos-theme');
     const body = document.body;
@@ -41,15 +46,25 @@ async function handleBackgroundUpload(file) {
         return;
     }
     try {
-        await storeAsset(`background-for-user-${loggedInUser.id}`, file);
-        loadAndApplyGlobals(); // Re-apply global background
-        showNotification('Background saved locally!', 2000);
+        // Use the centralized auth.js function for background upload
+        // It will handle showing notifications and interacting with the server/DB
+        await centralizedHandleBackgroundUpload(file);
+        // After successful upload and server update, reload current profile data to reflect new background
+        openProfileWindow(loggedInUser.username); // Re-render profile to update UI
     } catch (error) {
-        showNotification(`Error saving background: ${error.message}`, 3000);
+        // centralizedHandleBackgroundUpload already shows notification, just log here
+        console.error("Background Upload Error:", error);
     }
 }
 
+// NEW: Import handleBackgroundUpload from auth.js for consistency
+import { handleBackgroundUpload as centralizedHandleBackgroundUpload } from '/app/js/daw/auth.js';
+
+
 async function loadAndApplyGlobals() {
+    // This function can remain specific to how this profile.html manages its background
+    // based on the logged-in user's profile settings fetched from the server.
+    // It should use the `loggedInUser` state from `auth.js`.
     if (!loggedInUser) return;
     try {
         const token = localStorage.getItem('snugos_token');
@@ -69,250 +84,58 @@ async function loadAndApplyGlobals() {
 }
 
 
-// Authentication/Login/Logout Functions
-function checkLocalAuth() {
-    try {
-        const token = localStorage.getItem('snugos_token');
-        if (!token) return null;
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.exp * 1000 < Date.now()) {
-            localStorage.removeItem('snugos_token');
-            return null;
-        }
-        return { id: payload.id, username: payload.username };
-    } catch (e) {
-        localStorage.removeItem('snugos_token');
-        return null;
-    }
-}
+// Authentication Functions (Now use centralized functions from auth.js)
+// REMOVED: handleAuthSubmit, handleLogin, handleRegister, handleLogout, showLoginModal
 
-async function handleLogin(username, password) {
-    try {
-        const response = await fetch(`${SERVER_URL}/api/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await response.json();
-        if (data.success) {
-            localStorage.setItem('snugos_token', data.token);
-            loggedInUser = data.user;
-            showNotification(`Welcome, ${data.user.username}!`, 2000);
-            window.location.reload(); // Reload the page to fully initialize with logged-in user
-        } else {
-            showNotification(`Login failed: ${data.message}`, 3000);
-        }
-    } catch (error) {
-        showNotification('Network error.', 3000);
-        console.error("Login Error:", error);
-    }
-}
-
-async function handleRegister(username, password) {
-    try {
-        const response = await fetch(`${SERVER_URL}/api/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await response.json();
-        if (data.success) {
-            showNotification('Registration successful! Please log in.', 2500);
-        } else {
-            showNotification(`Registration failed: ${data.message}`, 3000);
-        }
-    } catch (error) {
-        showNotification('Network error.', 3000);
-        console.error("Register Error:", error);
-    }
-}
-
+// CENTRALIZED VERSION: handleLogout will now call the centralized one
 function handleLogout() {
-    localStorage.removeItem('snugos_token');
-    loggedInUser = null;
-    showNotification('You have been logged out.', 2000);
+    centralizedHandleLogout(); // Call the function exported from auth.js
+    // Any profile-specific UI resets for logout
     window.location.reload(); // Reload the page to reflect logout status
 }
 
-function showLoginModal() {
-    const modalContent = `
-        <div class="space-y-4">
-            <div>
-                <h3 class="font-bold mb-2">Login</h3>
-                <form id="loginForm" class="space-y-3">
-                    <input type="text" id="loginUsername" placeholder="Username" required class="w-full p-2 border rounded" style="background-color: var(--bg-input); color: var(--text-primary);">
-                    <input type="password" id="loginPassword" placeholder="Password" required class="w-full p-2 border rounded" style="background-color: var(--bg-input); color: var(--text-primary);">
-                    <button type="submit" class="w-full p-2 rounded" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">Login</button>
-                </form>
-            </div>
-            <hr style="border-color: var(--border-secondary);">
-            <div>
-                <h3 class="font-bold mb-2">Register</h3>
-                <form id="registerForm" class="space-y-3">
-                    <input type="text" id="registerUsername" placeholder="Username" required class="w-full p-2 border rounded" style="background-color: var(--bg-input); color: var(--text-primary);">
-                    <input type="password" id="registerPassword" placeholder="Password (min. 6)" required class="w-full p-2 border rounded" style="background-color: var(--bg-input); color: var(--text-primary);">
-                    <button type="submit" class="w-full p-2 rounded" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">Register</button>
-                </form>
-            </div>
-        </div>
-    `;
-    const { overlay } = showCustomModal('Login or Register', modalContent, []);
-    overlay.querySelector('#loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = overlay.querySelector('#loginUsername').value;
-        const password = overlay.querySelector('#loginPassword').value;
-        await handleLogin(username, password);
-        overlay.remove();
-    });
-    overlay.querySelector('#registerForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = overlay.querySelector('#registerUsername').value;
-        const password = overlay.querySelector('#registerPassword').value;
-        await handleRegister(username, password);
-        overlay.remove();
-    });
-}
-
-// Global UI functions (clock, start menu, full screen, desktop event listeners)
-function updateClockDisplay() {
-    const clockDisplay = document.getElementById('taskbarClockDisplay');
-    if (clockDisplay) {
-        clockDisplay.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    setTimeout(updateClockDisplay, 60000);
-}
-
-function toggleStartMenu() {
-    document.getElementById('startMenu')?.classList.toggle('hidden');
-}
-
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            showNotification(`Error: ${err.message}`, 3000);
-        });
-    } else {
-        if(document.exitFullscreen) document.exitFullscreen();
-    }
-}
-
-function attachDesktopEventListeners() {
-    // Top-level elements
-    document.getElementById('startButton')?.addEventListener('click', toggleStartMenu);
-    document.getElementById('menuLogin')?.addEventListener('click', () => { toggleStartMenu(); showLoginModal(); });
-    document.getElementById('menuLogout')?.addEventListener('click', handleLogout);
-
-    // Links in the start menu (will open new tabs/windows)
-    document.getElementById('menuLaunchDaw')?.addEventListener('click', () => { window.open('/app/snaw.html', '_blank'); toggleStartMenu(); });
-    document.getElementById('menuOpenLibrary')?.addEventListener('click', () => { window.open('/app/js/daw/browser/browser.html', '_blank'); toggleStartMenu(); }); // Browser link
-    document.getElementById('menuViewProfiles')?.addEventListener('click', () => { window.open('/app/js/daw/profiles/profile.html', '_blank'); toggleStartMenu(); }); // Profile link
-    document.getElementById('menuOpenMessages')?.addEventListener('click', () => { window.open('/app/js/daw/messages/messages.html', '_blank'); toggleStartMenu(); }); // Messages link
-
-    // Generic context menu for desktop background
-    const desktop = document.getElementById('desktop');
-    if (desktop) {
-        desktop.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const menuItems = [
-                { label: 'Change Background', action: () => document.getElementById('customBgInput').click() }
-            ];
-            createContextMenu(e, menuItems);
-        });
-
-        document.getElementById('customBgInput')?.addEventListener('change', async (e) => {
-            if(!e.target.files || !e.target.files[0] || !loggedInUser) return;
-            const file = e.target.files[0];
-            await handleBackgroundUpload(file);
-            e.target.value = null;
-        });
-    }
-
-    document.getElementById('menuToggleFullScreen')?.addEventListener('click', toggleFullScreen);
+// NEW: Function to open the centralized login modal
+function showLoginModalProfile() {
+    centralizedShowLoginModal(); // Call the function exported from auth.js
 }
 
 
-// --- Main Window and UI Functions ---
+// --- Profile Specific Functions ---
 
-// Main entry point for the Profile application when loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Populate appServices for this standalone desktop's context
-    appServices.addWindowToStore = addWindowToStore;
-    appServices.removeWindowFromStore = removeWindowFromStore;
-    appServices.incrementHighestZ = incrementHighestZ;
-    appServices.getHighestZ = getHighestZ;
-    appServices.setHighestZ = setHighestZ;
-    appServices.getOpenWindows = getOpenWindows;
-    appServices.getWindowById = getWindowById;
-    appServices.createContextMenu = createContextMenu; // From utils.js
-    appServices.showNotification = showNotification;   // From utils.js
-    appServices.showCustomModal = showCustomModal;     // From utils.js
+async function fetchProfileData(username, container) {
+    container.innerHTML = '<p class="p-8 text-center" style="color: var(--text-secondary);">Loading Profile...</p>';
 
-    // Global state imports for appServices
-    appServices.applyUserThemePreference = applyUserThemePreference;
-    appServices.setCurrentUserThemePreference = setCurrentUserThemePreference;
-    appServices.getCurrentUserThemePreference = getCurrentUserThemePreference;
-
-    loggedInUser = checkLocalAuth();
-    loadAndApplyGlobals(); // Call local function loadAndApplyGlobals
-    attachDesktopEventListeners(); // Call local function attachDesktopEventListeners
-    updateClockDisplay(); // Call local function updateClockDisplay
-    
-    // Get username from URL parameters or default to logged-in user
-    const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('user') || (loggedInUser ? loggedInUser.username : null);
-
-    if (username) {
-        openProfileWindow(username); // Open profile for specified user
-    } else {
-        // If no username in URL and not logged in, show login modal
-        const desktop = document.getElementById('desktop');
-        if(desktop) {
-            desktop.innerHTML = `<div class="w-full h-full flex items-center justify-center"><p class="text-xl" style="color:var(--text-primary);">Please log in or specify a user in the URL to view a profile.</p></div>`;
-        }
-        showLoginModal();
-    }
-});
-
-async function openProfileWindow(username) {
-    // For a standalone app, this function *is* the main window logic.
-    // We update its content directly.
-    const profileContainer = document.getElementById('profile-container');
-    if (!profileContainer) return; // Ensure profile container exists
-
-    profileContainer.innerHTML = '<p class="p-8 text-center" style="color: var(--text-secondary);">Loading Profile...</p>';
-    
     try {
-        const token = localStorage.getItem('snugos_token');
+        const fetchUrl = `${SERVER_URL}/api/profiles/${username}`;
+
+        // Only fetch friend status if current user is logged in
+        // Use `getLoggedInUser()` to check current login status
+        const friendStatusPromise = getLoggedInUser() ? fetch(`${SERVER_URL}/api/profiles/${username}/friend-status`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('snugos_token')}` } }) : Promise.resolve(null);
+
         const [profileRes, friendStatusRes] = await Promise.all([
-            fetch(`${SERVER_URL}/api/profiles/${username}`),
-            token ? fetch(`${SERVER_URL}/api/profiles/${username}/friend-status`, { headers: { 'Authorization': `Bearer ${token}` } }) : Promise.resolve(null)
+            fetch(fetchUrl),
+            friendStatusPromise
         ]);
 
-        const profileData = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileData.message);
-        
-        const friendStatusData = friendStatusRes ? await friendStatusRes.json() : null;
-        
-        currentProfileData = profileData.profile;
-        currentProfileData.isFriend = friendStatusData?.isFriend || false;
+        const profileDataJson = await profileRes.json();
+        if (!profileRes.ok) {
+            throw new Error(profileDataJson.message || `Failed to fetch profile for ${username}.`);
+        }
 
-        updateProfileUI(profileData); // Pass profileData directly
-        
-        // Attach profile-specific event listeners after UI is updated
-        attachProfileSpecificEventListeners(profileData);
+        currentProfileData = profileDataJson.profile;
+        currentProfileData.isFriend = friendStatusRes ? (await friendStatusRes.json()).isFriend : false;
+
+        updateProfileUI(currentProfileData);
 
     } catch (error) {
-        profileContainer.innerHTML = `<p class="p-8 text-center" style="color:red;">Error: ${error.message}</p>`;
+        container.innerHTML = `<p class="p-8 text-center" style="color:red;">Error: ${error.message}</p>`;
         showNotification(`Failed to load profile: ${error.message}`, 4000);
-        console.error("Error loading profile:", error);
     }
 }
 
 function updateProfileUI(profileData) {
-    const profileContainer = document.getElementById('profile-container');
-    if (!profileContainer) return;
-
-    const isOwner = loggedInUser && loggedInUser.id === profileData.id;
+    // Use `getLoggedInUser()` to check current login status
+    const isOwner = getLoggedInUser() && getLoggedInUser().id === profileData.id;
     const joinDate = new Date(profileData.created_at).toLocaleDateString();
 
     let avatarContent = profileData.avatar_url
@@ -320,11 +143,11 @@ function updateProfileUI(profileData) {
         : `<span class="text-4xl font-bold">${profileData.username.charAt(0).toUpperCase()}</span>`;
 
     const uploadOverlay = isOwner ? `<div id="avatarOverlay" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer" title="Change Profile Picture"><svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 11.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 6.5 12 6.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5z"/></svg></div>` : '';
-        
+
     let actionButtons = '';
     if (isOwner) {
         actionButtons = `<button id="editProfileBtn" class="px-4 py-2 rounded" style="background-color: var(--bg-button); border: 1px solid var(--border-button); color: var(--text-button);">Edit Profile</button>`;
-    } else if (loggedInUser) {
+    } else if (getLoggedInUser()) { // Show friend/message buttons if logged in and not owner.
         const friendBtnText = profileData.isFriend ? 'Remove Friend' : 'Add Friend';
         const friendBtnColor = profileData.isFriend ? 'var(--accent-armed)' : 'var(--accent-active)';
         actionButtons = `
@@ -333,8 +156,9 @@ function updateProfileUI(profileData) {
         `;
     }
 
-    // Main profile content structure
-    profileContainer.innerHTML = `
+    const newContent = document.createElement('div');
+    newContent.className = "h-full w-full";
+    newContent.innerHTML = `
         <div class="bg-window text-primary h-full flex flex-col">
             <div class="relative h-40 bg-gray-700 bg-cover bg-center flex-shrink-0" style="background-image: url(${profileData.background_url || ''})">
                 <div id="avatarContainer" class="absolute bottom-0 left-6 transform translate-y-1/2 w-28 h-28 rounded-full border-4 border-window bg-gray-500 flex items-center justify-center text-white overflow-hidden">
@@ -349,54 +173,17 @@ function updateProfileUI(profileData) {
         </div>
     `;
 
-    const profileBody = profileContainer.querySelector('#profile-body-content');
+    const profileBody = newContent.querySelector('#profile-body-content');
     if (isEditing && isOwner) {
         renderEditMode(profileBody, profileData);
     } else {
         renderViewMode(profileBody, profileData);
     }
+
+    const profileContainerEl = document.getElementById('profile-container');
+    profileContainerEl.innerHTML = ''; // Clear existing content
+    profileContainerEl.appendChild(newContent);
 }
-
-function attachProfileSpecificEventListeners(profileData) {
-    const profileContainer = document.getElementById('profile-container');
-    if (!profileContainer) return;
-
-    const isOwner = loggedInUser && loggedInUser.id === profileData.id;
-
-    if (isOwner) {
-        profileContainer.querySelector('#avatarOverlay')?.addEventListener('click', () => document.getElementById('avatarUploadInput').click());
-        document.getElementById('avatarUploadInput')?.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files[0]) handleAvatarUpload(e.target.files[0]);
-            e.target.value = null;
-        });
-
-        profileContainer.querySelector('#editProfileBtn')?.addEventListener('click', () => {
-            isEditing = !isEditing;
-            updateProfileUI(profileData);
-        });
-        document.getElementById('customBgInput')?.addEventListener('change', async (e) => {
-            if(!e.target.files || !e.target.files[0] || !loggedInUser) return;
-            const file = e.target.files[0];
-            await handleBackgroundUpload(file);
-            e.target.value = null;
-        });
-        // Context menu for background
-        const backgroundArea = profileContainer.querySelector('.relative.h-40');
-        if (backgroundArea) {
-            backgroundArea.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                const menuItems = [
-                    { label: 'Change Background', action: () => document.getElementById('customBgInput').click() }
-                ];
-                createContextMenu(e, menuItems);
-            });
-        }
-    } else if (loggedInUser) {
-        profileContainer.querySelector('#addFriendBtn')?.addEventListener('click', () => handleAddFriendToggle(profileData.username, profileData.isFriend));
-        profileContainer.querySelector('#messageBtn')?.addEventListener('click', () => showMessageModal(profileData.username));
-    }
-}
-
 
 function renderViewMode(container, profileData) {
     container.innerHTML = `
@@ -429,24 +216,26 @@ function renderEditMode(container, profileData) {
     });
 }
 
+// handleAvatarUpload will use centralized auth.js/utils.js
 async function handleAvatarUpload(file) {
-    if (!loggedInUser) return;
-    showNotification("Uploading picture...", 2000);
+    // Use `getLoggedInUser()` to check current login status
+    if (!getLoggedInUser()) return;
+    showNotification("Uploading picture...", 2000); // Use showNotification from utils.js
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('path', '/avatars/');
+    formData.append('path', '/avatars/'); // Specific path for avatars
     try {
         const token = localStorage.getItem('snugos_token');
-        const uploadResponse = await fetch(`${SERVER_URL}/api/files/upload`, {
+        const response = await fetch(`${SERVER_URL}/api/files/upload`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
-        const uploadResult = await uploadResponse.json();
+        const uploadResult = await response.json();
         if (!uploadResult.success) throw new Error(uploadResult.message);
-        
+
         const newAvatarUrl = uploadResult.file.s3_url;
-        
+
         const settingsResponse = await fetch(`${SERVER_URL}/api/profile/settings`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -456,13 +245,15 @@ async function handleAvatarUpload(file) {
         if (!settingsResult.success) throw new Error(settingsResult.message);
 
         showNotification("Profile picture updated!", 2000);
-        openProfileWindow(loggedInUser.username); // Re-open profile to refresh
+        openProfileWindow(getLoggedInUser().username); // Re-open profile to refresh using central user data
+
     } catch (error) {
         showNotification(`Update failed: ${error.message}`, 4000);
         console.error("Avatar Upload Error:", error);
     }
 }
 
+// saveProfile will use centralized auth.js/utils.js
 async function saveProfile(username, dataToSave) {
     const token = localStorage.getItem('snugos_token');
     if (!token) return;
@@ -535,3 +326,201 @@ async function sendMessage(recipientUsername, content) {
         console.error("Send Message Error:", error);
     }
 }
+
+// --- Main App Renderer & Event Listeners ---
+
+function renderProfileApp() {
+    // Check auth status from centralized auth.js module
+    loggedInUser = getLoggedInUser();
+
+    // Update logged in user display in header
+    if (loggedInUser) {
+        const loggedInUserSpan = document.getElementById('logged-in-user');
+        const logoutBtn = document.getElementById('logout-btn');
+        if (loggedInUserSpan) loggedInUserSpan.innerHTML = `Logged in as: <span class="font-semibold" style="color: var(--text-primary);">${loggedInUser.username}</span>`;
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+        document.getElementById('app-content')?.classList.remove('hidden'); // Show the main profile content
+
+        // Fetch profile data based on URL or current user
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('user') || loggedInUser.username; // Default to current user's profile
+        fetchProfileData(username, document.getElementById('profile-container')); // Pass profile-container reference
+    } else {
+        // Not logged in: Show the login page
+        const loggedInUserSpan = document.getElementById('logged-in-user');
+        const logoutBtn = document.getElementById('logout-btn');
+        if (loggedInUserSpan) loggedInUserSpan.textContent = '';
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+        document.getElementById('app-content')?.classList.add('hidden'); // Hide profile content
+        document.getElementById('login-page')?.classList.remove('hidden'); // Show login page
+
+        // Reset login/register form titles/buttons
+        const authTitle = document.getElementById('auth-title');
+        const authBtnText = document.getElementById('auth-btn-text');
+        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+        if (authTitle) authTitle.textContent = 'Login to SnugOS Profile';
+        if (authBtnText) authBtnText.textContent = 'Login';
+        if (toggleAuthModeBtn) toggleAuthModeBtn.textContent = 'Need an account? Register';
+    }
+}
+
+function attachProfileEventListeners() {
+    const logoutBtn = document.getElementById('logout-btn');
+    const authForm = document.getElementById('auth-form');
+    const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+    const avatarUploadInput = document.getElementById('avatarUploadInput');
+    const customBgInput = document.getElementById('customBgInput');
+
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    // If authForm exists (meaning login page is present)
+    if (authForm) {
+        authForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const authMessage = document.getElementById('auth-message');
+            if (!username || !password) {
+                if (authMessage) authMessage.textContent = 'Please enter both username and password.';
+                if (authMessage) authMessage.classList.remove('hidden');
+                return;
+            }
+
+            if (authMessage) authMessage.classList.add('hidden');
+            const authSubmitBtn = document.getElementById('auth-submit-btn');
+            const authSpinner = document.getElementById('auth-spinner');
+            const authBtnText = document.getElementById('auth-btn-text');
+
+            if (authSubmitBtn) authSubmitBtn.disabled = true;
+            if (authSpinner) authSpinner.classList.remove('hidden');
+            if (authBtnText) authBtnText.textContent = authMode === 'register' ? 'Registering...' : 'Logging in...';
+
+            try {
+                if (authMode === 'register') {
+                    await centralizedHandleRegister(username, password);
+                } else {
+                    await centralizedHandleLogin(username, password);
+                }
+                // After successful login/register, renderProfileApp will handle UI update
+                renderProfileApp();
+            } catch (error) {
+                console.error("Authentication error:", error);
+                if (authMessage) authMessage.textContent = 'Network error or server unavailable.';
+                if (authMessage) authMessage.classList.remove('hidden');
+            } finally {
+                if (authSubmitBtn) authSubmitBtn.disabled = false;
+                if (authSpinner) authSpinner.classList.add('hidden');
+                if (authBtnText) authBtnText.textContent = authMode === 'register' ? 'Register' : 'Login';
+            }
+        });
+    }
+
+    if (toggleAuthModeBtn) {
+        toggleAuthModeBtn.addEventListener('click', () => {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            // Update auth form UI based on mode
+            const authTitle = document.getElementById('auth-title');
+            const authBtnText = document.getElementById('auth-btn-text');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+
+            if (authTitle) authTitle.textContent = authMode === 'register' ? 'Register to SnugOS Profile' : 'Login to SnugOS Profile';
+            if (authBtnText) authBtnText.textContent = authMode === 'register' ? 'Register' : 'Login';
+            if (toggleAuthModeBtn) toggleAuthModeBtn.textContent = authMode === 'register' ? 'Already have an account? Login' : 'Need an account? Register';
+            const authMessage = document.getElementById('auth-message');
+            if (authMessage) authMessage.classList.add('hidden'); // Clear message on toggle
+            if (usernameInput) usernameInput.value = ''; // Clear fields
+            if (passwordInput) passwordInput.value = '';
+        });
+    }
+
+    // Attach avatar and background upload input listeners
+    if (avatarUploadInput) avatarUploadInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleAvatarUpload(e.target.files[0]);
+        e.target.value = null; // Clear the input
+    });
+    if (customBgInput) customBgInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleBackgroundUpload(e.target.files[0]);
+        e.target.value = null; // Clear the input
+    });
+
+    // Attach profile-specific action listeners
+    const profileContainer = document.getElementById('profile-container');
+    if (profileContainer) {
+        // Event delegation for dynamically added elements (like avatarOverlay, edit/friend/message buttons)
+        profileContainer.addEventListener('click', (e) => {
+            if (e.target.id === 'avatarOverlay') {
+                document.getElementById('avatarUploadInput')?.click();
+            } else if (e.target.id === 'editProfileBtn') {
+                isEditing = !isEditing;
+                updateProfileUI(currentProfileData);
+            } else if (e.target.id === 'addFriendBtn') {
+                handleAddFriendToggle(currentProfileData.username, currentProfileData.isFriend);
+            } else if (e.target.id === 'messageBtn') {
+                showMessageModal(currentProfileData.username);
+            } else if (e.target.closest('.username-link')) { // Handle links to other profiles
+                e.preventDefault();
+                const targetUsername = e.target.closest('.username-link').dataset.username;
+                if (targetUsername) {
+                    window.location.href = `profile.html?user=${targetUsername}`;
+                }
+            }
+        });
+        profileContainer.addEventListener('submit', (e) => {
+            if (e.target.id === 'editProfileForm') {
+                e.preventDefault();
+                const newBio = e.target.querySelector('#editBio').value;
+                saveProfile(currentProfileData.username, { bio: newBio });
+            }
+        });
+        // Context menu for background
+        const backgroundArea = profileContainer.querySelector('.relative.h-40');
+        if (backgroundArea) {
+            backgroundArea.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const menuItems = [
+                    { label: 'Change Background', action: () => document.getElementById('customBgInput')?.click() }
+                ];
+                createContextMenu(e, menuItems);
+            });
+        }
+    }
+}
+
+
+// --- Initial Setup ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Populate appServices for this standalone desktop's context
+    // This is a minimal appServices needed for this specific standalone page
+    Object.assign(appServices, {
+        // From windowState.js (if SnugWindow is used on this page, otherwise not strictly needed)
+        getWindowById: getWindowById, addWindowToStore: addWindowToStore, removeWindowFromStore: removeWindowFromStore,
+        incrementHighestZ: incrementHighestZ, getHighestZ: getHighestZ, setHighestZ: setHighestZ, getOpenWindows: getOpenWindows,
+        serializeWindows: serializeWindows, reconstructWindows: reconstructWindows,
+
+        // Utilities from utils.js
+        showNotification: showNotification, showCustomModal: showCustomModal, createContextMenu: createContextMenu,
+
+        // AppState functions (for theme management)
+        applyUserThemePreference: applyUserThemePreference, // local helper for theme
+        setCurrentUserThemePreference: setCurrentUserThemePreference,
+        getCurrentUserThemePreference: getCurrentUserThemePreference,
+
+        // DB functions from db.js (for asset handling)
+        storeAsset: storeAsset, getAsset: getAsset, // Ensure these are correctly imported at the top of this file
+    });
+
+    // Check initial auth state and render app
+    renderProfileApp();
+    attachProfileEventListeners(); // Call specific event listeners for profile page
+    updateClockDisplay();
+    applyUserThemePreference(); // Apply theme on load
+    // initAudioOnFirstGesture() is not typically needed on a profile page as it doesn't involve audio output directly.
+});
+
+// Function to handle opening other standalone apps from menu (e.g., messages, browser, DAW)
+// These are not part of the profile-specific logic but needed for menu functionality
+function launchDaw() { window.open('/app/snaw.html', '_blank'); toggleStartMenu(); }
+function openBrowser() { window.open('/app/js/daw/browser/browser.html', '_blank'); toggleStartMenu(); }
+function openMessages() { window.open('/app/js/daw/messages/messages.html', '_blank'); toggleStartMenu(); }
+// Add more functions for other standalone apps if needed
