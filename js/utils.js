@@ -38,33 +38,35 @@ export function showCustomModal(title, contentHTML, buttonsConfig = [], modalId 
     const existingModal = document.getElementById(modalId);
     if (existingModal) existingModal.remove(); // Remove if already exists
 
+    const modalContainer = document.getElementById('modalContainer');
+    if (!modalContainer) {
+        console.error("CRITICAL: Modal container not found in DOM.");
+        return;
+    }
+
     const modalOverlay = document.createElement('div');
     modalOverlay.id = modalId;
-    modalOverlay.className = 'modal-container'; // Use this for overlay styling
+    modalOverlay.className = 'modal-overlay'; // Use this for overlay styling
 
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-content';
+    const modalDialog = document.createElement('div');
+    modalDialog.className = 'modal-dialog';
+    
+    modalDialog.innerHTML = `
+        <div class="modal-title-bar">${title}</div>
+        <div class="modal-content">${contentHTML}</div>
+        <div class="modal-buttons"></div>
+    `;
 
-    const modalHeader = document.createElement('h2');
-    modalHeader.textContent = title;
-    modalContent.appendChild(modalHeader);
-
-    const modalBody = document.createElement('div');
-    modalBody.className = 'modal-body';
-    modalBody.innerHTML = contentHTML;
-    modalContent.appendChild(modalBody);
-
-    const modalButtons = document.createElement('div');
-    modalButtons.className = 'modal-buttons';
+    const modalButtons = modalDialog.querySelector('.modal-buttons');
 
     if (buttonsConfig.length === 0) { // Add a default close button if none provided
-        buttonsConfig.push({ text: 'Close', type: 'cancel', action: () => modalOverlay.remove() });
+        buttonsConfig.push({ text: 'Close', class: 'secondary', action: () => { /* no-op */ } });
     }
 
     buttonsConfig.forEach(btnConfig => {
         const button = document.createElement('button');
         button.textContent = btnConfig.text;
-        button.classList.add(btnConfig.type || 'cancel'); // 'confirm' or 'cancel' for styling
+        button.className = btnConfig.class === 'confirm' ? 'btn-confirm' : 'btn-secondary'; // Example classes
         button.addEventListener('click', () => {
             if (btnConfig.action) btnConfig.action();
             modalOverlay.remove(); // Always remove modal after action
@@ -72,63 +74,93 @@ export function showCustomModal(title, contentHTML, buttonsConfig = [], modalId 
         modalButtons.appendChild(button);
     });
 
-    modalContent.appendChild(modalButtons);
-    modalOverlay.appendChild(modalContent);
-    document.body.appendChild(modalOverlay);
+    modalOverlay.appendChild(modalDialog);
+    modalContainer.appendChild(modalOverlay);
 
     // Focus on the first button for accessibility
     const firstButton = modalButtons.querySelector('button');
     if (firstButton) firstButton.focus();
     
-    return { overlay: modalOverlay, contentDiv: modalBody };
+    return { overlay: modalOverlay, contentDiv: modalDialog.querySelector('.modal-content') };
 }
 
 
 export function showConfirmationDialog(title, message, onConfirm, onCancel) {
     const buttons = [
-        { text: 'Confirm', type: 'confirm', action: onConfirm },
-        { text: 'Cancel', type: 'cancel', action: onCancel }
+        { text: 'Confirm', class: 'confirm', action: onConfirm },
+        { text: 'Cancel', class: 'secondary', action: onCancel }
     ];
     showCustomModal(title, `<p>${message}</p>`, buttons, 'confirmationDialog');
 }
 
 
 export function createDropZoneHTML(trackId, fileInputId, targetType, index = null, existingAudioData = null) {
-    let statusClass = 'status-empty';
-    let statusText = 'Drop audio file here, or click to browse.';
+    let statusClass = '';
+    let statusText = 'Drop audio file or click to browse.';
+    let hasFile = false;
+
     if (existingAudioData) {
-        if (existingAudioData.status === 'loaded') { statusClass = 'status-loaded'; statusText = `Loaded: ${existingAudioData.originalFileName}`; }
-        else if (existingAudioData.status === 'missing' || existingAudioData.status === 'missing_db') { statusClass = 'status-missing'; statusText = `Missing: ${existingAudioData.originalFileName || 'Unknown File'}`; }
-        else if (existingAudioData.status === 'error') { statusClass = 'status-error'; statusText = `Error loading: ${existingAudioData.originalFileName || 'Unknown File'}`; }
-        else if (existingAudioData.originalFileName) { statusClass = 'status-missing'; statusText = `File: ${existingAudioData.originalFileName} (Tap to load)`;}
+        hasFile = !!(existingAudioData.originalFileName || existingAudioData.fileName);
+        switch (existingAudioData.status) {
+            case 'loaded':
+                statusClass = 'status-loaded text-green-400';
+                statusText = `Loaded: ${existingAudioData.originalFileName || existingAudioData.fileName}`;
+                break;
+            case 'missing':
+            case 'missing_db':
+                statusClass = 'status-missing text-yellow-500';
+                statusText = `Missing: ${existingAudioData.originalFileName || existingAudioData.fileName}`;
+                break;
+            case 'error':
+                statusClass = 'status-error text-red-500';
+                statusText = `Error: ${existingAudioData.originalFileName || existingAudioData.fileName}`;
+                break;
+            case 'loading':
+                 statusClass = 'status-loading text-blue-400';
+                 statusText = `Loading...`;
+                 break;
+            default:
+                if (hasFile) {
+                    statusClass = 'status-missing text-yellow-500';
+                    statusText = `File: ${existingAudioData.originalFileName || existingAudioData.fileName}`;
+                }
+                break;
+        }
     }
 
     const indexAttr = index !== null ? `data-index="${index}"` : '';
+    const clickHandler = `document.getElementById('${fileInputId}').click(); event.stopPropagation();`;
+
     return `
-        <div class="drop-zone" data-track-id="${trackId}" data-target-type="${targetType}" ${indexAttr}>
-            <p class="${statusClass}">${statusText}</p>
+        <div class="drop-zone p-2 border-2 border-dashed border-gray-600 dark:border-slate-500 rounded-md text-center cursor-pointer hover:bg-gray-700 dark:hover:bg-slate-600 transition-colors" 
+             data-track-id="${trackId}" 
+             data-target-type="${targetType}" 
+             ${indexAttr}
+             onclick="${clickHandler}">
+            <p class="text-xs ${statusClass}">${statusText}</p>
             <input type="file" id="${fileInputId}" class="hidden" accept="audio/*">
-            <button onclick="document.getElementById('${fileInputId}').click();">Browse</button>
+            ${hasFile ? `<button class="text-xs text-blue-400 hover:underline mt-1 drop-zone-relink-button">Relink</button>` : ''}
         </div>
     `;
 }
+
 
 export function setupGenericDropZoneListeners(dropZoneElement, trackId, targetType, index, loadFromBrowserCallback, fileLoadCallback) {
     dropZoneElement.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropZoneElement.classList.add('dragover');
+        dropZoneElement.classList.add('dragover', 'bg-slate-600', 'border-sky-400');
         e.dataTransfer.dropEffect = 'copy';
     });
     dropZoneElement.addEventListener('dragleave', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropZoneElement.classList.remove('dragover');
+        dropZoneElement.classList.remove('dragover', 'bg-slate-600', 'border-sky-400');
     });
     dropZoneElement.addEventListener('drop', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropZoneElement.classList.remove('dragover');
+        dropZoneElement.classList.remove('dragover', 'bg-slate-600', 'border-sky-400');
         const files = e.dataTransfer.files;
         const jsonDataString = e.dataTransfer.getData("application/json");
 
@@ -141,9 +173,8 @@ export function setupGenericDropZoneListeners(dropZoneElement, trackId, targetTy
             } catch (err) { console.error("Error parsing dropped JSON for dropzone:", err); }
         } else if (files && files.length > 0) {
             if (typeof fileLoadCallback === 'function') {
-                // Create a mock event object for fileLoadCallback
                 const mockEvent = { target: { files: files } };
-                fileLoadCallback(mockEvent, trackId, index); // Assuming padIndex for drum samplers
+                fileLoadCallback(mockEvent, trackId, index);
             }
         }
     });
@@ -160,51 +191,70 @@ export function snapTimeToGrid(timeInSeconds, snapIntervalSeconds) {
     return Math.round(timeInSeconds / snapIntervalSeconds) * snapIntervalSeconds;
 }
 
-// Context Menu
+// --- Context Menu (Corrected for Memory Leaks) ---
 let activeContextMenu = null;
+let activeCloseListener = null;
+let activeBlurListener = null;
+
+function removeActiveContextMenuListeners() {
+    if (activeCloseListener) {
+        document.removeEventListener('click', activeCloseListener, { capture: true });
+        document.removeEventListener('contextmenu', activeCloseListener, { capture: true });
+    }
+    if (activeBlurListener) {
+        window.removeEventListener('blur', activeBlurListener);
+    }
+    activeCloseListener = null;
+    activeBlurListener = null;
+}
+
 export function createContextMenu(event, menuItems, appServicesForZIndex) {
-    if (activeContextMenu) activeContextMenu.remove();
+    // Clean up any existing listeners and menus before creating a new one
+    if (activeContextMenu) {
+        activeContextMenu.remove();
+    }
+    removeActiveContextMenuListeners();
+    
     event.preventDefault();
     event.stopPropagation();
 
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.id = 'snug-context-menu'; // Added an ID
+    menu.id = 'snug-context-menu';
 
     const ul = document.createElement('ul');
     menuItems.forEach(item => {
+        const li = document.createElement('li');
         if (item.separator) {
+            li.className = 'context-menu-separator';
             const hr = document.createElement('hr');
-            ul.appendChild(hr);
+            li.appendChild(hr);
         } else {
-            const li = document.createElement('li');
+            li.className = 'context-menu-item';
             li.textContent = item.label;
             if (item.disabled) {
                 li.classList.add('disabled');
             } else {
                 li.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent click from closing menu if action opens another menu/modal
+                    e.stopPropagation(); 
                     item.action();
-                    if (activeContextMenu) activeContextMenu.remove(); // Close after action
-                    activeContextMenu = null;
+                    // The close listener will handle removing the menu
                 });
             }
-            ul.appendChild(li);
         }
+        ul.appendChild(li);
     });
+
     menu.appendChild(ul);
     document.body.appendChild(menu);
     activeContextMenu = menu;
 
-    const zIndex = appServicesForZIndex && appServicesForZIndex.incrementHighestZ ? appServicesForZIndex.incrementHighestZ() : 10003;
+    const zIndex = appServicesForZIndex?.incrementHighestZ ? appServicesForZIndex.incrementHighestZ() : 10003;
     menu.style.zIndex = zIndex;
 
-    // Position the menu
     const { clientX: mouseX, clientY: mouseY } = event;
-    const menuWidth = menu.offsetWidth;
-    const menuHeight = menu.offsetHeight;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const { offsetWidth: menuWidth, offsetHeight: menuHeight } = menu;
+    const { innerWidth: viewportWidth, innerHeight: viewportHeight } = window;
 
     let top = mouseY;
     let left = mouseX;
@@ -215,36 +265,26 @@ export function createContextMenu(event, menuItems, appServicesForZIndex) {
     if (mouseY + menuHeight > viewportHeight) {
         top = mouseY - menuHeight;
     }
-    menu.style.top = `${top}px`;
-    menu.style.left = `${left}px`;
-
-    // Close listener
+    menu.style.top = `${Math.max(0, top)}px`;
+    menu.style.left = `${Math.max(0, left)}px`;
+    
     const closeListener = (e) => {
-        if (activeContextMenu && (!menu.contains(e.target) || e.type === 'contextmenu' && e.target !== menu && !menu.contains(e.target))) {
+        if (activeContextMenu) {
             try {
                 activeContextMenu.remove();
-            } catch (removeError) { /* ignore if already removed */ }
+            } catch (removeError) { /* ignore */ }
             activeContextMenu = null;
-            document.removeEventListener('click', closeListener, { capture: true });
-            document.removeEventListener('contextmenu', closeListener, { capture: true });
-            window.removeEventListener('blur', closeListenerBlur); // Also remove blur listener
         }
+        removeActiveContextMenuListeners();
     };
-    const closeListenerBlur = () => { // Separate for blur as it doesn't have e.target
-        if (activeContextMenu) {
-             try { activeContextMenu.remove(); } catch (removeError) { /* ignore */ }
-            activeContextMenu = null;
-            document.removeEventListener('click', closeListener, { capture: true });
-            document.removeEventListener('contextmenu', closeListener, { capture: true });
-            window.removeEventListener('blur', closeListenerBlur);
-        }
-    }
 
-    // Add listeners after a short delay to avoid capturing the event that opened the menu
+    activeCloseListener = closeListener;
+    activeBlurListener = closeListener; // Can use the same function for blur
+
     setTimeout(() => {
-        document.addEventListener('click', closeListener, { capture: true });
-        document.addEventListener('contextmenu', closeListener, { capture: true });
-        window.addEventListener('blur', closeListenerBlur); // Close on window blur
+        document.addEventListener('click', activeCloseListener, { capture: true });
+        document.addEventListener('contextmenu', activeCloseListener, { capture: true });
+        window.addEventListener('blur', activeBlurListener);
     }, 0);
 
     return menu;
