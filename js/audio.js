@@ -4,8 +4,6 @@ import { showNotification } from './utils.js';
 // getEffectDefaultParams will now be accessed via appServices.effectsRegistryAccess
 import { createEffectInstance } from './effectsRegistry.js';
 import { storeAudio, getAudio } from './db.js';
-import { getRecordingTrackIdState, getRecordingStartTimeState } from './state.js'; // Import state getters
-
 
 let masterEffectsBusInputNode = null;
 let masterGainNodeActual = null; // The actual Tone.Gain node for master volume
@@ -15,11 +13,6 @@ let activeMasterEffectNodes = new Map();
 let audioContextInitialized = false;
 
 let localAppServices = {};
-
-// Variables for audio recording
-let mic = null;
-let recorder = null;
-
 
 export function initializeAudioModule(appServicesFromMain) {
     localAppServices = appServicesFromMain;
@@ -707,68 +700,4 @@ export function clearAllMasterEffectNodes() {
     activeMasterEffectNodes.clear();
     // After clearing, the chain needs to be rebuilt to connect bus input to master gain directly
     rebuildMasterEffectChain();
-}
-
-// --- Audio Recording Functions ---
-export async function startAudioRecording() {
-    if (!mic) {
-        mic = new Tone.UserMedia();
-    }
-    if (!recorder) {
-        recorder = new Tone.Recorder();
-    }
-
-    const trackId = getRecordingTrackIdState(); // From state.js via import
-    const track = localAppServices.getTrackById(trackId); // From appServices (main.js)
-
-    if (!track || track.type !== 'Audio' || !track.inputChannel || track.inputChannel.disposed) {
-        showNotification("Recording failed: Armed track is not a valid audio track or input channel is missing.", 3000);
-        if(localAppServices.setIsRecording) localAppServices.setIsRecording(false);
-        if(localAppServices.setRecordingTrackId) localAppServices.setRecordingTrackId(null);
-        if(localAppServices.updateRecordButtonUI) localAppServices.updateRecordButtonUI(false);
-        return;
-    }
-
-    try {
-        await mic.open();
-        mic.connect(track.inputChannel); // For monitoring (goes through track's effects and gain)
-        mic.connect(recorder); // Also send raw mic input to recorder
-        await recorder.start();
-    } catch (error) {
-        console.error("Error starting microphone/recorder:", error);
-        showNotification("Could not start recording. Microphone access denied or other error.", 4000);
-        if(localAppServices.setIsRecording) localAppServices.setIsRecording(false);
-        if(localAppServices.setRecordingTrackId) localAppServices.setRecordingTrackId(null);
-        if(localAppServices.updateRecordButtonUI) localAppServices.updateRecordButtonUI(false);
-    }
-}
-
-export async function stopAudioRecording() {
-    if (!recorder || !mic || recorder.state !== "started") {
-        if (mic && mic.state === "started") mic.close(); // Close mic if it was opened but recorder didn't start
-        return;
-    }
-
-    try {
-        const blob = await recorder.stop();
-        mic.close();
-
-        const trackId = getRecordingTrackIdState(); // From state.js via import
-        const startTime = getRecordingStartTimeState(); // From state.js via import
-        const track = localAppServices.getTrackById(trackId); // From appServices (main.js)
-
-        if (track && blob.size > 0) {
-            if (typeof track.addAudioClip === 'function') {
-                await track.addAudioClip(blob, startTime);
-            } else {
-                console.error("Track object does not have addAudioClip method.");
-                 showNotification("Error: Could not process recorded audio.", 3000);
-            }
-        } else if (blob.size === 0) {
-            showNotification("Recording was empty.", 2000);
-        }
-    } catch (error) {
-        console.error("Error stopping recording or processing audio:", error);
-        showNotification("Error finalizing recording.", 3000);
-    }
 }
