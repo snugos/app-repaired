@@ -21,8 +21,8 @@ function getDB() {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
 
             request.onerror = (event) => {
-                console.error('[DB] Database error:', event.target.error);
-                reject(new Error('Error opening database: ' + (event.target.error?.message || 'Unknown error')));
+                console.error('[DB] Database open error:', event.target.error);
+                reject(new Error('Error opening database: ' + (event.target.error?.message || 'Unknown DB open error')));
             };
 
             request.onsuccess = (event) => {
@@ -54,27 +54,40 @@ export async function storeAudio(key, audioBlob) {
     try {
         db = await getDB();
     } catch (dbError) {
-        console.error("[DB] Failed to get DB for storing audio:", dbError);
+        console.error(`[DB storeAudio] Failed to get DB instance for key "${key}":`, dbError);
         throw dbError; // Re-throw the error to be caught by the caller
     }
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.put(audioBlob, key);
+        if (!db) { // Should not happen if getDB() succeeded, but as a safeguard
+            console.error(`[DB storeAudio] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for storing audio.'));
+        }
+        try {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(audioBlob, key);
 
-        request.onsuccess = () => {
-            // console.log(`[DB] Audio stored successfully with key: ${key}`);
-            resolve(request.result);
-        };
-        request.onerror = (event) => {
-            console.error(`[DB] Error storing audio with key ${key}:`, event.target.error);
-            reject(new Error('Error storing audio: ' + (event.target.error?.message || 'Unknown DB error')));
-        };
-        transaction.onerror = (event) => { // Catch transaction-level errors too
-            console.error(`[DB] Transaction error storing audio with key ${key}:`, event.target.error);
-            reject(new Error('Transaction error storing audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
-        };
+            request.onsuccess = () => {
+                // console.log(`[DB] Audio stored successfully with key: ${key}`);
+                resolve(request.result);
+            };
+            request.onerror = (event) => {
+                console.error(`[DB storeAudio] Error storing audio with key "${key}":`, event.target.error);
+                reject(new Error('Error storing audio: ' + (event.target.error?.message || 'Unknown DB put error')));
+            };
+            transaction.onabort = (event) => { // More specific error for transaction abort
+                console.error(`[DB storeAudio] Transaction aborted for key "${key}":`, event.target.error);
+                reject(new Error('Transaction aborted while storing audio: ' + (event.target.error?.message || 'Unknown DB transaction abort')));
+            };
+            transaction.onerror = (event) => { // Catch other transaction-level errors
+                console.error(`[DB storeAudio] Transaction error storing audio with key "${key}":`, event.target.error);
+                reject(new Error('Transaction error storing audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
+            };
+        } catch (e) {
+            console.error(`[DB storeAudio] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate audio storage transaction: ' + e.message));
+        }
     });
 }
 
@@ -88,32 +101,45 @@ export async function getAudio(key) {
     try {
         db = await getDB();
     } catch (dbError) {
-        console.error("[DB] Failed to get DB for retrieving audio:", dbError);
+        console.error(`[DB getAudio] Failed to get DB instance for key "${key}":`, dbError);
         throw dbError;
     }
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.get(key);
+        if (!db) {
+            console.error(`[DB getAudio] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for retrieving audio.'));
+        }
+        try {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(key);
 
-        request.onsuccess = () => {
-            if (request.result) {
-                // console.log(`[DB] Audio retrieved successfully for key: ${key}`);
-                resolve(request.result);
-            } else {
-                // console.warn(`[DB] No audio found for key: ${key}`);
-                resolve(null); // Resolve with null if not found, not an error
-            }
-        };
-        request.onerror = (event) => {
-            console.error(`[DB] Error retrieving audio for key ${key}:`, event.target.error);
-            reject(new Error('Error retrieving audio: ' + (event.target.error?.message || 'Unknown DB error')));
-        };
-        transaction.onerror = (event) => {
-            console.error(`[DB] Transaction error retrieving audio for key ${key}:`, event.target.error);
-            reject(new Error('Transaction error retrieving audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
-        };
+            request.onsuccess = () => {
+                if (request.result) {
+                    // console.log(`[DB] Audio retrieved successfully for key: ${key}`);
+                    resolve(request.result);
+                } else {
+                    // console.warn(`[DB] No audio found for key: ${key}`);
+                    resolve(null); // Resolve with null if not found, not an error
+                }
+            };
+            request.onerror = (event) => {
+                console.error(`[DB getAudio] Error retrieving audio for key "${key}":`, event.target.error);
+                reject(new Error('Error retrieving audio: ' + (event.target.error?.message || 'Unknown DB get error')));
+            };
+            transaction.onabort = (event) => {
+                console.error(`[DB getAudio] Transaction aborted for key "${key}":`, event.target.error);
+                reject(new Error('Transaction aborted while retrieving audio: ' + (event.target.error?.message || 'Unknown DB transaction abort')));
+            };
+            transaction.onerror = (event) => {
+                console.error(`[DB getAudio] Transaction error retrieving audio for key "${key}":`, event.target.error);
+                reject(new Error('Transaction error retrieving audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
+            };
+        } catch (e) {
+            console.error(`[DB getAudio] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate audio retrieval transaction: ' + e.message));
+        }
     });
 }
 
@@ -127,26 +153,39 @@ export async function deleteAudio(key) {
     try {
         db = await getDB();
     } catch (dbError) {
-        console.error("[DB] Failed to get DB for deleting audio:", dbError);
+        console.error(`[DB deleteAudio] Failed to get DB instance for key "${key}":`, dbError);
         throw dbError;
     }
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.delete(key);
+        if (!db) {
+            console.error(`[DB deleteAudio] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for deleting audio.'));
+        }
+        try {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(key);
 
-        request.onsuccess = () => {
-            // console.log(`[DB] Audio deleted successfully for key: ${key}`);
-            resolve();
-        };
-        request.onerror = (event) => {
-            console.error(`[DB] Error deleting audio for key ${key}:`, event.target.error);
-            reject(new Error('Error deleting audio: ' + (event.target.error?.message || 'Unknown DB error')));
-        };
-        transaction.onerror = (event) => {
-            console.error(`[DB] Transaction error deleting audio for key ${key}:`, event.target.error);
-            reject(new Error('Transaction error deleting audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
-        };
+            request.onsuccess = () => {
+                // console.log(`[DB] Audio deleted successfully for key: ${key}`);
+                resolve();
+            };
+            request.onerror = (event) => {
+                console.error(`[DB deleteAudio] Error deleting audio for key "${key}":`, event.target.error);
+                reject(new Error('Error deleting audio: ' + (event.target.error?.message || 'Unknown DB delete error')));
+            };
+            transaction.onabort = (event) => {
+                console.error(`[DB deleteAudio] Transaction aborted for key "${key}":`, event.target.error);
+                reject(new Error('Transaction aborted while deleting audio: ' + (event.target.error?.message || 'Unknown DB transaction abort')));
+            };
+            transaction.onerror = (event) => {
+                console.error(`[DB deleteAudio] Transaction error deleting audio for key "${key}":`, event.target.error);
+                reject(new Error('Transaction error deleting audio: ' + (event.target.error?.message || 'Unknown DB transaction error')));
+            };
+        } catch (e) {
+            console.error(`[DB deleteAudio] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate audio deletion transaction: ' + e.message));
+        }
     });
 }
 
@@ -159,25 +198,38 @@ export async function clearAllAudio() {
     try {
         db = await getDB();
     } catch (dbError) {
-        console.error("[DB] Failed to get DB for clearing audio:", dbError);
+        console.error("[DB clearAllAudio] Failed to get DB instance for clearing audio:", dbError);
         throw dbError;
     }
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.clear();
+        if (!db) {
+            console.error("[DB clearAllAudio] DB instance is null after getDB() call.");
+            return reject(new Error('Database instance not available for clearing audio store.'));
+        }
+        try {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.clear();
 
-        request.onsuccess = () => {
-            console.log('[DB] All audio cleared from database.');
-            resolve();
-        };
-        request.onerror = (event) => {
-            console.error('[DB] Error clearing audio database:', event.target.error);
-            reject(new Error('Error clearing audio database: ' + (event.target.error?.message || 'Unknown DB error')));
-        };
-        transaction.onerror = (event) => {
-            console.error(`[DB] Transaction error clearing audio database:`, event.target.error);
-            reject(new Error('Transaction error clearing audio database: ' + (event.target.error?.message || 'Unknown DB transaction error')));
-        };
+            request.onsuccess = () => {
+                console.log('[DB] All audio cleared from database.');
+                resolve();
+            };
+            request.onerror = (event) => {
+                console.error('[DB clearAllAudio] Error clearing audio database:', event.target.error);
+                reject(new Error('Error clearing audio database: ' + (event.target.error?.message || 'Unknown DB clear error')));
+            };
+            transaction.onabort = (event) => {
+                console.error('[DB clearAllAudio] Transaction aborted for clearing database:', event.target.error);
+                reject(new Error('Transaction aborted while clearing audio database: ' + (event.target.error?.message || 'Unknown DB transaction abort')));
+            };
+            transaction.onerror = (event) => {
+                console.error(`[DB clearAllAudio] Transaction error clearing audio database:`, event.target.error);
+                reject(new Error('Transaction error clearing audio database: ' + (event.target.error?.message || 'Unknown DB transaction error')));
+            };
+        } catch (e) {
+            console.error('[DB clearAllAudio] Synchronous error during transaction creation:', e);
+            reject(new Error('Failed to initiate clear audio store transaction: ' + e.message));
+        }
     });
 }
