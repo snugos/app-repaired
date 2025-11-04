@@ -1,293 +1,351 @@
-/* --- SnugOS General & Desktop Styling --- */
+/* js/style.css - SnugOS 90s Retro Theme */
+
+/* --- Base & Desktop Styling --- */
 body {
-    font-family: 'Inter', sans-serif; 
-    font-size: 14px;
-    margin: 0; 
-    overflow: hidden; 
-    background-color: #101010; /* Very dark base background */
-    color: #e0e0e0; /* Light grey default text for the entire application */
+    font-family: 'Tahoma', 'Geneva', sans-serif; /* Classic 90s UI font */
+    font-size: 13px;
+    margin: 0;
+    overflow: hidden;
+    background-color: #008080; /* Classic 90s Teal background */
+    color: #000000; /* Default black text */
+    user-select: none;
 }
 
 #desktop {
     width: 100vw;
     height: 100vh;
-    overflow: hidden; 
-    position: relative; 
-    background-color: #101010; /* Consistent very dark desktop */
-}
-
-/* --- Window Styling (Unified Dark Theme) --- */
-.window {
-    position: absolute; 
-    border: 1px solid #383838; /* Dark border, slightly lighter than deepest blacks */
-    box-shadow: 0px 0px 15px rgba(0,0,0,0.5); /* Softer, more modern shadow */
-    background-color: #1e1e1e; /* Main window background - very dark grey */
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden; 
-    min-width: 150px; 
-    min-height: 100px;
-    color: #e0e0e0; /* Default text color for windows */
-    border-radius: 3px; /* Subtle rounding for a more modern feel */
-}
-
-.window.minimized {
-    display: none !important; 
-}
-
-.window-title-bar {
-    background-color: #2a2a2a; /* Slightly lighter than window body for definition */
-    color: #f0f0f0; /* Bright white text for title */
-    padding: 5px 8px; 
-    cursor: grab;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 28px; /* Slightly taller */
-    flex-shrink: 0; 
-    font-size: 0.9rem; 
-    font-weight: 600; /* Semibold */
-    user-select: none; 
-    border-bottom: 1px solid #121212; /* Darker separator line */
-    border-top-left-radius: 2px; /* Match window rounding */
-    border-top-right-radius: 2px;
-}
-
-.window-title-bar span { 
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding-right: 8px; 
+    position: relative;
+    background-color: #008080; /* Default teal */
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
 }
 
-.window-title-buttons {
-    display: flex;
+/* --- 3D Border Styles --- */
+.outset-border, button, .button {
+    border: 1px solid #c0c0c0;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
+}
+.inset-border, .inset-border-thin {
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+}
+.inset-border {
+    box-shadow: 1px 1px 0 #000000 inset;
 }
 
-.window-title-buttons button {
-    background: #383838; /* Dark grey button background */
-    border: 1px solid #1a1a1a; 
-    color: #d0d0d0; /* Light grey text */
-    width: 20px; 
-    height: 20px;
-    line-height: 18px; 
-    text-align: center;
-    font-size: 11px;
-    font-weight: bold;
-    margin-left: 4px; /* Slightly more spacing */
-    padding: 0;
-    cursor: default; 
-    flex-shrink: 0;
-    border-radius: 3px; 
-    transition: background-color 0.15s ease;
-}
-
-.window-title-buttons button:hover {
-    background: #4a4a4a; /* Lighter on hover */
-    color: #ffffff;
-}
-
-.window-title-buttons button:active {
-    background: #2a2a2a; /* Darker when pressed */
-    border-color: #121212;
-}
-
-.window-content {
-    flex-grow: 1; 
-    padding: 0; /* Remove padding for windows that need edge-to-edge content like the timeline */
-    background-color: #181818; /* Main content area - very dark */
-    overflow: auto; 
-    color: #e0e0e0; /* Light grey text for content */
-}
-
-/* --- Taskbar Styling (Unified Dark Theme) --- */
+/* --- Taskbar Styling --- */
 #taskbar {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 32px; /* Slightly taller */
-    background-color: #1a1a1a; /* Dark taskbar */
-    border-top: 1px solid #303030; /* Subtle top border */
-    z-index: 10000; 
+    height: 30px;
+    background-color: #c0c0c0; /* Classic 90s Gray */
+    border-top: 1px solid #ffffff;
+    z-index: 10000;
     display: flex;
     align-items: center;
-    padding: 0 6px;
+    padding: 2px 4px;
     box-sizing: border-box;
-    color: #d0d0d0; 
+    color: #000000;
 }
 
 #startButton {
-    background-color: #2c2c2c; 
-    border: 1px solid #121212;
-    border-color: #3c3c3c #181818 #181818 #3c3c3c; 
-    box-shadow: 1px 1px 0 #3c3c3c inset, -1px -1px 0 #181818 inset;
-    padding: 3px 12px; 
-    font-weight: 600; /* Semibold */
-    margin-right: 6px;
-    color: #e0e0e0; 
-    border-radius: 3px;
-    transition: background-color 0.15s ease;
-}
-#startButton:hover {
-    background-color: #3a3a3a;
+    background-color: #c0c0c0;
+    padding: 2px 10px;
+    font-weight: bold;
+    margin-right: 4px;
+    color: #000000;
+    cursor: default;
+    height: 24px;
+    box-sizing: border-box;
 }
 #startButton:active {
-    border-color: #181818 #3c3c3c #3c3c3c #181818; 
-    box-shadow: -1px -1px 0 #3c3c3c inset, 1px 1px 0 #181818 inset;
-    background-color: #202020;
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    padding: 3px 9px 1px 11px; /* Simulate press */
+}
+
+#taskbarButtons {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    min-width: 10px;
+    flex-shrink: 1;
+    overflow: hidden;
 }
 
 #taskbarButtons .taskbar-button {
-    background-color: #2c2c2c; 
-    border: 1px solid #121212;
-    border-color: #3c3c3c #181818 #181818 #3c3c3c;
-    box-shadow: 1px 1px 0 #3c3c3c inset, -1px -1px 0 #181818 inset;
-    padding: 3px 10px; 
-    margin: 0 3px;
-    max-width: 160px;
+    background-color: #c0c0c0;
+    padding: 2px 8px;
+    margin: 0 2px;
+    max-width: 150px;
+    min-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
-    flex-shrink: 0; 
-    color: #d0d0d0; 
-    border-radius: 3px;
-    transition: background-color 0.15s ease, color 0.15s ease;
-}
-#taskbarButtons .taskbar-button:hover {
-    background-color: #3a3a3a;
-    color: #ffffff;
+    font-size: 13px;
+    flex-shrink: 0;
+    color: #000000;
+    height: 24px;
+    box-sizing: border-box;
+    text-align: left;
 }
 #taskbarButtons .taskbar-button.active,
 #taskbarButtons .taskbar-button:active {
-    border-color: #181818 #3c3c3c #3c3c3c #181818;
-    box-shadow: -1px -1px 0 #3c3c3c inset, 1px 1px 0 #181818 inset;
-    background-color: #202020; 
-    color: #ffffff; 
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    background-color: #b0b0b0;
+    padding: 3px 7px 1px 9px; /* Simulate press */
 }
 #taskbarButtons .taskbar-button.minimized-on-taskbar {
-    background-color: #282828; 
-    opacity: 0.65; /* More dim for minimized */
+    opacity: 0.7;
 }
+
+#taskbarControls {
+    display: flex;
+    align-items: center;
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    padding: 1px;
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+#taskbarPlayBtn, #taskbarStopBtn, #taskbarRecordBtn {
+    background-color: #c0c0c0;
+    font-weight: bold;
+    color: #000000;
+    cursor: default;
+    height: 22px;
+    width: 26px;
+    padding: 0;
+    margin: 0 1px;
+    line-height: 20px;
+    font-size: 14px;
+}
+#taskbarPlayBtn:active, #taskbarStopBtn:active, #taskbarRecordBtn:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    padding: 1px 0 0 1px;
+}
+#taskbarPlayBtn.playing {
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    background-color: #b0b0b0;
+    color: #333;
+}
+#taskbarRecordBtn.recording {
+    background-color: #ff0000;
+    color: #ffffff;
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+}
+
 
 #taskbarTempoDisplay {
-    margin-left: auto; 
-    padding: 3px 10px;
-    border: 1px solid #121212;
-    border-color: #3c3c3c #181818 #181818 #3c3c3c; 
-    box-shadow: 1px 1px 0 #3c3c3c inset, -1px -1px 0 #181818 inset;
-    font-size: 0.8rem;
-    background-color: #2c2c2c; 
+    margin-left: auto;
+    padding: 2px 6px;
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    font-size: 13px;
+    background-color: #c0c0c0;
     cursor: pointer;
-    color: #d0d0d0; 
-    border-radius: 3px;
-}
-#taskbarTempoDisplay:hover {
-    background-color: #3a3a3a;
+    min-width: 80px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
-/* --- Start Menu Styling (Unified Dark Theme) --- */
+/* --- Start Menu Styling --- */
 #startMenu {
     position: absolute;
-    bottom: 32px; /* Adjusted for slightly taller taskbar */
+    bottom: 30px; /* Match taskbar height */
     left: 0;
-    background: #1e1e1e; 
-    border: 1px solid #3a3a3a; 
-    border-color: #484848 #2a2a2a #2a2a2a #484848; 
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.6);
-    z-index: 10001; 
-    padding: 4px; /* More padding */
-    min-width: 220px; 
-    color: #e0e0e0; 
-    border-radius: 3px;
+    background: #c0c0c0;
+    border: 1px solid #c0c0c0;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
+    z-index: 10001;
+    padding: 2px;
+    min-width: 200px;
+    color: #000000;
 }
 
 #startMenu.hidden { display: none; }
 #startMenu ul { list-style: none; padding: 0; margin: 0; }
-#startMenu li { padding: 6px 20px 6px 12px; cursor: pointer; font-size: 0.9rem; white-space: nowrap; color: #e0e0e0; border-radius: 2px; transition: background-color 0.1s ease;}
-#startMenu li:hover, #startMenu li.disabled:hover { background: #0060c0; color: white; } /* Brighter blue hover */
-#startMenu li.disabled { color: #555555; cursor: default; }
-#startMenu hr { border: none; border-top: 1px solid #3a3a3a; margin: 4px 0; }
+#startMenu li { padding: 4px 15px 4px 10px; cursor: default; font-size: 13px; white-space: nowrap; color: #000000; }
+#startMenu li:hover { background: #000080; color: white; }
+#startMenu li.disabled { color: #808080; cursor: default; background: #c0c0c0; }
+#startMenu li.disabled:hover { background: #c0c0c0; color: #808080; }
+#startMenu hr { border: none; border-top: 1px solid #808080; border-bottom: 1px solid #ffffff; margin: 4px 2px; }
 
-
-/* --- Pad Button Styling (Unified Dark Theme) --- */
-.pad-button {
-    padding: 8px;
-    border: 1px solid #404040; 
-    background-color: #282828; 
-    color: #cccccc; 
-    cursor: pointer;
-    text-align: center;
-    min-width: 70px; 
-    min-height: 70px;
+/* --- Window Styling --- */
+.window {
+    position: absolute;
+    border: 1px solid #c0c0c0;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
+    background-color: #c0c0c0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    min-width: 150px;
+    min-height: 100px;
+    color: #000000;
+    padding: 2px;
+}
+
+.window.minimized { display: none !important; }
+
+.window-title-bar {
+    background: linear-gradient(to right, #000080, #1084d0); /* Classic blue gradient */
+    color: #ffffff; /* White text */
+    padding: 3px 5px;
+    cursor: grab;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    box-shadow: inset -1px -1px 1px #1a1a1a, inset 1px 1px 1px #3a3a3a; 
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
-    overflow: hidden; 
-    position: relative; 
-    border-radius: 3px;
+    height: 22px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: bold;
+    user-select: none;
+    margin-bottom: 2px;
 }
-.pad-button:hover {
-    background-color: #3a3a3a; 
-}
-.pad-button:active, .pad-button.selected-for-edit {
-    background-color: #202020; 
-    box-shadow: inset 1px 1px 1px #1a1a1a, inset -1px -1px 1px #3a3a3a; 
-    border-color: #505050;
-}
-.pad-button.selected-for-edit {
-    border-color: #60a5fa; /* Lighter blue accent for selected */
-    border-width: 2px;
-    padding: 7px; 
-}
-.pad-label {
-    font-size: 0.65rem; 
-    color: #b0b0b0; 
-    display: block;
-    margin-top: 5px;
-    word-break: break-all; 
-    line-height: 1.2;
-    max-height: 2.4em; 
+.window-title-bar:active { cursor: grabbing; }
+
+.window-title-bar span {
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 5px;
 }
 
-/* --- General Drop Zone Styling (Unified Dark Theme) --- */
-.drop-zone {
-    border: 2px dashed #4a4a4a; 
-    padding: 10px;          
+.window-title-buttons { display: flex; }
+.window-title-buttons button {
+    background: #c0c0c0;
+    color: #000000;
+    width: 18px;
+    height: 18px;
+    line-height: 16px;
     text-align: center;
-    background-color: #1c1c1c;  
-    color: #888888;            
-    font-size: 0.8em; 
-    border-radius: 4px;         
-    margin-bottom: 5px;    
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 2px;
+    padding: 0;
+    cursor: default;
+    flex-shrink: 0;
 }
-.drop-zone.dragover {
-    background-color: #2a2a2a; 
-    border-color: #5a5a5a;     
-    color: #cccccc; 
+.window-title-buttons button:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    padding: 1px 0 0 1px;
 }
-.drop-zone label { color: #7dd3fc; text-decoration: underline; cursor: pointer; }
-.drop-zone label:hover { color: #38bdf8; }
 
+.window-content {
+    flex-grow: 1;
+    padding: 0;
+    background-color: #c0c0c0;
+    overflow: auto;
+    color: #000000;
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+}
 
-/* --- Knob Styling (Unified Dark Theme) --- */
+.window-resizer {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 16px; height: 16px;
+    background-image: repeating-linear-gradient(135deg, #808080 0, #808080 1px, transparent 1px, transparent 3px);
+    cursor: nwse-resize;
+    z-index: 10;
+}
+
+/* --- General UI Elements --- */
+button, .button {
+    background-color: #c0c0c0;
+    color: #000000;
+    cursor: default;
+    padding: 3px 12px;
+    font-size: 13px;
+    text-align: center;
+}
+button:active, .button:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+    box-shadow: 1px 1px 0 #000000 inset;
+    padding: 4px 11px 2px 13px;
+}
+button:disabled {
+    color: #808080;
+    text-shadow: 1px 1px 0 #ffffff;
+    cursor: default;
+}
+button.active { /* Generic active state for toggles */
+    border-color: #808080 #ffffff #ffffff #808080 !important;
+    box-shadow: 1px 1px 0 #000000 inset !important;
+    background-color: #b0b0b0 !important;
+    padding: 4px 11px 2px 13px !important;
+}
+
+select, input[type="text"], input[type="number"], input[type="color"] {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    padding: 3px;
+    font-family: 'Tahoma', 'Geneva', sans-serif;
+    font-size: 13px;
+}
+input[type="color"] {
+    padding: 1px;
+    height: 24px;
+}
+
+/* Group Box Styling */
+.group-box {
+    border: 1px solid #808080;
+    border-top: 1px solid #ffffff;
+    padding: 10px;
+    padding-top: 15px; /* Space for legend */
+    margin: 8px 4px;
+    position: relative;
+}
+.group-box-legend {
+    position: absolute;
+    top: -0.6em;
+    left: 8px;
+    background: #c0c0c0;
+    padding: 0 4px;
+    font-size: 13px;
+}
+.group-box label {
+    display: block;
+    margin: 4px 0;
+}
+.group-box input[type="radio"] {
+    margin-right: 5px;
+}
+.group-box .flex-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+}
+
+/* --- Knob Styling (Retro) --- */
 .knob-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 5px; 
-    min-width: 60px; 
+    margin: 4px;
+    min-width: 50px;
 }
 .knob-label {
-    font-size: 0.7rem; 
-    color: #b0b0b0; 
+    font-size: 11px;
+    color: #000000;
     margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -296,82 +354,108 @@ body {
     text-align: center;
 }
 .knob {
-    width: 36px; 
-    height: 36px; 
-    background-color: #303030; 
+    width: 32px;
+    height: 32px;
+    background-color: #c0c0c0;
     border-radius: 50%;
     position: relative;
-    border: 1px solid #1e1e1e; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05); 
-    cursor: ns-resize; 
+    border: 1px solid #808080;
+    box-shadow: 1px 1px 0 #ffffff inset, -1px -1px 0 #808080 inset, 1px 1px 0 #000000;
+    cursor: ns-resize;
 }
 .knob-handle {
-    width: 4px; 
-    height: 10px; 
-    background-color: #909090; 
+    width: 3px;
+    height: 8px;
+    background-color: #000000;
     position: absolute;
-    top: 3px; 
+    top: 4px;
     left: 50%;
-    transform: translateX(-50%); 
-    transform-origin: bottom center; 
-    border-radius: 2px; 
+    transform: translateX(-50%);
+    transform-origin: bottom center;
+    border-radius: 0;
 }
 .knob-value {
-    font-size: 0.65rem; 
-    color: #a0a0a0; 
+    font-size: 11px;
+    color: #000000;
     margin-top: 2px;
-    min-height: 1em; 
+    min-height: 1em;
     text-align: center;
+    border: 1px solid #808080;
+    background: #ffffff;
+    padding: 0 2px;
+    min-width: 30px;
 }
 
-/* --- General Button Active States (Unified Dark Theme) --- */
+/* --- Specific UI Elements --- */
+/* Mute/Solo/Arm Buttons */
 button.muted { 
-    background-color: #991b1b !important; 
-    color: #fecaca !important; 
-    border-color: #7f1d1d #991b1b #991b1b #7f1d1d !important; 
-    box-shadow: inset 1px 1px 0 #7f1d1d, inset -1px -1px 0 #ef4444 !important; 
+    background-color: #ff0000 !important; 
+    color: #ffffff !important; 
+    border-color: #808080 #ffffff #ffffff #808080 !important;
+    box-shadow: 1px 1px 0 #000000 inset !important;
+    padding: 4px 11px 2px 13px !important;
 }
 button.soloed { 
-    background-color: #b45309 !important; 
-    color: #1c1917 !important; /* Darker text for yellow contrast */
-    border-color: #92400e #b45309 #b45309 #92400e !important; 
-    box-shadow: inset 1px 1px 0 #92400e, inset -1px -1px 0 #fde68a !important; 
+    background-color: #ffff00 !important; 
+    color: #000000 !important; 
+    border-color: #808080 #ffffff #ffffff #808080 !important;
+    box-shadow: 1px 1px 0 #000000 inset !important;
+    padding: 4px 11px 2px 13px !important;
 }
 button.armed { 
-    background-color: #c2410c !important; 
-    color: #fff7ed !important; 
-    border-color: #9a3412 #c2410c #c2410c #9a3412 !important; 
-    box-shadow: inset 1px 1px 0 #9a3412, inset -1px -1px 0 #fed7aa !important; 
-}
-button.active { /* Generic active state for other toggles if needed */
-    background-color: #1d4ed8 !important; 
-    color: #dbeafe !important; 
-    border-color: #1e40af #1d4ed8 #1d4ed8 #1e40af !important; 
-    box-shadow: inset 1px 1px 0 #1e40af, inset -1px -1px 0 #93c5fd !important; 
+    background-color: #ff8080 !important; 
+    color: #000000 !important; 
+    border-color: #808080 #ffffff #ffffff #808080 !important;
+    box-shadow: 1px 1px 0 #000000 inset !important;
+    padding: 4px 11px 2px 13px !important;
 }
 
-/* --- Sequencer Grid Styling (Unified Dark Theme) --- */
+/* Drop Zone */
+.drop-zone {
+    border: 2px dashed #808080;
+    padding: 10px;
+    text-align: center;
+    background-color: #b0b0b0;
+    color: #000000;
+    font-size: 12px;
+    border-radius: 0;
+    margin-bottom: 5px;
+    transition: none;
+}
+.drop-zone.dragover {
+    background-color: #a0a0a0;
+    border-color: #000000;
+}
+.drop-zone button { margin-top: 5px; }
+.drop-zone p.status-loaded { color: #000080; font-weight: bold; }
+.drop-zone p.status-missing { color: #800000; font-weight: bold; }
+.drop-zone p.status-error { color: #ff0000; background: #ffff00; font-weight: bold; }
+
+/* Sequencer */
+.sequencer-container {
+    padding: 4px;
+    background-color: #c0c0c0;
+}
 .sequencer-container .controls { 
     position: sticky;
-    top: 0;
-    left: 0; 
-    background-color: #1e1e1e; 
+    top: 0; left: 0; 
+    background-color: #c0c0c0; 
     z-index: 30; 
-    border-bottom: 1px solid #3a3a3a;
-    padding: 0.25rem; 
-    color: #cccccc; 
+    border-bottom: 1px solid #808080;
+    padding: 2px; 
+    color: #000000; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.sequencer-container .controls input,
-.sequencer-container .controls label {
-    color: #cccccc; 
-}
-.sequencer-container .controls input {
-    background-color: #282828; 
-    border-color: #404040;
-}
-
 .sequencer-grid-layout {
-    background-color: #121212; 
+    background-color: #808080; 
+    display: grid;
+    gap: 0px;
+    width: fit-content;
+    position: relative;
+    top: 0;
+    left: 0;
 }
 
 .sequencer-grid-layout > div {
@@ -382,306 +466,168 @@ button.active { /* Generic active state for other toggles if needed */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.65rem; 
-    border: 1px solid #2a2a2a; 
+    font-size: 10px; 
+    border: 1px solid #808080; 
 }
 
-.sequencer-grid-layout .sequencer-header-cell {
-    position: sticky;
-    top: 0;
-    background-color: #1c1c1c; 
-    font-weight: 500;
-    color: #b0b0b0; 
+.sequencer-header-cell {
+    position: sticky; top: 0;
+    background-color: #c0c0c0; 
+    font-weight: normal;
+    color: #000000; 
     z-index: 20; 
+    border-color: #ffffff #808080 #808080 #ffffff;
 }
-.sequencer-grid-layout .sequencer-header-cell:first-child { 
+.sequencer-header-cell:first-child { 
     z-index: 25; 
     left: 0; 
 }
-
-.sequencer-grid-layout .sequencer-label-cell {
-    position: sticky;
-    left: 0;
-    background-color: #1c1c1c; 
+.sequencer-label-cell {
+    position: sticky; left: 0;
+    background-color: #c0c0c0; 
     justify-content: flex-end;
-    padding-right: 0.25rem; 
-    font-weight: 500;
-    color: #b0b0b0; 
+    padding-right: 4px; 
+    font-weight: normal;
+    color: #000000; 
     z-index: 10; 
+    border-color: #ffffff #808080 #808080 #ffffff;
 }
-
-.sequencer-grid-layout .sequencer-step-cell {
-    cursor: pointer;
-    transition: background-color 0.1s ease;
-    color: #777777; 
+.sequencer-step-cell {
+    cursor: default;
+    transition: none;
+    color: #a0a0a0; 
+    border: 1px solid #c0c0c0;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
 }
-
-/* Alternating background colors for 4-step blocks */
-.sequencer-step-cell.bg-gray-50 { background-color: #161616; } /* Very dark */
-.sequencer-step-cell.bg-white { background-color: #1e1e1e; }  /* Slightly off-very-dark */
-
-.sequencer-step-cell:hover {
-    background-color: #2c2c2c !important; 
-}
-
-/* Active step colors (using example teal/blue from images) */
+.sequencer-step-cell.bg-gray-50 { background-color: #b0b0b0; }
+.sequencer-step-cell.bg-white { background-color: #c0c0c0; }
+.sequencer-step-cell:hover { background-color: #a0a0a0 !important; }
 .sequencer-step-cell.active-synth,
 .sequencer-step-cell.active-sampler,
 .sequencer-step-cell.active-drum-sampler,
 .sequencer-step-cell.active-instrument-sampler { 
-    background-color: #008080 !important; /* Teal */
+    background-color: #000080 !important; /* Dark blue */
     color: #FFFFFF !important; 
-    border-color: #009090 !important; /* Slightly lighter teal for border */
+    border-color: #808080 #ffffff #ffffff #808080 !important;
+    box-shadow: 1px 1px 0 #000000 inset !important;
 } 
-
 .sequencer-step-cell.playing {
-    outline: 2px solid #00ffff; /* Cyan outline for playing step */
+    outline: 2px solid #ff0000;
     outline-offset: -2px;
     z-index: 5; 
 }
 
-/* --- Notification Area --- */
-#notification-area { /* ... unchanged ... */ }
-.notification-message { /* ... unchanged ... */ }
-.notification-message.show { /* ... unchanged ... */ }
-
-/* --- Panel and Control Group --- */
-.panel { /* ... unchanged ... */ }
-.control-group { /* ... unchanged ... */ }
-.single-control-container { /* ... unchanged ... */ }
-
-/* --- Waveform Canvas --- */
-.waveform-canvas { 
-    border: 1px solid #3a3a3a;
-    background-color: #101010; /* Very dark background */
-    width: 100%; 
-    height: 70px; 
-    display: block; 
-}
-
-/* --- Meter Bar Styling --- */
+/* Meter Bar */
 .meter-bar-container { 
-    background-color: #101010; /* Very dark */
-    border-radius: 3px;
-    overflow: hidden;
-    border: 1px solid #3a3a3a;
-    height: 10px; 
-    box-sizing: border-box;
+    background-color: #808080;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    height: 12px; 
 }
 .meter-bar {
-    background-color: #00b0b0; /* Cyan/Teal for meter */
+    background-color: #00ff00; /* Bright Green */
     height: 100%;
     width: 0%;
     transition: width 0.05s linear;
 }
-.meter-bar.clipping {
-    background-color: #e04040; /* Brighter Red for clipping */
-}
-.track-meter-container { height: 16px; margin-top: 2px; }
-.mixer-meter-container { height: 12px; margin-top: 4px; }
-#masterMeterContainerGlobal, #mixerMasterMeterContainer { height: 15px; }
+.meter-bar.clipping { background-color: #ff0000; }
+#masterMeterContainerGlobal, #mixerMasterMeterContainer { height: 18px; }
 
-/* Modal Styling (Unified Dark Theme) */
-.modal-overlay {
+/* Modal */
+.modal-overlay, .modal-container {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.75); /* Even darker overlay */
+    background-color: rgba(0,0,0,0.3);
     display: flex; justify-content: center; align-items: center;
     z-index: 15000; 
 }
-.modal-dialog {
-    background-color: #1e1e1e; /* Very dark dialog */
-    border: 1px solid #3a3a3a; 
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.7);
-    min-width: 300px; max-width: 90%; max-height: 90vh;
-    display: flex; flex-direction: column;
-    color: #e0e0e0; /* Light text in modal */
-    border-radius: 4px; 
+.modal-dialog, .modal-content {
+    background-color: #c0c0c0; 
+    border: 1px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
+    min-width: 300px; max-width: 90%;
+    color: #000000; 
+    padding: 2px;
 }
-.modal-title-bar {
-    background-color: #2a2a2a; /* Darker title bar */
-    color: #f0f0f0;
-    padding: 6px 10px; 
-    font-weight: bold; font-size: 0.9rem; user-select: none;
-    border-bottom: 1px solid #121212; /* Darkest separator */
-    border-top-left-radius: 3px; 
-    border-top-right-radius: 3px;
+.modal-title-bar, .modal-content h2, .modal-header {
+    background: linear-gradient(to right, #000080, #1084d0); 
+    color: #ffffff;
+    padding: 3px 5px; 
+    font-weight: bold; font-size: 13px; user-select: none;
+    margin: 0 0 5px 0;
 }
-.modal-content {
-    padding: 15px; overflow-y: auto; flex-grow: 1;
-    background-color: #1e1e1e; 
-    color: #e0e0e0; 
-}
-.modal-content p { margin-bottom: 10px; }
-.modal-content p:last-child { margin-bottom: 0; }
+.modal-content { padding: 8px; border: 1px solid; border-color: #808080 #ffffff #ffffff #808080; }
+.modal-body { padding: 5px 0; }
 .modal-buttons {
-    padding: 10px 15px; text-align: right;
-    border-top: 1px solid #3a3a3a; 
-    background-color: #1e1e1e;
-    border-bottom-left-radius: 3px;
-    border-bottom-right-radius: 3px;
+    padding: 8px 0 0 0; text-align: right;
+    border-top: 1px solid #808080;
+    margin-top: 10px;
 }
-.modal-buttons button {
-    background-color: #3a3a3a;
-    border: 1px solid #1a1a1a;
-    border-color: #484848 #2a2a2a #2a2a2a #484848; 
-    box-shadow: 1px 1px 0 #484848 inset, -1px -1px 0 #2a2a2a inset;
-    color: #e0e0e0;
-    padding: 6px 15px; 
-    margin-left: 10px; cursor: pointer; font-size: 0.85rem;
-    border-radius: 3px;
-    transition: background-color 0.15s ease;
-}
-.modal-buttons button:hover {
-    background-color: #484848;
-}
-.modal-buttons button:active {
-    border-color: #2a2a2a #484848 #484848 #2a2a2a; 
-    box-shadow: -1px -1px 0 #484848 inset, 1px 1px 0 #2a2a2a inset;
-    background-color: #303030;
-}
+.modal-buttons button { margin-left: 6px; }
 
-.window-resizer { /* ... unchanged ... */ }
-.modular-effects-rack { /* ... unchanged ... */ }
-.effects-list-container { /* ... unchanged ... */ }
-.effect-controls-panel { /* ... unchanged ... */ }
-.effect-item.dragging { /* ... unchanged ... */ }
-.effect-item.dragover-target { /* ... unchanged ... */ }
-.drop-zone-relink-container { /* ... unchanged ... */ }
-.drop-zone-relink-button { /* ... unchanged ... */ }
-.drop-zone-missing { /* ... unchanged ... */ }
-.drop-zone-error { /* ... unchanged ... */ }
-.drop-zone-loading { /* ... unchanged ... */ }
-#midiIndicatorGlobal, #keyboardIndicatorGlobal { /* ... unchanged ... */ }
-#midiIndicatorGlobal.active, #keyboardIndicatorGlobal.active { /* ... unchanged ... */ }
-.global-controls-window .flex { /* ... unchanged ... */ }
-.global-controls-window label { /* ... unchanged ... */ }
-
-/* Input and Select for Dark Theme (High Contrast) */
-select, input[type="text"], input[type="number"],
-.window-content select, .modal-content select,
-.window-content input[type="text"], .window-content input[type="number"],
-.modal-content input[type="text"], .modal-content input[type="number"] {
-    background-color: #282828; /* Dark input background */
-    color: #e0e0e0; /* Light text */
-    border: 1px solid #4a4a4a; /* Contrasting border */
-    padding: 5px 8px; /* More padding */
-    border-radius: 3px;
-    font-size: 0.85rem; /* Slightly larger font */
-}
-input::placeholder, 
-.window-content input::placeholder, .modal-content input::placeholder {
-    color: #777777; /* Lighter placeholder text */
-}
-
-/* Custom Scrollbar Styling (Dark Theme Inspired) */
-::-webkit-scrollbar {
-    width: 10px; /* Width of the vertical scrollbar */
-    height: 10px; /* Height of the horizontal scrollbar */
-}
-
-::-webkit-scrollbar-track {
-    background: #1e1e1e; /* Very dark track, matching window content areas */
-    border-radius: 0px; /* Keep it square like the UI */
-}
-
-::-webkit-scrollbar-thumb {
-    background: #4a4a4a; /* Dark grey thumb, lighter than track */
-    border-radius: 2px; /* Slightly rounded thumb */
-    border: 1px solid #5a5a5a; /* Subtle border for the thumb */
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a; /* Lighter thumb on hover */
-}
-
-::-webkit-scrollbar-corner {
-    background: #1e1e1e; /* Match track background */
-}
-
-/* Firefox scrollbar styling (basic) */
-/* Note: Firefox scrollbar styling is less customizable than WebKit */
-* {
-  scrollbar-width: thin; /* "auto" or "thin" */
-  scrollbar-color: #4a4a4a #1e1e1e; /* thumb and track */
-}
-
-/* --- Context Menu Styling (Unified Dark Theme) --- */
+/* Context Menu */
 .context-menu {
-    background-color: #2a2a2a; /* Dark background */
-    border: 1px solid #484848;   /* Slightly lighter border */
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.6);
-    padding: 4px 0;
-    min-width: 180px;
-    border-radius: 3px;
-    color: #e0e0e0; /* Light text */
-    position: absolute; /* Changed from fixed to absolute for potential parent relative positioning if needed, but fixed is often better for global menus */
-    /* z-index is set by JS */
+    background-color: #c0c0c0;
+    border: 1px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 1px 1px 0 #000000;
+    padding: 2px;
+    min-width: 160px;
+    color: #000000;
+    position: absolute;
 }
-
-.context-menu ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
+.context-menu ul { list-style: none; padding: 0; margin: 0; }
 .context-menu-item {
-    padding: 6px 15px 6px 12px; /* Adjust padding as needed */
-    cursor: pointer;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    transition: background-color 0.1s ease, color 0.1s ease;
-}
-
-.context-menu-item:not(.disabled):hover {
-    background-color: #0060c0; /* Brighter blue hover */
-    color: white;
-}
-
-.context-menu-item.disabled {
-    color: #555555; /* Darker grey for disabled items */
+    padding: 4px 15px 4px 10px;
     cursor: default;
+    font-size: 13px;
+    white-space: nowrap;
 }
-
+.context-menu-item:not(.disabled):hover { background-color: #000080; color: #ffffff; }
+.context-menu-item.disabled { color: #808080; }
 .context-menu-separator {
     border: none;
-    border-top: 1px solid #3a3a3a; /* Dark separator line */
-    margin: 4px 0;
+    border-top: 1px solid #808080;
+    border-bottom: 1px solid #ffffff;
+    margin: 4px 2px;
 }
 
-/* --- Timeline Styling --- */
+/* Timeline */
+:root {
+    --timeline-track-name-width: 120px; /* Or your desired width */
+}
 #timeline-container {
-    height: 100%; /* Fill the window content area */
+    height: 100%;
     width: 100%;
-    background-color: #1c1c1c;
+    background-color: #808080; /* Darker gray for the timeline bed */
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Let the parent .window-content handle scrolling */
+    overflow: hidden;
     position: relative;
 }
-
 #timeline-header {
     height: 20px;
-    background-color: #2a2a2a;
-    border-bottom: 1px solid #3a3a3a;
+    background-color: #c0c0c0;
+    border-bottom: 1px solid #808080;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
     width: 100%;
 }
-
 #timeline-ruler {
     width: 4000px; 
     height: 100%;
     background-image:
-        repeating-linear-gradient(to right, #555 0 1px, transparent 1px 100%),
-        repeating-linear-gradient(to right, #444 0 1px, transparent 1px 100%);
+        repeating-linear-gradient(to right, #000 0 1px, transparent 1px 100%),
+        repeating-linear-gradient(to right, #808080 0 1px, transparent 1px 100%);
     background-size: 120px 100%, 30px 100%; 
     background-position: left top;
     position: absolute;
     top: 0;
     left: 0;
 }
-
 #timeline-tracks-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -689,62 +635,60 @@ input::placeholder,
     position: relative;
     width: 100%;
 }
-
 #timeline-tracks-area {
     width: 4000px;
     position: relative;
 }
-
 .timeline-track-lane {
     height: 50px;
-    background-color: #1e1e1e;
-    border-bottom: 1px solid #2a2a2a;
+    background-color: #c0c0c0;
+    border-bottom: 1px solid #808080;
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
 }
-.timeline-track-lane:nth-child(even) {
-    background-color: #1a1a1a;
-}
+.timeline-track-lane:nth-child(even) { background-color: #b0b0b0; }
+.timeline-track-lane.dragover-timeline-lane { background-color: #a0a0a0; }
 .timeline-track-lane-name {
     position: sticky;
     left: 0;
     z-index: 2;
-    background-color: #2f2f2f;
+    background-color: #c0c0c0;
     padding: 0 8px;
     height: 100%;
     display: flex;
     align-items: center;
-    border-right: 1px solid #3a3a3a;
+    border-right: 1px solid #808080;
+    border-bottom: 1px solid #808080;
+    border-color: #ffffff #808080 #808080 #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 120px;
-    max-width: 120px;
-    font-size: 0.8rem;
+    min-width: var(--timeline-track-name-width);
+    max-width: var(--timeline-track-name-width);
+    font-size: 13px;
     font-weight: 500;
 }
-
 #timeline-playhead {
     position: absolute;
-    top: 0; /* Starts at the top of the container */
+    top: 0;
     left: 120px; /* Start after the track names area */
     width: 2px;
     height: 100%;
-    background-color: #00ffff;
+    background-color: #ff0000; /* Red playhead */
     z-index: 4;
     pointer-events: none;
+    display: none; /* Hidden by default, shown by JS in timeline mode */
 }
-
 .audio-clip {
     position: absolute;
     height: 80%;
     top: 10%;
-    background-color: #008080;
-    border: 1px solid #009090;
-    border-radius: 3px;
+    background-color: #000080; /* Dark blue */
+    border: 1px solid #000000;
+    box-shadow: 1px 1px 0 #c0c0c0;
     box-sizing: border-box;
     overflow: hidden;
     color: white;
@@ -754,14 +698,107 @@ input::placeholder,
     text-overflow: ellipsis;
     cursor: grab;
 }
-/* In style.css */
-:root {
-    --timeline-track-name-width: 120px; /* Or your desired width */
-}
+.audio-clip.sequence-clip { background-color: #008000; } /* Green */
 
-/* Ensure .timeline-track-lane-name uses this variable */
-.timeline-track-lane-name {
-    /* ... other styles ... */
-    min-width: var(--timeline-track-name-width);
-    max-width: var(--timeline-track-name-width);
-}
+/* Misc */
+.hidden { display: none !important; }
+
+/* Grid layout for inspector windows */
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
+.space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.h-24 { height: 6rem; }
+.h-12 { height: 3rem; }
+.h-3 { height: 0.75rem; }
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.text-center { text-align: center; }
+.text-white { color: #fff; }
+.text-red-500 { color: #ef4444; }
+.bg-red-400 { background-color: #f87171; }
+.hover\:bg-red-500:hover { background-color: #ef4444; }
+.bg-blue-500 { background-color: #3b82f6; }
+.hover\:bg-blue-600:hover { background-color: #2563eb; }
+.bg-gray-50 { background-color: #f9fafb; }
+.bg-gray-100 { background-color: #f3f4f6; }
+.bg-gray-200 { background-color: #e5e7eb; }
+.hover\:bg-gray-300:hover { background-color: #d1d5db; }
+.bg-white { background-color: #fff; }
+.border { border-width: 1px; }
+.border-t { border-top-width: 1px; }
+.border-b { border-bottom-width: 1px; }
+.border-r { border-right-width: 1px; }
+.border-l-2 { border-left-width: 2px; }
+.border-gray-200 { border-color: #e5e7eb; }
+.border-gray-300 { border-color: #d1d5db; }
+.border-gray-400 { border-color: #9ca3af; }
+.border-blue-300 { border-color: #93c5fd; }
+.rounded { border-radius: 0.25rem; }
+.rounded-sm { border-radius: 0.125rem; }
+.shadow-xs { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05); }
+.shadow-inner { box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05); }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-x-auto { overflow-x: auto; }
+.overflow-auto { overflow: auto; }
+.overflow-hidden { overflow: hidden; }
+.whitespace-nowrap { white-space: nowrap; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.italic { font-style: italic; }
+.flex { display: flex; }
+.inline-block { display: inline-block; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.flex-grow { flex-grow: 1; }
+.align-top { vertical-align: top; }
+.w-24 { width: 6rem; }
+.mr-2 { margin-right: 0.5rem; }
+.text-\[10px\] { font-size: 10px; }
+.block { display: block; }
+.w-12 { width: 3rem; }
+.sticky { position: sticky; }
+.top-0 { top: 0; }
+.left-0 { left: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.relative { position: relative; }
+.pt-1 { padding-top: 0.25rem; }
+.pr-1 { padding-right: 0.25rem; }
+.px-0\.5 { padding-left: 0.125rem; padding-right: 0.125rem; }
+.px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+.px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+.py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.p-0\.5 { padding: 0.125rem; }
+.mb-0\.5 { margin-bottom: 0.125rem; }
+.opacity-50 { opacity: 0.5; }
+.cursor-not-allowed { cursor: not-allowed; }
+.text-red-400 { color: #f87171; }
+.hover\:text-red-700:hover { color: #b91c1c; }
+.hover\:text-green-600:hover { color: #059669; }
+.hover\:text-blue-600:hover { color: #2563eb; }
+.bg-blue-100 { background-color: #dbeafe; }
+.bg-blue-200 { background-color: #bfdbfe; }
+.border-blue-400 { border-color: #60a5fa; }
+.bg-green-500 { background-color: #22c55e; }
+.bg-blue-500 { background-color: #3b82f6; }
+.text-gray-500 { color: #6b7280; }
+.text-gray-600 { color: #4b5563; }
+.text-gray-700 { color: #374151; }
