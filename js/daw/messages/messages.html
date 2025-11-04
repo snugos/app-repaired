@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnugOS Messages</title> <link rel="stylesheet" href="/app/css/base.css">
+    <link rel="stylesheet" href="/app/css/components.css">
+    <link rel="stylesheet" href="/app/css/style.css"> <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { /* ... */ };
+    </script>
+</head>
+<body class="theme-dark">
+
+    <div id="desktop"></div>
+
+    <div id="taskbar" class="select-none">
+        <button id="startButton">Start</button>
+        <div id="taskbarButtons"></div>
+        <div style="flex-grow: 1;"></div> 
+        <div id="taskbarClockDisplay" class="text-right px-2"></div>
+    </div>
+
+    <div id="startMenu" class="hidden select-none">
+        <ul>
+            <li><a href="/app/index.html" style="text-decoration:none; color:inherit; display:block;" target="_blank">Desktop</a></li>
+            <li><a href="/app/js/daw/browser/library.html" style="text-decoration:none; color:inherit; display:block;" target="_blank">SnugOS Browser</a></li>
+            <li><a href="/app/js/daw/profiles/profile.html" style="text-decoration:none; color:inherit; display:block;" target="_blank">Profile</a></li>
+            <li><a href="/app/snaw.html" style="text-decoration:none; color:inherit; display:block;" target="_blank">DAW</a></li>
+            <li><hr></li>
+            <li>Login / Register</li>
+            <li>Logout</li>
+            <li><hr></li>
+            <li>Toggle Full Screen</li>
+        </ul>
+    </div>
+    
+    <div id="notification-area"></div>
+    <div id="modalContainer"></div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script type="module" src="/app/js/daw/utils.js"></script>
+    <script type="module" src="/app/js/daw/constants.js"></script>
+    <script type="module" src="/app/js/daw/db.js"></script>
+    <script type="module" src="/app/js/daw/auth.js"></script>
+    <script type="module" src="/app/js/daw/SnugWindow.js"></script>
+    <script type="module" src="/app/js/daw/state/windowState.js"></script>
+    <script type="module" src="/app/js/daw/state/appState.js"></script>
+    
+    <script type="module" src="/app/js/daw/messages/messages.js"></script>
+
+</body>
+</html>
