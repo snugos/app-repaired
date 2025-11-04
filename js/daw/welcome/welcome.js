@@ -2,16 +2,19 @@
 // NOTE: This file is designed to run within the main index.html context.
 // It sets up the desktop icons and application launching.
 
-import { SERVER_URL } from '/app/js/daw/constants.js'; 
-import { SnugWindow } from '/app/js/daw/SnugWindow.js'; 
-import { showNotification, showCustomModal, createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js'; 
-import { storeAsset, getAsset } from '/app/js/daw/db.js'; 
-// FIX: These imports now work because they are correctly exported in auth.js
-import { initializeAuth, handleBackgroundUpload, handleLogout } from '/app/js/daw/auth.js'; 
+import { SERVER_URL } from '/app/js/daw/constants.js'; // Corrected absolute path
+import { SnugWindow } from '/app/js/daw/SnugWindow.js'; // Corrected absolute path
+// UPDATED: Import showNotification and showCustomModal from the main utils.js
+import { showNotification, showCustomModal, createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js'; // Use main utils.js
+import { storeAsset, getAsset } from '/app/js/daw/db.js'; // Use main db.js
+import { initializeAuth, handleBackgroundUpload, handleLogout } from '/app/js/daw/auth.js'; // Corrected absolute path
 
-// Import necessary state accessors
+// Import necessary state accessors (Corrected absolute paths)
 import { getWindowById, addWindowToStore, removeWindowFromStore, incrementHighestZ, getHighestZ, setHighestZ, getOpenWindows, serializeWindows, reconstructWindows, initializeWindowState } from '/app/js/daw/state/windowState.js';
 import { getCurrentUserThemePreference, setCurrentUserThemePreference, initializeAppState } from '/app/js/daw/state/appState.js';
+
+// REMOVED DUPLICATE IMPORT:
+// import { createContextMenu, showConfirmationDialog } from '/app/js/daw/utils.js';
 
 let appServices = {}; // Define appServices at the top level
 let loggedInUser = null;
@@ -114,30 +117,33 @@ function openEmbeddedAppInWindow(windowId, windowTitle, iframeSrc, options = {})
 /**
  * Sets up the main welcome page functionality.
  */
-async function initializeWelcomePage() { 
+async function initializeWelcomePage() { // Marked as async to allow await
     // 1. Initialize appServices placeholders.
+    // Functions that are directly used here, but populated by modules later, start as null.
     appServices = {
-        // Core SnugWindow/Window State functions
+        // Core SnugWindow/Window State functions (will be assigned after windowStateModule loads)
         getWindowById: null, addWindowToStore: null, removeWindowFromStore: null,
         incrementHighestZ: null, getHighestZ: null, setHighestZ: null, getOpenWindows: null,
         serializeWindows: null, reconstructWindows: null,
-        initializeWindowState: null, 
+        initializeWindowState: null, // Initializer for windowState.js
 
         // Theme functions
         getCurrentUserThemePreference: null, setCurrentUserThemePreference: null,
-        initializeAppState: null, 
+        initializeAppState: null, // Initializer for appState.js
 
         // Background handling
-        applyCustomBackground: applyCustomBackground, 
-        handleBackgroundUpload: handleBackgroundUpload, // Directly imported and used
+        applyCustomBackground: applyCustomBackground, // Local function, now defined earlier
+        handleBackgroundUpload: handleBackgroundUpload, // Imported from auth.js
 
         // Utility access
+        // UPDATED: Use directly imported functions from utils.js
         showNotification: showNotification,
         showCustomModal: showCustomModal,
         createContextMenu: createContextMenu,
         showConfirmationDialog: showConfirmationDialog,
-        showLoading: () => document.getElementById('loading-overlay')?.classList.remove('hidden'), 
-        hideLoading: () => document.getElementById('loading-overlay')?.classList.add('hidden'), 
+        showLoading: () => document.getElementById('loading-overlay')?.classList.remove('hidden'), // Simple local implementation
+        hideLoading: () => document.getElementById('loading-overlay')?.classList.add('hidden'), // Simple local implementation
+        // Re-implementing showCustomInputModal locally for welcome.js context
         showCustomInputModal: (title, placeholder, initialValue, onConfirm) => {
             const inputDialog = document.getElementById('input-dialog');
             const inputDialogTitle = document.getElementById('input-dialog-title');
@@ -174,30 +180,34 @@ async function initializeWelcomePage() {
         },
 
 
-        // Auth related 
-        initializeAuth: initializeAuth, // Directly imported and used
-        handleLogout: handleLogout, // Directly imported and used
-        updateUserAuthContainer: null, // Populated by auth module
-        showLoginModal: null, // Populated by auth module
+        // Auth related (will be assigned after authModule loads)
+        initializeAuth: null,
+        handleLogout: null, // Overridden by local handleLogout below which calls auth.js's handleLogout
+        updateUserAuthContainer: null,
+        showLoginModal: null, // Overridden by local showLoginModal below
         getLoggedInUser: () => loggedInUser, // Provide getter for current user state
 
-        // DB functions
-        storeAsset: storeAsset, 
-        getAsset: getAsset,     
+        // DB functions (from js/daw/db.js or welcomeDb.js)
+        storeAsset: storeAsset, // From welcomeDb.js
+        getAsset: getAsset,     // From welcomeDb.js
+        // storeAudio, getAudio, deleteAudio not needed in welcome.js
+        // Add main db.js functions too
         storeAudio: null, getAudio: null, deleteAudio: null,
     };
 
     // 2. Dynamically import necessary modules.
+    // We use Promise.all to ensure all modules are loaded before proceeding.
     const [
         windowStateModule, appStateModule, authModuleExports, dbModuleExports
     ] = await Promise.all([
-        import('/app/js/daw/state/windowState.js'), 
-        import('/app/js/daw/state/appState.js'),     
-        import('/app/js/daw/auth.js'),               
-        import('/app/js/daw/db.js')                  
+        import('/app/js/daw/state/windowState.js'), // Corrected absolute path
+        import('/app/js/daw/state/appState.js'),     // Corrected absolute path
+        import('/app/js/daw/auth.js'),               // Corrected absolute path
+        import('/app/js/daw/db.js')                  // Import main db.js as well
     ]);
 
     // 3. Populate appServices with exports from modules.
+    // This is crucial: assign module exports to appServices
     Object.assign(appServices, windowStateModule);
     Object.assign(appServices, appStateModule);
     Object.assign(appServices, dbModuleExports);
@@ -210,9 +220,7 @@ async function initializeWelcomePage() {
     appServices.initializeAppState(appServices);
 
     // Initialize AuthModule (it sets up its own event listeners and updates auth UI).
-    // FIX: Call initializeAuth directly from the imported function
-    const authExports = initializeAuth(appServices); 
-    // Populate appServices with functions returned by initializeAuth (like showLoginModal)
+    const authExports = authModuleExports.initializeAuth(appServices);
     Object.assign(appServices, authExports);
 
 
@@ -258,17 +266,10 @@ function initAudioOnFirstGesture() {
             await Tone.start();
             console.log('AudioContext started successfully.');
         }
-        // IMPORTANT: Remove the listener after the first interaction
         document.body.removeEventListener('mousedown', startAudio);
-        document.body.removeEventListener('keydown', startAudio);
-        document.body.removeEventListener('touchstart', startAudio);
     };
-    // Use multiple events to catch various types of user interaction
     document.body.addEventListener('mousedown', startAudio);
-    document.body.addEventListener('keydown', startAudio);
-    document.body.addEventListener('touchstart', startAudio); // For touch devices
 }
-
 
 /**
  * Attaches all primary event listeners for the page.
@@ -281,9 +282,9 @@ function attachEventListeners() {
 
     // Start Menu and Desktop Icon actions
     document.getElementById('menuLaunchDaw')?.addEventListener('click', launchDaw);
-    document.getElementById('menuOpenBrowser')?.addEventListener('click', openBrowser); 
-    document.getElementById('menuViewProfiles')?.addEventListener('click', viewProfiles); 
-    document.getElementById('menuOpenMessages')?.addEventListener('click', openMessages); 
+    document.getElementById('menuOpenBrowser')?.addEventListener('click', openBrowser); // Open new Browser
+    document.getElementById('menuViewProfiles')?.addEventListener('click', viewProfiles); // Open Profiles
+    document.getElementById('menuOpenMessages')?.addEventListener('click', openMessages); // Open Messages
 
     document.getElementById('menuLogin')?.addEventListener('click', () => {
         toggleStartMenu();
@@ -451,7 +452,8 @@ function toggleFullScreen() {
     }
 }
 
-// Calls auth.js's showLoginModal via appServices
+// The following functions are called by desktop events but are defined in auth.js.
+// We call auth.js's showLoginModal via appServices
 function showLoginModal() {
     document.getElementById('startMenu')?.classList.add('hidden');
     appServices.showLoginModal(); // Call the auth module's showLoginModal
@@ -463,6 +465,14 @@ function toggleTheme() {
     const newTheme = isLightTheme ? 'dark' : 'light';
     appServices.setCurrentUserThemePreference(newTheme);
 }
+
+// The `handleBackgroundUpload` is already defined locally in welcome.js.
+// It uses `appServices.handleBackgroundUpload` which comes from `auth.js`.
+// This structure is fine as `auth.js` provides the core logic and `welcome.js` defines the UI interaction.
+
+// The `handleLogout` is defined locally in welcome.js.
+// It uses `appServices.handleLogout` which comes from `auth.js`.
+// This is also fine, as `auth.js` provides the core logout mechanism.
 
 // Ensure initializeWelcomePage runs when the DOM is fully loaded.
 document.addEventListener('DOMContentLoaded', initializeWelcomePage);
