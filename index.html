@@ -3,134 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to SnugOS</title>
-    
-    <link rel="apple-touch-icon" sizes="57x57" href="/app/assets/apple-icon-57x57.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="/app/assets/apple-icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/app/assets/apple-icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/app/assets/apple-icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/app/assets/apple-icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/app/assets/apple-icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/app/assets/apple-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/app/assets/apple-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/app/assets/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="192x192"  href="/app/assets/android-icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/app/assets/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="/app/assets/favicon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/app/assets/favicon-16x16.png">
-    <link rel="manifest" href="/app/manifest.json">
-    <meta name="msapplication-TileColor" content="#1e1e1e">
-    <meta name="msapplication-TileImage" content="/app/assets/ms-icon-144x144.png">
-    <meta name="theme-color" content="#1e1e1e">
+    <title>SnugOS</title>
+    <link rel="apple-touch-icon" sizes="57x57" href="apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="/app/css/base.css">
-    <link rel="stylesheet" href="/app/css/components.css">
-    <link rel="stylesheet" href="/app/css/style.css"> <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Roboto', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
+    <script src="https://cdn.tailwindcss.com"></script> <script src="js/lib/Tone.min.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="theme-dark">
-
-    <div id="topTaskbar" class="select-none">
-        <div style="flex-grow: 1;"></div> 
-        <div id="userAuthContainer" class="flex items-center text-sm ml-4">
-            <button id="loginBtnTop" class="px-3 py-1 border rounded">Login</button>
+<body>
+    <div id="desktop">
         </div>
-        <div id="themeToggleContainerTopRight">
-            <button id="themeToggleBtn" title="Toggle Theme">
-                <svg id="themeIconSun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sun"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                <svg id="themeIconMoon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            </button>
-        </div>
-    </div>
 
-    <div id="desktop" class="relative h-full w-full">
-        <div id="desktop-icons-container" class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            </div>
-    </div>
-
-    <div id="taskbar" class="select-none">
+    <div id="taskbar">
         <button id="startButton">Start</button>
         <div id="taskbarButtons">
-        </div>
-        <div style="flex-grow: 1;"></div> 
-        <div id="taskbarClockDisplay" class="text-right px-2"></div>
+            </div>
+        <div id="taskbarTempoDisplay" title="Current Tempo">120.0 BPM</div>
     </div>
 
-    <div id="startMenu" class="hidden select-none">
+    <div id="startMenu" class="hidden">
         <ul>
-            <li id="menuLaunchDaw"><a href="snaw.html" style="text-decoration:none; color:inherit; display:block;">Launch DAW</a></li>
+            <li id="menuAddSynthTrack">Add Synth Track</li>
+            <li id="menuAddSamplerTrack">Add Slicer Sampler Track</li>
+            <li id="menuAddDrumSamplerTrack">Add Sampler (Pads)</li>
+            <li id="menuAddInstrumentSamplerTrack">Add Instrument Sampler Track</li>
+            <li id="menuAddAudioTrack">Add Audio Track</li>
             <li><hr></li>
-            <li id="menuOpenBrowser"><a href="/app/js/daw/browser/browser.html" style="text-decoration:none; color:inherit; display:block;">SnugOS Browser</a></li>
-            <li id="menuViewProfiles"><a href="/app/js/daw/profiles/profile.html" style="text-decoration:none; color:inherit; display:block;">Profile</a></li>
-            <li id="menuOpenMessages"><a href="/app/js/daw/messages/messages.html" style="text-decoration:none; color:inherit; display:block;">Messages</a></li>
+            <li id="menuOpenSoundBrowser">Sound Browser</li>
             <li><hr></li>
-            <li id="menuLogin">Login / Register</li>
-            <li id="menuLogout" class="hidden">Logout</li>
+            <li id="menuOpenTimeline">Timeline</li>
+            <li id="menuOpenGlobalControls">Global Controls</li>
+            <li id="menuOpenMixer">Mixer</li>
+            <li id="menuOpenMasterEffects">Master Effects Rack</li>
+            <li><hr></li>
+            <li id="menuUndo" class="disabled" title="Undo">Undo</li>
+            <li id="menuRedo" class="disabled" title="Redo">Redo</li>
+            <li><hr></li>
+            <li id="menuSaveProject">Save Project (.snug)</li>
+            <li id="menuLoadProject">Load Project (.snug)</li>
+            <li id="menuExportWav">Export to WAV</li>
             <li><hr></li>
             <li id="menuToggleFullScreen">Toggle Full Screen</li>
         </ul>
     </div>
 
-    <input type="file" id="customBgInput" class="hidden" accept="image/*,video/mp4,video/webm,video/quicktime">
-    
+    <input type="file" id="loadProjectInput" class="hidden" accept=".snug">
+    <input type="file" id="customBgInput" class="hidden" accept="image/*">
+    <input type="file" id="sampleFileInput" class="hidden" accept="audio/*">
+
+
     <div id="notification-area"></div>
+
     <div id="modalContainer"></div>
-    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] hidden">
-        <div class="text-xl font-semibold text-white animate-pulse">Loading...</div>
-    </div>
-    <div id="input-dialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
-        <div class="rounded-xl shadow-lg p-6 max-w-sm w-full mx-auto font-inter" style="background-color: var(--bg-modal-dialog); color: var(--text-primary); border: 1px solid var(--border-modal);">
-            <h3 id="input-dialog-title" class="text-xl font-semibold mb-4 text-center"></h3>
-            <input
-                type="text"
-                id="input-dialog-field"
-                placeholder=""
-                class="w-full p-3 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style="background-color: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-input);"
-            />
-            <div class="flex justify-end space-x-4">
-                <button id="input-dialog-cancel-btn" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">Cancel</button>
-                <button id="input-dialog-confirm-btn" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">Confirm</button>
-            </div>
-        </div>
-    </div>
-    <div id="message-dialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
-        <div class="rounded-xl shadow-lg p-6 max-w-sm w-full mx-auto font-inter" style="background-color: var(--bg-modal-dialog); color: var(--text-primary); border: 1px solid var(--border-modal);">
-            <p id="message-text" class="mb-6 text-center"></p>
-            <div class="flex justify-center space-x-4">
-                <button id="message-cancel-btn" class="hidden" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">
-                    Cancel
-                </button>
-                <button id="message-confirm-btn" style="background-color: var(--bg-button); color: var(--text-button); border: 1px solid var(--border-button);">
-                    OK
-                </button>
-            </div>
-        </div>
-    </div>
 
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
-    <script type="module" src="/app/js/daw/utils.js"></script>
-    <script type="module" src="/app/js/daw/SnugWindow.js"></script>
-
-    <script type="module" src="/app/js/daw/welcome/welcomeUtils.js"></script>
-    <script type="module" src="/app/js/daw/welcome/welcomeDb.js"></script>
-    <script type="module" src="/app/js/daw/welcome/welcome.js"></script>
-
-
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
