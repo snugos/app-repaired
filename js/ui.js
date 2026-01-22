@@ -1830,27 +1830,7 @@ export function openTimelineWindow(savedState = null) {
 // ... existing imports ...
 
 // Add this helper function to the module (can be at the bottom)
-async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
-    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
-    if (!track) return;
 
-    if (files && files.length > 0) {
-        const file = files[0];
-        if (file.type.startsWith('audio/')) {
-            showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
-            await track.loadSampleToPad(padIndex, { file, fileName: file.name });
-            if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
-        }
-    } else if (droppedData && droppedData.type === 'sound-browser-item') {
-        showNotification(`Loading ${droppedData.fileName} to pad ${padIndex + 1}...`);
-        await track.loadSampleToPad(padIndex, { 
-            filePath: droppedData.filePath, 
-            fileName: droppedData.fileName,
-            library: droppedData.library 
-        });
-        if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
-    }
-}
 
 /**
  * UI Renderer for the Drum Sampler Pads
