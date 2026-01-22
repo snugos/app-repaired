@@ -765,3 +765,21 @@ input::placeholder,
     min-width: var(--timeline-track-name-width);
     max-width: var(--timeline-track-name-width);
 }
+/* --- Drum Sampler Pad Drag & Drop Feedback --- */
+.drum-pad {
+    /* Existing pad styles... */
+    transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+}
+
+.drum-pad.drop-over {
+    background-color: #444 !important;
+    border: 2px dashed #00ffff !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    z-index: 10;
+}
+
+.drum-pad.has-sample {
+    background-color: #2a4a5a;
+    border-color: #0088aa;
+}
