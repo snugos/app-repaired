@@ -1828,6 +1828,33 @@ export function openTimelineWindow(savedState = null) {
 // js/ui.js (Relevant segments)
 
 // ... existing imports ...
+
+// Add this helper function to the module (can be at the bottom)
+async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) return;
+
+    if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('audio/')) {
+            showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
+            await track.loadSampleToPad(padIndex, { file, fileName: file.name });
+            if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
+        }
+    } else if (droppedData && droppedData.type === 'sound-browser-item') {
+        showNotification(`Loading ${droppedData.fileName} to pad ${padIndex + 1}...`);
+        await track.loadSampleToPad(padIndex, { 
+            filePath: droppedData.filePath, 
+            fileName: droppedData.fileName,
+            library: droppedData.library 
+        });
+        if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
+    }
+}
+
+/**
+ * UI Renderer for the Drum Sampler Pads
+ */
 function buildDrumSamplerSpecificInspectorDOM(track) {
     const container = document.createElement('div');
     container.className = 'drum-sampler-inspector-content';
@@ -1839,12 +1866,12 @@ function buildDrumSamplerSpecificInspectorDOM(track) {
         const padEl = document.createElement('div');
         padEl.className = 'drum-pad';
         
-        // Add visual class if a sample is already loaded
+        // Highlights the pad if a sample is loaded
         if (padData.status === 'loaded' || (padData.audioBuffer && !padData.audioBuffer.disposed)) {
             padEl.classList.add('has-sample');
         }
         
-        // --- Register drop listeners for each pad ---
+        // Setup Drag and Drop
         if (typeof setupGenericDropZoneListeners === 'function') {
             setupGenericDropZoneListeners(padEl, (droppedData, files) => {
                 handleDrumPadDrop(track.id, padIndex, droppedData, files);
@@ -1853,7 +1880,6 @@ function buildDrumSamplerSpecificInspectorDOM(track) {
 
         padEl.innerHTML = `<span>${padData.sampleName || (padIndex + 1)}</span>`;
         
-        // Pad trigger listener
         padEl.addEventListener('mousedown', () => {
             if (localAppServices.triggerDrumPad) {
                 localAppServices.triggerDrumPad(track.id, padIndex);
@@ -1870,7 +1896,9 @@ function buildDrumSamplerSpecificInspectorDOM(track) {
     return container;
 }
 
-// Add this helper function to the module (can be at the bottom)
+/**
+ * Helper to process the drop event
+ */
 async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
     const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
     if (!track) return;
@@ -1878,12 +1906,12 @@ async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
     if (files && files.length > 0) {
         const file = files[0];
         if (file.type.startsWith('audio/')) {
-            showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
+            showNotification(`Loading ${file.name}...`);
             await track.loadSampleToPad(padIndex, { file, fileName: file.name });
             if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
         }
     } else if (droppedData && droppedData.type === 'sound-browser-item') {
-        showNotification(`Loading ${droppedData.fileName} to pad ${padIndex + 1}...`);
+        showNotification(`Loading ${droppedData.fileName}...`);
         await track.loadSampleToPad(padIndex, { 
             filePath: droppedData.filePath, 
             fileName: droppedData.fileName,
