@@ -1834,30 +1834,33 @@ export function openTimelineWindow(savedState = null) {
 
 /**
  * UI Renderer for the Drum Sampler Pads
- */
-function buildDrumSamplerSpecificInspectorDOM(track) {
+ */function buildDrumSamplerSpecificInspectorDOM(track) {
     const container = document.createElement('div');
     container.className = 'drum-sampler-inspector-content';
 
     const padGrid = document.createElement('div');
     padGrid.className = 'drum-pad-grid';
 
-    track.drumSamplerPads.forEach((padData, padIndex) => {
+    // Ensure we are looping through the 16 pads
+    const pads = track.drumSamplerPads || [];
+    
+    pads.forEach((padData, padIndex) => {
         const padEl = document.createElement('div');
         padEl.className = 'drum-pad';
         
-        // Highlights the pad if a sample is loaded
-        if (padData.status === 'loaded' || (padData.audioBuffer && !padData.audioBuffer.disposed)) {
+        // Use padData.sampleName to match the Track.js code
+        if (padData.status === 'loaded' || padData.sampleName) {
             padEl.classList.add('has-sample');
         }
         
-        // Setup Drag and Drop
+        // Register Drop Listeners
         if (typeof setupGenericDropZoneListeners === 'function') {
             setupGenericDropZoneListeners(padEl, (droppedData, files) => {
                 handleDrumPadDrop(track.id, padIndex, droppedData, files);
             });
         }
 
+        // Display filename or the pad number
         padEl.innerHTML = `<span>${padData.sampleName || (padIndex + 1)}</span>`;
         
         padEl.addEventListener('mousedown', () => {
@@ -1867,7 +1870,6 @@ function buildDrumSamplerSpecificInspectorDOM(track) {
             padEl.classList.add('active');
         });
         padEl.addEventListener('mouseup', () => padEl.classList.remove('active'));
-        padEl.addEventListener('mouseleave', () => padEl.classList.remove('active'));
 
         padGrid.appendChild(padEl);
     });
