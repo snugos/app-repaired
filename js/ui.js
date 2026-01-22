@@ -1846,3 +1846,69 @@ export function openTimelineWindow(savedState = null) {
     }
     return timelineWindow;
 }
+// js/ui.js (Relevant segments)
+
+// ... existing imports ...
+
+// Add this helper function to the module (can be at the bottom)
+async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) return;
+
+    if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('audio/')) {
+            showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
+            await track.loadSampleToPad(padIndex, { file, fileName: file.name });
+            if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
+        }
+    } else if (droppedData && droppedData.type === 'sound-browser-item') {
+        showNotification(`Loading ${droppedData.fileName} to pad ${padIndex + 1}...`);
+        await track.loadSampleToPad(padIndex, { 
+            filePath: droppedData.filePath, 
+            fileName: droppedData.fileName,
+            library: droppedData.library 
+        });
+        if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
+    }
+}
+
+// ... update the drum sampler rendering function ...
+
+function buildDrumSamplerSpecificInspectorDOM(track) {
+    const container = document.createElement('div');
+    container.className = 'drum-sampler-inspector-content';
+
+    const padGrid = document.createElement('div');
+    padGrid.className = 'drum-pad-grid';
+
+    track.drumSamplerPads.forEach((padData, padIndex) => {
+        const padEl = document.createElement('div');
+        padEl.className = 'drum-pad';
+        if (padData.status === 'loaded' || padData.audioBuffer) {
+            padEl.classList.add('has-sample');
+        }
+        
+        // --- NEW: Register drop listeners for each pad ---
+        setupGenericDropZoneListeners(padEl, (droppedData, files) => {
+            handleDrumPadDrop(track.id, padIndex, droppedData, files);
+        });
+
+        padEl.innerHTML = `<span>${padData.sampleName || (padIndex + 1)}</span>`;
+        
+        // Pad trigger listener
+        padEl.addEventListener('mousedown', () => {
+            if (localAppServices.triggerDrumPad) {
+                localAppServices.triggerDrumPad(track.id, padIndex);
+            }
+            padEl.classList.add('active');
+        });
+        padEl.addEventListener('mouseup', () => padEl.classList.remove('active'));
+        padEl.addEventListener('mouseleave', () => padEl.classList.remove('active'));
+
+        padGrid.appendChild(padEl);
+    });
+
+    container.appendChild(padGrid);
+    return container;
+}
