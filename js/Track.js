@@ -170,7 +170,60 @@ export class Track {
         this.inputChannel = null;
         this.clipPlayers = new Map(); 
     }
+/**
+     * Loads a sample to a specific drum pad and saves it to IndexedDB.
+     * @param {number} padIndex The index of the pad (0-15).
+     * @param {Object} sampleSource Data source (file object or sound browser metadata).
+     */
+    async loadSampleToPad(padIndex, sampleSource) {
+        try {
+            let audioData;
+            let fileName = sampleSource.fileName;
 
+            // 1. Convert the source into an ArrayBuffer
+            if (sampleSource.file) {
+                // User dragged a file from their computer
+                audioData = await sampleSource.file.arrayBuffer();
+            } else if (sampleSource.filePath) {
+                // User dragged a sound from the internal Sound Browser
+                if (this.appServices.loadAudioBufferSource) {
+                    audioData = await this.appServices.loadAudioBufferSource(sampleSource);
+                }
+            }
+
+            if (audioData) {
+                // 2. Save to IndexedDB so the sample persists on reload
+                const dbKey = `track_${this.id}_pad_${padIndex}`;
+                await storeAudio(dbKey, audioData);
+
+                // 3. Create a Tone.js Buffer for immediate playback
+                const buffer = new Tone.ToneAudioBuffer();
+                await buffer.fromArrayBuffer(audioData);
+
+                // 4. Update the specific pad in this track
+                if (this.drumSamplerPads[padIndex]) {
+                    // Dispose of the old buffer if it exists to save memory
+                    if (this.drumSamplerPads[padIndex].audioBuffer && !this.drumSamplerPads[padIndex].audioBuffer.disposed) {
+                        this.drumSamplerPads[padIndex].audioBuffer.dispose();
+                    }
+
+                    this.drumSamplerPads[padIndex].audioBuffer = buffer;
+                    this.drumSamplerPads[padIndex].sampleName = fileName;
+                    this.drumSamplerPads[padIndex].dbKey = dbKey;
+                    this.drumSamplerPads[padIndex].status = 'loaded';
+                }
+
+                console.log(`[Track ${this.id}] Successfully loaded "${fileName}" to pad ${padIndex}`);
+                return true;
+            }
+        } catch (e) {
+            console.error("[Track loadSampleToPad] Error:", e);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification("Error loading sample to pad.");
+            }
+        }
+        return false;
+    }
     // --- Sequence Management ---
     getActiveSequence() {
         if (this.type === 'Audio' || !this.activeSequenceId || !this.sequences || this.sequences.length === 0) return null;
