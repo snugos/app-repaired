@@ -1902,3 +1902,79 @@ async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
         if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
     }
 }
+
+function buildDrumSamplerSpecificInspectorDOM(track) {
+    // This creates the container for the 16-pad grid
+    return `<div class="drum-sampler-inspector-content p-1">
+        <div id="drumPadGrid-${track.id}" class="drum-pad-grid">
+            </div>
+        <div id="drumPadControls-${track.id}" class="drum-pad-controls-area mt-2 border-t dark:border-slate-600 pt-2">
+            </div>
+    </div>`;
+}
+
+export function renderDrumSamplerPads(track) {
+    const gridContainer = document.getElementById(`drumPadGrid-${track.id}`);
+    if (!gridContainer) return;
+
+    gridContainer.innerHTML = '';
+    // Create 16 pads
+    for (let i = 0; i < 16; i++) {
+        const padData = track.drumSamplerPads[i];
+        const padEl = document.createElement('div');
+        padEl.className = `drum-pad ${padData.status === 'loaded' ? 'has-sample' : ''} ${track.selectedPadIndex === i ? 'selected' : ''}`;
+        
+        padEl.innerHTML = `
+            <div class="pad-number">${i + 1}</div>
+            <div class="pad-name">${padData.sampleName || '---'}</div>
+        `;
+
+        // Handle Clicking the pad
+        padEl.onclick = () => {
+            track.selectedPadIndex = i;
+            if (localAppServices.triggerDrumPad) localAppServices.triggerDrumPad(track.id, i);
+            renderDrumSamplerPads(track);
+            updateDrumPadControlsUI(track);
+        };
+
+        // Handle Drag & Drop onto the pad
+        setupGenericDropZoneListeners(padEl, (droppedData, files) => {
+            handleDrumPadDrop(track.id, i, droppedData, files);
+        });
+
+        gridContainer.appendChild(padEl);
+    }
+}
+
+async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) return;
+
+    if (files && files.length > 0) {
+        const file = files[0];
+        showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
+        await track.loadSampleToPad(padIndex, { file, fileName: file.name });
+    } else if (droppedData && droppedData.type === 'sound-browser-item') {
+        showNotification(`Loading ${droppedData.fileName}...`);
+        await track.loadSampleToPad(padIndex, { filePath: droppedData.filePath, fileName: droppedData.fileName });
+    }
+    
+    renderDrumSamplerPads(track);
+}
+
+function updateDrumPadControlsUI(track) {
+    const controlsArea = document.getElementById(`drumPadControls-${track.id}`);
+    if (!controlsArea) return;
+    
+    const padIndex = track.selectedPadIndex || 0;
+    const pad = track.drumSamplerPads[padIndex];
+    
+    controlsArea.innerHTML = `
+        <div class="text-xs font-bold mb-1">Pad ${padIndex + 1} Settings: ${pad.sampleName || 'Empty'}</div>
+        <div class="grid grid-cols-2 gap-2">
+            <div id="padVol-${track.id}-${padIndex}-placeholder"></div>
+            <div id="padPitch-${track.id}-${padIndex}-placeholder"></div>
+        </div>
+    `;
+    // (Optional: You can initialize knobs here for volume/pitch)
+}
