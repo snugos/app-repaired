@@ -173,6 +173,27 @@ function buildSamplerSpecificInspectorDOM(track) {
     </div>`;
 }
 
+function buildDrumSamplerSpecificInspectorDOM(track) {
+    return `<div class="drum-sampler-controls p-1 space-y-2">
+        <div class="selected-pad-controls p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 space-y-1">
+            <h4 class="text-xs font-semibold dark:text-slate-200">Edit Pad: <span id="selectedDrumPadInfo-${track.id}">1</span></h4>
+            <div id="drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}" class="mb-1 text-xs"></div>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadVolumeKnob-${track.id}-placeholder"></div>
+                <div id="drumPadPitchKnob-${track.id}-placeholder"></div>
+            </div>
+            <div class="text-xs font-medium mt-1 dark:text-slate-300">Envelope:</div>
+             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadEnvAttack-${track.id}-placeholder"></div>
+                <div id="drumPadEnvDecay-${track.id}-placeholder"></div>
+                <div id="drumPadEnvSustain-${track.id}-placeholder"></div>
+                <div id="drumPadEnvRelease-${track.id}-placeholder"></div>
+            </div>
+         </div>
+        <div id="drumPadsGridContainer-${track.id}" class="grid grid-cols-4 gap-1 mt-2"></div>
+    </div>`;
+}
+
 function buildInstrumentSamplerSpecificInspectorDOM(track) {
     return `<div class="instrument-sampler-controls p-1 space-y-2">
         <div id="dropZoneContainer-${track.id}-instrumentsampler" class="mb-2"></div>
@@ -1824,115 +1845,4 @@ export function openTimelineWindow(savedState = null) {
         renderTimeline();
     }
     return timelineWindow;
-}
-// js/ui.js (Relevant segments)
-
-// ... existing imports ...
-
-// Add this helper function to the module (can be at the bottom)
-
-
-/**
- * UI Renderer for the Drum Sampler Pads
-
-
-/**
- * Helper to process the drop event
- */
-async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
-    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
-    if (!track) return;
-
-    if (files && files.length > 0) {
-        const file = files[0];
-        if (file.type.startsWith('audio/')) {
-            showNotification(`Loading ${file.name}...`);
-            await track.loadSampleToPad(padIndex, { file, fileName: file.name });
-            if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
-        }
-    } else if (droppedData && droppedData.type === 'sound-browser-item') {
-        showNotification(`Loading ${droppedData.fileName}...`);
-        await track.loadSampleToPad(padIndex, { 
-            filePath: droppedData.filePath, 
-            fileName: droppedData.fileName,
-            library: droppedData.library 
-        });
-        if (localAppServices.refreshTrackWindows) localAppServices.refreshTrackWindows(trackId);
-    }
-}
-
-function buildDrumSamplerSpecificInspectorDOM(track) {
-    // This creates the container for the 16-pad grid
-    return `<div class="drum-sampler-inspector-content p-1">
-        <div id="drumPadGrid-${track.id}" class="drum-pad-grid">
-            </div>
-        <div id="drumPadControls-${track.id}" class="drum-pad-controls-area mt-2 border-t dark:border-slate-600 pt-2">
-            </div>
-    </div>`;
-}
-
-export function renderDrumSamplerPads(track) {
-    const gridContainer = document.getElementById(`drumPadGrid-${track.id}`);
-    if (!gridContainer) return;
-
-    gridContainer.innerHTML = '';
-    // Create 16 pads
-    for (let i = 0; i < 16; i++) {
-        const padData = track.drumSamplerPads[i];
-        const padEl = document.createElement('div');
-        padEl.className = `drum-pad ${padData.status === 'loaded' ? 'has-sample' : ''} ${track.selectedPadIndex === i ? 'selected' : ''}`;
-        
-        padEl.innerHTML = `
-            <div class="pad-number">${i + 1}</div>
-            <div class="pad-name">${padData.sampleName || '---'}</div>
-        `;
-
-        // Handle Clicking the pad
-        padEl.onclick = () => {
-            track.selectedPadIndex = i;
-            if (localAppServices.triggerDrumPad) localAppServices.triggerDrumPad(track.id, i);
-            renderDrumSamplerPads(track);
-            updateDrumPadControlsUI(track);
-        };
-
-        // Handle Drag & Drop onto the pad
-        setupGenericDropZoneListeners(padEl, (droppedData, files) => {
-            handleDrumPadDrop(track.id, i, droppedData, files);
-        });
-
-        gridContainer.appendChild(padEl);
-    }
-}
-
-async function handleDrumPadDrop(trackId, padIndex, droppedData, files) {
-    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
-    if (!track) return;
-
-    if (files && files.length > 0) {
-        const file = files[0];
-        showNotification(`Loading ${file.name} to pad ${padIndex + 1}...`);
-        await track.loadSampleToPad(padIndex, { file, fileName: file.name });
-    } else if (droppedData && droppedData.type === 'sound-browser-item') {
-        showNotification(`Loading ${droppedData.fileName}...`);
-        await track.loadSampleToPad(padIndex, { filePath: droppedData.filePath, fileName: droppedData.fileName });
-    }
-    
-    renderDrumSamplerPads(track);
-}
-
-function updateDrumPadControlsUI(track) {
-    const controlsArea = document.getElementById(`drumPadControls-${track.id}`);
-    if (!controlsArea) return;
-    
-    const padIndex = track.selectedPadIndex || 0;
-    const pad = track.drumSamplerPads[padIndex];
-    
-    controlsArea.innerHTML = `
-        <div class="text-xs font-bold mb-1">Pad ${padIndex + 1} Settings: ${pad.sampleName || 'Empty'}</div>
-        <div class="grid grid-cols-2 gap-2">
-            <div id="padVol-${track.id}-${padIndex}-placeholder"></div>
-            <div id="padPitch-${track.id}-${padIndex}-placeholder"></div>
-        </div>
-    `;
-    // (Optional: You can initialize knobs here for volume/pitch)
 }
