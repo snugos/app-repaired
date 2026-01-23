@@ -1,35 +1,38 @@
-/* --- SnugOS Monochromatic Theme --- */
+/* --- SnugOS Monochromatic Production Theme --- */
 :root {
     /* Neutrals - The Foundation */
-    --bg-deep: #0a0a0a;      /* Pure depth for desktop */
-    --bg-main: #121212;      /* Window / Rack background */
-    --bg-surface: #1a1a1a;   /* Buttons / Inputs / Headers */
-    --bg-active: #333333;    /* Hover / Pressed states */
+    --bg-deep: #050505;      /* Desktop background */
+    --bg-main: #0f0f0f;      /* Window body */
+    --bg-surface: #181818;   /* Headers / Control strips */
+    --bg-active: #252525;    /* Hover / Active selection */
     
-    /* Borders & Lines */
-    --border-dim: #1f1f1f;   /* Subtle grid lines */
-    --border-med: #2a2a2a;   /* Standard UI borders */
-    --border-bright: #444444; /* Focused elements */
+    /* Borders - Defined by lines, not shadows */
+    --border-dim: #1a1a1a;   /* Inner grid lines */
+    --border-med: #282828;   /* Standard UI borders */
+    --border-bright: #444444; /* High-contrast separators */
     
-    /* Accents - Use sparingly for 'On' states */
+    /* Accents - The "On" state */
     --accent-bright: #ffffff; 
-    --accent-dim: #888888;    
+    --accent-dim: #777777;    
     
     /* Typography */
-    --text-main: #e0e0e0;
-    --text-dim: #666666;
+    --text-main: #d0d0d0;
+    --text-dim: #555555;
     --text-critical: #ffffff;
 
-    /* Functional Dimensions */
+    /* Functional Layout */
     --timeline-track-name-width: 140px;
 }
 
-/* --- Base Elements --- */
+/* --- Global Reset & Base --- */
+* { box-sizing: border-box; }
+
 body {
-    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, sans-serif;
-    font-size: 11px; /* Slightly smaller for a pro DAW feel */
-    letter-spacing: 0.03em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.01em;
     margin: 0;
+    padding: 0;
     overflow: hidden;
     background-color: var(--bg-deep);
     color: var(--text-main);
@@ -41,32 +44,31 @@ body {
     height: 100vh;
     position: relative;
     background-color: var(--bg-deep);
-    /* Technical Grid Background */
     background-image: 
         linear-gradient(var(--border-dim) 1px, transparent 1px),
         linear-gradient(90deg, var(--border-dim) 1px, transparent 1px);
-    background-size: 50px 50px;
+    background-size: 60px 60px; /* Technical blueprints feel */
 }
 
-/* --- Window System --- */
+/* --- Window System (SnugWindow) --- */
 .window {
     position: absolute;
     background-color: var(--bg-main);
     border: 1px solid var(--border-med);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    border-radius: 0px; /* Sharp corners */
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    border-radius: 0px;
 }
 
 .window-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-med);
-    height: 26px;
+    height: 30px;
     display: flex;
     align-items: center;
-    padding: 0 8px;
-    cursor: default;
+    padding: 0 10px;
+    cursor: grab;
     user-select: none;
 }
 
@@ -74,7 +76,8 @@ body {
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
+    color: var(--text-main);
     flex-grow: 1;
 }
 
@@ -83,7 +86,8 @@ body {
     border: none;
     color: var(--text-dim);
     font-family: monospace;
-    padding: 2px 6px;
+    font-size: 14px;
+    padding: 0 5px;
     cursor: pointer;
 }
 
@@ -95,21 +99,22 @@ body {
     flex-grow: 1;
     overflow: auto;
     position: relative;
-    padding: 10px;
+    padding: 0; /* Let modules handle internal padding */
+    background-color: var(--bg-main);
 }
 
-/* --- Taskbar & Menu --- */
+/* --- Taskbar & Start Menu --- */
 #taskbar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 32px;
+    height: 36px;
     background-color: var(--bg-surface);
     border-top: 1px solid var(--border-bright);
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 8px;
     z-index: 9999;
 }
 
@@ -117,9 +122,9 @@ body {
     background: var(--accent-bright);
     color: var(--bg-deep);
     border: none;
-    font-weight: 800;
-    padding: 4px 12px;
-    margin-right: 15px;
+    font-weight: 900;
+    padding: 6px 14px;
+    margin-right: 12px;
     text-transform: uppercase;
     font-size: 10px;
     cursor: pointer;
@@ -130,8 +135,10 @@ body {
     border: 1px solid var(--border-med);
     color: var(--text-dim);
     margin-right: 4px;
-    padding: 4px 10px;
+    padding: 5px 12px;
     font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -140,161 +147,168 @@ body {
     color: var(--accent-bright);
 }
 
-/* --- Context Menus & Modals --- */
-.context-menu {
-    position: absolute;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-bright);
-    box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
-    z-index: 10000;
-    min-width: 160px;
-}
-
-.context-menu ul {
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-}
-
-.context-menu li {
-    padding: 6px 12px;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-.context-menu li:hover {
-    background-color: var(--accent-bright);
-    color: var(--bg-deep);
-}
-
-.context-menu hr {
-    border: 0;
-    border-top: 1px solid var(--border-med);
-    margin: 4px 0;
-}
-
-/* --- DAW Components (Knobs, Sliders, Buttons) --- */
-.knob-container {
-    display: inline-block;
-    width: 50px;
-    text-align: center;
-    margin: 5px;
-}
-
-.knob-label {
-    display: block;
-    font-size: 9px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin-bottom: 4px;
-}
-
-.knob-value-display {
-    font-family: monospace;
-    font-size: 9px;
-    color: var(--accent-bright);
-}
-
-/* Track Controls */
-.track-item {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-med);
-    margin-bottom: 4px;
-    padding: 8px;
-}
-
-.track-control-btn {
+/* --- Sound Browser & Lists --- */
+.sound-browser-container, .library-list, .file-list {
     background: var(--bg-main);
-    border: 1px solid var(--border-med);
-    color: var(--text-dim);
-    padding: 3px 6px;
-    font-size: 9px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-right: 2px;
+    color: var(--text-main);
 }
 
-.track-control-btn.active-mute { background: #444; color: white; }
-.track-control-btn.active-solo { background: #666; color: white; }
-.track-control-btn.active-arm { background: #fff; color: #000; }
+.library-item, .file-item {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-dim);
+    cursor: pointer;
+    font-size: 11px;
+}
 
-/* --- Timeline Styling --- */
+.library-item:hover, .file-item:hover {
+    background: var(--bg-surface);
+}
+
+.library-item.selected, .file-item.selected {
+    background: var(--bg-active);
+    color: var(--accent-bright);
+    border-left: 2px solid var(--accent-bright);
+}
+
+/* --- Timeline & Grid --- */
 #timeline-container {
     background-color: var(--bg-deep);
     border: 1px solid var(--border-med);
-    position: relative;
 }
 
 #timeline-ruler {
-    height: 24px;
+    height: 28px;
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-bright);
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 9px;
 }
 
 .timeline-track-lane {
-    height: 60px;
+    height: 70px;
     border-bottom: 1px solid var(--border-dim);
-    display: flex;
 }
 
 .timeline-track-lane-name {
     width: var(--timeline-track-name-width);
     background-color: var(--bg-surface);
     border-right: 1px solid var(--border-med);
-    padding: 5px;
-    font-weight: bold;
-    font-size: 10px;
-    flex-shrink: 0;
+    padding: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 9px;
+    color: var(--text-dim);
 }
 
 .timeline-track-lane-content {
-    flex-grow: 1;
-    position: relative;
     background-image: linear-gradient(90deg, var(--border-dim) 1px, transparent 1px);
-    background-size: 100px 100%; /* Matches bar width */
+    background-size: 100px 100%;
 }
 
 #timeline-playhead {
     width: 1px;
     background-color: var(--accent-bright);
-    box-shadow: 0 0 5px var(--accent-bright);
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
 }
 
 .audio-clip {
-    background-color: var(--bg-active);
+    background-color: var(--bg-surface);
     border: 1px solid var(--accent-dim);
     color: var(--accent-bright);
-    border-radius: 0px;
     font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 4px;
+}
+
+/* --- Piano Roll & Step Sequencer --- */
+.sequencer-grid {
+    background-color: var(--bg-deep);
+    gap: 1px;
+    padding: 1px;
+}
+
+.sequencer-cell {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-dim);
+}
+
+.sequencer-cell.active {
+    background-color: var(--accent-bright) !important;
+}
+
+.piano-roll-key.black {
+    background-color: var(--bg-deep);
+}
+
+.piano-roll-key.white {
+    background-color: var(--bg-surface);
+}
+
+/* --- Mixer & Controls --- */
+.mixer-strip {
+    width: 80px;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-med);
+    padding: 10px 0;
+}
+
+.track-control-btn {
+    background: var(--bg-main);
+    border: 1px solid var(--border-med);
+    color: var(--text-dim);
+    font-weight: 800;
+    font-size: 9px;
+    margin: 2px;
+    cursor: pointer;
     text-transform: uppercase;
 }
 
-/* --- Scrollbars (Webkit) --- */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+.track-control-btn.active-mute { background: #333; color: white; }
+.track-control-btn.active-solo { background: #555; color: white; }
+.track-control-btn.active-arm { background: #fff; color: #000; border-color: #fff; }
+
+/* --- Knobs & Sliders (CSS Hooks) --- */
+.knob-label {
+    color: var(--text-dim);
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.05em;
+}
+
+.knob-value-display {
+    color: var(--accent-dim);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* --- Scrollbars --- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-deep); }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
-/* --- Utilities --- */
-.hidden { display: none !important; }
-
-#notification-area {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 11000;
+/* --- Context Menu --- */
+.context-menu {
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-bright);
+    box-shadow: 8px 8px 0px rgba(0,0,0,0.8);
 }
 
+.context-menu li:hover {
+    background: var(--accent-bright);
+    color: var(--bg-deep);
+}
+
+/* --- Notifications --- */
 .notification-message {
     background: var(--accent-bright);
     color: var(--bg-deep);
-    padding: 8px 16px;
-    font-weight: bold;
+    border-radius: 0;
+    font-weight: 800;
     text-transform: uppercase;
     font-size: 10px;
-    margin-bottom: 5px;
+    padding: 10px 20px;
     border: 1px solid var(--bg-deep);
+    box-shadow: 4px 4px 0px var(--bg-active);
 }
