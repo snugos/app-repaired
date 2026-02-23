@@ -244,6 +244,13 @@ const appServices = {
             Tone.Transport.cancel(0); 
         }
 
+        // Reset play button state
+        const playBtn = uiElementsCache.playBtnGlobal;
+        if (playBtn) {
+            playBtn.textContent = 'Play';
+            playBtn.classList.remove('playing');
+        }
+
         const tracks = getTracksState();
         if (tracks) {
             tracks.forEach(track => {
@@ -295,20 +302,6 @@ const appServices = {
                     });
                 }
             });
-        }
-
-        if (uiElementsCache.playBtnGlobal) {
-            uiElementsCache.playBtnGlobal.textContent = 'Play';
-        }
-        if (isTrackRecordingState()) {
-            const recTrackId = getRecordingTrackIdState();
-            const recTrack = recTrackId !== null ? getTrackByIdState(recTrackId) : null;
-            if (appServices.stopAudioRecording && recTrackId !== null && recTrack?.type === 'Audio') {
-                 appServices.stopAudioRecording();
-            }
-            setIsRecordingState(false);
-            setRecordingTrackIdState(null);
-            if(appServices.updateRecordButtonUI) appServices.updateRecordButtonUI(false);
         }
 
         console.log("All audio and transport stopped via panic.");
@@ -369,7 +362,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -388,8 +381,8 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -405,7 +398,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -429,8 +422,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },

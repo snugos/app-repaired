@@ -228,16 +228,21 @@ export function attachGlobalControlEvents(elements) {
                         }
                     }
                     transport.start(Tone.now() + 0.05, startTime);
-                    setPlayButtonState(true);
+                    playBtnGlobal.textContent = 'Pause';
+                    playBtnGlobal.classList.add('playing');
                 } else { 
                     console.log(`[EventHandlers Play/Resume] Pausing transport.`);
                     transport.pause();
-                    setPlayButtonState(false);
+                    playBtnGlobal.textContent = 'Play';
+                    playBtnGlobal.classList.remove('playing');
                 }
             } catch (error) {
                 console.error("[EventHandlers Play/Pause] Error:", error);
                 showNotification(`Error during playback: ${error.message}`, 4000);
-                setPlayButtonState(false);
+                if (playBtnGlobal) {
+                    playBtnGlobal.textContent = 'Play';
+                    playBtnGlobal.classList.remove('playing');
+                }
             }
         });
     } else { console.warn("[EventHandlers] playBtnGlobal not found in provided elements."); }
@@ -245,7 +250,6 @@ export function attachGlobalControlEvents(elements) {
     if (stopBtnGlobal) {
         stopBtnGlobal.addEventListener('click', () => {
             console.log("[EventHandlers StopAll] Stop All button clicked.");
-            setPlayButtonState(false);
             if (localAppServices.panicStopAllAudio) {
                 localAppServices.panicStopAllAudio();
             } else {
@@ -253,6 +257,11 @@ export function attachGlobalControlEvents(elements) {
                 if (typeof Tone !== 'undefined') {
                     Tone.Transport.stop();
                     Tone.Transport.cancel(0);
+                }
+                const playButton = localAppServices.uiElementsCache?.playBtnGlobal;
+                if(playButton) {
+                    playButton.textContent = 'Play';
+                    playButton.classList.remove('playing');
                 }
                 showNotification("Emergency stop executed (minimal).", 2000);
             }
