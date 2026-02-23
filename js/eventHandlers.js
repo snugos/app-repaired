@@ -156,6 +156,25 @@ export function attachGlobalControlEvents(elements) {
     }
     const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal } = elements;
 
+    // Helper function to toggle play/pause icons
+    function setPlayButtonState(isPlaying) {
+        if (!playBtnGlobal) return;
+        const playIcon = playBtnGlobal.querySelector('.play-icon');
+        const pauseIcon = playBtnGlobal.querySelector('.pause-icon');
+        if (isPlaying) {
+            playBtnGlobal.classList.add('playing');
+            if (playIcon) playIcon.classList.add('hidden');
+            if (pauseIcon) pauseIcon.classList.remove('hidden');
+        } else {
+            playBtnGlobal.classList.remove('playing');
+            if (playIcon) playIcon.classList.remove('hidden');
+            if (pauseIcon) pauseIcon.classList.add('hidden');
+        }
+    }
+
+    // Initialize to stopped state
+    setPlayButtonState(false);
+
     if (playBtnGlobal) {
         playBtnGlobal.addEventListener('click', async () => {
             try {
@@ -209,16 +228,16 @@ export function attachGlobalControlEvents(elements) {
                         }
                     }
                     transport.start(Tone.now() + 0.05, startTime);
-                    playBtnGlobal.textContent = 'Pause';
+                    setPlayButtonState(true);
                 } else { 
                     console.log(`[EventHandlers Play/Resume] Pausing transport.`);
                     transport.pause();
-                    playBtnGlobal.textContent = 'Play';
+                    setPlayButtonState(false);
                 }
             } catch (error) {
                 console.error("[EventHandlers Play/Pause] Error:", error);
                 showNotification(`Error during playback: ${error.message}`, 4000);
-                if (playBtnGlobal) playBtnGlobal.textContent = 'Play'; 
+                setPlayButtonState(false);
             }
         });
     } else { console.warn("[EventHandlers] playBtnGlobal not found in provided elements."); }
@@ -226,6 +245,7 @@ export function attachGlobalControlEvents(elements) {
     if (stopBtnGlobal) {
         stopBtnGlobal.addEventListener('click', () => {
             console.log("[EventHandlers StopAll] Stop All button clicked.");
+            setPlayButtonState(false);
             if (localAppServices.panicStopAllAudio) {
                 localAppServices.panicStopAllAudio();
             } else {
@@ -234,8 +254,6 @@ export function attachGlobalControlEvents(elements) {
                     Tone.Transport.stop();
                     Tone.Transport.cancel(0);
                 }
-                const playButton = localAppServices.uiElementsCache?.playBtnGlobal;
-                if(playButton) playButton.textContent = 'Play';
                 showNotification("Emergency stop executed (minimal).", 2000);
             }
         });
