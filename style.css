@@ -432,11 +432,11 @@ button.active { /* Generic active state for other toggles if needed */
 .sequencer-step-cell.active-instrument-sampler { 
     background-color: #7c3aed !important; /* Teal */
     color: #FFFFFF !important; 
-    border-color: #009090 !important; /* Slightly lighter teal for border */
+    border-color: #E0BBE4 !important; /* Slightly lighter teal for border */
 } 
 
 .sequencer-step-cell.playing {
-    outline: 2px solid #a855f7; /* Cyan outline for playing step */
+    outline: 2px solid #ffcccc; /* Cyan outline for playing step */
     outline-offset: -2px;
     z-index: 5; 
 }
@@ -734,7 +734,7 @@ input::placeholder,
     left: 120px; /* Start after the track names area */
     width: 2px;
     height: 100%;
-    background-color: #a855f7;
+    background-color: #E0BBE4;
     z-index: 4;
     pointer-events: none;
 }
@@ -744,7 +744,7 @@ input::placeholder,
     height: 80%;
     top: 10%;
     background-color: #7c3aed;
-    border: 1px solid #009090;
+    border: 1px solid #E0BBE4;
     border-radius: 3px;
     box-sizing: border-box;
     overflow: hidden;
@@ -774,7 +774,7 @@ input::placeholder,
 
 .drum-pad.drop-over {
     background-color: #444 !important;
-    border: 2px dashed #a855f7 !important;
+    border: 2px dashed #E0BBE4 !important;
     transform: scale(1.05);
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
     z-index: 10;

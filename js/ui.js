@@ -1441,7 +1441,7 @@ export function drawWaveform(track) {
         if (track?.waveformCanvasCtx) {
             const canvas = track.waveformCanvasCtx.canvas;
             track.waveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#334155' : '#e0e0e0';
+            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
             track.waveformCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
             track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#94a3b8' : '#a0a0a0';
             track.waveformCanvasCtx.textAlign = 'center';
