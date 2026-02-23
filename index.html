@@ -30,115 +30,91 @@
     <link rel="stylesheet" href="style.css">
     
     <style>
-        /* Windows 95 style buttons */
-        .win95-btn {
-            background: #c0c0c0;
-            border: none;
-            padding: 4px 12px;
-            font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
-            font-size: 12px;
-            font-weight: normal;
-            color: #000;
+        /* Transport buttons matching taskbar style */
+        .transport-btn {
+            background-color: #2c2c2c; 
+            border: 1px solid #121212;
+            border-color: #3c3c3c #181818 #181818 #3c3c3c; 
+            box-shadow: 1px 1px 0 #3c3c3c inset, -1px -1px 0 #181818 inset;
+            padding: 3px 12px; 
+            font-weight: 600;
+            color: #e0e0e0;
+            border-radius: 3px;
+            font-size: 0.85rem;
             cursor: pointer;
-            box-shadow: 
-                inset -1px -1px 0 #0a0a0a,
-                inset 1px 1px 0 #ffffff,
-                inset -2px -2px 0 #808080,
-                inset 2px 2px 0 #dfdfdf;
+            transition: background-color 0.15s ease;
         }
-        .win95-btn:active {
-            box-shadow: 
-                inset 1px 1px 0 #0a0a0a,
-                inset -1px -1px 0 #ffffff,
-                inset 2px 2px 0 #808080,
-                inset -2px -2px 0 #dfdfdf;
-            padding: 5px 11px 3px 13px;
+        .transport-btn:hover {
+            background-color: #3a3a3a;
         }
-        .win95-btn.playing {
-            background: #90EE90; /* Light green */
+        .transport-btn:active, .transport-btn.playing, .transport-btn.recording {
+            border-color: #181818 #3c3c3c #3c3c3c #181818; 
+            box-shadow: -1px -1px 0 #3c3c3c inset, 1px 1px 0 #181818 inset;
         }
-        .win95-btn.recording {
-            background: #FF6B6B; /* Light red */
+        .transport-btn.playing {
+            background-color: #0d5d0d !important;
+            color: #90EE90 !important;
         }
-        
-        /* Windows 95 input fields */
-        .win95-input {
-            background: #ffffff;
-            border: none;
-            padding: 2px 4px;
-            font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
-            font-size: 12px;
-            box-shadow: 
-                inset 1px 1px 0 #0a0a0a,
-                inset -1px -1px 0 #ffffff,
-                inset 2px 2px 0 #808080,
-                inset -2px -2px 0 #dfdfdf;
+        .transport-btn.recording {
+            background-color: #8b1a1a !important;
+            color: #ff9999 !important;
+            animation: pulse-record 1s infinite;
         }
-        
-        /* Windows 95 select/dropdown */
-        .win95-select {
-            background: #ffffff;
-            border: none;
-            padding: 2px 4px;
-            font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
-            font-size: 12px;
-            box-shadow: 
-                inset 1px 1px 0 #0a0a0a,
-                inset -1px -1px 0 #ffffff,
-                inset 2px 2px 0 #808080,
-                inset -2px -2px 0 #dfdfdf;
+        @keyframes pulse-record {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
     </style>
 </head>
 <body>
-    <!-- Global Controls Bar - Always visible at top - Windows 95 Style -->
-    <div id="globalControlsBar" class="fixed top-0 left-0 right-0 h-10 bg-[#c0c0c0] border-b-2 border-[#808080] flex items-center px-2 gap-2 z-[9999]">
+    <!-- Global Controls Bar - matching taskbar dark theme -->
+    <div id="globalControlsBar" class="fixed top-0 left-0 right-0 h-10 bg-[#1a1a1a] border-b border-[#303030] flex items-center px-2 gap-2 z-[9999]">
         <div class="flex items-center gap-1">
             <!-- Play Button -->
-            <button id="playBtnGlobal" title="Play/Pause (Spacebar)" class="win95-btn">
+            <button id="playBtnGlobal" title="Play/Pause (Spacebar)" class="transport-btn">
                 ▶ Play
             </button>
             
             <!-- Stop Button -->
-            <button id="stopBtnGlobal" title="Stop All Audio" class="win95-btn">
+            <button id="stopBtnGlobal" title="Stop All Audio" class="transport-btn">
                 ■ Stop
             </button>
             
             <!-- Record Button -->
-            <button id="recordBtnGlobal" title="Record Arm/Disarm" class="win95-btn">
+            <button id="recordBtnGlobal" title="Record Arm/Disarm" class="transport-btn">
                 ● Rec
             </button>
         </div>
         
-        <div class="h-5 w-0.5 bg-[#808080] mx-1"></div>
+        <div class="h-5 w-0.5 bg-[#303030] mx-1"></div>
         
         <div class="flex items-center gap-1">
-            <label class="text-xs font-bold text-black">BPM:</label>
-            <input type="number" id="tempoGlobalInput" value="120" min="30" max="300" step="0.1" class="win95-input w-14 text-center">
+            <label class="text-xs text-gray-400">BPM:</label>
+            <input type="number" id="tempoGlobalInput" value="120" min="30" max="300" step="0.1" class="w-14 p-1 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-sm text-center">
         </div>
         
         <div class="flex items-center gap-1">
-            <label class="text-xs font-bold text-black">MIDI:</label>
-            <select id="midiInputSelectGlobal" class="win95-select">
+            <label class="text-xs text-gray-400">MIDI:</label>
+            <select id="midiInputSelectGlobal" class="bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-sm px-2 py-1">
                 <option value="">None</option>
             </select>
         </div>
         
         <div class="flex items-center gap-1">
-            <label class="text-xs font-bold text-black">Master:</label>
-            <div id="masterMeterContainerGlobal" class="w-20 h-4 bg-white" style="box-shadow: inset 1px 1px 0 #0a0a0a, inset -1px -1px 0 #ffffff, inset 2px 2px 0 #808080, inset -2px -2px 0 #dfdfdf;">
-                <div id="masterMeterBarGlobal" class="h-full bg-green-500" style="width: 0%;"></div>
+            <label class="text-xs text-gray-400">Master:</label>
+            <div id="masterMeterContainerGlobal" class="w-20 h-4 bg-[#101010] rounded border border-[#3a3a3a] overflow-hidden">
+                <div id="masterMeterBarGlobal" class="h-full bg-[#00b0b0]" style="width: 0%;"></div>
             </div>
         </div>
         
         <div class="flex items-center gap-1">
-            <span id="midiIndicatorGlobal" class="px-1 text-xs bg-[#c0c0c0] text-black" style="box-shadow: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;" title="MIDI Activity">MIDI</span>
-            <span id="keyboardIndicatorGlobal" class="px-1 text-xs bg-[#c0c0c0] text-black" style="box-shadow: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;" title="Keyboard Activity">KBD</span>
+            <span id="midiIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-[#2c2c2c] text-gray-400 border border-[#3c3c3c]" title="MIDI Activity">MIDI</span>
+            <span id="keyboardIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-[#2c2c2c] text-gray-400 border border-[#3c3c3c]" title="Keyboard Activity">KBD</span>
         </div>
         
         <div class="flex-1"></div>
         
-        <button id="playbackModeToggleBtnGlobal" title="Toggle Playback Mode" class="win95-btn">Mode: Sequencer</button>
+        <button id="playbackModeToggleBtnGlobal" title="Toggle Playback Mode" class="transport-btn">Mode: Sequencer</button>
     </div>
 
     <div id="desktop" class="pt-14">
