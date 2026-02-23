@@ -1437,7 +1437,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
         });
 
         clipsContainer.appendChild(clipEl);
-    });
+    };
 }
 
 // --- UI Update & Drawing Functions ---
