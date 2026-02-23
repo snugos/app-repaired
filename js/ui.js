@@ -353,7 +353,7 @@ function initializeSamplerSpecificControls(track, winEl) {
             if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Slicer Polyphony for ${track.name}`);
             track.slicerIsPolyphonic = !track.slicerIsPolyphonic;
             polyToggleBtn.textContent = `Mode: ${track.slicerIsPolyphonic ? 'Poly' : 'Mono'}`;
-            polyToggleBtn.classList.toggle('active', track.slicerIsPolyphonic);
+        polyToggleBtn.classList.toggle('active', track.slicerIsPolyphonic);
             if (!track.slicerIsPolyphonic) track.setupSlicerMonoNodes(); else track.disposeSlicerMonoNodes();
             track.rebuildEffectChain();
             showNotification(`${track.name} slicer mode: ${track.slicerIsPolyphonic ? 'Poly' : 'Mono'}`, 2000);
@@ -650,7 +650,7 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                 controlWrapper.appendChild(knob.element);
             } else if (paramDef.type === 'select') {
                 const label = document.createElement('label'); label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300'; label.textContent = paramDef.label + ':';
-                const select = document.createElement('select'); select.className = 'w-full p-1 border rounded text-xs bg-white dark:bg-slate-600 dark:text-slate-200 dark:border-slate-500';
+                const select = document.createElement('select'); select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
                 paramDef.options.forEach(opt => {
                     const option = document.createElement('option');
                     option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
@@ -1287,7 +1287,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
     if (sequencerWindow?.element) {
         const allCells = Array.from(sequencerWindow.element.querySelectorAll('.sequencer-step-cell'));
         sequencerWindow.stepCellsGrid = [];
-        const currentSequenceLength = activeSequence.length || Constants.defaultStepsPerBar;
+        const currentSequenceLength = activeSequence ? activeSequence.length : Constants.defaultStepsPerBar;
         for (let i = 0; i < rows; i++) {
             sequencerWindow.stepCellsGrid[i] = allCells.slice(i * currentSequenceLength, (i + 1) * currentSequenceLength);
         }
@@ -1354,21 +1354,89 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 }
             }
         });
-        const lengthInput = sequencerWindow.element.querySelector(`#seqLengthInput-${track.id}`);
-        if (lengthInput) {
-            lengthInput.value = numBars;
-            lengthInput.addEventListener('change', (e) => {
-                const newNumBars = parseInt(e.target.value, 10);
-                const activeSeqForLengthChange = track.getActiveSequence();
-                if (activeSeqForLengthChange && !isNaN(newNumBars) && newNumBars >= 1 && newNumBars <= (Constants.MAX_BARS || 16)) {
-                    track.setSequenceLength(newNumBars * Constants.STEPS_PER_BAR);
-                } else if (activeSeqForLengthChange) {
-                    e.target.value = activeSeqForLengthChange.length / Constants.STEPS_PER_BAR;
+
+        // Right-click context menu for clips
+        clipEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const menuItems = [
+                { 
+                    label: 'Delete Clip', 
+                    action: () => {
+                        if (localAppServices.captureStateForUndo) {
+                            localAppServices.captureStateForUndo(`Delete clip "${clip.name || 'Clip'}" on ${track.name}`);
+                        }
+                        // Remove clip from track
+                        const clipIndex = track.timelineClips.findIndex(c => c.id === clip.id);
+                        if (clipIndex > -1) {
+                            track.timelineClips.splice(clipIndex, 1);
+                            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                            if (localAppServices.showNotification) localAppServices.showNotification('Clip deleted', 1500);
+                        }
+                    }
+                },
+                { 
+                    label: 'Copy Clip', 
+                    action: () => {
+                        // Store clip in clipboard
+                        if (localAppServices.setClipboardData) {
+                            localAppServices.setClipboardData({
+                                type: 'timelineClip',
+                                data: JSON.parse(JSON.stringify(clip)),
+                                sourceTrackId: track.id,
+                                sourceTrackType: track.type
+                            });
+                            if (localAppServices.showNotification) localAppServices.showNotification('Clip copied', 1500);
+                        }
+                    }
+                },
+                { 
+                    label: 'Duplicate Clip', 
+                    action: () => {
+                        if (localAppServices.captureStateForUndo) {
+                            localAppServices.captureStateForUndo(`Duplicate clip on ${track.name}`);
+                        }
+                        // Create a duplicate clip
+                        const newClip = JSON.parse(JSON.stringify(clip));
+                        newClip.id = `clip_${track.id}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+                        newClip.startTime = clip.startTime + clip.duration + 0.1; // Place after original
+                        newClip.name = `${clip.name || 'Clip'} (copy)`;
+                        track.timelineClips.push(newClip);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        if (localAppServices.showNotification) localAppServices.showNotification('Clip duplicated', 1500);
+                    }
                 }
-            });
-        }
-    }
-    return sequencerWindow;
+            ];
+            
+            // Add paste option if clipboard has a clip
+            const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : null;
+            if (clipboard && clipboard.type === 'timelineClip' && clipboard.data) {
+                menuItems.push({ separator: true });
+                menuItems.push({ 
+                    label: `Paste Clip (at ${clip.startTime.toFixed(2)}s)`, 
+                    action: () => {
+                        if (localAppServices.captureStateForUndo) {
+                            localAppServices.captureStateForUndo(`Paste clip on ${track.name}`);
+                        }
+                        const pastedClip = JSON.parse(JSON.stringify(clipboard.data));
+                        pastedClip.id = `clip_${track.id}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+                        pastedClip.startTime = clip.startTime; // Paste at this clip's position
+                        pastedClip.name = `${clipboard.data.name || 'Clip'} (pasted)`;
+                        track.timelineClips.push(pastedClip);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        if (localAppServices.showNotification) localAppServices.showNotification('Clip pasted', 1500);
+                    }
+                });
+            }
+            
+            if (typeof createContextMenu === 'function') {
+                createContextMenu(e, menuItems, localAppServices);
+            }
+        });
+
+        clipsContainer.appendChild(clipEl);
+    });
 }
 
 // --- UI Update & Drawing Functions ---
@@ -1704,25 +1772,35 @@ export function renderTimeline() {
                     const startX = e.clientX;
                     const initialLeftPixels = parseFloat(clipEl.style.left) || 0;
                     let originalStartTime = clip.startTime;
+                    const GRID_SIZE_SECONDS = 0.125; // 1/8 second grid (eighth note at 120 BPM)
 
                     function onMouseMove(moveEvent) {
                         const dx = moveEvent.clientX - startX;
                         const newLeftPixels = initialLeftPixels + dx;
-                        clipEl.style.left = `${Math.max(0, newLeftPixels)}px`;
+                        // Snap to grid during drag for visual feedback
+                        const newTime = Math.max(0, newLeftPixels / pixelsPerSecond);
+                        const snappedTime = Math.round(newTime / GRID_SIZE_SECONDS) * GRID_SIZE_SECONDS;
+                        const snappedPixels = snappedTime * pixelsPerSecond;
+                        clipEl.style.left = `${snappedPixels}px`;
+                        clipEl.classList.add('snapping-to-grid');
                     }
 
                     function onMouseUp() {
                         document.removeEventListener('mousemove', onMouseMove);
                         document.removeEventListener('mouseup', onMouseUp);
+                        clipEl.classList.remove('snapping-to-grid');
+                        
                         const finalLeftPixels = parseFloat(clipEl.style.left) || 0;
                         const newStartTime = Math.max(0, finalLeftPixels / pixelsPerSecond);
+                        // Snap to grid on release
+                        const snappedStartTime = Math.round(newStartTime / GRID_SIZE_SECONDS) * GRID_SIZE_SECONDS;
 
-                        if (Math.abs(newStartTime - originalStartTime) > (1 / pixelsPerSecond) * 0.5 ) {
+                        if (Math.abs(snappedStartTime - originalStartTime) > 0.01) {
                             if (localAppServices.captureStateForUndo) {
                                 localAppServices.captureStateForUndo(`Move clip on track "${track.name}"`);
                             }
                             if (track.updateAudioClipPosition) {
-                                track.updateAudioClipPosition(clip.id, newStartTime);
+                                track.updateAudioClipPosition(clip.id, snappedStartTime);
                             } else {
                                 console.error("Track.updateAudioClipPosition method not found!");
                             }
@@ -1733,6 +1811,87 @@ export function renderTimeline() {
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
                 });
+
+                // Right-click context menu for clips
+                clipEl.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const menuItems = [
+                        { 
+                            label: 'Delete Clip', 
+                            action: () => {
+                                if (localAppServices.captureStateForUndo) {
+                                    localAppServices.captureStateForUndo(`Delete clip "${clip.name || 'Clip'}" on ${track.name}`);
+                                }
+                                // Remove clip from track
+                                const clipIndex = track.timelineClips.findIndex(c => c.id === clip.id);
+                                if (clipIndex > -1) {
+                                    track.timelineClips.splice(clipIndex, 1);
+                                    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                                    if (localAppServices.showNotification) localAppServices.showNotification('Clip deleted', 1500);
+                                }
+                            }
+                        },
+                        { 
+                            label: 'Copy Clip', 
+                            action: () => {
+                                // Store clip in clipboard
+                                if (localAppServices.setClipboardData) {
+                                    localAppServices.setClipboardData({
+                                        type: 'timelineClip',
+                                        data: JSON.parse(JSON.stringify(clip)),
+                                        sourceTrackId: track.id,
+                                        sourceTrackType: track.type
+                                    });
+                                    if (localAppServices.showNotification) localAppServices.showNotification('Clip copied', 1500);
+                                }
+                            }
+                        },
+                        { 
+                            label: 'Duplicate Clip', 
+                            action: () => {
+                                if (localAppServices.captureStateForUndo) {
+                                    localAppServices.captureStateForUndo(`Duplicate clip on ${track.name}`);
+                                }
+                                // Create a duplicate clip
+                                const newClip = JSON.parse(JSON.stringify(clip));
+                                newClip.id = `clip_${track.id}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+                                newClip.startTime = clip.startTime + clip.duration + 0.1; // Place after original
+                                newClip.name = `${clip.name || 'Clip'} (copy)`;
+                                track.timelineClips.push(newClip);
+                                if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                                if (localAppServices.showNotification) localAppServices.showNotification('Clip duplicated', 1500);
+                            }
+                        }
+                    ];
+                    
+                    // Add paste option if clipboard has a clip
+                    const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : null;
+                    if (clipboard && clipboard.type === 'timelineClip' && clipboard.data) {
+                        menuItems.push({ separator: true });
+                        menuItems.push({ 
+                            label: `Paste Clip (at ${clip.startTime.toFixed(2)}s)`, 
+                            action: () => {
+                                if (localAppServices.captureStateForUndo) {
+                                    localAppServices.captureStateForUndo(`Paste clip on ${track.name}`);
+                                }
+                                const pastedClip = JSON.parse(JSON.stringify(clipboard.data));
+                                pastedClip.id = `clip_${track.id}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+                                pastedClip.startTime = clip.startTime; // Paste at this clip's position
+                                pastedClip.name = `${clipboard.data.name || 'Clip'} (pasted)`;
+                                track.timelineClips.push(pastedClip);
+                                if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                                if (localAppServices.showNotification) localAppServices.showNotification('Clip pasted', 1500);
+                            }
+                        });
+                    }
+                    
+                    if (typeof createContextMenu === 'function') {
+                        createContextMenu(e, menuItems, localAppServices);
+                    }
+                });
+
                 clipsContainer.appendChild(clipEl);
             });
         }
