@@ -79,7 +79,6 @@ export function getTrackByIdState(id) { return tracks.find(t => t.id === id); }
 export function getOpenWindowsState() { return openWindowsMap; }
 export function getWindowByIdState(id) { return openWindowsMap.get(id); }
 export function getHighestZState() { return highestZ; }
-
 export function getMasterEffectsState() { return masterEffectsChainState; }
 export function getMasterGainValueState() { return masterGainValueState; }
 
@@ -834,6 +833,7 @@ export async function exportToWavInternal() {
     }
 
     appServices.showNotification("Preparing export...", 3000);
+    
     try {
         const audioReady = await audioInitAudioContextAndMasterMeter(true);
         if (!audioReady) {
@@ -841,14 +841,20 @@ export async function exportToWavInternal() {
             return;
         }
 
-        if (Tone.Transport.state === 'started') {
-            Tone.Transport.pause(); // Pause instead of stop to preserve position for rescheduling later if needed
-            await new Promise(resolve => setTimeout(resolve, 200)); // Give time for audio to settle
+        // Stop any current playback
+        const wasPlaying = Tone.Transport.state === 'started';
+        const originalTransportPosition = Tone.Transport.seconds;
+        
+        if (wasPlaying) {
+            Tone.Transport.stop();
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const originalTransportPosition = Tone.Transport.seconds; // Save current position
-        Tone.Transport.position = 0; // Export from the beginning
-        let maxDuration = 0;
+        
+        Tone.Transport.cancel(0);
+        Tone.Transport.position = 0;
 
+        // Calculate duration
+        let maxDuration = 0;
         const currentPlaybackMode = getPlaybackModeState();
 
         if (currentPlaybackMode === 'timeline') {
@@ -856,7 +862,7 @@ export async function exportToWavInternal() {
                 if (track && track.timelineClips && Array.isArray(track.timelineClips)) {
                     track.timelineClips.forEach(clip => {
                         if (clip && typeof clip.startTime === 'number' && typeof clip.duration === 'number') {
-                             maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
                         }
                     });
                 }
@@ -873,53 +879,45 @@ export async function exportToWavInternal() {
             });
         }
 
-        if (maxDuration === 0) maxDuration = 5; // Default duration if nothing to export
-        maxDuration = Math.min(maxDuration + 2, 600); // Add buffer, cap at 10 minutes for sanity
-        console.log(`[State exportToWavInternal] Calculated export duration: ${maxDuration.toFixed(1)}s`);
-
-        const recorder = new Tone.Recorder();
-        const recordSource = appServices.getActualMasterGainNode();
-
-        if (!recordSource || recordSource.disposed) {
-            appServices.showNotification("Master output node not available for recording export.", 4000);
-            console.error("[State exportToWavInternal] Master output node is not available or disposed.");
-            Tone.Transport.position = originalTransportPosition; // Restore position
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio clips first.", 3000);
             return;
         }
-        recordSource.connect(recorder);
+        
+        maxDuration = Math.min(maxDuration + 1, 600); // Add 1s buffer, cap at 10 min
+        console.log(`[State exportToWavInternal] Export duration: ${maxDuration.toFixed(1)}s`);
 
-        appServices.showNotification(`Recording for export (${maxDuration.toFixed(1)}s)... This may take a moment.`, Math.max(4000, maxDuration * 1000 + 1000));
+        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 10000);
 
-        // Schedule all tracks for offline rendering
-        for (const track of getTracksState()) {
-            if (track && typeof track.schedulePlayback === 'function') {
-                await track.schedulePlayback(0, maxDuration); // Schedule from 0 up to maxDuration
+        // Use Tone.Offline for proper offline rendering
+        const buffer = await Tone.Offline(async ({ transport }) => {
+            // Get the master output node
+            const masterGain = appServices.getActualMasterGainNode();
+            if (!masterGain) {
+                console.error("[State exportToWavInternal] Master gain node not available");
+                return;
             }
-        }
 
-        recorder.start();
-        Tone.Transport.start(Tone.now(), 0); // Start transport from beginning for recording
-
-        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500)); // Wait for duration + buffer
-
-        const recording = await recorder.stop();
-        Tone.Transport.stop(); // Stop transport after recording
-        Tone.Transport.position = originalTransportPosition; // Restore original transport position
-
-        // Cleanup scheduled playback for all tracks
-        (getTracksState() || []).forEach(track => {
-            if (track && typeof track.stopPlayback === 'function') track.stopPlayback();
-        });
-        Tone.Transport.cancel(0); // Clear all transport events
-
-        try {
-            if (recordSource && !recordSource.disposed && recorder && !recorder.disposed) {
-                recordSource.disconnect(recorder);
+            // Schedule all tracks for playback
+            const tracks = getTracksState();
+            for (const track of tracks) {
+                if (track && typeof track.schedulePlayback === 'function') {
+                    await track.schedulePlayback(0, maxDuration);
+                }
             }
-        } catch (e) { console.warn("Error disconnecting recorder from source:", e.message); }
-        if (recorder && !recorder.disposed) recorder.dispose();
 
-        const url = URL.createObjectURL(recording);
+            // Start transport
+            transport.start(0);
+            
+            // Return the master gain as the output
+            return masterGain;
+        }, maxDuration);
+
+        // Convert buffer to WAV blob
+        const wavBlob = bufferToWav(buffer);
+        
+        // Download
+        const url = URL.createObjectURL(wavBlob);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -928,14 +926,80 @@ export async function exportToWavInternal() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        // Cleanup
+        (getTracksState() || []).forEach(track => {
+            if (track && typeof track.stopPlayback === 'function') track.stopPlayback();
+        });
+        Tone.Transport.cancel(0);
+        Tone.Transport.position = originalTransportPosition;
+
+        // Dispose the buffer
+        if (buffer && !buffer.disposed) buffer.dispose();
+
         appServices.showNotification("Export to WAV successful!", 3000);
 
     } catch (error) {
         console.error("[State exportToWavInternal] Error exporting WAV:", error);
         appServices.showNotification(`Error exporting WAV: ${error.message}. See console.`, 5000);
-        // Attempt to restore transport state on error
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        // Potentially reschedule tracks to their original state if possible, or advise user to reload.
+    }
+}
+
+// Helper function to convert AudioBuffer to WAV
+function bufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+    
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    // Write audio data
+    const offset = 44;
+    const channelData = [];
+    for (let i = 0; i < numChannels; i++) {
+        channelData.push(buffer.getChannelData(i));
+    }
+    
+    let pos = offset;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(pos, intSample, true);
+            pos += 2;
+        }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
     }
 }
