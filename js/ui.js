@@ -1335,6 +1335,46 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
         if (grid) grid.addEventListener('contextmenu', sequencerContextMenuHandler);
         if (controlsDiv) controlsDiv.addEventListener('contextmenu', sequencerContextMenuHandler);
 
+        // Handle bars input change
+        const barsInput = sequencerWindow.element.querySelector(`#seqLengthInput-${track.id}`);
+        if (barsInput) {
+            barsInput.addEventListener('change', (e) => {
+                const newNumBars = parseInt(e.target.value, 10);
+                if (!Number.isFinite(newNumBars) || newNumBars < 1 || newNumBars > (Constants.MAX_BARS || 16)) {
+                    showNotification(`Invalid number of bars. Must be 1-${Constants.MAX_BARS || 16}.`, 2000);
+                    e.target.value = Math.max(1, activeSequence.length / Constants.STEPS_PER_BAR);
+                    return;
+                }
+                const newLength = newNumBars * Constants.STEPS_PER_BAR;
+                if (newLength === activeSequence.length) return; // No change
+                
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change sequence length to ${newNumBars} bars`);
+                
+                // Resize the sequence data
+                const numRows = activeSequence.data ? activeSequence.data.length : (rows || 1);
+                const newData = [];
+                for (let r = 0; r < numRows; r++) {
+                    newData[r] = [];
+                    for (let c = 0; c < newLength; c++) {
+                        if (activeSequence.data && activeSequence.data[r] && activeSequence.data[r][c]) {
+                            newData[r][c] = activeSequence.data[r][c];
+                        } else {
+                            newData[r][c] = null;
+                        }
+                    }
+                }
+                activeSequence.data = newData;
+                activeSequence.length = newLength;
+                
+                // Recreate the Tone sequence
+                track.recreateToneSequence(true);
+                
+                // Re-render the sequencer window
+                openTrackSequencerWindow(trackId, true);
+                showNotification(`Sequence length changed to ${newNumBars} bars.`, 1500);
+            });
+        }
+
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
             if (targetCell) {
