@@ -1,4 +1,5 @@
-// js/ui.js
+// js/ui.js - UI Module (v2025.02)
+// Last updated: Fixed timeline clip context menu
 import { SnugWindow } from './SnugWindow.js';
 // Added showConfirmationDialog to the import statement
 import { showNotification, createDropZoneHTML, setupGenericDropZoneListeners, showCustomModal, createContextMenu, showConfirmationDialog } from './utils.js';
@@ -641,12 +642,12 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
     } else {
         effectDef.params.forEach(paramDef => {
             const controlWrapper = document.createElement('div');
-            let currentValue; const pathKeys = paramDef.key.split('.'); let tempVal = effectWrapper.params;
+            let initialValue; const pathKeys = paramDef.key.split('.'); let tempVal = effectWrapper.params;
             for (const key of pathKeys) { if (tempVal && typeof tempVal === 'object' && key in tempVal) tempVal = tempVal[key]; else { tempVal = undefined; break; } }
-            currentValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
+            initialValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
 
             if (paramDef.type === 'knob') {
-                const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: currentValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
+                const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: initialValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
                 controlWrapper.appendChild(knob.element);
             } else if (paramDef.type === 'select') {
                 const label = document.createElement('label'); label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300'; label.textContent = paramDef.label + ':';
@@ -656,7 +657,7 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                     option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
                     select.appendChild(option);
                 });
-                select.value = currentValue;
+                select.value = initialValue;
                 select.addEventListener('change', (e) => {
                     const newValue = e.target.value;
                     const finalValue = (typeof paramDef.defaultValue === 'number' && !isNaN(parseFloat(newValue))) ? parseFloat(newValue) : newValue;
@@ -666,10 +667,10 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                 controlWrapper.appendChild(label); controlWrapper.appendChild(select);
             } else if (paramDef.type === 'toggle') {
                 const button = document.createElement('button');
-                button.className = `w-full p-1 border rounded text-xs dark:border-slate-500 dark:text-slate-300 ${currentValue ? 'bg-blue-500 text-white dark:bg-blue-600' : 'bg-gray-200 dark:bg-slate-600'}`;
-                button.textContent = `${paramDef.label}: ${currentValue ? 'ON' : 'OFF'}`;
+                button.className = `w-full p-1 border rounded text-xs dark:border-slate-500 dark:text-slate-300 ${initialValue ? 'bg-blue-500 text-white dark:bg-blue-600' : 'bg-gray-200 dark:bg-slate-600'}`;
+                button.textContent = `${paramDef.label}: ${initialValue ? 'ON' : 'OFF'}`;
                 button.addEventListener('click', () => {
-                    const newValue = !currentValue;
+                    const newValue = !initialValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
                     if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, newValue); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, newValue);
                 });
