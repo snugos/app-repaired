@@ -603,16 +603,19 @@ export function gatherProjectDataInternal() {
 export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
     if (!projectData) {
         console.error("[State reconstructDAWInternal] projectData is null or undefined. Aborting reconstruction.");
-        if (appServices.showNotification) appServices.showNotification("Error: Invalid project data for loading.", 4000);
+        if (appServices.showNotification) appServices.showNotification("Error: No project data to load.", 3000);
+        if (appServices) appServices._isReconstructingDAW_flag = false;
         return;
     }
+    
+    console.log(`[State reconstructDAWInternal] Starting reconstruction. isUndoRedo: ${isUndoRedo}`);
     if (appServices) appServices._isReconstructingDAW_flag = true;
-    console.log(`[State reconstructDAWInternal] Starting reconstruction. IsUndoRedo: ${isUndoRedo}`);
 
-    try { // --- Global Stop and Reset ---
-        if (Tone.Transport.state === 'started') Tone.Transport.stop();
-        Tone.Transport.cancel();
-        await audioInitAudioContextAndMasterMeter(true); // Ensure audio context is running, true for user initiated context
+    // --- Global Reset Phase ---
+    try {
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        if (appServices.initAudioContextAndMasterMeter) await appServices.initAudioContextAndMasterMeter(true); // Ensure audio context is running, true for user initiated context
         (getTracksState() || []).forEach(track => { if (track && typeof track.dispose === 'function') track.dispose(); });
         tracks = [];
         trackIdCounter = 0;
@@ -657,7 +660,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
             }
         }
     } catch (error) {
-        console.error("[State reconstructDAWInternal] Error reconstructing master effects:", error);
+        console.error("[State reconstructDAWInternal] Error reconstructuring master effects:", error);
         if (appServices.showNotification) appServices.showNotification("Error loading master effects.", 3000);
     }
 
@@ -687,7 +690,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
             }
         }
     } catch (error) {
-        console.error("[State reconstructDAWInternal] Error reconstructing tracks:", error);
+        console.error("[State reconstructDAWInternal] Error reconstructuring tracks:", error);
         if (appServices.showNotification) appServices.showNotification("Error loading tracks.", 3000);
     }
 
@@ -699,9 +702,18 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
                 if (!winState || !winState.id) { console.warn("[State reconstructDAWInternal] Invalid window state found:", winState); continue; }
                 const key = winState.initialContentKey || winState.id; // Use initialContentKey for routing
                 console.log(`[State reconstructDAWInternal] Reconstructing window: ${key}, ID: ${winState.id}`);
-                if (key === 'globalControls' && appServices.openGlobalControlsWindow) appServices.openGlobalControlsWindow(null, winState); // null for onReady, state will set it
-                else if (key === 'mixer' && appServices.openMixerWindow) appServices.openMixerWindow(winState);
+                if (key === 'globalControls' && appServices.openGlobalControlsWindow) {
+                    // FIX: Pass a callback to wire up controls even during reconstruction
+                    // The callback will be called by openGlobalControlsWindow to attach event listeners
+                    appServices.openGlobalControlsWindow((elements) => {
+                        if (elements && appServices.attachGlobalControlEvents) {
+                            console.log("[State reconstructDAWInternal] Wiring up global controls after reconstruction");
+                            appServices.attachGlobalControlEvents(elements);
+                        }
+                    }, winState);
+                }
                 else if (key === 'soundBrowser' && appServices.openSoundBrowserWindow) appServices.openSoundBrowserWindow(winState);
+                else if (key === 'mixer' && appServices.openMixerWindow) appServices.openMixerWindow(winState);
                 else if (key === 'masterEffectsRack' && appServices.openMasterEffectsRackWindow) appServices.openMasterEffectsRackWindow(winState);
                 else if (key === 'timeline' && appServices.openTimelineWindow) appServices.openTimelineWindow(winState);
                 else if (key.startsWith('trackInspector-') && appServices.openTrackInspectorWindow) {
@@ -724,7 +736,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
             }
         }
     } catch (error) {
-        console.error("[State reconstructDAWInternal] Error reconstructing windows:", error);
+        console.error("[State reconstructDAWInternal] Error reconstructuring windows:", error);
         if (appServices.showNotification) appServices.showNotification("Error loading window layout.", 3000);
     }
 

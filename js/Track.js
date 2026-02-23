@@ -1613,7 +1613,7 @@ export class Track {
                     this.patternPlayerSequence = null;
                 }
             } else {
-                 console.warn(`[Track ${this.id}] Sequencer mode: patternPlayerSequence still not valid after recreation for "${this.name}".`);
+                 console.warn(`[Track ${this.id} schedulePlayback] Sequencer mode: patternPlayerSequence still not valid after recreation for "${this.name}".`);
             }
         }
     }
@@ -1644,6 +1644,59 @@ export class Track {
             catch (e) { console.warn(`[Track ${this.id}] Error stopping/disposing patternPlayerSequence:`, e.message); }
         }
         this.patternPlayerSequence = null; 
+        
+        // FIX: Release all notes from instruments (synth, sampler, etc.)
+        // This ensures audio stops even when notes were triggered via MIDI/keyboard
+        if (this.type === 'Synth' && this.instrument && !this.instrument.disposed) {
+            try {
+                if (typeof this.instrument.releaseAll === 'function') {
+                    this.instrument.releaseAll(Tone.now());
+                    console.log(`[Track ${this.id}] Released all notes on MonoSynth.`);
+                }
+            } catch (e) { 
+                console.warn(`[Track ${this.id}] Error releasing MonoSynth notes:`, e.message); 
+            }
+        }
+        
+        if (this.type === 'InstrumentSampler' && this.toneSampler && !this.toneSampler.disposed) {
+            try {
+                if (typeof this.toneSampler.releaseAll === 'function') {
+                    this.toneSampler.releaseAll(Tone.now());
+                    console.log(`[Track ${this.id}] Released all notes on InstrumentSampler.`);
+                }
+            } catch (e) { 
+                console.warn(`[Track ${this.id}] Error releasing InstrumentSampler notes:`, e.message); 
+            }
+        }
+        
+        // Stop any drum pad players that might be playing
+        if (this.type === 'DrumSampler') {
+            this.drumPadPlayers.forEach((player, index) => {
+                if (player && !player.disposed && player.state === 'started') {
+                    try {
+                        player.stop(Tone.now());
+                        console.log(`[Track ${this.id}] Stopped drum pad player ${index}.`);
+                    } catch (e) {
+                        console.warn(`[Track ${this.id}] Error stopping drum pad player ${index}:`, e.message);
+                    }
+                }
+            });
+        }
+        
+        // Stop slicer mono player if active
+        if (this.type === 'Sampler' && this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed) {
+            try {
+                if (this.slicerMonoPlayer.state === 'started') {
+                    this.slicerMonoPlayer.stop(Tone.now());
+                }
+                if (this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed) {
+                    this.slicerMonoEnvelope.triggerRelease(Tone.now());
+                }
+                console.log(`[Track ${this.id}] Stopped slicer mono player.`);
+            } catch (e) {
+                console.warn(`[Track ${this.id}] Error stopping slicer mono player:`, e.message);
+            }
+        }
     }
 
     async updateAudioClipPosition(clipId, newStartTime) {
