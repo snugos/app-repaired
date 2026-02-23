@@ -846,14 +846,6 @@ export async function exportToWavInternal() {
             return;
         }
 
-        // Stop any current playback and reset
-        const wasPlaying = Tone.Transport.state === 'started';
-        const originalPosition = Tone.Transport.seconds;
-        
-        Tone.Transport.stop();
-        await new Promise(r => setTimeout(r, 100));
-        Tone.Transport.cancel(0);
-
         // Calculate duration
         let maxDuration = 0;
         const currentPlaybackMode = getPlaybackModeState();
@@ -886,10 +878,16 @@ export async function exportToWavInternal() {
             return;
         }
         
-        maxDuration = Math.min(maxDuration + 2, 600); // Add 2s buffer for reverb tails
+        maxDuration = Math.min(maxDuration + 2, 600);
         console.log(`[State exportToWavInternal] Export duration: ${maxDuration.toFixed(1)}s`);
 
-        // Create recorder and connect to master output
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        // Create recorder
         const recorder = new Tone.Recorder();
         const masterGain = appServices.getActualMasterGainNode();
         
@@ -899,59 +897,45 @@ export async function exportToWavInternal() {
         }
         
         masterGain.connect(recorder);
-        console.log("[State exportToWavInternal] Recorder connected to master gain");
+        console.log("[State exportToWavInternal] Recorder connected");
 
-        // Reset transport to start
+        // Reset and schedule
         Tone.Transport.position = 0;
         Tone.Transport.loop = false;
-
-        // Schedule all tracks
-        console.log("[State exportToWavInternal] Scheduling tracks...");
+        
         for (const track of tracks) {
-            if (track && typeof track.schedulePlayback === 'function') {
+            if (track?.schedulePlayback) {
                 await track.schedulePlayback(0, maxDuration);
             }
         }
 
-        appServices.showNotification(`Recording export (${maxDuration.toFixed(1)}s)...`, maxDuration * 1000 + 3000);
+        appServices.showNotification(`Recording export (${maxDuration.toFixed(1)}s)...`, 10000);
 
         // Start recording and playback
         await recorder.start();
-        console.log("[State exportToWavInternal] Recorder started");
+        console.log("[State exportToWavInternal] Recording started");
         
         Tone.Transport.start();
         console.log("[State exportToWavInternal] Transport started");
 
-        // Wait for recording to complete
+        // Wait
         await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
 
-        // Stop recording
+        // Stop
         const recording = await recorder.stop();
-        console.log("[State exportToWavInternal] Recording stopped, blob size:", recording.size);
+        console.log("[State exportToWavInternal] Recording stopped, size:", recording.size);
 
-        // Stop playback
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        
-        // Stop all track playback
-        tracks.forEach(track => {
-            if (track && typeof track.stopPlayback === 'function') {
-                track.stopPlayback();
-            }
-        });
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
 
         // Cleanup
-        try {
-            masterGain.disconnect(recorder);
-        } catch (e) {}
+        try { masterGain.disconnect(recorder); } catch (e) {}
         recorder.dispose();
 
-        // Restore original position
-        Tone.Transport.position = originalPosition;
-
-        if (!recording || recording.size === 0) {
+        if (!recording || recording.size < 1000) {
             appServices.showNotification("Export failed: No audio was recorded.", 3000);
-            console.error("[State exportToWavInternal] No audio recorded");
+            console.error("[State exportToWavInternal] Recording too small:", recording?.size);
             return;
         }
 
@@ -959,8 +943,7 @@ export async function exportToWavInternal() {
         const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        a.download = `snugos-export-${timestamp}.wav`;
+        a.download = `snugos-export-${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -974,11 +957,10 @@ export async function exportToWavInternal() {
         appServices.showNotification(`Export error: ${error.message}`, 5000);
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        (getTracksState() || []).forEach(track => {
-            if (track && typeof track.stopPlayback === 'function') track.stopPlayback();
-        });
     }
 }
+
+
 
 // Helper function to convert AudioBuffer to WAV
 function bufferToWav(buffer) {
