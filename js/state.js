@@ -890,11 +890,14 @@ export async function exportToWavInternal() {
         appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
 
         // Use Tone.Offline for proper offline rendering
-        const buffer = await Tone.Offline(async ({ transport }) => {
-            // Get master output
+        const buffer = await Tone.Offline(async ({ transport, destination }) => {
+            // Connect master output to the offline destination for recording
             const masterGain = appServices.getActualMasterGainNode();
-            if (!masterGain) {
-                throw new Error("Master gain not available");
+            if (masterGain && !masterGain.disposed) {
+                masterGain.connect(destination);
+                console.log("[Export] Connected master gain to offline destination");
+            } else {
+                console.warn("[Export] Master gain not available");
             }
 
             // Schedule all tracks
@@ -906,9 +909,7 @@ export async function exportToWavInternal() {
 
             // Start transport
             transport.start(0);
-            
-            // Return the master gain as the output to record
-            return masterGain;
+            console.log("[Export] Transport started for offline rendering");
         }, maxDuration);
 
         if (!buffer || buffer.disposed) {
