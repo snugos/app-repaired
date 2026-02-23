@@ -827,51 +827,48 @@ export async function handleProjectFileLoadInternal(event) {
 
 export async function exportToWavInternal() {
     if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
-        console.error("[State exportToWavInternal] Required appServices (showNotification, getActualMasterGainNode, audioInitAudioContextAndMasterMeter) not available.");
+        console.error("[State exportToWavInternal] Required appServices not available.");
         alert("Export WAV feature is currently unavailable due to an internal error.");
         return;
     }
 
-    appServices.showNotification("Preparing export...", 3000);
+    appServices.showNotification("Preparing export...", 2000);
     
     try {
         const audioReady = await audioInitAudioContextAndMasterMeter(true);
         if (!audioReady) {
-            appServices.showNotification("Audio system not ready for export. Please try again.", 4000);
+            appServices.showNotification("Audio system not ready for export.", 3000);
             return;
         }
 
-        // Stop any current playback
+        // Stop any current playback and reset
         const wasPlaying = Tone.Transport.state === 'started';
-        const originalTransportPosition = Tone.Transport.seconds;
+        const originalPosition = Tone.Transport.seconds;
         
-        if (wasPlaying) {
-            Tone.Transport.stop();
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
+        Tone.Transport.stop();
+        await new Promise(r => setTimeout(r, 100));
         Tone.Transport.cancel(0);
-        Tone.Transport.position = 0;
 
         // Calculate duration
         let maxDuration = 0;
         const currentPlaybackMode = getPlaybackModeState();
+        const tracks = getTracksState();
 
         if (currentPlaybackMode === 'timeline') {
-            (getTracksState() || []).forEach(track => {
-                if (track && track.timelineClips && Array.isArray(track.timelineClips)) {
+            tracks.forEach(track => {
+                if (track?.timelineClips) {
                     track.timelineClips.forEach(clip => {
-                        if (clip && typeof clip.startTime === 'number' && typeof clip.duration === 'number') {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
                             maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
                         }
                     });
                 }
             });
-        } else { // 'sequencer' mode
-            (getTracksState() || []).forEach(track => {
+        } else {
+            tracks.forEach(track => {
                 if (track && track.type !== 'Audio') {
                     const activeSeq = track.getActiveSequence();
-                    if (activeSeq && activeSeq.length > 0) {
+                    if (activeSeq?.length > 0) {
                         const sixteenthNoteTime = Tone.Time("16n").toSeconds();
                         maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
                     }
@@ -880,44 +877,81 @@ export async function exportToWavInternal() {
         }
 
         if (maxDuration === 0) {
-            appServices.showNotification("Nothing to export. Add some notes or audio clips first.", 3000);
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
             return;
         }
         
-        maxDuration = Math.min(maxDuration + 1, 600); // Add 1s buffer, cap at 10 min
+        maxDuration = Math.min(maxDuration + 2, 600); // Add 2s buffer for reverb tails
         console.log(`[State exportToWavInternal] Export duration: ${maxDuration.toFixed(1)}s`);
 
-        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 10000);
-
-        // Use Tone.Offline for proper offline rendering
-        const buffer = await Tone.Offline(async ({ transport }) => {
-            // Get the master output node
-            const masterGain = appServices.getActualMasterGainNode();
-            if (!masterGain) {
-                console.error("[State exportToWavInternal] Master gain node not available");
-                return;
-            }
-
-            // Schedule all tracks for playback
-            const tracks = getTracksState();
-            for (const track of tracks) {
-                if (track && typeof track.schedulePlayback === 'function') {
-                    await track.schedulePlayback(0, maxDuration);
-                }
-            }
-
-            // Start transport
-            transport.start(0);
-            
-            // Return the master gain as the output
-            return masterGain;
-        }, maxDuration);
-
-        // Convert buffer to WAV blob
-        const wavBlob = bufferToWav(buffer);
+        // Create recorder and connect to master output
+        const recorder = new Tone.Recorder();
+        const masterGain = appServices.getActualMasterGainNode();
         
+        if (!masterGain || masterGain.disposed) {
+            appServices.showNotification("Master output not available.", 3000);
+            return;
+        }
+        
+        masterGain.connect(recorder);
+        console.log("[State exportToWavInternal] Recorder connected to master gain");
+
+        // Reset transport to start
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+
+        // Schedule all tracks
+        console.log("[State exportToWavInternal] Scheduling tracks...");
+        for (const track of tracks) {
+            if (track && typeof track.schedulePlayback === 'function') {
+                await track.schedulePlayback(0, maxDuration);
+            }
+        }
+
+        appServices.showNotification(`Recording export (${maxDuration.toFixed(1)}s)...`, maxDuration * 1000 + 3000);
+
+        // Start recording and playback
+        await recorder.start();
+        console.log("[State exportToWavInternal] Recorder started");
+        
+        Tone.Transport.start();
+        console.log("[State exportToWavInternal] Transport started");
+
+        // Wait for recording to complete
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log("[State exportToWavInternal] Recording stopped, blob size:", recording.size);
+
+        // Stop playback
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        
+        // Stop all track playback
+        tracks.forEach(track => {
+            if (track && typeof track.stopPlayback === 'function') {
+                track.stopPlayback();
+            }
+        });
+
+        // Cleanup
+        try {
+            masterGain.disconnect(recorder);
+        } catch (e) {}
+        recorder.dispose();
+
+        // Restore original position
+        Tone.Transport.position = originalPosition;
+
+        if (!recording || recording.size === 0) {
+            appServices.showNotification("Export failed: No audio was recorded.", 3000);
+            console.error("[State exportToWavInternal] No audio recorded");
+            return;
+        }
+
         // Download
-        const url = URL.createObjectURL(wavBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -927,23 +961,17 @@ export async function exportToWavInternal() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        // Cleanup
+        appServices.showNotification("Export to WAV successful!", 3000);
+        console.log("[State exportToWavInternal] Export complete");
+
+    } catch (error) {
+        console.error("[State exportToWavInternal] Error:", error);
+        appServices.showNotification(`Export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
         (getTracksState() || []).forEach(track => {
             if (track && typeof track.stopPlayback === 'function') track.stopPlayback();
         });
-        Tone.Transport.cancel(0);
-        Tone.Transport.position = originalTransportPosition;
-
-        // Dispose the buffer
-        if (buffer && !buffer.disposed) buffer.dispose();
-
-        appServices.showNotification("Export to WAV successful!", 3000);
-
-    } catch (error) {
-        console.error("[State exportToWavInternal] Error exporting WAV:", error);
-        appServices.showNotification(`Error exporting WAV: ${error.message}. See console.`, 5000);
-        Tone.Transport.stop();
-        Tone.Transport.cancel(0);
     }
 }
 
