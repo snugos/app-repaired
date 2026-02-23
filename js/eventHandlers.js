@@ -472,16 +472,49 @@ function handleMIDIMessage(message) {
             setTimeout(() => midiIndicator.classList.remove('active'), 100);
         }
 
-        if (!armedTrack || !armedTrack.instrument || armedTrack.instrument.disposed) return;
+        if (!armedTrack) return;
 
-        const freq = Tone.Frequency(note, "midi").toNote();
-        if (command === 144 && velocity > 0) { 
-            if (typeof armedTrack.instrument.triggerAttack === 'function') {
-                armedTrack.instrument.triggerAttack(freq, Tone.now(), velocity / 127);
+        const isNoteOn = command === 144 && velocity > 0;
+        const isNoteOff = command === 128 || (command === 144 && velocity === 0);
+
+        // Handle different track types
+        if (armedTrack.type === 'DrumSampler') {
+            // DrumSampler: MIDI notes 36-43 map to pads 0-7
+            const padIndex = note - Constants.samplerMIDINoteStart;
+            if (padIndex >= 0 && padIndex < Constants.numDrumSamplerPads) {
+                const player = armedTrack.drumPadPlayers[padIndex];
+                const padData = armedTrack.drumSamplerPads[padIndex];
+                if (player && !player.disposed && player.loaded && padData) {
+                    if (isNoteOn) {
+                        player.volume.value = Tone.gainToDb((padData.volume || 0.7) * (velocity / 127) * 0.7);
+                        player.playbackRate = Math.pow(2, (padData.pitchShift || 0) / 12);
+                        player.start(Tone.now());
+                    }
+                }
             }
-        } else if (command === 128 || (command === 144 && velocity === 0)) { 
-            if (typeof armedTrack.instrument.triggerRelease === 'function') {
-                armedTrack.instrument.triggerRelease(freq, Tone.now() + 0.05); 
+        } else if (armedTrack.type === 'InstrumentSampler') {
+            // InstrumentSampler: uses toneSampler with chromatic mapping
+            if (armedTrack.toneSampler && !armedTrack.toneSampler.disposed && armedTrack.toneSampler.loaded) {
+                const freq = Tone.Frequency(note, "midi").toNote();
+                if (isNoteOn) {
+                    armedTrack.toneSampler.triggerAttack(freq, Tone.now(), velocity / 127);
+                } else if (isNoteOff) {
+                    armedTrack.toneSampler.triggerRelease(freq, Tone.now() + 0.05);
+                }
+            }
+        } else if (armedTrack.type === 'Synth') {
+            // Synth: uses instrument.triggerAttack/triggerRelease
+            if (armedTrack.instrument && !armedTrack.instrument.disposed) {
+                const freq = Tone.Frequency(note, "midi").toNote();
+                if (isNoteOn) {
+                    if (typeof armedTrack.instrument.triggerAttack === 'function') {
+                        armedTrack.instrument.triggerAttack(freq, Tone.now(), velocity / 127);
+                    }
+                } else if (isNoteOff) {
+                    if (typeof armedTrack.instrument.triggerRelease === 'function') {
+                        armedTrack.instrument.triggerRelease(freq, Tone.now() + 0.05);
+                    }
+                }
             }
         }
     } catch (error) {
@@ -535,10 +568,6 @@ document.addEventListener('keydown', (event) => {
             if (playBtn) playBtn.click();
             return;
         }
-
-        const armedTrackId = getArmedTrackId();
-        const armedTrack = armedTrackId !== null ? getTrackById(armedTrackId) : null;
-        if (!armedTrack || !armedTrack.instrument || armedTrack.instrument.disposed) return;
 
         let midiNote = keyToMIDIMap[event.key]; 
         if (midiNote === undefined && keyToMIDIMap[key]) midiNote = keyToMIDIMap[key]; 
