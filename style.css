@@ -207,7 +207,7 @@ body {
 #startMenu.hidden { display: none; }
 #startMenu ul { list-style: none; padding: 0; margin: 0; }
 #startMenu li { padding: 6px 20px 6px 12px; cursor: pointer; font-size: 0.9rem; white-space: nowrap; color: #e0e0e0; border-radius: 2px; transition: background-color 0.1s ease;}
-#startMenu li:hover, #startMenu li.disabled:hover { background: #0060c0; color: white; } /* Brighter blue hover */
+#startMenu li:hover, #startMenu li.disabled:hover { background: #7c3aed; color: white; } /* Brighter blue hover */
 #startMenu li.disabled { color: #555555; cursor: default; }
 #startMenu hr { border: none; border-top: 1px solid #3a3a3a; margin: 4px 0; }
 
@@ -241,7 +241,7 @@ body {
     border-color: #505050;
 }
 .pad-button.selected-for-edit {
-    border-color: #60a5fa; /* Lighter blue accent for selected */
+    border-color: #a78bfa; /* Lighter blue accent for selected */
     border-width: 2px;
     padding: 7px; 
 }
@@ -274,8 +274,8 @@ body {
     border-color: #5a5a5a;     
     color: #cccccc; 
 }
-.drop-zone label { color: #7dd3fc; text-decoration: underline; cursor: pointer; }
-.drop-zone label:hover { color: #38bdf8; }
+.drop-zone label { color: #c4b5fd; text-decoration: underline; cursor: pointer; }
+.drop-zone label:hover { color: #a78bfa; }
 
 
 /* --- Knob Styling (Unified Dark Theme) --- */
@@ -345,10 +345,10 @@ button.armed {
     box-shadow: inset 1px 1px 0 #9a3412, inset -1px -1px 0 #fed7aa !important; 
 }
 button.active { /* Generic active state for other toggles if needed */
-    background-color: #1d4ed8 !important; 
-    color: #dbeafe !important; 
-    border-color: #1e40af #1d4ed8 #1d4ed8 #1e40af !important; 
-    box-shadow: inset 1px 1px 0 #1e40af, inset -1px -1px 0 #93c5fd !important; 
+    background-color: #6d28d9 !important; 
+    color: #ede9fe !important; 
+    border-color: #5b21b6 #6d28d9 #6d28d9 #5b21b6 !important; 
+    box-shadow: inset 1px 1px 0 #5b21b6, inset -1px -1px 0 #c4b5fd !important; 
 }
 
 /* --- Sequencer Grid Styling (Unified Dark Theme) --- */
@@ -430,13 +430,13 @@ button.active { /* Generic active state for other toggles if needed */
 .sequencer-step-cell.active-sampler,
 .sequencer-step-cell.active-drum-sampler,
 .sequencer-step-cell.active-instrument-sampler { 
-    background-color: #008080 !important; /* Teal */
+    background-color: #7c3aed !important; /* Teal */
     color: #FFFFFF !important; 
     border-color: #009090 !important; /* Slightly lighter teal for border */
 } 
 
 .sequencer-step-cell.playing {
-    outline: 2px solid #00ffff; /* Cyan outline for playing step */
+    outline: 2px solid #a855f7; /* Cyan outline for playing step */
     outline-offset: -2px;
     z-index: 5; 
 }
@@ -470,7 +470,7 @@ button.active { /* Generic active state for other toggles if needed */
     box-sizing: border-box;
 }
 .meter-bar {
-    background-color: #00b0b0; /* Cyan/Teal for meter */
+    background-color: #8b5cf6; /* Cyan/Teal for meter */
     height: 100%;
     width: 0%;
     transition: width 0.05s linear;
@@ -634,7 +634,7 @@ input::placeholder,
 }
 
 .context-menu-item:not(.disabled):hover {
-    background-color: #0060c0; /* Brighter blue hover */
+    background-color: #7c3aed; /* Brighter blue hover */
     color: white;
 }
 
@@ -734,7 +734,7 @@ input::placeholder,
     left: 120px; /* Start after the track names area */
     width: 2px;
     height: 100%;
-    background-color: #00ffff;
+    background-color: #a855f7;
     z-index: 4;
     pointer-events: none;
 }
@@ -743,7 +743,7 @@ input::placeholder,
     position: absolute;
     height: 80%;
     top: 10%;
-    background-color: #008080;
+    background-color: #7c3aed;
     border: 1px solid #009090;
     border-radius: 3px;
     box-sizing: border-box;
@@ -774,7 +774,7 @@ input::placeholder,
 
 .drum-pad.drop-over {
     background-color: #444 !important;
-    border: 2px dashed #00ffff !important;
+    border: 2px dashed #a855f7 !important;
     transform: scale(1.05);
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
     z-index: 10;
