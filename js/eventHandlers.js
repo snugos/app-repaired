@@ -126,6 +126,8 @@ export function initializePrimaryEventListeners(appContext) {
                     menuActions[menuItemId]();
                     if (uiCache.startMenu) uiCache.startMenu.classList.add('hidden');
                 });
+            } else {
+                console.log(`[Menu] Element not found: ${menuItemId}`);
             }
         }
 
