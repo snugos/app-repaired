@@ -1220,14 +1220,9 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
     }
     if (openWindows.has(windowId) && !forceRedraw && !savedState) {
         const win = openWindows.get(windowId);
-        if (win && typeof win.restore === 'function') {
-            console.log(`[UI openTrackSequencerWindow] Restoring existing window ${windowId}`);
-            win.restore();
-            if (localAppServices.setActiveSequencerTrackId) localAppServices.setActiveSequencerTrackId(trackId);
-            return win;
-        } else {
-            console.warn(`[UI openTrackSequencerWindow] Window ${windowId} in map but cannot be restored.`);
-        }
+        win.restore();
+        if (localAppServices.setActiveSequencerTrackId) localAppServices.setActiveSequencerTrackId(trackId);
+        return win;
     }
 
     const activeSequence = track.getActiveSequence();
@@ -1545,12 +1540,12 @@ export function renderDrumSamplerPads(track) {
     if (!padsContainer) return;
     padsContainer.innerHTML = '';
     track.drumSamplerPads.forEach((padData, index) => {
-        const padEl = document.createElement('button');
-        padEl.className = `drum-pad p-2 border rounded text-xs h-12 flex items-center justify-center dark:border-slate-500 dark:text-slate-300 ${track.selectedDrumPadForEdit === index ? 'bg-blue-200 border-blue-400 dark:bg-blue-700 dark:border-blue-500' : 'bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500'} ${(!padData.audioBufferDataURL && !padData.dbKey && padData.status !== 'loaded') ? 'opacity-60' : ''}`;
-        padEl.textContent = `Pad ${index + 1}`; padEl.title = padData.originalFileName || `Pad ${index + 1}`;
-        if (padData.status === 'missing' || padData.status === 'error') padEl.classList.add(padData.status === 'missing' ? 'border-yellow-500' : 'border-red-500', 'text-black', 'dark:text-white');
-        padEl.addEventListener('click', () => { track.selectedDrumPadForEdit = index; if (localAppServices.playDrumSamplerPadPreview && padData.status === 'loaded') localAppServices.playDrumSamplerPadPreview(track.id, index); else if (padData.status !== 'loaded') showNotification(`Sample for Pad ${index+1} not loaded.`, 2000); renderDrumSamplerPads(track); updateDrumPadControlsUI(track); });
-        padsContainer.appendChild(padEl);
+        const pad = document.createElement('button');
+        pad.className = `drum-pad p-2 border rounded text-xs h-12 flex items-center justify-center dark:border-slate-500 dark:text-slate-300 ${track.selectedDrumPadForEdit === index ? 'bg-blue-200 border-blue-400 dark:bg-blue-700 dark:border-blue-500' : 'bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500'} ${(!padData.audioBufferDataURL && !padData.dbKey && padData.status !== 'loaded') ? 'opacity-60' : ''}`;
+        pad.textContent = `Pad ${index + 1}`; pad.title = padData.originalFileName || `Pad ${index + 1}`;
+        if (padData.status === 'missing' || padData.status === 'error') pad.classList.add(padData.status === 'missing' ? 'border-yellow-500' : 'border-red-500', 'text-black', 'dark:text-white');
+        pad.addEventListener('click', () => { track.selectedDrumPadForEdit = index; if (localAppServices.playDrumSamplerPadPreview && padData.status === 'loaded') localAppServices.playDrumSamplerPadPreview(track.id, index); else if (padData.status !== 'loaded') showNotification(`Sample for Pad ${index+1} not loaded.`, 2000); renderDrumSamplerPads(track); updateDrumPadControlsUI(track); });
+        padsContainer.appendChild(pad);
     });
 }
 
