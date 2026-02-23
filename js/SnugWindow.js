@@ -345,10 +345,14 @@ export class SnugWindow {
                 width: this.element.style.width, height: this.element.style.height,
             };
             const taskbarHeight = taskbarEl.offsetHeight > 0 ? taskbarEl.offsetHeight : 30;
+            const globalControlsEl = this.appServices.uiElementsCache?.globalControlsBar || document.getElementById('globalControlsBar');
+            const controlsHeight = globalControlsEl?.offsetHeight > 0 ? globalControlsEl.offsetHeight : 0;
+            const availableWidth = desktopEl.clientWidth;
+            const availableHeight = Math.max(0, desktopEl.clientHeight - taskbarHeight - controlsHeight);
             this.element.style.left = '0px';
-            this.element.style.top = '0px';
-            this.element.style.width = `${desktopEl.clientWidth}px`;
-            this.element.style.height = `${desktopEl.clientHeight - taskbarHeight}px`;
+            this.element.style.top = `${controlsHeight}px`;
+            this.element.style.width = `${availableWidth}px`;
+            this.element.style.height = `${availableHeight}px`;
             this.isMaximized = true;
             if (maximizeButton) maximizeButton.innerHTML = '❐';
         }
