@@ -1443,7 +1443,7 @@ export function drawWaveform(track) {
             track.waveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
             track.waveformCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#94a3b8' : '#a0a0a0';
+            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#E0BBE4' : '#a0a0a0';
             track.waveformCanvasCtx.textAlign = 'center';
             track.waveformCanvasCtx.fillText('No audio loaded or processed', canvas.width / 2, canvas.height / 2);
         }
@@ -1452,9 +1452,9 @@ export function drawWaveform(track) {
     const canvas = track.waveformCanvasCtx.canvas; const ctx = track.waveformCanvasCtx;
     const buffer = track.audioBuffer.get(); const data = buffer.getChannelData(0);
     const step = Math.ceil(data.length / canvas.width); const amp = canvas.height / 2;
-    ctx.fillStyle = ctx.canvas.classList.contains('dark') ? '#1e293b' : '#f0f0f0';
+    ctx.fillStyle = ctx.canvas.classList.contains('dark') ? '#101010' : '#f0f0f0';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 1; ctx.strokeStyle = ctx.canvas.classList.contains('dark') ? '#60a5fa' : '#3b82f6';
+    ctx.lineWidth = 1; ctx.strokeStyle = ctx.canvas.classList.contains('dark') ? '#957DAD' : '#957DAD';
     ctx.beginPath(); ctx.moveTo(0, amp);
     for (let i = 0; i < canvas.width; i++) {
         let min = 1.0; let max = -1.0;
@@ -1470,7 +1470,7 @@ export function drawWaveform(track) {
         ctx.fillRect(startX, 0, endX - startX, canvas.height);
         ctx.strokeStyle = index === track.selectedSliceForEdit ? 'rgba(255,0,0,0.7)' : (ctx.canvas.classList.contains('dark') ? 'rgba(96, 165, 250, 0.5)' : 'rgba(0,0,255,0.4)');
         ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.moveTo(endX, 0); ctx.lineTo(endX, canvas.height); ctx.stroke();
-        ctx.fillStyle = index === track.selectedSliceForEdit ? '#cc0000' : (ctx.canvas.classList.contains('dark') ? '#93c5fd' : '#0000cc');
+        ctx.fillStyle = index === track.selectedSliceForEdit ? '#FEC8D8' : (ctx.canvas.classList.contains('dark') ? '#E0BBE4' : '#0000cc');
         ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`S${index + 1}`, startX + 2, 10);
     });
 }
@@ -1482,9 +1482,9 @@ export function drawInstrumentWaveform(track) {
     const canvas = track.instrumentWaveformCanvasCtx.canvas; const ctx = track.instrumentWaveformCanvasCtx;
     const buffer = track.instrumentSamplerSettings.audioBuffer.get(); const data = buffer.getChannelData(0);
     const step = Math.ceil(data.length / canvas.width); const amp = canvas.height / 2;
-    ctx.fillStyle = canvas.classList.contains('dark') ? '#1e293b' : '#f0f0f0';
+    ctx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#f0f0f0';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 1; ctx.strokeStyle = canvas.classList.contains('dark') ? '#34d399' : '#10b981';
+    ctx.lineWidth = 1; ctx.strokeStyle = canvas.classList.contains('dark') ? '#D291BC' : '#D291BC';
     ctx.beginPath(); ctx.moveTo(0, amp);
     for (let i = 0; i < canvas.width; i++) { let min = 1.0; let max = -1.0; for (let j = 0; j < step; j++) { const datum = data[(i * step) + j]; if (datum < min) min = datum; if (datum > max) max = datum; } ctx.lineTo(i, (1 + min) * amp); ctx.lineTo(i, (1 + max) * amp); }
     ctx.lineTo(canvas.width, amp); ctx.stroke();
