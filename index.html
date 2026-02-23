@@ -112,7 +112,9 @@
     </div>
 
     <div id="desktop" class="pt-14">
-        <!-- Desktop area for windows -->
+        <!-- Video background element -->
+        <video id="desktopVideoBg" autoplay loop muted playsinline style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; display: none;"></video>
+        <!-- Desktop content -->
     </div>
 
     <div id="taskbar">
@@ -148,7 +150,7 @@
     </div>
 
     <input type="file" id="loadProjectInput" class="hidden" accept=".snug">
-    <input type="file" id="customBgInput" class="hidden" accept="image/*">
+    <input type="file" id="customBgInput" class="hidden" accept="image/*,video/*">
     <input type="file" id="sampleFileInput" class="hidden" accept="audio/*">
 
 

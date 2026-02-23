@@ -86,7 +86,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Open Mixer", action: () => { if(services.openMixerWindow) services.openMixerWindow(); } },
                     { label: "Open Master Effects", action: () => { if(services.openMasterEffectsRackWindow) services.openMasterEffectsRackWindow(); } },
                     { separator: true },
-                    { label: "Upload Custom Background", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
+                    { label: "Upload Custom Background (Image/Video)", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
                     { label: "Remove Custom Background", action: () => { if(services.removeCustomDesktopBackground) services.removeCustomDesktopBackground(); } },
                     { separator: true },
                     { label: "Toggle Full Screen", action: toggleFullScreen }

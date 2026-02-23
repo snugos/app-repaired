@@ -1768,7 +1768,7 @@ export function renderTimeline() {
                     const startX = e.clientX;
                     const initialLeftPixels = parseFloat(clipEl.style.left) || 0;
                     let originalStartTime = clip.startTime;
-                    const GRID_SIZE_SECONDS = 0.125; // 1/8 second grid (eighth note at 120 BPM)
+                    const GRID_SIZE_SECONDS = 1.0; // 1/2 note grid (half note at 120 BPM = 1 second)
 
                     function onMouseMove(moveEvent) {
                         const dx = moveEvent.clientX - startX;
