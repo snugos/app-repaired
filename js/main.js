@@ -369,7 +369,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -388,8 +388,8 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -405,7 +405,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -430,7 +430,7 @@ const appServices = {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -598,6 +598,7 @@ async function initializeSnugOS() {
     console.log("[Main initializeSnugOS] Initializing SnugOS...");
 
     try {
+        // Cache UI elements - including the fixed global controls bar
         Object.keys(uiElementsCache).forEach(key => {
             const element = document.getElementById(key);
             if (element) {
@@ -608,6 +609,26 @@ async function initializeSnugOS() {
                 }
             }
         });
+
+        // The global controls are now in a fixed bar, not a window
+        // Wire them up directly
+        const globalElements = {
+            playBtnGlobal: document.getElementById('playBtnGlobal'),
+            recordBtnGlobal: document.getElementById('recordBtnGlobal'),
+            stopBtnGlobal: document.getElementById('stopBtnGlobal'),
+            tempoGlobalInput: document.getElementById('tempoGlobalInput'),
+            midiInputSelectGlobal: document.getElementById('midiInputSelectGlobal'),
+            masterMeterContainerGlobal: document.getElementById('masterMeterContainerGlobal'),
+            masterMeterBarGlobal: document.getElementById('masterMeterBarGlobal'),
+            midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
+            keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
+            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal')
+        };
+        
+        // Add to cache
+        Object.assign(uiElementsCache, globalElements);
+        
+        console.log("[Main initializeSnugOS] Global controls bar elements cached:", Object.keys(globalElements).filter(k => globalElements[k]));
 
         try {
             const effectsRegistry = await import('./effectsRegistry.js');
@@ -639,25 +660,14 @@ async function initializeSnugOS() {
              initializePrimaryEventListeners(appServices);
         } else { console.error("initializePrimaryEventListeners is not a function");}
 
-        if (typeof openGlobalControlsWindow === 'function') {
-            openGlobalControlsWindow((elements) => {
-                if (elements) {
-                    uiElementsCache.playBtnGlobal = elements.playBtnGlobal;
-                    uiElementsCache.recordBtnGlobal = elements.recordBtnGlobal;
-                    uiElementsCache.stopBtnGlobal = elements.stopBtnGlobal; 
-                    uiElementsCache.tempoGlobalInput = elements.tempoGlobalInput;
-                    uiElementsCache.midiInputSelectGlobal = elements.midiInputSelectGlobal;
-                    uiElementsCache.masterMeterContainerGlobal = elements.masterMeterContainerGlobal;
-                    uiElementsCache.masterMeterBarGlobal = elements.masterMeterBarGlobal;
-                    uiElementsCache.midiIndicatorGlobal = elements.midiIndicatorGlobal;
-                    uiElementsCache.keyboardIndicatorGlobal = elements.keyboardIndicatorGlobal;
-                    uiElementsCache.playbackModeToggleBtnGlobal = elements.playbackModeToggleBtnGlobal;
-
-                    if (typeof attachGlobalControlEvents === 'function') attachGlobalControlEvents(elements); else console.error("attachGlobalControlEvents is not a function");
-                    if (typeof setupMIDI === 'function') setupMIDI(); else console.error("setupMIDI is not a function");
-                } else { console.warn("Global controls elements not received in onReadyCallback.");}
-            }, null);
-        } else { console.error("openGlobalControlsWindow is not a function");}
+        // Attach global controls event listeners directly to the fixed bar
+        if (typeof attachGlobalControlEvents === 'function') {
+            attachGlobalControlEvents(globalElements);
+        } else {
+            console.error("attachGlobalControlEvents is not a function");
+        }
+        
+        if (typeof setupMIDI === 'function') setupMIDI(); else console.error("setupMIDI is not a function");
 
         if (Constants.soundLibraries && typeof fetchSoundLibrary === 'function') {
             Object.entries(Constants.soundLibraries).forEach(([name, url]) => fetchSoundLibrary(name, url, true)); 

@@ -22,18 +22,60 @@
     <meta name="msapplication-TileImage" content="ms-icon-144x144.png">
     <meta name="theme-color" content="#ffffff">
 
-    <script src="https://cdn.tailwindcss.com"></script> <script src="js/lib/Tone.min.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/lib/Tone.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="desktop">
+    <!-- Global Controls Bar - Always visible at top -->
+    <div id="globalControlsBar" class="fixed top-0 left-0 right-0 h-12 bg-zinc-900 border-b border-zinc-700 flex items-center px-4 gap-4 z-[9999]">
+        <div class="flex items-center gap-2">
+            <button id="playBtnGlobal" title="Play/Pause (Spacebar)" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Play</button>
+            <button id="stopBtnGlobal" title="Stop All Audio" class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Stop</button>
+            <button id="recordBtnGlobal" title="Record Arm/Disarm" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Rec</button>
         </div>
+        
+        <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400">BPM:</label>
+            <input type="number" id="tempoGlobalInput" value="120" min="30" max="300" step="0.1" class="w-16 p-1 bg-zinc-800 border border-zinc-600 rounded text-white text-sm text-center">
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400">MIDI:</label>
+            <select id="midiInputSelectGlobal" class="bg-zinc-800 border border-zinc-600 rounded text-white text-sm px-2 py-1">
+                <option value="">No MIDI</option>
+            </select>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400">Master:</label>
+            <div id="masterMeterContainerGlobal" class="w-24 h-4 bg-zinc-800 rounded border border-zinc-600 overflow-hidden">
+                <div id="masterMeterBarGlobal" class="h-full bg-blue-500 transition-all duration-50" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <span id="midiIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-zinc-700 text-gray-400" title="MIDI Activity">MIDI</span>
+            <span id="keyboardIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-zinc-700 text-gray-400" title="Keyboard Activity">KBD</span>
+        </div>
+        
+        <div class="flex-1"></div>
+        
+        <button id="playbackModeToggleBtnGlobal" title="Toggle Playback Mode" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Mode: Sequencer</button>
+    </div>
+
+    <div id="desktop" class="pt-12">
+        <!-- Desktop area for windows -->
+    </div>
 
     <div id="taskbar">
         <button id="startButton">Start</button>
         <div id="taskbarButtons">
-            </div>
+            <!-- Window buttons appear here -->
+        </div>
         <div id="taskbarTempoDisplay" title="Current Tempo">120.0 BPM</div>
     </div>
 
@@ -47,7 +89,6 @@
             <li><hr></li>
             <li id="menuOpenSoundBrowser">Sound Browser</li>
             <li><hr></li>
-            <li id="menuOpenGlobalControls">Global Controls</li>
             <li id="menuOpenMixer">Mixer</li>
             <li id="menuOpenMasterEffects">Master Effects Rack</li>
             <li><hr></li>
