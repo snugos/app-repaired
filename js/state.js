@@ -887,60 +887,50 @@ export async function exportToWavInternal() {
         tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
         await new Promise(r => setTimeout(r, 100));
 
-        // Create recorder
-        const recorder = new Tone.Recorder();
-        const masterGain = appServices.getActualMasterGainNode();
-        
-        if (!masterGain || masterGain.disposed) {
-            appServices.showNotification("Master output not available.", 3000);
+        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
+
+        // Use Tone.Offline for proper offline rendering
+        const buffer = await Tone.Offline(async ({ transport }) => {
+            // Get master output
+            const masterGain = appServices.getActualMasterGainNode();
+            if (!masterGain) {
+                throw new Error("Master gain not available");
+            }
+
+            // Schedule all tracks
+            for (const track of tracks) {
+                if (track?.schedulePlayback) {
+                    await track.schedulePlayback(0, maxDuration);
+                }
+            }
+
+            // Start transport
+            transport.start(0);
+            
+            // Return the master gain as the output to record
+            return masterGain;
+        }, maxDuration);
+
+        if (!buffer || buffer.disposed) {
+            appServices.showNotification("Export failed: Could not render audio.", 3000);
             return;
         }
+
+        console.log("[State exportToWavInternal] Buffer rendered, converting to WAV...");
+
+        // Convert buffer to WAV
+        const wavBlob = bufferToWav(buffer);
         
-        masterGain.connect(recorder);
-        console.log("[State exportToWavInternal] Recorder connected");
+        // Cleanup buffer
+        if (!buffer.disposed) buffer.dispose();
 
-        // Reset and schedule
-        Tone.Transport.position = 0;
-        Tone.Transport.loop = false;
-        
-        for (const track of tracks) {
-            if (track?.schedulePlayback) {
-                await track.schedulePlayback(0, maxDuration);
-            }
-        }
-
-        appServices.showNotification(`Recording export (${maxDuration.toFixed(1)}s)...`, 10000);
-
-        // Start recording and playback
-        await recorder.start();
-        console.log("[State exportToWavInternal] Recording started");
-        
-        Tone.Transport.start();
-        console.log("[State exportToWavInternal] Transport started");
-
-        // Wait
-        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
-
-        // Stop
-        const recording = await recorder.stop();
-        console.log("[State exportToWavInternal] Recording stopped, size:", recording.size);
-
-        Tone.Transport.stop();
-        Tone.Transport.cancel(0);
-        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
-
-        // Cleanup
-        try { masterGain.disconnect(recorder); } catch (e) {}
-        recorder.dispose();
-
-        if (!recording || recording.size < 1000) {
-            appServices.showNotification("Export failed: No audio was recorded.", 3000);
-            console.error("[State exportToWavInternal] Recording too small:", recording?.size);
+        if (!wavBlob || wavBlob.size < 1000) {
+            appServices.showNotification("Export failed: WAV conversion failed.", 3000);
             return;
         }
 
         // Download
-        const url = URL.createObjectURL(recording);
+        const url = URL.createObjectURL(wavBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `snugos-export-${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
@@ -950,7 +940,7 @@ export async function exportToWavInternal() {
         URL.revokeObjectURL(url);
 
         appServices.showNotification("Export to WAV successful!", 3000);
-        console.log("[State exportToWavInternal] Export complete");
+        console.log("[State exportToWavInternal] Export complete, size:", wavBlob.size);
 
     } catch (error) {
         console.error("[State exportToWavInternal] Error:", error);
