@@ -316,7 +316,7 @@ export function createContextMenu(event, menuItems, appServicesForZIndex = null)
     menu.style.left = `${event.clientX}px`;
     menu.style.top = `${event.clientY}px`;
 
-    let zIndexToSet = 10000; // Default high z-index
+    let zIndexToSet = 15000; // Default high z-index
     if (appServicesForZIndex && typeof appServicesForZIndex.getHighestZ === 'function' && typeof appServicesForZIndex.incrementHighestZ === 'function') {
         try {
             // It's better to use incrementHighestZ to ensure it's on top of other elements managed by the same system
