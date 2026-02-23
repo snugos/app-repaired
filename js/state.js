@@ -292,6 +292,11 @@ export async function addTrackToStateInternal(type, initialData = null, isUserAc
         if (isBrandNewUserTrack && appServices.openTrackInspectorWindow) {
              // Delay opening inspector slightly to ensure track is fully set up
             setTimeout(() => appServices.openTrackInspectorWindow(newTrack.id), 50);
+            
+            // Also open sequencer for applicable track types
+            if (newTrack.type !== 'Audio' && appServices.openTrackSequencerWindow) {
+                setTimeout(() => appServices.openTrackSequencerWindow(newTrack.id, true), 150);
+            }
         }
 
         if (appServices.updateMixerWindow) appServices.updateMixerWindow();
