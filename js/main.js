@@ -151,7 +151,7 @@ async function handleCustomBackgroundUpload(event) {
     const isImage = file.type.startsWith('image/');
     
     if (!isVideo && !isImage) {
-        showNotification("Invalid file type. Please select an image or video.", 3000);
+        showSafeNotification("Invalid file type. Please select an image or video.", 3000);
         return;
     }
 
@@ -164,22 +164,22 @@ async function handleCustomBackgroundUpload(event) {
                 localStorage.setItem(DESKTOP_BACKGROUND_KEY, dataURL);
                 localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'image');
                 await applyDesktopBackground(dataURL, 'image');
-                showNotification("Image background applied.", 2000);
+                showSafeNotification("Image background applied.", 2000);
             };
             reader.readAsDataURL(file);
         } else if (isVideo) {
             // For videos, store in IndexedDB and create object URL
-            showNotification("Processing video background...", 2000);
+            showSafeNotification("Processing video background...", 2000);
             await bgDb.save('desktopVideo', file);
             localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'video');
             localStorage.removeItem(DESKTOP_BACKGROUND_KEY); // Clear any image
             const objectUrl = URL.createObjectURL(file);
             await applyDesktopBackground(objectUrl, 'video');
-            showNotification("Video background applied.", 2000);
+            showSafeNotification("Video background applied.", 2000);
         }
     } catch (error) {
         console.error("Error saving background:", error);
-        showNotification("Could not save background: " + error.message, 4000);
+        showSafeNotification("Could not save background: " + error.message, 4000);
     }
     
     if (event.target) event.target.value = null;
@@ -191,10 +191,10 @@ async function removeCustomDesktopBackground() {
         localStorage.removeItem(DESKTOP_BG_TYPE_KEY);
         await bgDb.remove('desktopVideo');
         await applyDesktopBackground(null, null);
-        showNotification("Custom background removed.", 2000);
+        showSafeNotification("Custom background removed.", 2000);
     } catch (error) {
         console.error("Error removing background from storage:", error);
-        showNotification("Could not remove background from storage.", 3000);
+        showSafeNotification("Could not remove background from storage.", 3000);
     }
 }
 
@@ -447,7 +447,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -464,7 +464,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -488,7 +488,7 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
