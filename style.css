@@ -541,7 +541,16 @@ button.active { /* Generic active state for other toggles if needed */
     background-color: #303030;
 }
 
-.window-resizer { /* ... unchanged ... */ }
+.window-resizer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 12px;
+    height: 12px;
+    cursor: nwse-resize;
+    z-index: 10;
+    background: transparent;
+}
 .modular-effects-rack { /* ... unchanged ... */ }
 .effects-list-container { /* ... unchanged ... */ }
 .effect-controls-panel { /* ... unchanged ... */ }
