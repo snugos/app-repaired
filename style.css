@@ -106,13 +106,13 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 32px; /* Slightly taller */
+    height: 26px; /* Smaller taskbar */
     background-color: #1a1a1a; /* Dark taskbar */
     border-top: 1px solid #303030; /* Subtle top border */
     z-index: 10000; 
     display: flex;
     align-items: center;
-    padding: 0 6px;
+    padding: 0 4px;
     box-sizing: border-box;
     color: #d0d0d0; 
 }
@@ -122,11 +122,12 @@ body {
     border: 1px solid #121212;
     border-color: #3c3c3c #181818 #181818 #3c3c3c; 
     box-shadow: 1px 1px 0 #3c3c3c inset, -1px -1px 0 #181818 inset;
-    padding: 3px 12px; 
+    padding: 2px 10px; 
     font-weight: 600; /* Semibold */
-    margin-right: 6px;
+    margin-right: 4px;
     color: #e0e0e0; 
     border-radius: 3px;
+    font-size: 0.8rem;
     transition: background-color 0.15s ease;
 }
 #startButton:hover {
