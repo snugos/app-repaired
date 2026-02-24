@@ -1471,21 +1471,6 @@ export function drawInstrumentWaveform(track) {
     }
 }
 
-export function openMixerWindow(savedState = null) {
-    const windowId = 'mixer';
-    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
-    if (openWindows.has(windowId) && !savedState) { openWindows.get(windowId).restore(); return openWindows.get(windowId); }
-
-    const contentContainer = document.createElement('div'); contentContainer.id = 'mixerContentContainer';
-    contentContainer.className = 'p-2 overflow-x-auto whitespace-nowrap h-full bg-gray-100 dark:bg-slate-800';
-    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
-    const mixerOptions = { width: Math.min(800, (desktopEl?.offsetWidth || 800) - 40), height: 300, minWidth: 300, minHeight: 200, initialContentKey: windowId };
-    if (savedState) Object.assign(mixerOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
-    const mixerWindow = localAppServices.createWindow(windowId, 'Mixer', contentContainer, mixerOptions);
-    if (mixerWindow?.element) updateMixerWindow();
-    return mixerWindow;
-}
-
 export function updateMixerWindow() {
     const mixerWindow = localAppServices.getWindowById ? localAppServices.getWindowById('mixer') : null;
     if (!mixerWindow?.element || mixerWindow.isMinimized) return;
