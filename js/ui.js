@@ -1471,3 +1471,27 @@ export function drawInstrumentWaveform(track) {
     }
 }
 
+
+
+export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
+    // Highlight the current playing step in the sequencer grid
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) return;
+    
+    // Find the sequencer window for this track
+    const sequencerWin = localAppServices.getWindowById ? localAppServices.getWindowById('sequencerWin-' + trackId) : null;
+    if (!sequencerWin || !sequencerWin.element) return;
+    
+    // Remove playing class from all cells
+    sequencerWin.element.querySelectorAll('.sequencer-step-cell.playing').forEach(cell => {
+        cell.classList.remove('playing');
+    });
+    
+    if (isPlaying && stepIndex >= 0) {
+        // Add playing class to current step cell
+        const cell = sequencerWin.element.querySelector('[data-step="' + stepIndex + '"]');
+        if (cell) {
+            cell.classList.add('playing');
+        }
+    }
+}
