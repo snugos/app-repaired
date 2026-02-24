@@ -781,15 +781,21 @@ input::placeholder,
     transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
 }
 
-.drum-pad.drop-over {
-    background-color: #444 !important;
-    border: 2px dashed #E0BBE4 !important;
-    transform: scale(1.05);
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-    z-index: 10;
-}
-
 .drum-pad.has-sample {
     background-color: #2a4a5a;
-    border-color: #957DAD;
+    border-color: #0088aa;
+}
+
+/* Drag and drop styles for drum pads */
+.drum-pad.dragging {
+    opacity: 0.5;
+    border: 2px dashed #ff9999 !important;
+}
+
+.drum-pad.drop-over {
+    background-color: #444 !important;
+    border: 2px dashed #957DAD !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(149, 125, 173, 0.5);
+    z-index: 10;
 }
