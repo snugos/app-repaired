@@ -1505,7 +1505,6 @@ export function openTimelineWindow() {
 export function renderDrumSamplerPads() { console.log('[UI] renderDrumSamplerPads called'); }
 
 
-
 export function drawWaveform() { console.log('[UI] drawWaveform called'); }
 export function drawInstrumentWaveform() { console.log('[UI] drawInstrumentWaveform called'); }
 export function renderSamplePads() { console.log('[UI] renderSamplePads called'); }
