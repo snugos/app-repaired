@@ -1471,61 +1471,6 @@ export function drawInstrumentWaveform(track) {
     }
 }
 
-export function renderSoundBrowserDirectory(pathArray, treeNode) {
-    const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
-    if (!browserWindowEl || !treeNode) return;
-    const listDiv = browserWindowEl.querySelector('#soundBrowserList');
-    const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
-    const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
-    listDiv.innerHTML = '';
-    const currentLibName = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : '';
-    pathDisplay.textContent = `/${currentLibName}${pathArray.length > 0 ? '/' : ''}${pathArray.join('/')}`;
-
-    if (localAppServices.setSelectedSoundForPreview) {
-        localAppServices.setSelectedSoundForPreview(null);
-    }
-    if(previewBtn) previewBtn.disabled = true;
-
-    const items = [];
-    for (const name in treeNode) { if (treeNode[name]?.type) items.push({ name, type: treeNode[name].type, nodeData: treeNode[name] }); }
-    items.sort((a, b) => { if (a.type === 'folder' && b.type !== 'folder') return -1; if (a.type !== 'folder' && b.type === 'folder') return 1; return a.name.localeCompare(b.name); });
-    if (items.length === 0) { listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Empty folder.</p>'; return; }
-
-    items.forEach(itemObj => {
-        const {name, nodeData} = itemObj; const listItem = document.createElement('div');
-        listItem.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
-        listItem.draggable = nodeData.type === 'file';
-        const icon = document.createElement('span'); icon.className = 'mr-1.5'; icon.textContent = nodeData.type === 'folder' ? '📁' : '🎵'; listItem.appendChild(icon);
-        const text = document.createElement('span'); text.textContent = name; listItem.appendChild(text);
-        if (nodeData.type === 'folder') {
-            listItem.addEventListener('click', () => {
-                const newPath = [...pathArray, name];
-                if (localAppServices.setCurrentSoundBrowserPath) localAppServices.setCurrentSoundBrowserPath(newPath);
-                renderSoundBrowserDirectory(newPath, nodeData.children);
-            });
-        }
-        else { // File
-            listItem.addEventListener('click', () => {
-                listDiv.querySelectorAll('.bg-blue-200,.dark\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
-                listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
-                const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
-                console.log('[UI SoundFile Click] Sound selected:', JSON.stringify(soundToSelect));
-                if (localAppServices.setSelectedSoundForPreview) {
-                    localAppServices.setSelectedSoundForPreview(soundToSelect);
-                    const checkSelected = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : { error: 'getSelectedSoundForPreview service not found' };
-                    console.log('[UI SoundFile Click] State after setSelectedSoundForPreview (via getter):', JSON.stringify(checkSelected));
-                } else {
-                    console.warn('[UI SoundFile Click] setSelectedSoundForPreview service not available.');
-                }
-                if(previewBtn) previewBtn.disabled = false;
-            });
-            listItem.addEventListener('dragstart', (e) => { e.dataTransfer.setData("application/json", JSON.stringify({ fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName, type: 'sound-browser-item' })); e.dataTransfer.effectAllowed = "copy"; });
-        }
-        listDiv.appendChild(listItem);
-    });
-}
-
-// --- Mixer Window ---
 export function openMixerWindow(savedState = null) {
     const windowId = 'mixer';
     const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
