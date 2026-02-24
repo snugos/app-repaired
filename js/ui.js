@@ -1503,7 +1503,6 @@ export function openTimelineWindow() {
 
 
 export function renderDrumSamplerPads() { console.log('[UI] renderDrumSamplerPads called'); }
-export function renderEffectsList() { console.log('[UI] renderEffectsList called'); }
 export function renderEffectControls() { console.log('[UI] renderEffectControls called'); }
 export function openMasterEffectsRackWindow() { console.log('[UI] openMasterEffectsRackWindow called'); }
 export function openTimelineWindow() { console.log('[UI] openTimelineWindow called'); }
