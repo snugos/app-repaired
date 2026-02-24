@@ -1495,3 +1495,8 @@ export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
         }
     }
 }
+
+
+export function openTimelineWindow() {
+  console.log('[UI] openTimelineWindow called');
+}
