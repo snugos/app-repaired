@@ -889,49 +889,61 @@ export async function exportToWavInternal() {
 
         appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
 
-        // Use Tone.Offline for proper offline rendering
-        const buffer = await Tone.Offline(async ({ transport, destination }) => {
-            // Connect master output to the offline destination for recording
-            const masterGain = appServices.getActualMasterGainNode();
-            if (masterGain && !masterGain.disposed) {
-                masterGain.connect(destination);
-                console.log("[Export] Connected master gain to offline destination");
-            } else {
-                console.warn("[Export] Master gain not available");
-            }
-
-            // Schedule all tracks
-            for (const track of tracks) {
-                if (track?.schedulePlayback) {
-                    await track.schedulePlayback(0, maxDuration);
-                }
-            }
-
-            // Start transport
-            transport.start(0);
-            console.log("[Export] Transport started for offline rendering");
-        }, maxDuration);
-
-        if (!buffer || buffer.disposed) {
-            appServices.showNotification("Export failed: Could not render audio.", 3000);
+        // Use Tone.Recorder to record from master output
+        const recorder = new Tone.Recorder();
+        const masterGain = appServices.getActualMasterGainNode();
+        
+        if (!masterGain || masterGain.disposed) {
+            appServices.showNotification("Master output not available.", 3000);
             return;
         }
-
-        console.log("[State exportToWavInternal] Buffer rendered, converting to WAV...");
-
-        // Convert buffer to WAV
-        const wavBlob = bufferToWav(buffer);
         
-        // Cleanup buffer
-        if (!buffer.disposed) buffer.dispose();
+        // Connect master gain to recorder
+        masterGain.connect(recorder);
+        console.log("[Export] Recorder connected to master gain");
 
-        if (!wavBlob || wavBlob.size < 1000) {
-            appServices.showNotification("Export failed: WAV conversion failed.", 3000);
+        // Reset transport
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+        
+        // Schedule all tracks
+        for (const track of tracks) {
+            if (track?.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        console.log("[Export] Recording started");
+        
+        Tone.Transport.start();
+        console.log("[Export] Transport started");
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log("[Export] Recording stopped, size:", recording.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+
+        // Cleanup
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        if (!recording || recording.size < 1000) {
+            appServices.showNotification("Export failed: No audio recorded.", 3000);
+            console.error("[Export] Recording too small:", recording?.size);
             return;
         }
 
         // Download
-        const url = URL.createObjectURL(wavBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         a.download = `snugos-export-${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
@@ -941,7 +953,7 @@ export async function exportToWavInternal() {
         URL.revokeObjectURL(url);
 
         appServices.showNotification("Export to WAV successful!", 3000);
-        console.log("[State exportToWavInternal] Export complete, size:", wavBlob.size);
+        console.log("[Export] Complete, size:", recording.size);
 
     } catch (error) {
         console.error("[State exportToWavInternal] Error:", error);
