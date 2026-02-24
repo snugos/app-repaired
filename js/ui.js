@@ -1497,20 +1497,3 @@ export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
 }
 
 
-export function openTimelineWindow() {
-  console.log('[UI] openTimelineWindow called');
-}
-
-
-export function renderDrumSamplerPads() { console.log('[UI] renderDrumSamplerPads called'); }
-
-
-export function drawInstrumentWaveform() { console.log('[UI] drawInstrumentWaveform called'); }
-export function renderSamplePads() { console.log('[UI] renderSamplePads called'); }
-export function updateSliceEditorUI() { console.log('[UI] updateSliceEditorUI called'); }
-export function updateDrumPadControlsUI() { console.log('[UI] updateDrumPadControlsUI called'); }
-export function createKnob() { console.log('[UI] createKnob called'); }
-export function updateSequencerCellUI() { console.log('[UI] updateSequencerCellUI called'); }
-export function renderTimeline() { console.log('[UI] renderTimeline called'); }
-export function updatePlayheadPosition() { console.log('[UI] updatePlayheadPosition called'); }
-
