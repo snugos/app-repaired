@@ -1404,7 +1404,9 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             }
         });
 
-        // Right-click context menu for clips
+    }
+    return sequencerWindow;
+}
 
 // --- UI Update & Drawing Functions ---
 export function drawWaveform(track) {
