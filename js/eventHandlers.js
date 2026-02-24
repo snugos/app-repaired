@@ -118,6 +118,7 @@ export function initializePrimaryEventListeners(appContext) {
             menuLoadProject: () => services.loadProject?.(),
             menuExportWav: () => services.exportToWav?.(),
             menuToggleFullScreen: toggleFullScreen,
+            menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };
 
         for (const menuItemId in menuActions) {
