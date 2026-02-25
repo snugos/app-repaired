@@ -655,19 +655,32 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
     } else {
         effectDef.params.forEach(paramDef => {
             const controlWrapper = document.createElement('div');
-            let initialValue; const pathKeys = paramDef.key.split('.'); let tempVal = effectWrapper.params;
-            for (const key of pathKeys) { if (tempVal && typeof tempVal === 'object' && key in tempVal) tempVal = tempVal[key]; else { tempVal = undefined; break; } }
+            let initialValue;
+            const pathKeys = paramDef.key.split('.');
+            let tempVal = effectWrapper.params;
+            for (const key of pathKeys) {
+                if (tempVal && typeof tempVal === 'object' && key in tempVal) {
+                    tempVal = tempVal[key];
+                } else {
+                    tempVal = undefined;
+                    break;
+                }
+            }
             initialValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
 
             if (paramDef.type === 'knob') {
                 const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: initialValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
                 controlWrapper.appendChild(knob.element);
             } else if (paramDef.type === 'select') {
-                const label = document.createElement('label'); label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300'; label.textContent = paramDef.label + ':';
-                const select = document.createElement('select'); select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
+                const label = document.createElement('label');
+                label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300';
+                label.textContent = paramDef.label + ':';
+                const select = document.createElement('select');
+                select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
                 paramDef.options.forEach(opt => {
                     const option = document.createElement('option');
-                    option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
+                    option.value = typeof opt === 'object' ? opt.value : opt;
+                    option.textContent = typeof opt === 'object' ? opt.text : opt;
                     select.appendChild(option);
                 });
                 select.value = initialValue;
@@ -675,9 +688,11 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                     const newValue = e.target.value;
                     const finalValue = (typeof paramDef.defaultValue === 'number' && !isNaN(parseFloat(newValue))) ? parseFloat(newValue) : newValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
-                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, finalValue); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, finalValue);
+                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, finalValue);
+                    else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, finalValue);
                 });
-                controlWrapper.appendChild(label); controlWrapper.appendChild(select);
+                controlWrapper.appendChild(label);
+                controlWrapper.appendChild(select);
             } else if (paramDef.type === 'toggle') {
                 const button = document.createElement('button');
                 button.className = `w-full p-1 border rounded text-xs dark:border-slate-500 dark:text-slate-300 ${initialValue ? 'bg-purple-400 text-white dark:bg-purple-500' : 'bg-gray-200 dark:bg-slate-600'}`;
@@ -685,7 +700,8 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                 button.addEventListener('click', () => {
                     const newValue = !initialValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
-                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, newValue); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, newValue);
+                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, newValue);
+                    else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, newValue);
                 });
                 controlWrapper.appendChild(button);
             }
@@ -999,14 +1015,6 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
         performFullUIUpdate = true;
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: Set initial view to '${libraryName}' from 'Select Library...'.`);
     } else if (libraryName && !isLoading && !hasError) {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: NO CHANGE to visible UI. Update for '${libraryName}' (isLoading: ${isLoading}, hasError: ${hasError}), but current view is '${currentDropdownSelection}'.`);
-        const currentGlobalLib = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : null;
-        if (!currentGlobalLib && localAppServices.setCurrentLibraryName) {
-            localAppServices.setCurrentLibraryName(libraryName);
-             console.log(`[UI updateSoundBrowserDisplayForLibrary] Background load of '${libraryName}' successful. Set as current in global state (as no global lib was active).`);
-        }
-        return;
-    } else if ((isLoading || hasError) && libraryName !== currentDropdownSelection) {
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: NO CHANGE to visible UI. Loading/Error for non-selected library '${libraryName}'. Current view: '${currentDropdownSelection}'.`);
         return;
     }
@@ -1474,26 +1482,18 @@ export function drawInstrumentWaveform(track) {
 
 
 export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
-    // Highlight the current playing step in the sequencer grid
     const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
     if (!track) return;
-    
-    // Find the sequencer window for this track
     const sequencerWin = localAppServices.getWindowById ? localAppServices.getWindowById('sequencerWin-' + trackId) : null;
     if (!sequencerWin || !sequencerWin.element) return;
-    
-    // Remove playing class from all cells
-    sequencerWin.element.querySelectorAll('.sequencer-step-cell.playing').forEach(cell => {
-        cell.classList.remove('playing');
-    });
-    
+    sequencerWin.element.querySelectorAll('.sequencer-step-cell.playing').forEach(cell => cell.classList.remove('playing'));
     if (isPlaying && stepIndex >= 0) {
-        // Add playing class to current step cell
         const cell = sequencerWin.element.querySelector('[data-step="' + stepIndex + '"]');
-        if (cell) {
-            cell.classList.add('playing');
-        }
+        if (cell) cell.classList.add('playing');
     }
 }
 
-
+export function openTimelineWindow(savedState = null) {
+    console.warn('openTimelineWindow is currently not available.');
+    return null;
+}

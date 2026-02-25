@@ -464,7 +464,6 @@ export async function undoLastActionInternal() {
     } catch (error) {
         console.error("[State undoLastActionInternal] Error during undo:", error);
         if (appServices.showNotification) appServices.showNotification(`Error during undo operation: ${error.message}. Project may be unstable.`, 4000);
-        // Potentially try to restore the popped state back to undoStack if reconstruction fails badly? Complex.
     } finally {
         if (appServices) appServices._isReconstructingDAW_flag = false;
         updateInternalUndoRedoState();
@@ -963,6 +962,120 @@ export async function exportToWavInternal() {
     }
 }
 
+export async function exportStemsInternal() {
+    const { getTracksState, getPlaybackModeState } = await import('./state.js');
+    const { initAudioContextAndMasterMeter, getActualMasterGainNode: getMasterGain } = await import('./audio.js');
+    
+    const audioReady = await initAudioContextAndMasterMeter(true);
+    if (!audioReady) {
+        appServices.showNotification("Audio system not ready for export.", 3000);
+        return;
+    }
+    
+    const tracks = getTracksState();
+    const currentPlaybackMode = getPlaybackModeState();
+    let maxDuration = 0;
+    
+    // Calculate max duration
+    tracks.forEach(track => {
+        if (track?.timelineClips) {
+            track.timelineClips.forEach(clip => {
+                if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                    maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                }
+            });
+        }
+        if (track && track.type !== 'Audio') {
+            const activeSeq = track.getActiveSequence();
+            if (activeSeq?.length > 0) {
+                const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+            }
+        }
+    });
+    
+    if (maxDuration === 0) {
+        appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+        return;
+    }
+    
+    maxDuration = Math.min(maxDuration + 2, 600);
+    appServices.showNotification(`Exporting ${tracks.length} stems...`, 5000);
+    
+    for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        appServices.showNotification(`Exporting stem ${i+1}/${tracks.length}: ${track.name}`, 5000);
+        
+        // Stop everything
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+        
+        // Setup recorder
+        const recorder = new Tone.Recorder();
+        const masterGain = getMasterGain();
+        
+        if (!masterGain || masterGain.disposed) continue;
+        
+        // Connect ONLY this track to recorder (mute others)
+        const originalMutes = {};
+        tracks.forEach((t, idx) => {
+            originalMutes[idx] = t.isMuted;
+            if (idx !== i && t.gainNode) {
+                t.gainNode.gain.value = 0;
+            }
+        });
+        
+        masterGain.connect(recorder);
+        
+        // Schedule playback
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+        
+        if (track?.schedulePlayback) {
+            await track.schedulePlayback(0, maxDuration);
+        }
+        
+        // Record
+        await recorder.start();
+        Tone.Transport.start();
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+        
+        const recording = await recorder.stop();
+        
+        // Restore mutes
+        tracks.forEach((t, idx) => {
+            if (idx !== i && t.gainNode) {
+                t.gainNode.gain.value = originalMutes[idx] ? 0 : 1;
+            }
+        });
+        
+        // Cleanup
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+        
+        if (!recording || recording.size < 1000) continue;
+        
+        // Download
+        const url = URL.createObjectURL(recording);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `snugos-stem-${track.name.replace(/[^a-zA-Z0-9]/g, '-')}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    // Restore all tracks
+    tracks.forEach(t => { if (t?.gainNode) t.gainNode.gain.value = t.isMuted ? 0 : 1; });
+    
+    Tone.Transport.stop();
+    Tone.Transport.cancel(0);
+    
+    appServices.showNotification("Stems export complete!", 3000);
+}
 
 
 // Helper function to convert AudioBuffer to WAV

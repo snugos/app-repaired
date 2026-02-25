@@ -44,7 +44,7 @@ import {
     addTrackToStateInternal, removeTrackFromStateInternal,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
-    loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal
+    loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal, exportStemsInternal
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -84,7 +84,8 @@ const uiElementsCache = {
     menuAddInstrumentSamplerTrack: null, menuAddAudioTrack: null,
     menuOpenSoundBrowser: null, menuOpenTimeline: null,
     menuUndo: null, menuRedo: null,
-    menuSaveProject: null, menuLoadProject: null, menuExportWav: null, menuOpenGlobalControls: null,
+    menuSaveProject: null, menuLoadProject: null, menuExportWav: null,
+    menuExportStems: null, menuOpenGlobalControls: null,
     menuOpenMixer: null, menuOpenMasterEffects: null,
     menuToggleFullScreen: null, playBtnGlobal: null, recordBtnGlobal: null, stopBtnGlobal: null,
     tempoGlobalInput: null, midiInputSelectGlobal: null, masterMeterContainerGlobal: null,
@@ -263,6 +264,7 @@ const appServices = {
     reconstructDAW: reconstructDAWInternal, saveProject: saveProjectInternal,
     loadProject: loadProjectInternal, handleProjectFileLoad: handleProjectFileLoadInternal,
     exportToWav: exportToWavInternal,
+    exportStems: exportStemsInternal,
 
     // Event Handler Passthroughs
     selectMIDIInput: eventSelectMIDIInput, 
