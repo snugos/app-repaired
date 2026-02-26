@@ -239,6 +239,31 @@ export function setPlaybackModeStateInternal(mode) {
 }
 export { setPlaybackModeStateInternal as setPlaybackModeState }; // Export with the name expected by other modules
 
+// --- Track Renaming ---
+export function renameTrackInState(trackId, newName) {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) {
+        console.warn(`[State renameTrackInState] Track not found: ${trackId}`);
+        return false;
+    }
+    if (!newName || typeof newName !== 'string' || newName.trim() === '') {
+        console.warn(`[State renameTrackInState] Invalid name provided`);
+        return false;
+    }
+    const oldName = track.name;
+    if (oldName === newName.trim()) return true;
+    
+    captureStateForUndoInternal(`Rename track from '${oldName}' to '${newName.trim()}'`);
+    track.name = newName.trim();
+    
+    // Notify UI to update
+    if (appServices && typeof appServices.onTrackNameChange === 'function') {
+        appServices.onTrackNameChange(trackId, newName.trim());
+    }
+    
+    return true;
+}
+
 // --- Track Management ---
 export async function addTrackToStateInternal(type, initialData = null, isUserAction = true) {
     // _isUserActionPlaceholder is used by UI event handlers to signify a brand new track from user action,
@@ -356,6 +381,7 @@ export function removeTrackFromStateInternal(trackId) {
         if (appServices.showNotification) appServices.showNotification(`Error removing track: ${error.message}`, 3000);
     }
 }
+
 
 // --- Master Effects Chain Management ---
 export function addMasterEffectToState(effectType, initialParams) {
