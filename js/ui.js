@@ -1575,18 +1575,28 @@ export function renderSamplePads(track) {
     }
     container.innerHTML = html;
     
-    // Add click handlers
-    container.querySelectorAll('[data-pad-index]').forEach(pad => {
-        pad.addEventListener('click', (e) => {
-            const padIndex = parseInt(e.currentTarget.dataset.padIndex, 10);
-            const trackId = e.currentTarget.dataset.trackId;
+    // Add click handlers - select slice for editing and play preview
+    container.querySelectorAll('.pad-button').forEach((pad, index) => {
+        pad.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const padIndex = index;
+            const trackId = track.id;
+            
             // Select slice for editing
-            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
             if (track) {
                 track.selectedSliceForEdit = padIndex;
                 updateSliceEditorUI(track);
             }
+            
+            // Play slice preview if it has content
+            const slice = track.slices && track.slices[padIndex];
+            if (slice && slice.duration > 0 && localAppServices.playSlicePreview) {
+                localAppServices.playSlicePreview(trackId, padIndex);
+            }
         });
+        
+        // Add cursor style
+        pad.style.cursor = 'pointer';
     });
 }
 
