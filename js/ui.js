@@ -1576,3 +1576,8 @@ export function renderDrumSamplerPads(track) {
         });
     });
 }
+
+export function renderTimeline() {
+    console.warn('renderTimeline is not yet implemented');
+    // Stub implementation - timeline rendering would go here
+}
