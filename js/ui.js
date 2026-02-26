@@ -373,96 +373,6 @@ function initializeSamplerSpecificControls(track, winEl) {
     }
 }
 
-function initializeDrumSamplerSpecificControls(track, winEl) {
-    renderDrumSamplerPads(track);
-    updateDrumPadControlsUI(track);
-}
-
-function initializeInstrumentSamplerSpecificControls(track, winEl) {
-    const dzContainerEl = winEl.querySelector(`#dropZoneContainer-${track.id}-instrumentsampler`);
-    if (dzContainerEl) {
-        const existingAudioData = { originalFileName: track.instrumentSamplerSettings.originalFileName, status: track.instrumentSamplerSettings.status || (track.instrumentSamplerSettings.originalFileName ? 'missing' : 'empty') };
-        dzContainerEl.innerHTML = createDropZoneHTML(track.id, `instrumentFileInput-${track.id}`, 'InstrumentSampler', null, existingAudioData);
-        const dzEl = dzContainerEl.querySelector('.drop-zone');
-        const fileInputEl = dzContainerEl.querySelector(`#instrumentFileInput-${track.id}`);
-        if (dzEl) setupGenericDropZoneListeners(dzEl, track.id, 'InstrumentSampler', null, localAppServices.loadSoundFromBrowserToTarget, localAppServices.loadSampleFile);
-        if (fileInputEl) fileInputEl.onchange = (e) => { localAppServices.loadSampleFile(e, track.id, 'InstrumentSampler'); };
-    }
-
-    const canvas = winEl.querySelector(`#instrumentWaveformCanvas-${track.id}`);
-    if (canvas) {
-        track.instrumentWaveformCanvasCtx = canvas.getContext('2d');
-        if(track.instrumentSamplerSettings.audioBuffer?.loaded) drawInstrumentWaveform(track);
-    }
-
-    const rootNoteSelect = winEl.querySelector(`#instrumentRootNote-${track.id}`);
-    if (rootNoteSelect) {
-        Constants.synthPitches.slice().reverse().forEach(pitch => {
-            const option = document.createElement('option'); option.value = pitch; option.textContent = pitch; rootNoteSelect.appendChild(option);
-        });
-        rootNoteSelect.value = track.instrumentSamplerSettings.rootNote || 'C4';
-        rootNoteSelect.addEventListener('change', (e) => {
-            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set Root Note for ${track.name} to ${e.target.value}`);
-            track.setInstrumentSamplerRootNote(e.target.value);
-        });
-    }
-
-    const loopToggleBtn = winEl.querySelector(`#instrumentLoopToggle-${track.id}`);
-    if (loopToggleBtn) {
-        loopToggleBtn.textContent = track.instrumentSamplerSettings.loop ? 'Loop: ON' : 'Loop: OFF';
-        loopToggleBtn.classList.toggle('active', track.instrumentSamplerSettings.loop);
-        loopToggleBtn.addEventListener('click', (e) => {
-            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Loop for ${track.name}`);
-            track.setInstrumentSamplerLoop(!track.instrumentSamplerSettings.loop);
-            e.target.textContent = track.instrumentSamplerSettings.loop ? 'Loop: ON' : 'Loop: OFF';
-            e.target.classList.toggle('active', track.instrumentSamplerSettings.loop);
-        });
-    }
-    const loopStartInput = winEl.querySelector(`#instrumentLoopStart-${track.id}`);
-    if (loopStartInput) {
-        loopStartInput.value = track.instrumentSamplerSettings.loopStart?.toFixed(3) || '0.000';
-        loopStartInput.addEventListener('change', (e) => {
-            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set Loop Start for ${track.name}`);
-            track.setInstrumentSamplerLoopStart(parseFloat(e.target.value));
-        });
-    }
-    const loopEndInput = winEl.querySelector(`#instrumentLoopEnd-${track.id}`);
-    if (loopEndInput) {
-        loopEndInput.value = track.instrumentSamplerSettings.loopEnd?.toFixed(3) || (track.instrumentSamplerSettings.audioBuffer?.duration.toFixed(3) || '0.000');
-        loopEndInput.addEventListener('change', (e) => {
-            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set Loop End for ${track.name}`);
-            track.setInstrumentSamplerLoopEnd(parseFloat(e.target.value));
-        });
-    }
-
-    const createAndPlaceKnob = (placeholderId, options) => {
-        const placeholder = winEl.querySelector(`#${placeholderId}`);
-        if (placeholder) {
-            const knob = createKnob(options);
-            placeholder.innerHTML = ''; placeholder.appendChild(knob.element); return knob;
-        }
-        return null;
-    };
-    const env = track.instrumentSamplerSettings.envelope || { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5 };
-    track.inspectorControls.instrEnvAttack = createAndPlaceKnob(`instrumentEnvAttack-${track.id}-placeholder`, { label: 'Attack', min:0.001, max:2, step:0.001, initialValue: env.attack, decimals:3, trackRef: track, onValueChange: (val) => track.setInstrumentSamplerEnv('attack', val)});
-    track.inspectorControls.instrEnvDecay = createAndPlaceKnob(`instrumentEnvDecay-${track.id}-placeholder`, { label: 'Decay', min:0.01, max:2, step:0.01, initialValue: env.decay, decimals:2, trackRef: track, onValueChange: (val) => track.setInstrumentSamplerEnv('decay', val)});
-    track.inspectorControls.instrEnvSustain = createAndPlaceKnob(`instrumentEnvSustain-${track.id}-placeholder`, { label: 'Sustain', min:0, max:1, step:0.01, initialValue: env.sustain, decimals:2, trackRef: track, onValueChange: (val) => track.setInstrumentSamplerEnv('sustain', val)});
-    track.inspectorControls.instrEnvRelease = createAndPlaceKnob(`instrumentEnvRelease-${track.id}-placeholder`, { label: 'Release', min:0.01, max:5, step:0.01, initialValue: env.release, decimals:2, trackRef: track, onValueChange: (val) => track.setInstrumentSamplerEnv('release', val)});
-
-    const polyToggleBtnInst = winEl.querySelector(`#instrumentPolyphonyToggle-${track.id}`);
-    if (polyToggleBtnInst) {
-        polyToggleBtnInst.textContent = `Mode: ${track.instrumentSamplerIsPolyphonic ? 'Poly' : 'Mono'}`;
-        polyToggleBtnInst.classList.toggle('active', track.instrumentSamplerIsPolyphonic);
-        polyToggleBtnInst.addEventListener('click', () => {
-            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Instrument Sampler Polyphony for ${track.name}`);
-            track.instrumentSamplerIsPolyphonic = !track.instrumentSamplerIsPolyphonic;
-            polyToggleBtnInst.textContent = `Mode: ${track.instrumentSamplerIsPolyphonic ? 'Poly' : 'Mono'}`;
-            polyToggleBtnInst.classList.toggle('active', track.instrumentSamplerIsPolyphonic);
-            showNotification(`${track.name} instrument sampler mode: ${track.instrumentSamplerIsPolyphonic ? 'Poly' : 'Mono'}`, 2000);
-        });
-    }
-}
-
 
 // --- Track Inspector Window (Entry Point) ---
 function buildTrackInspectorContentDOM(track) {
@@ -1580,4 +1490,14 @@ export function renderDrumSamplerPads(track) {
 export function renderTimeline() {
     console.warn('renderTimeline is not yet implemented');
     // Stub implementation - timeline rendering would go here
+}
+
+export function updateSequencerCellUI(winElement, trackType, row, col, isActive) {
+    console.warn('updateSequencerCellUI not fully implemented');
+    // Stub - would update the CSS class of the sequencer cell
+}
+
+export function updatePlayheadPosition(progress) {
+    console.warn('updatePlayheadPosition not fully implemented, progress:', progress);
+    // Stub - would move the timeline playhead
 }
