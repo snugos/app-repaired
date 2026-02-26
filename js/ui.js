@@ -1404,92 +1404,81 @@ export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
 }
 
 export function openTimelineWindow(savedState = null) {
-    console.warn('openTimelineWindow is currently not available.');
-    return null;
-}
-
-// --- Stub implementations for missing functions ---
-
-export function renderSamplePads(track) {
-    console.warn('renderSamplePads not fully implemented for track:', track?.id);
-    const container = document.querySelector(`#samplePadsGridContainer-${track?.id}`);
-    if (!container) return;
-    // Basic implementation - render placeholder pads
-    container.innerHTML = '<div class="text-xs text-gray-500 p-2">Sample pads not yet implemented</div>';
-}
-
-export function updateSliceEditorUI(track) {
-    console.warn('updateSliceEditorUI not fully implemented for track:', track?.id);
-    // Stub - slice editor UI update
-}
-
-export function updateDrumPadControlsUI(track) {
-    console.warn('updateDrumPadControlsUI not fully implemented for track:', track?.id);
-    if (!track || !track.drumPads) return;
+    console.log('[UI openTimelineWindow] Creating timeline window...');
     
-    // Update the selected pad info
-    const infoEl = document.querySelector(`#selectedDrumPadInfo-${track.id}`);
-    if (infoEl) {
-        infoEl.textContent = (track.selectedDrumPadForEdit || 0) + 1;
-    }
-    
-    // Update drop zone for selected pad
-    const dropZoneContainer = document.querySelector(`#drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}`);
-    if (dropZoneContainer) {
-        const padIndex = track.selectedDrumPadForEdit || 0;
-        const padData = track.drumPads?.[padIndex];
-        const fileName = padData?.sample?.fileName || padData?.fileName || '';
-        const status = padData?.sample?.status || (fileName ? 'missing' : 'empty');
-        
-        if (status === 'empty' || !fileName) {
-            dropZoneContainer.innerHTML = `<div class="drop-zone p-2 text-center border-2 border-dashed border-gray-400 rounded">
-                <label for="drumPadFile-${track.id}-${padIndex}" class="cursor-pointer">Drop sample or click</label>
-                <input type="file" id="drumPadFile-${track.id}-${padIndex}" accept="audio/*" class="hidden">
-            </div>`;
-        } else {
-            dropZoneContainer.innerHTML = `<div class="text-xs p-1 bg-gray-100 dark:bg-slate-600 rounded">${fileName}</div>`;
+    // Check if timeline window already exists
+    if (typeof getWindowByIdState === 'function') {
+        const existingWin = getWindowByIdState('timeline');
+        if (existingWin) {
+            existingWin.restore();
+            existingWin.bringToFront();
+            return;
         }
     }
-}
 
-export function renderDrumSamplerPads(track) {
-    console.warn('renderDrumSamplerPads not fully implemented for track:', track?.id);
-    if (!track) return;
-    
-    const container = document.querySelector(`#drumPadsGridContainer-${track.id}`);
-    if (!container) return;
-    
-    const numPads = Constants.numDrumSamplerPads || 16;
-    let html = '';
-    
-    for (let i = 0; i < numPads; i++) {
-        const padData = track.drumPads?.[i];
-        const hasSample = padData?.sample?.loaded || padData?.loaded;
-        const isSelected = track.selectedDrumPadForEdit === i;
+    // Create timeline content
+    const timelineContent = `
+        <div id="timeline-container">
+            <div id="timeline-header">
+                <div id="timeline-ruler"></div>
+            </div>
+            <div id="timeline-tracks-container">
+                <div id="timeline-tracks-area">
+                    <!-- Tracks will be rendered here -->
+                </div>
+            </div>
+            <div id="timeline-playhead"></div>
+        </div>
+    `;
+
+    // Create the window
+    if (typeof localAppServices.createWindow === 'function') {
+        const timelineWindow = localAppServices.createWindow(
+            'timeline',
+            'Timeline',
+            timelineContent,
+            { width: 900, height: 400, x: 50, y: 50 },
+        );
         
-        html += `<button class="pad-button text-xs ${hasSample ? 'has-sample' : ''} ${isSelected ? 'selected-for-edit' : ''}" 
-            data-pad-index="${i}" data-track-id="${track.id}">
-            ${i + 1}
-        </button>`;
+        // Render tracks in timeline
+        renderTimeline();
+    } else {
+        console.error('createWindow service not available');
     }
-    
-    container.innerHTML = html;
-    
-    // Add click handlers for pad selection
-    container.querySelectorAll('.pad-button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const padIndex = parseInt(e.target.dataset.padIndex, 10);
-            const trackId = e.target.dataset.trackId;
-            if (localAppServices.selectDrumPad) {
-                localAppServices.selectDrumPad(trackId, padIndex);
-            }
-        });
-    });
 }
 
 export function renderTimeline() {
-    console.warn('renderTimeline is not yet implemented');
-    // Stub implementation - timeline rendering would go here
+    console.log('[UI renderTimeline] Rendering timeline...');
+    
+    const tracksArea = document.getElementById('timeline-tracks-area');
+    if (!tracksArea) {
+        console.warn('Timeline tracks area not found');
+        return;
+    }
+
+    // Get tracks from state
+    const tracks = typeof localAppServices.getTracks === 'function' ? localAppServices.getTracks() : [];
+    
+    if (!tracks || tracks.length === 0) {
+        tracksArea.innerHTML = '<div style="padding: 20px; color: #888;">No tracks. Add a track to see it in the timeline.</div>';
+        return;
+    }
+
+    // Render each track as a lane
+    let tracksHTML = '';
+    tracks.forEach(track => {
+        tracksHTML += `
+            <div class="timeline-track-lane" data-track-id="${track.id}">
+                <div class="timeline-track-lane-name">${track.name}</div>
+                <div class="timeline-track-content" style="flex: 1; position: relative;">
+                    <!-- Clips would go here -->
+                </div>
+            </div>
+        `;
+    });
+    
+    tracksArea.innerHTML = tracksHTML;
+    console.log(`[UI renderTimeline] Rendered ${tracks.length} tracks`);
 }
 
 export function updateSequencerCellUI(winElement, trackType, row, col, isActive) {

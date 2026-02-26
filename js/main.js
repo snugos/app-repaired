@@ -710,6 +710,19 @@ async function initializeSnugOS() {
         if (uiElementsCache.customBgInput) {
             uiElementsCache.customBgInput.addEventListener('change', handleCustomBackgroundUpload);
         }
+        
+        // Playback mode toggle button handler
+        if (uiElementsCache.playbackModeToggleBtnGlobal) {
+            uiElementsCache.playbackModeToggleBtnGlobal.addEventListener('click', () => {
+                const currentMode = getPlaybackModeState ? getPlaybackModeState() : 'sequencer';
+                const newMode = currentMode === 'sequencer' ? 'timeline' : 'sequencer';
+                console.log("[Main] Playback mode toggle clicked, switching to:", newMode);
+                if (typeof setPlaybackModeState === 'function') {
+                    setPlaybackModeState(newMode);
+                }
+            });
+        }
+
         // Restore saved background (image or video)
         await restoreDesktopBackground();
 
