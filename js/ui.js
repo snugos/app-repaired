@@ -1499,9 +1499,7 @@ export function updatePlayheadPosition(progress = undefined) {
 }
 
 export function renderDrumSamplerPads(track) {
-    console.warn('renderDrumSam
-[truncated]
-mple pads');
+    console.warn('renderDrumSamplerPads not yet implemented', track);
 }
 
 export function renderSamplePads(track) {
