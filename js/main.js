@@ -712,16 +712,24 @@ async function initializeSnugOS() {
         }
         
         // Playback mode toggle button handler
-        if (uiElementsCache.playbackModeToggleBtnGlobal) {
-            uiElementsCache.playbackModeToggleBtnGlobal.addEventListener('click', () => {
-                const currentMode = getPlaybackModeState ? getPlaybackModeState() : 'sequencer';
-                const newMode = currentMode === 'sequencer' ? 'timeline' : 'sequencer';
-                console.log("[Main] Playback mode toggle clicked, switching to:", newMode);
-                if (typeof setPlaybackModeState === 'function') {
-                    setPlaybackModeState(newMode);
-                }
-            });
-        }
+        // Try multiple times to attach the handler since DOM might not be ready
+        const attachPlaybackModeHandler = () => {
+            if (uiElementsCache.playbackModeToggleBtnGlobal) {
+                uiElementsCache.playbackModeToggleBtnGlobal.addEventListener('click', () => {
+                    const currentMode = getPlaybackModeState ? getPlaybackModeState() : 'sequencer';
+                    const newMode = currentMode === 'sequencer' ? 'timeline' : 'sequencer';
+                    console.log("[Main] Playback mode toggle clicked, switching to:", newMode);
+                    if (typeof setPlaybackModeState === 'function') {
+                        setPlaybackModeState(newMode);
+                    }
+                });
+                console.log("[Main] Playback mode toggle handler attached");
+            } else {
+                console.warn("[Main] Playback mode toggle button not found in cache, retrying...");
+                setTimeout(attachPlaybackModeHandler, 500);
+            }
+        };
+        attachPlaybackModeHandler();
 
         // Restore saved background (image or video)
         await restoreDesktopBackground();
