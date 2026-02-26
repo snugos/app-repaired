@@ -222,6 +222,27 @@ function buildInstrumentSamplerSpecificInspectorDOM(track) {
     </div>`;
 }
 
+function buildDrumSamplerSpecificInspectorDOM(track) {
+    return `<div class="drum-sampler-controls p-1 space-y-2">
+        <div class="selected-pad-controls p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 space-y-1">
+            <h4 class="text-xs font-semibold dark:text-slate-200">Edit Pad: <span id="selectedDrumPadInfo-${track.id}">1</span></h4>
+            <div id="drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}" class="mb-1 text-xs"></div>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadVolumeKnob-${track.id}-placeholder"></div>
+                <div id="drumPadPitchKnob-${track.id}-placeholder"></div>
+            </div>
+            <div class="text-xs font-medium mt-1 dark:text-slate-300">Envelope:</div>
+             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadEnvAttack-${track.id}-placeholder"></div>
+                <div id="drumPadEnvDecay-${track.id}-placeholder"></div>
+                <div id="drumPadEnvSustain-${track.id}-placeholder"></div>
+                <div id="drumPadEnvRelease-${track.id}-placeholder"></div>
+            </div>
+         </div>
+        <div id="drumPadsGridContainer-${track.id}" class="grid grid-cols-4 gap-1 mt-2"></div>
+    </div>`;
+}
+
 // --- Specific Inspector Control Initializers ---
 function buildSynthEngineControls(track, container, engineType) {
     const definitions = localAppServices.effectsRegistryAccess?.synthEngineControlDefinitions?.[engineType] || [];
