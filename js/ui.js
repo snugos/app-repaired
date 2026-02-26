@@ -1482,8 +1482,33 @@ export function renderTimeline() {
 }
 
 export function updateSequencerCellUI(winElement, trackType, row, col, isActive) {
-    console.warn('updateSequencerCellUI not fully implemented');
-    // Stub - would update the CSS class of the sequencer cell
+    if (!winElement) return;
+    
+    const cell = winElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) return;
+    
+    // Remove any existing active classes
+    cell.classList.remove('active-synth', 'active-sampler', 'active-drum-sampler', 'active-instrument-sampler');
+    
+    if (isActive) {
+        // Add the appropriate active class based on track type
+        switch (trackType) {
+            case 'synth':
+                cell.classList.add('active-synth');
+                break;
+            case 'sampler':
+                cell.classList.add('active-sampler');
+                break;
+            case 'drumsampler':
+                cell.classList.add('active-drum-sampler');
+                break;
+            case 'instrumentsampler':
+                cell.classList.add('active-instrument-sampler');
+                break;
+            default:
+                cell.classList.add('active-synth');
+        }
+    }
 }
 
 export function updatePlayheadPosition(progress = undefined) {
@@ -1499,17 +1524,101 @@ export function updatePlayheadPosition(progress = undefined) {
 }
 
 export function renderDrumSamplerPads(track) {
-    console.warn('renderDrumSamplerPads not yet implemented', track);
+    // Render the drum pad grid for DrumSampler tracks
+    const container = document.getElementById(`drumPadsGridContainer-${track.id}`);
+    if (!container) return;
+    
+    const numPads = 16; // 4x4 grid
+    let html = '';
+    for (let i = 0; i < numPads; i++) {
+        const padData = track.drumPads && track.drumPads[i];
+        const hasSample = padData && padData.audioBuffer;
+        const isSelected = track.selectedDrumPadForEdit === i;
+        html += `<div class="drum-pad pad-button ${hasSample ? 'has-sample' : ''} ${isSelected ? 'selected-for-edit' : ''}" 
+            data-pad-index="${i}" data-track-id="${track.id}">
+            <span class="pad-label">${i + 1}</span>
+        </div>`;
+    }
+    container.innerHTML = html;
+    
+    // Add click handlers for pad selection
+    container.querySelectorAll('.drum-pad').forEach(pad => {
+        pad.addEventListener('click', (e) => {
+            const padIndex = parseInt(e.currentTarget.dataset.padIndex, 10);
+            const trackId = e.currentTarget.dataset.trackId;
+            if (localAppServices.selectDrumPad) {
+                localAppServices.selectDrumPad(trackId, padIndex);
+            }
+        });
+    });
 }
 
 export function renderSamplePads(track) {
-    console.warn('renderSamplePads not yet implemented', track);
+    // Render the sample pads grid for Sampler tracks
+    const container = document.getElementById(`samplePadsContainer-${track.id}`);
+    if (!container) return;
+    
+    // Get number of slices/pads from track
+    const numPads = track.slices ? Math.min(track.slices.length, 16) : 16;
+    let html = '';
+    for (let i = 0; i < numPads; i++) {
+        const slice = track.slices && track.slices[i];
+        const hasContent = slice && slice.duration > 0;
+        html += `<div class="pad-button ${hasContent ? 'has-sample' : ''}" 
+            data-pad-index="${i}" data-track-id="${track.id}">
+            <span class="pad-label">S${i + 1}</span>
+        </div>`;
+    }
+    container.innerHTML = html;
+    
+    // Add click handlers
+    container.querySelectorAll('[data-pad-index]').forEach(pad => {
+        pad.addEventListener('click', (e) => {
+            const padIndex = parseInt(e.currentTarget.dataset.padIndex, 10);
+            const trackId = e.currentTarget.dataset.trackId;
+            // Select slice for editing
+            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+            if (track) {
+                track.selectedSliceForEdit = padIndex;
+                updateSliceEditorUI(track);
+            }
+        });
+    });
 }
 
 export function updateSliceEditorUI(track) {
-    console.warn('updateSliceEditorUI not yet implemented', track);
+    // Update the slice editor UI with current slice info
+    if (!track) return;
+    
+    // Update selected slice info
+    const sliceInfoEl = document.getElementById(`selectedSliceInfo-${track.id}`);
+    if (sliceInfoEl) {
+        sliceInfoEl.textContent = (track.selectedSliceForEdit || 0) + 1;
+    }
+    
+    // Update pad selection visual
+    const container = document.getElementById(`samplePadsContainer-${track.id}`);
+    if (container) {
+        container.querySelectorAll('.pad-button').forEach((pad, index) => {
+            pad.classList.toggle('selected-for-edit', index === track.selectedSliceForEdit);
+        });
+    }
 }
 
 export function updateDrumPadControlsUI(track) {
-    console.warn('updateDrumPadControlsUI not yet implemented', track);
+    // Update the selected drum pad info display
+    if (!track) return;
+    
+    const padInfoEl = document.getElementById(`selectedDrumPadInfo-${track.id}`);
+    if (padInfoEl) {
+        padInfoEl.textContent = (track.selectedDrumPadForEdit || 0) + 1;
+    }
+    
+    // Update pad grid selection
+    const container = document.getElementById(`drumPadsGridContainer-${track.id}`);
+    if (container) {
+        container.querySelectorAll('.drum-pad').forEach((pad, index) => {
+            pad.classList.toggle('selected-for-edit', index === track.selectedDrumPadForEdit);
+        });
+    }
 }
