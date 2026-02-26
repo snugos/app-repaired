@@ -484,6 +484,18 @@ function initializeTypeSpecificInspectorControls(track, winEl) {
     if (track.type === 'Synth') initializeSynthSpecificControls(track, winEl);
     else if (track.type === 'Sampler') initializeSamplerSpecificControls(track, winEl);
     else if (track.type === 'DrumSampler') {
+        // Set up drop zone for drum pad sample upload
+        const dzContainerEl = winEl.querySelector(`#drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}`);
+        if (dzContainerEl) {
+            const existingAudioData = track.drumPads && track.drumPads[track.selectedDrumPadForEdit] ? 
+                { fileName: track.drumPads[track.selectedDrumPadForEdit].fileName, status: 'loaded' } : 
+                { fileName: null, status: 'empty' };
+            dzContainerEl.innerHTML = createDropZoneHTML(track.id, `drumPadFileInput-${track.id}-${track.selectedDrumPadForEdit}`, 'DrumSampler', track.selectedDrumPadForEdit, existingAudioData);
+            const dzEl = dzContainerEl.querySelector('.drop-zone');
+            const fileInputEl = dzContainerEl.querySelector(`#drumPadFileInput-${track.id}-${track.selectedDrumPadForEdit}`);
+            if (dzEl) setupGenericDropZoneListeners(dzEl, track.id, 'DrumSampler', track.selectedDrumPadForEdit, localAppServices.loadSoundFromBrowserToTarget, localAppServices.loadDrumSamplerPadFile);
+            if (fileInputEl) fileInputEl.onchange = (e) => { localAppServices.loadDrumSamplerPadFile(e, track.id, track.selectedDrumPadForEdit); };
+        }
         renderDrumSamplerPads(track);
         updateDrumPadControlsUI(track);
     }
@@ -1406,7 +1418,7 @@ export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
     if (!sequencerWin || !sequencerWin.element) return;
     sequencerWin.element.querySelectorAll('.sequencer-step-cell.playing').forEach(cell => cell.classList.remove('playing'));
     if (isPlaying && stepIndex >= 0) {
-        const cell = sequencerWin.element.querySelector('[data-step="' + stepIndex + '"]');
+        const cell = sequencerWin.element.querySelector('[data-col="' + stepIndex + '"]');
         if (cell) cell.classList.add('playing');
     }
 }
