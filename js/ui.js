@@ -1548,7 +1548,7 @@ export function renderDrumSamplerPads(track) {
     const container = document.getElementById(`drumPadsGridContainer-${track.id}`);
     if (!container) return;
     
-    const numPads = 16; // 4x4 grid
+    const numPads = 8; // 4x4 grid
     let html = '';
     for (let i = 0; i < numPads; i++) {
         const padData = track.drumPads && track.drumPads[i];

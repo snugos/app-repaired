@@ -224,6 +224,37 @@ const appServices = {
     playSlicePreview, playDrumSamplerPadPreview, loadSampleFile, loadDrumSamplerPadFile,
     autoSliceSample, getMimeTypeFromFilename,
     getMasterEffectsBusInputNode,
+
+    // Drum Sampler specific function
+    selectDrumPad: (trackId, padIndex) => {
+        const track = getTrackByIdState ? getTrackByIdState(trackId) : null;
+        if (!track || track.type !== 'DrumSampler') {
+            console.warn(`[Main selectDrumPad] Invalid track ${trackId} or not a DrumSampler`);
+            return;
+        }
+        console.log(`[Main selectDrumPad] Selecting pad ${padIndex} for track ${trackId}`);
+        track.selectedDrumPadForEdit = padIndex;
+        
+        // Re-render the pad grid and update controls
+        if (typeof renderDrumSamplerPads === 'function') renderDrumSamplerPads(track);
+        if (typeof updateDrumPadControlsUI === 'function') updateDrumPadControlsUI(track);
+        
+        // Set up the drop zone for the newly selected pad
+        const inspectorWindow = getWindowByIdState(`trackInspector-${trackId}`);
+        if (inspectorWindow?.element && !inspectorWindow.isMinimized) {
+            const dzContainer = inspectorWindow.element.querySelector(`#drumPadDropZoneContainer-${trackId}-${padIndex}`);
+            if (dzContainer) {
+                const existingAudioData = track.drumPads && track.drumPads[padIndex] ?
+                    { fileName: track.drumPads[padIndex].fileName, status: 'loaded' } :
+                    { fileName: null, status: 'empty' };
+                dzContainer.innerHTML = createDropZoneHTML(trackId, `drumPadFileInput-${trackId}-${padIndex}`, 'DrumSampler', padIndex, existingAudioData);
+                const dzEl = dzContainer.querySelector('.drop-zone');
+                const fileInputEl = dzContainer.querySelector(`#drumPadFileInput-${trackId}-${padIndex}`);
+                if (dzEl) setupGenericDropZoneListeners(dzEl, trackId, 'DrumSampler', padIndex, appServices.loadSoundFromBrowserToTarget, appServices.loadDrumSamplerPadFile);
+                if (fileInputEl) fileInputEl.onchange = (e) => { appServices.loadDrumSamplerPadFile(e, trackId, padIndex); };
+            }
+        }
+    },
     getActualMasterGainNode: getActualMasterGainNodeFromAudio,
     clearAllMasterEffectNodes: clearAllMasterEffectNodesInAudio,
     startAudioRecording, stopAudioRecording,
@@ -492,7 +523,7 @@ const appServices = {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
