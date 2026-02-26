@@ -300,6 +300,8 @@ function initializeSynthSpecificControls(track, winEl) {
 }
 
 function initializeSamplerSpecificControls(track, winEl) {
+    console.log(`[UI] initializeSamplerSpecificControls called for track ${track.id}, type: ${track.type}`);
+    
     const dzContainerEl = winEl.querySelector(`#dropZoneContainer-${track.id}-sampler`);
     if (dzContainerEl) {
         const existingAudioData = { originalFileName: track.samplerAudioData.fileName, status: track.samplerAudioData.status || (track.samplerAudioData.fileName ? 'missing' : 'empty') };
@@ -309,7 +311,10 @@ function initializeSamplerSpecificControls(track, winEl) {
         if (dzEl) setupGenericDropZoneListeners(dzEl, track.id, 'Sampler', null, localAppServices.loadSoundFromBrowserToTarget, localAppServices.loadSampleFile);
         if (fileInputEl) fileInputEl.onchange = (e) => { localAppServices.loadSampleFile(e, track.id, 'Sampler'); };
     }
+    
+    console.log(`[UI] About to call renderSamplePads for track ${track.id}`);
     renderSamplePads(track);
+    
     const canvas = winEl.querySelector(`#waveformCanvas-${track.id}`);
     if (canvas) {
         track.waveformCanvasCtx = canvas.getContext('2d');
