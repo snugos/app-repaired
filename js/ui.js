@@ -1503,3 +1503,15 @@ export function renderDrumSamplerPads(track) {
 [truncated]
 mple pads');
 }
+
+export function renderSamplePads(track) {
+    console.warn('renderSamplePads not yet implemented', track);
+}
+
+export function updateSliceEditorUI(track) {
+    console.warn('updateSliceEditorUI not yet implemented', track);
+}
+
+export function updateDrumPadControlsUI(track) {
+    console.warn('updateDrumPadControlsUI not yet implemented', track);
+}
