@@ -41,7 +41,7 @@ import {
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
     // Core State Actions
-    addTrackToStateInternal, removeTrackFromStateInternal,
+    addTrackToStateInternal, removeTrackFromStateInternal, renameTrackInState,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal, exportStemsInternal
