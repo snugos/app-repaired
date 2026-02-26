@@ -1497,3 +1497,9 @@ export function updatePlayheadPosition(progress = undefined) {
         playhead.style.left = `${position}px`;
     }
 }
+
+export function renderDrumSamplerPads(track) {
+    console.warn('renderDrumSam
+[truncated]
+mple pads');
+}
