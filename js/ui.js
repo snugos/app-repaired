@@ -1556,10 +1556,14 @@ export function renderDrumSamplerPads(track) {
 export function renderSamplePads(track) {
     // Render the sample pads grid for Sampler tracks
     const container = document.getElementById(`samplePadsContainer-${track.id}`);
-    if (!container) return;
+    if (!container) {
+        console.warn(`[UI] Sample pads container not found for track ${track.id}`);
+        return;
+    }
     
-    // Get number of slices/pads from track
-    const numPads = track.slices ? Math.min(track.slices.length, 16) : 16;
+    // Get number of slices/pads from track (default to 16 if no slices yet)
+    const numPads = (track.slices && track.slices.length > 0) ? Math.min(track.slices.length, 16) : 16;
+    
     let html = '';
     for (let i = 0; i < numPads; i++) {
         const slice = track.slices && track.slices[i];
