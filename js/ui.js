@@ -1604,18 +1604,59 @@ export function updateSliceEditorUI(track) {
     // Update the slice editor UI with current slice info
     if (!track) return;
     
+    // Get the current slice data
+    const currentSliceIndex = track.selectedSliceForEdit || 0;
+    const slice = track.slices && track.slices[currentSliceIndex];
+    
+    // Default slice data if not found
+    const sliceData = slice || { volume: 0.7, pitchShift: 0, loop: false, reverse: false, envelope: { attack: 0.01, decay: 0.1, sustain: 1.0, release: 0.1 } };
+    
     // Update selected slice info
     const sliceInfoEl = document.getElementById(`selectedSliceInfo-${track.id}`);
     if (sliceInfoEl) {
-        sliceInfoEl.textContent = (track.selectedSliceForEdit || 0) + 1;
+        sliceInfoEl.textContent = currentSliceIndex + 1;
     }
     
     // Update pad selection visual
     const container = document.getElementById(`samplePadsContainer-${track.id}`);
     if (container) {
         container.querySelectorAll('.pad-button').forEach((pad, index) => {
-            pad.classList.toggle('selected-for-edit', index === track.selectedSliceForEdit);
+            pad.classList.toggle('selected-for-edit', index === currentSliceIndex);
         });
+    }
+    
+    // Update knob values to reflect the selected slice's values
+    if (track.inspectorControls) {
+        if (track.inspectorControls.sliceVolume && sliceData) {
+            track.inspectorControls.sliceVolume.setValue(sliceData.volume !== undefined ? sliceData.volume : 0.7, false);
+        }
+        if (track.inspectorControls.slicePitch && sliceData) {
+            track.inspectorControls.slicePitch.setValue(sliceData.pitchShift !== undefined ? sliceData.pitchShift : 0, false);
+        }
+        if (track.inspectorControls.sliceEnvAttack && sliceData?.envelope) {
+            track.inspectorControls.sliceEnvAttack.setValue(sliceData.envelope.attack || 0.01, false);
+        }
+        if (track.inspectorControls.sliceEnvDecay && sliceData?.envelope) {
+            track.inspectorControls.sliceEnvDecay.setValue(sliceData.envelope.decay || 0.1, false);
+        }
+        if (track.inspectorControls.sliceEnvSustain && sliceData?.envelope) {
+            track.inspectorControls.sliceEnvSustain.setValue(sliceData.envelope.sustain !== undefined ? sliceData.envelope.sustain : 1.0, false);
+        }
+        if (track.inspectorControls.sliceEnvRelease && sliceData?.envelope) {
+            track.inspectorControls.sliceEnvRelease.setValue(sliceData.envelope.release || 0.1, false);
+        }
+        
+        // Update loop/reverse toggle buttons
+        const loopToggleBtn = document.getElementById(`sliceLoopToggle-${track.id}`);
+        if (loopToggleBtn) {
+            loopToggleBtn.textContent = sliceData.loop ? 'Loop: ON' : 'Loop: OFF';
+            loopToggleBtn.classList.toggle('active', sliceData.loop);
+        }
+        const reverseToggleBtn = document.getElementById(`sliceReverseToggle-${track.id}`);
+        if (reverseToggleBtn) {
+            reverseToggleBtn.textContent = sliceData.reverse ? 'Rev: ON' : 'Rev: OFF';
+            reverseToggleBtn.classList.toggle('active', sliceData.reverse);
+        }
     }
 }
 
