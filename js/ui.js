@@ -1497,7 +1497,14 @@ export function updateSequencerCellUI(winElement, trackType, row, col, isActive)
     // Stub - would update the CSS class of the sequencer cell
 }
 
-export function updatePlayheadPosition(progress) {
-    console.warn('updatePlayheadPosition not fully implemented, progress:', progress);
-    // Stub - would move the timeline playhead
+export function updatePlayheadPosition(progress = undefined) {
+    // Update the timeline playhead position
+    const playhead = document.getElementById('timeline-playhead');
+    if (playhead && progress !== undefined) {
+        // Calculate position based on progress (0-1)
+        const trackNameWidth = 120; // pixels reserved for track names
+        const timelineWidth = 4000; // total timeline width
+        const position = trackNameWidth + (progress * (timelineWidth - trackNameWidth));
+        playhead.style.left = `${position}px`;
+    }
 }
