@@ -290,6 +290,17 @@ export function attachGlobalControlEvents(elements) {
                     let recordingInitialized = false;
                     if (trackToRecord.type === 'Audio') {
                         if (localAppServices.startAudioRecording) {
+                            // FIX: Capture the recording start position BEFORE starting transport
+                            // This ensures we know where recording actually began for accurate timeline placement
+                            let recordingStartPosition = Tone.Transport.position;
+                            if (Tone.Transport.state !== 'started') { 
+                                Tone.Transport.cancel(0); 
+                                Tone.Transport.position = 0; 
+                                recordingStartPosition = 0; // Reset to 0 if we reset transport
+                            }
+                            // FIX: Store the transport position (in measures:beats:sixteenths) not seconds
+                            // This ensures accurate timeline placement regardless of tempo
+                            setRecordingStartTime(recordingStartPosition);
                             recordingInitialized = await localAppServices.startAudioRecording(trackToRecord, trackToRecord.isMonitoringEnabled);
                         } else { console.error("[EventHandlers] startAudioRecording service not available."); showNotification("Recording service unavailable.", 3000); }
                     } else { recordingInitialized = true; } 
@@ -297,8 +308,17 @@ export function attachGlobalControlEvents(elements) {
                     if (recordingInitialized) {
                         setIsRecording(true);
                         setRecordingTrackId(trackToRecord.id);
-                        if (Tone.Transport.state !== 'started') { Tone.Transport.cancel(0); Tone.Transport.position = 0; }
-                        setRecordingStartTime(Tone.Transport.seconds);
+                        // FIX: Capture the recording start position BEFORE starting transport
+                        // This ensures we know where recording actually began for accurate timeline placement
+                        let recordingStartPosition = Tone.Transport.position;
+                        if (Tone.Transport.state !== 'started') { 
+                            Tone.Transport.cancel(0); 
+                            Tone.Transport.position = 0; 
+                            recordingStartPosition = 0; // Reset to 0 if we reset transport
+                        }
+                        // FIX: Store the transport position (in measures:beats:sixteenths) not seconds
+                        // This ensures accurate timeline placement regardless of tempo
+                        setRecordingStartTime(recordingStartPosition);
                         if (Tone.Transport.state !== 'started') Tone.Transport.start(); 
                         if (localAppServices.updateRecordButtonUI) localAppServices.updateRecordButtonUI(true);
                         showNotification(`Recording started for ${trackToRecord.name}.`, 2000);

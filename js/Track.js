@@ -186,8 +186,8 @@ export class Track {
                 audioData = await sampleSource.file.arrayBuffer();
             } else if (sampleSource.filePath) {
                 // User dragged a sound from the internal Sound Browser
-                if (this.appServices.loadAudioBufferSource) {
-                    audioData = await this.appServices.loadAudioBufferSource(sampleSource);
+                if (this.appServices.loadSoundFromBrowserToTarget) {
+                    audioData = await this.appServices.loadSoundFromBrowserToTarget(sampleSource, this.id, 'DrumSampler', padIndex);
                 }
             }
 
@@ -200,7 +200,7 @@ export class Track {
                 const buffer = new Tone.ToneAudioBuffer();
                 await buffer.fromArrayBuffer(audioData);
 
-                // 4. Update the specific pad in this track
+                // 4. Update the specific pad in this track - AudioBuffer
                 if (this.drumSamplerPads[padIndex]) {
                     // Dispose of the old buffer if it exists to save memory
                     if (this.drumSamplerPads[padIndex].audioBuffer && !this.drumSamplerPads[padIndex].audioBuffer.disposed) {
@@ -212,6 +212,15 @@ export class Track {
                     this.drumSamplerPads[padIndex].dbKey = dbKey;
                     this.drumSamplerPads[padIndex].status = 'loaded';
                 }
+
+                // 5. Create Tone.Player for playback (required by playDrumSamplerPadPreview)
+                if (this.drumPadPlayers[padIndex] && !this.drumPadPlayers[padIndex].disposed) {
+                    this.drumPadPlayers[padIndex].dispose();
+                }
+                this.drumPadPlayers[padIndex] = new Tone.Player(buffer);
+                
+                // 6. Connect player to effects chain or gain node
+                this.rebuildEffectChain();
 
                 console.log(`[Track ${this.id}] Successfully loaded "${fileName}" to pad ${padIndex}`);
                 return true;
@@ -1307,21 +1316,33 @@ export class Track {
         try {
             await storeAudio(dbKey, blob);
             let duration = 0;
+            
+            // FIX Bug #10: Ensure AudioContext is running before getting duration
+            // Initialize audio context if needed
+            if (this.appServices.initAudioContextAndMasterMeter) {
+                await this.appServices.initAudioContextAndMasterMeter(true);
+            }
+            
             try {
-                 duration = await this.getBlobDuration(blob);
+                duration = await this.getBlobDuration(blob);
             } catch(durationError) {
                 console.warn(`[Track ${this.id}] Could not determine duration for new audio clip ${clipId}, defaulting to 0. Error:`, durationError);
             }
 
+            // FIX Bug #2: Use the correct start time
+            // The caller should pass the actual recording start position, not the end time
+            // If startTime is 0 or negative, default to 0
+            const clipStartTime = Math.max(0, startTime);
+
             const newClip = {
                 id: clipId, type: 'audio', sourceId: dbKey,
-                startTime: Math.max(0, startTime), 
+                startTime: clipStartTime, 
                 duration: duration,
                 name: `Rec ${new Date().toLocaleTimeString().substring(0,8)}`
             };
 
             this.timelineClips.push(newClip);
-            console.log(`[Track ${this.id}] Added audio clip to timeline:`, newClip);
+            console.log(`[Track ${this.id}] Added audio clip to timeline:`, newClip, "Start:", clipStartTime, "Duration:", duration);
             this._captureUndoState(`Add Recorded Clip to ${this.name}`);
 
             if (this.appServices.renderTimeline) this.appServices.renderTimeline();
@@ -1607,8 +1628,7 @@ export class Track {
                 console.log(`[Track ${this.id}] Sequencer mode: Starting patternPlayerSequence at transport offset: ${transportStartTime.toFixed(2)}s. Loop: ${this.patternPlayerSequence.loop}`);
                 try {
                     this.patternPlayerSequence.start(transportStartTime); 
-                } catch(e) {
-                    console.error(`[Track ${this.id}] Error starting patternPlayerSequence:`, e.message, e); 
+                } catch(e) { console.error(`[Track ${this.id}] Error starting patternPlayerSequence:`, e.message, e); 
                     try { if(!this.patternPlayerSequence.disposed) this.patternPlayerSequence.dispose(); } catch (disposeErr) {}
                     this.patternPlayerSequence = null;
                 }

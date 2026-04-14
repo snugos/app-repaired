@@ -244,8 +244,8 @@ const appServices = {
         if (inspectorWindow?.element && !inspectorWindow.isMinimized) {
             const dzContainer = inspectorWindow.element.querySelector(`#drumPadDropZoneContainer-${trackId}-${padIndex}`);
             if (dzContainer) {
-                const existingAudioData = track.drumPads && track.drumPads[padIndex] ?
-                    { fileName: track.drumPads[padIndex].fileName, status: 'loaded' } :
+                const existingAudioData = track.drumSamplerPads && track.drumSamplerPads[padIndex] ?
+                    { fileName: track.drumSamplerPads[padIndex].fileName, status: 'loaded' } :
                     { fileName: null, status: 'empty' };
                 dzContainer.innerHTML = createDropZoneHTML(trackId, `drumPadFileInput-${trackId}-${padIndex}`, 'DrumSampler', padIndex, existingAudioData);
                 const dzEl = dzContainer.querySelector('.drop-zone');
@@ -482,7 +482,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -523,7 +523,7 @@ const appServices = {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -639,7 +639,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                         if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
                         const newDropZoneDiv = dzContainer.querySelector('.drop-zone');
                         if (newDropZoneDiv && typeof setupGenericDropZoneListeners === 'function') {
-                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, appServices.loadSampleFile, appServices.getTrackById);
+                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, loadFn, appServices.getTrackById);
                         }
                     }
                 }

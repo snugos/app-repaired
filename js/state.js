@@ -111,7 +111,20 @@ export function getArmedTrackIdState() { return armedTrackId; }
 export function getSoloedTrackIdState() { return soloedTrackId; }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
-export function getRecordingStartTimeState() { return recordingStartTime; }
+export function getRecordingStartTimeState() { 
+    // FIX: If recordingStartTime is a transport position string (e.g., "0:0:0"), convert to seconds for timeline use
+    // Otherwise return the numeric value directly
+    if (typeof recordingStartTime === 'string') {
+        try {
+            // Convert Tone.Transport.Position string to seconds
+            return Tone.Time(recordingStartTime).toSeconds();
+        } catch (e) {
+            console.warn("[State getRecordingStartTimeState] Error converting position string to seconds:", e);
+            return 0;
+        }
+    }
+    return recordingStartTime; 
+}
 export function getActiveSequencerTrackIdState() { return activeSequencerTrackId; }
 export function getUndoStackState() { return undoStack; }
 export function getRedoStackState() { return redoStack; }

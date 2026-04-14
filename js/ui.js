@@ -487,8 +487,8 @@ function initializeTypeSpecificInspectorControls(track, winEl) {
         // Set up drop zone for drum pad sample upload
         const dzContainerEl = winEl.querySelector(`#drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}`);
         if (dzContainerEl) {
-            const existingAudioData = track.drumPads && track.drumPads[track.selectedDrumPadForEdit] ? 
-                { fileName: track.drumPads[track.selectedDrumPadForEdit].fileName, status: 'loaded' } : 
+            const existingAudioData = track.drumSamplerPads && track.drumSamplerPads[track.selectedDrumPadForEdit] ? 
+                { fileName: track.drumSamplerPads[track.selectedDrumPadForEdit].fileName, status: 'loaded' } : 
                 { fileName: null, status: 'empty' };
             dzContainerEl.innerHTML = createDropZoneHTML(track.id, `drumPadFileInput-${track.id}-${track.selectedDrumPadForEdit}`, 'DrumSampler', track.selectedDrumPadForEdit, existingAudioData);
             const dzEl = dzContainerEl.querySelector('.drop-zone');
@@ -793,9 +793,27 @@ export function openSoundBrowserWindow(savedState = null) {
             });
         }
 
+        // FIX Bug #5: Disable preview button during library loading
+        const previewBtn = browserWindow.element.querySelector('#previewSoundBtn');
+        function setPreviewButtonState(enabled) {
+            if (previewBtn) {
+                previewBtn.disabled = !enabled;
+                previewBtn.title = enabled ? "Preview selected sound" : "Loading library...";
+            }
+        }
+        
+        // Initial state - disabled until library loads
+        setPreviewButtonState(false);
+
         libSelect.addEventListener('change', (e) => {
             const lib = e.target.value;
             console.log(`[UI SoundBrowser] Library selected via dropdown: ${lib}`);
+            
+            // FIX Bug #5: Disable preview while loading
+            if (lib) {
+                setPreviewButtonState(false);
+            }
+            
             if (lib && localAppServices.fetchSoundLibrary) {
                 localAppServices.fetchSoundLibrary(lib, Constants.soundLibraries[lib]);
             } else if (!lib && localAppServices.updateSoundBrowserDisplayForLibrary) {
@@ -812,20 +830,41 @@ export function openSoundBrowserWindow(savedState = null) {
             }
         });
 
+        // FIX Bug #3: Better preview player disposal and #5: Check if library is ready before previewing
         browserWindow.element.querySelector('#previewSoundBtn').addEventListener('click', () => {
             const selectedSound = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : null;
             console.log('[UI PreviewButton] Clicked. Selected Sound:', JSON.stringify(selectedSound));
 
             if (selectedSound && typeof Tone !== 'undefined') {
-                let previewPlayer = localAppServices.getPreviewPlayer ? localAppServices.getPreviewPlayer() : null;
-                if (previewPlayer && !previewPlayer.disposed) {
-                    console.log('[UI PreviewButton] Disposing existing preview player.');
-                    previewPlayer.stop(); previewPlayer.dispose();
-                }
                 const { fullPath, libraryName } = selectedSound;
+                
+                // FIX Bug #5: Check if library is loaded before trying to play
+                const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
+                if (!loadedZips[libraryName] || loadedZips[libraryName] === "loading") {
+                    console.warn(`[UI PreviewButton] Library ${libraryName} is not ready for preview.`);
+                    showNotification("Please wait for the library to finish loading.", 2000);
+                    setPreviewButtonState(false);
+                    return;
+                }
+                
+                // FIX Bug #3: More robust preview player disposal
+                let previewPlayer = localAppServices.getPreviewPlayer ? localAppServices.getPreviewPlayer() : null;
+                if (previewPlayer) {
+                    console.log('[UI PreviewButton] Disposing existing preview player.');
+                    try {
+                        if (!previewPlayer.disposed) {
+                            previewPlayer.stop();
+                            previewPlayer.dispose();
+                        }
+                    } catch (e) {
+                        console.warn('[UI PreviewButton] Error disposing old preview player:', e.message);
+                    }
+                    previewPlayer = null;
+                    if (localAppServices.setPreviewPlayer) localAppServices.setPreviewPlayer(null);
+                }
+
                 console.log(`[UI PreviewButton] Attempting to preview: ${fullPath} from ${libraryName}`);
 
-                const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
                 if (loadedZips?.[libraryName] && loadedZips[libraryName] !== "loading") {
                     const zipEntry = loadedZips[libraryName].file(fullPath);
                     if (zipEntry) {
@@ -919,8 +958,28 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
     const listDiv = browserWindowEl.querySelector('#soundBrowserList');
     const libSelect = browserWindowEl.querySelector('#librarySelect');
     const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
+    const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
     const isWindowVisible = !browserWindowEl.closest('.window.minimized');
     const currentDropdownSelection = libSelect ? libSelect.value : null;
+    
+    // FIX Bug #5: Update preview button state based on loading status
+    if (isLoading) {
+        if (previewBtn) {
+            previewBtn.disabled = true;
+            previewBtn.title = "Loading library...";
+        }
+    } else if (hasError) {
+        if (previewBtn) {
+            previewBtn.disabled = true;
+            previewBtn.title = "Library failed to load";
+        }
+    } else if (libraryName && libraryName === currentDropdownSelection) {
+        // Library loaded successfully - enable preview button
+        if (previewBtn) {
+            previewBtn.disabled = false;
+            previewBtn.title = "Preview selected sound";
+        }
+    }
 
     console.log(`[UI updateSoundBrowserDisplayForLibrary] Window visible: ${isWindowVisible}, Current dropdown: '${currentDropdownSelection}', Target library: '${libraryName}'`);
 
@@ -1014,6 +1073,7 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
     const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
     if (!browserWindowEl || !treeNode) return;
     const listDiv = browserWindowEl.querySelector('#soundBrowserList');
+    const libSelect = browserWindowEl.querySelector('#librarySelect');
     const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
     const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
     listDiv.innerHTML = '';
@@ -1551,7 +1611,7 @@ export function renderDrumSamplerPads(track) {
     const numPads = 8; // 4x4 grid
     let html = '';
     for (let i = 0; i < numPads; i++) {
-        const padData = track.drumPads && track.drumPads[i];
+        const padData = track.drumSamplerPads && track.drumSamplerPads[i];
         const hasSample = padData && padData.audioBuffer;
         const isSelected = track.selectedDrumPadForEdit === i;
         html += `<div class="drum-pad pad-button ${hasSample ? 'has-sample' : ''} ${isSelected ? 'selected-for-edit' : ''}" 
