@@ -1445,7 +1445,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                     const isActive = !(currentStepData?.active);
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Step (${row + 1},${col + 1}) on ${track.name} (${currentActiveSeq.name})`);
                     currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: Constants.defaultVelocity } : null;
-                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive);
+                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive, currentActiveSeq.data[row][col]?.velocity || Constants.defaultVelocity);
                 }
             }
         });
@@ -1609,33 +1609,51 @@ export function renderTimeline() {
     console.log(`[UI renderTimeline] Rendered ${tracks.length} tracks`);
 }
 
-export function updateSequencerCellUI(winElement, trackType, row, col, isActive) {
+export function updateSequencerCellUI(winElement, trackType, row, col, isActive, velocity = 0.7) {
     if (!winElement) return;
     
     const cell = winElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
     if (!cell) return;
     
-    // Remove any existing active classes
+    // Remove any existing active classes and velocity classes
     cell.classList.remove('active-synth', 'active-sampler', 'active-drum-sampler', 'active-instrument-sampler');
+    // Remove all velocity classes
+    cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
     
     if (isActive) {
         // Add the appropriate active class based on track type
+        let baseClass = 'active-synth';
         switch (trackType) {
-            case 'synth':
-                cell.classList.add('active-synth');
+            case 'Synth':
+                baseClass = 'active-synth';
                 break;
             case 'sampler':
-                cell.classList.add('active-sampler');
+                baseClass = 'active-sampler';
                 break;
-            case 'drumsampler':
-                cell.classList.add('active-drum-sampler');
+            case 'DrumSampler':
+                baseClass = 'active-drum-sampler';
                 break;
-            case 'instrumentsampler':
-                cell.classList.add('active-instrument-sampler');
+            case 'InstrumentSampler':
+                baseClass = 'active-instrument-sampler';
                 break;
             default:
-                cell.classList.add('active-synth');
+                baseClass = 'active-synth';
         }
+        cell.classList.add(baseClass);
+        
+        // Apply velocity-based brightness class
+        const velPercent = Math.round(velocity * 100);
+        let velClass = 'vel-70'; // default
+        if (velPercent >= 100) velClass = 'vel-100';
+        else if (velPercent >= 90) velClass = 'vel-90';
+        else if (velPercent >= 80) velClass = 'vel-80';
+        else if (velPercent >= 60) velClass = 'vel-60';
+        else if (velPercent >= 50) velClass = 'vel-50';
+        else if (velPercent >= 40) velClass = 'vel-40';
+        else if (velPercent >= 30) velClass = 'vel-30';
+        else if (velPercent >= 20) velClass = 'vel-20';
+        else if (velPercent >= 10) velClass = 'vel-10';
+        cell.classList.add(velClass);
     }
 }
 

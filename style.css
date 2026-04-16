@@ -435,6 +435,18 @@ button.active { /* Generic active state for other toggles if needed */
     border-color: #E0BBE4 !important; /* Slightly lighter teal for border */
 } 
 
+/* Velocity-based brightness: default velocity (0.7) uses base purple */
+.sequencer-step-cell.vel-100 { background-color: #6d28d9 !important; }
+.sequencer-step-cell.vel-90  { background-color: #7c3aed !important; }
+.sequencer-step-cell.vel-80  { background-color: #8b5cf6 !important; }
+.sequencer-step-cell.vel-70  { background-color: #9f67ff !important; }
+.sequencer-step-cell.vel-60  { background-color: #b392ff !important; }
+.sequencer-step-cell.vel-50  { background-color: #c4b5fd !important; }
+.sequencer-step-cell.vel-40  { background-color: #d8b4fe !important; }
+.sequencer-step-cell.vel-30  { background-color: #e9d5ff !important; }
+.sequencer-step-cell.vel-20  { background-color: #f3e8ff !important; color: #333 !important; border-color: #c4b5fd !important; }
+.sequencer-step-cell.vel-10  { background-color: #faf5ff !important; color: #444 !important; border-color: #d8b4fe !important; }
+
 .sequencer-step-cell.playing {
     outline: 2px solid #ffcccc; /* Cyan outline for playing step */
     outline-offset: -2px;

@@ -90,3 +90,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-20 — Day 5
 - **Bug Fix: Mixer Mute/Solo Buttons** (`js/ui.js`): Fixed the mixer window's Mute and Solo buttons. They were incorrectly using `<div>` tags with a closing `</div>` instead of proper `<button>` elements. This prevented the CSS `.muted` (red) and `.soloed` (yellow) styles from applying since the CSS selectors targeted `button.muted` and `button.soloed`. Changed both buttons in `renderMixer()` to proper `<button>` elements with correct `</button>` closing tags. The inspector's mute/solo buttons were already correct.
+
+### 2026-04-21 — Day 6
+- **Step Velocity Visual Feedback** (`js/ui.js`, `style.css`): Added velocity-based brightness coloring to sequencer step cells. Higher velocity = brighter purple shades. Updated `updateSequencerCellUI()` to accept a `velocity` parameter (default 0.7) and apply the appropriate CSS class (`vel-100` through `vel-10`). The sequencer click handler now passes the step's velocity when calling `updateSequencerCellUI()`. Added 10 velocity-based CSS classes spanning from `#6d28d9` (100%) to `#faf5ff` (10%), with lower velocities getting progressively lighter and text color darkening for contrast.
