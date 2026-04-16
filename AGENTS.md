@@ -87,3 +87,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-19 — Day 4
 - **Sound Browser Search/Filter** (`ui.js`): Added search input field to Sound Browser window for filtering sounds by filename. Type in the search box to instantly filter the current directory's files. Folders are recursively searched for matching filenames. When a search query matches no files, a helpful message "No sounds match 'query'" is shown. Module-level variable `soundBrowserSearchQuery` tracks current search. New function `renderSoundBrowserDirectoryFiltered()` handles the filtering logic. Original `renderSoundBrowserDirectory()` refactored to delegate to the filtered version with empty query. Search is case-insensitive and updates in real-time as user types.
+
+### 2026-04-20 — Day 5
+- **Bug Fix: Mixer Mute/Solo Buttons** (`js/ui.js`): Fixed the mixer window's Mute and Solo buttons. They were incorrectly using `<div>` tags with a closing `</div>` instead of proper `<button>` elements. This prevented the CSS `.muted` (red) and `.soloed` (yellow) styles from applying since the CSS selectors targeted `button.muted` and `button.soloed`. Changed both buttons in `renderMixer()` to proper `<button>` elements with correct `</button>` closing tags. The inspector's mute/solo buttons were already correct.
