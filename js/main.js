@@ -18,7 +18,7 @@ import {
     handleTimelineLaneDrop
 } from './eventHandlers.js';
 import {
-    initializeStateModule,
+    initializeStateModule, 
     // State Getters
     getTracksState, getTrackByIdState, getOpenWindowsState, getWindowByIdState, getHighestZState,
     getMasterEffectsState, getMasterGainValueState,
@@ -58,7 +58,9 @@ import {
     getActualMasterGainNode as getActualMasterGainNodeFromAudio,
     clearAllMasterEffectNodes as clearAllMasterEffectNodesInAudio,
     startAudioRecording,
-    stopAudioRecording
+    stopAudioRecording,
+    isMetronomeEnabled,
+    setMetronomeEnabled
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -91,6 +93,7 @@ const uiElementsCache = {
     tempoGlobalInput: null, midiInputSelectGlobal: null, masterMeterContainerGlobal: null,
     masterMeterBarGlobal: null, midiIndicatorGlobal: null, keyboardIndicatorGlobal: null,
     playbackModeToggleBtnGlobal: null,
+    metronomeBtnGlobal: null
 };
 
 const DESKTOP_BACKGROUND_KEY = 'snugosDesktopBackground';
@@ -499,7 +502,7 @@ const appServices = {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructConstruct && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -716,7 +719,8 @@ async function initializeSnugOS() {
             masterMeterBarGlobal: document.getElementById('masterMeterBarGlobal'),
             midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
-            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal')
+            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
+            metronomeBtnGlobal: document.getElementById('metronomeToggleBtnGlobal')
         };
         
         // Add to cache
@@ -763,6 +767,30 @@ async function initializeSnugOS() {
             }
         };
         attachPlaybackModeHandler();
+
+        // Metronome toggle button handler
+        const attachMetronomeHandler = () => {
+            if (uiElementsCache.metronomeBtnGlobal) {
+                uiElementsCache.metronomeBtnGlobal.addEventListener('click', async () => {
+                    const audioReady = await initAudioContextAndMasterMeter(true);
+                    if (!audioReady) {
+                        showSafeNotification("Audio not ready. Click the page first.", 2000);
+                        return;
+                    }
+                    const newState = !isMetronomeEnabled();
+                    setMetronomeEnabled(newState);
+                    uiElementsCache.metronomeBtnGlobal.classList.toggle('active', newState);
+                    showSafeNotification(newState ? "Metronome ON" : "Metronome OFF", 1500);
+                });
+                // Sync button state in case it's already active
+                uiElementsCache.metronomeBtnGlobal.classList.toggle('active', isMetronomeEnabled());
+                console.log("[Main] Metronome toggle handler attached");
+            } else {
+                console.warn("[Main] Metronome button not found in cache, retrying...");
+                setTimeout(attachMetronomeHandler, 500);
+            }
+        };
+        attachMetronomeHandler();
 
         // Restore saved background (image or video)
         await restoreDesktopBackground();

@@ -936,12 +936,12 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
         console.log(`[Audio Fetch DEBUG] localAppServices.setSoundLibraryFileTreesState exists:`, !!localAppServices.setSoundLibraryFileTreesState);
         if (localAppServices.setSoundLibraryFileTreesState) {
             console.log(`[Audio Fetch DEBUG] Calling setSoundLibraryFileTreesState for ${libraryName} (soundTrees) with keys:`, Object.keys(latestSoundTrees));
-             if(latestSoundTrees[libraryName]) {
+            if(latestSoundTrees[libraryName]) {
                 console.log(`[Audio Fetch DEBUG] Tree for ${libraryName} being set has children count:`, Object.keys(latestSoundTrees[libraryName]).length);
             }
             localAppServices.setSoundLibraryFileTreesState(latestSoundTrees);
         } else {
-             console.error(`[Audio Fetch ERROR] localAppServices.setSoundLibraryFileTreesState is UNDEFINED for ${libraryName} (soundTrees)`);
+             console.error(`[Audio Fetch ERROR] localAppServices.setSoundLibraryFileTreesState is UNDEFINED from ${libraryName} (soundTrees)`);
         }
 
         const checkZipsAfterSet = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
@@ -1299,5 +1299,96 @@ export async function getAudioBlobFromSoundBrowserItem(soundData) {
     } catch (error) {
         console.error(`[Audio getAudioBlobFromSoundBrowserItem] Error extracting audio blob:`, error);
         return null;
+    }
+}
+
+// ============================================================
+// METRONOME MODULE
+// ============================================================
+let metronomeEnabled = false;
+let metronomeSynth = null;
+let metronomeScheduledId = null;
+let _metronomeVolume = 0.25; // -12dB roughly
+
+export function isMetronomeEnabled() { return metronomeEnabled; }
+
+export function setMetronomeEnabled(enabled) {
+    if (enabled === metronomeEnabled) return;
+    metronomeEnabled = enabled;
+    if (metronomeEnabled) {
+        scheduleMetronome();
+    } else {
+        cancelMetronome();
+    }
+}
+
+export function setMetronomeVolume(vol) {
+    _metronomeVolume = Math.max(0, Math.min(1, vol));
+    if (metronomeSynth && !metronomeSynth.disposed) {
+        metronomeSynth.volume.value = Tone.gainToDb(_metronomeVolume);
+    }
+}
+
+export function getMetronomeVolume() { return _metronomeVolume; }
+
+function ensureMetronomeSynth() {
+    if (metronomeSynth && !metronomeSynth.disposed) return;
+    if (!Tone.context || Tone.context.state !== 'running') return;
+    if (metronomeSynth) { try { metronomeSynth.dispose(); } catch(e){} }
+    metronomeSynth = new Tone.Synth({
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }
+    });
+    // Connect directly to destination — bypasses master bus so it's always heard
+    metronomeSynth.toDestination();
+    metronomeSynth.volume.value = Tone.gainToDb(_metronomeVolume);
+}
+
+function tickMetronome(time) {
+    if (!metronomeSynth || metronomeSynth.disposed) return;
+    const transportPos = Tone.Transport.position;
+    const [bars, beats, sixteenths] = transportPos.split(':').map(Number);
+    if (isNaN(bars) || isNaN(beats) || isNaN(sixteenths)) return;
+
+    if (beats === 0 && sixteenths === 0) {
+        // Bar 1 beat 1 — accent
+        metronomeSynth.triggerAttackRelease('C6', '32n', time);
+    } else if (sixteenths === 0) {
+        // Beat 1 — normal click
+        metronomeSynth.triggerAttackRelease('C5', '32n', time);
+    }
+}
+
+function scheduleMetronome() {
+    if (!Tone.context || Tone.context.state !== 'running') {
+        console.warn('[Metronome] Cannot schedule: audio context not running.');
+        return;
+    }
+    cancelMetronome();
+    ensureMetronomeSynth();
+    if (!metronomeSynth || metronomeSynth.disposed) return;
+    metronomeScheduledId = Tone.Transport.scheduleRepeat((time) => {
+        tickMetronome(time);
+    }, '16n', 0);
+    console.log('[Metronome] Scheduled, ID:', metronomeScheduledId);
+}
+
+function cancelMetronome() {
+    if (metronomeScheduledId !== null) {
+        try { Tone.Transport.clear(metronomeScheduledId); } catch(e){}
+        metronomeScheduledId = null;
+    }
+}
+
+export function stopMetronome() {
+    metronomeEnabled = false;
+    cancelMetronome();
+}
+
+export function cleanupMetronome() {
+    stopMetronome();
+    if (metronomeSynth) {
+        try { metronomeSynth.dispose(); } catch(e){}
+        metronomeSynth = null;
     }
 }
