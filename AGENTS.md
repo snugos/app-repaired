@@ -66,7 +66,11 @@ Need to create `.github/workflows/deploy.yml` that:
 - [ ] Undo/redo: verify all state mutations go through the capture mechanism
 
 ## Improvement Log
-### 2026-04-16 — Project start
+### 2026-04-16 — Day 1
 - Saved `v1` branch snapshot
 - Set up daily improvement mandate
 - App loads and is functional (basic track creation, sound browser, transport)
+- **Metronome** (`audio.js`): Added Tone.Transport-synced metronome with triangle-wave click synth. Bar 1 uses C6 accent, beat 1 uses C5, all other 16ths silent. Connected directly to `Tone.Destination` (bypasses master bus so it's always audible). Toggle wired to global control bar "Metronome" button. Functions: `setMetronomeEnabled`, `isMetronomeEnabled`, `setMetronomeVolume`.
+- **Global controls bar**: Added "Metronome" toggle button between Master meter and MIDI/KBD indicators. Blue active state when on.
+- **Bug fixes**: Fixed typos `isReconstructinging` → `isReconstructing` in main.js.
+- **Version**: Bumped to 0.2.0 in `constants.js`.
