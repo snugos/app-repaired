@@ -62,7 +62,11 @@ import {
     isMetronomeEnabled,
     setMetronomeEnabled,
     setCountInBars,
-    getCountInBars
+    getCountInBars,
+    tapTempo,
+    getTapTempoBpm,
+    resetTapTempo,
+    isTapTempoReady
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -527,8 +531,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -813,6 +817,31 @@ async function initializeSnugOS() {
             }
         };
         attachCountInHandler();
+
+        // Tap tempo button handler
+        const attachTapTempoHandler = () => {
+            const tapBtn = document.getElementById('tapTempoBtnGlobal');
+            const tempoInput = document.getElementById('tempoGlobalInput');
+            if (tapBtn && tempoInput) {
+                tapBtn.addEventListener('click', () => {
+                    tapTempo();
+                    const bpm = getTapTempoBpm();
+                    if (bpm !== null) {
+                        Tone.Transport.bpm.value = bpm;
+                        tempoInput.value = bpm;
+                        if (appServices.updateTaskbarTempoDisplay) appServices.updateTaskbarTempoDisplay(bpm);
+                        showSafeNotification(`Tempo: ${bpm} BPM`, 800);
+                    } else {
+                        showSafeNotification("Keep tapping...", 500);
+                    }
+                });
+                console.log("[Main] Tap tempo handler attached");
+            } else {
+                console.warn("[Main] Tap tempo button or tempo input not found, retrying...");
+                setTimeout(attachTapTempoHandler, 500);
+            }
+        };
+        attachTapTempoHandler();
 
         // Restore saved background (image or video)
         await restoreDesktopBackground();

@@ -634,6 +634,21 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // T - Tap Tempo
+        if (key === 't') {
+            if (typeof tapTempo === 'function') tapTempo();
+            const bpm = typeof getTapTempoBpm === 'function' ? getTapTempoBpm() : null;
+            if (bpm !== null) {
+                Tone.Transport.bpm.value = bpm;
+                const tempoInput = document.getElementById('tempoGlobalInput');
+                if (tempoInput) tempoInput.value = bpm;
+                showNotification(`Tempo: ${bpm} BPM`, 800);
+            } else {
+                showNotification("Keep tapping...", 500);
+            }
+            return;
+        }
+
         // ? - show keyboard shortcuts
         if (key === '?') {
             showKeyboardShortcutsModal();
@@ -715,6 +730,7 @@ export function showKeyboardShortcutsModal() {
         { section: "Transport", items: [
             { keys: "Space", desc: "Play / Pause" },
             { keys: "Enter", desc: "Stop and Rewind" },
+            { keys: "T", desc: "Tap Tempo" },
         ]},
         { section: "Track Navigation", items: [
             { keys: "Tab", desc: "Cycle to next armed track" },

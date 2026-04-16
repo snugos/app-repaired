@@ -1434,3 +1434,43 @@ export function startCountIn(onCountInComplete, startPosition = 0) {
 
     console.log(`[CountIn] Started ${countInBars} bar count-in, scheduled to complete at ${totalSixteenths} sixteenths. ID:`, countInScheduledId);
 }
+
+// ============================================================
+// TAP TEMPO MODULE
+// ============================================================
+let tapTempoTaps = []; // Array of timestamps (ms) for each tap
+const TAP_TEMPO_TIMEOUT_MS = 2000; // Reset if no tap within 2 seconds
+const TAP_TEMPO_MIN_TAPS = 2; // Minimum taps needed to calculate tempo
+const TAP_TEMPO_MAX_TAPS = 8; // Use last N taps for averaging
+
+export function resetTapTempo() {
+    tapTempoTaps = [];
+}
+
+export function tapTempo() {
+    const now = performance.now();
+    // Reset if gap is too large (user started a new phrase)
+    if (tapTempoTaps.length > 0 && (now - tapTempoTaps[tapTempoTaps.length - 1]) > TAP_TEMPO_TIMEOUT_MS) {
+        tapTempoTaps = [];
+    }
+    tapTempoTaps.push(now);
+    // Keep only the last N taps
+    if (tapTempoTaps.length > TAP_TEMPO_MAX_TAPS) {
+        tapTempoTaps.shift();
+    }
+}
+
+export function getTapTempoBpm() {
+    if (tapTempoTaps.length < TAP_TEMPO_MIN_TAPS) return null;
+    const intervals = [];
+    for (let i = 1; i < tapTempoTaps.length; i++) {
+        intervals.push(tapTempoTaps[i] - tapTempoTaps[i - 1]);
+    }
+    const avgIntervalMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const bpm = Math.round((60000 / avgIntervalMs) * 10) / 10; // One decimal place
+    return Math.max(Constants.MIN_TEMPO, Math.min(Constants.MAX_TEMPO, bpm));
+}
+
+export function isTapTempoReady() {
+    return tapTempoTaps.length >= TAP_TEMPO_MIN_TAPS;
+}
