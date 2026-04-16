@@ -16,6 +16,7 @@ import { getTracksState } from './state.js';
 // Module-level state for appServices, to be set by main.js
 let localAppServices = {};
 let selectedSoundForPreviewData = null; // Holds data for the sound selected for preview
+let soundBrowserSearchQuery = ''; // Search/filter query for the sound browser
 
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
@@ -776,7 +777,7 @@ export function openSoundBrowserWindow(savedState = null) {
         return win;
     }
 
-    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300"> <div class="flex space-x-1 mb-1"> <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="">Select Library...</option> </select> <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button> </div> <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div> <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto"> <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p> </div> <div id="soundPreviewControls" class="mt-1 text-center"> <button id="previewSoundBtn" class="px-2 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>Preview</button> </div> </div>`;
+    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300"> <div class="flex space-x-1 mb-1"> <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="">Select Library...</option> </select> <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button> </div> <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div> <div id="soundBrowserSearchContainer" class="mb-1"> <input type="text" id="soundBrowserSearchInput" placeholder="🔍 Search sounds..." class="w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-400"> </div> <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto"> <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p> </div> <div id="soundPreviewControls" class="mt-1 text-center"> <button id="previewSoundBtn" class="px-2 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>Preview</button> </div> </div>`;
     const browserOptions = { width: 380, height: 450, minWidth: 300, minHeight: 300, initialContentKey: windowId };
     if (savedState) Object.assign(browserOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
 
@@ -829,6 +830,21 @@ export function openSoundBrowserWindow(savedState = null) {
                 if (localAppServices.renderSoundBrowserDirectory) localAppServices.renderSoundBrowserDirectory(newPath, localAppServices.getCurrentSoundFileTree ? localAppServices.getCurrentSoundFileTree() : null);
             }
         });
+
+        // Search/filter input for sound browser
+        const searchInput = browserWindow.element.querySelector('#soundBrowserSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                soundBrowserSearchQuery = e.target.value.toLowerCase().trim();
+                console.log(`[UI SoundBrowser] Search query: "${soundBrowserSearchQuery}"`);
+                // Re-render the current directory with filtering
+                const currentPath = localAppServices.getCurrentSoundBrowserPath ? localAppServices.getCurrentSoundBrowserPath() : [];
+                const tree = localAppServices.getCurrentSoundFileTree ? localAppServices.getCurrentSoundFileTree() : null;
+                if (tree) {
+                    renderSoundBrowserDirectoryFiltered(currentPath, tree, soundBrowserSearchQuery);
+                }
+            });
+        }
 
         // FIX Bug #3: Better preview player disposal and #5: Check if library is ready before previewing
         browserWindow.element.querySelector('#previewSoundBtn').addEventListener('click', () => {
@@ -1068,12 +1084,28 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
     pathDisplay.textContent = `/${libraryName || ''}/`;
 }
 
+function filterTreeBySearch(treeNode, query) {
+    if (!query) return treeNode;
+    const result = {};
+    for (const name in treeNode) {
+        if (treeNode[name]?.type === 'folder') {
+            const filteredChildren = filterTreeBySearch(treeNode[name].children, query);
+            if (Object.keys(filteredChildren).length > 0) {
+                result[name] = { ...treeNode[name], children: filteredChildren };
+            }
+        } else if (treeNode[name]?.type === 'file') {
+            if (name.toLowerCase().includes(query)) {
+                result[name] = treeNode[name];
+            }
+        }
+    }
+    return result;
+}
 
-export function renderSoundBrowserDirectory(pathArray, treeNode) {
+export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQuery = '') {
     const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
     if (!browserWindowEl || !treeNode) return;
     const listDiv = browserWindowEl.querySelector('#soundBrowserList');
-    const libSelect = browserWindowEl.querySelector('#librarySelect');
     const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
     const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
     listDiv.innerHTML = '';
@@ -1085,10 +1117,20 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
     }
     if(previewBtn) previewBtn.disabled = true;
 
+    // Apply search filter if query exists
+    const filteredTree = searchQuery ? filterTreeBySearch(treeNode, searchQuery) : treeNode;
+
     const items = [];
-    for (const name in treeNode) { if (treeNode[name]?.type) items.push({ name, type: treeNode[name].type, nodeData: treeNode[name] }); }
+    for (const name in filteredTree) { if (filteredTree[name]?.type) items.push({ name, type: filteredTree[name].type, nodeData: filteredTree[name] }); }
     items.sort((a, b) => { if (a.type === 'folder' && b.type !== 'folder') return -1; if (a.type !== 'folder' && b.type === 'folder') return 1; return a.name.localeCompare(b.name); });
-    if (items.length === 0) { listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Empty folder.</p>'; return; }
+    if (items.length === 0) { 
+        if (searchQuery) {
+            listDiv.innerHTML = `<p class="text-gray-500 dark:text-slate-400 italic">No sounds match "${searchQuery}"</p>`;
+        } else {
+            listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Empty folder.</p>';
+        }
+        return; 
+    }
 
     items.forEach(itemObj => {
         const {name, nodeData} = itemObj; const listItem = document.createElement('div');
@@ -1105,7 +1147,7 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
         }
         else { // File
             listItem.addEventListener('click', () => {
-                listDiv.querySelectorAll('.bg-blue-200,.dark\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
+                listDiv.querySelectorAll('.bg-blue-200,.dark\\\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
                 listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
                 const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
                 console.log('[UI SoundFile Click] Sound selected:', JSON.stringify(soundToSelect));
@@ -1122,6 +1164,10 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
         }
         listDiv.appendChild(listItem);
     });
+}
+
+export function renderSoundBrowserDirectory(pathArray, treeNode) {
+    renderSoundBrowserDirectoryFiltered(pathArray, treeNode, '');
 }
 
 // --- Mixer Window ---
@@ -1169,7 +1215,10 @@ export function renderMixer(container) {
     tracks.forEach(track => {
         const trackDiv = document.createElement('div');
         trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
-        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="${track.name}">${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-16 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-0.5 my-1"> <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'U' : 'M'}</button> <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'U' : 'S'}</button> </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
+        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="${track.name}">${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-16 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'U' : 'M'}</button>
+                <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'U' : 'S'}</button>
+            </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
         trackDiv.addEventListener('contextmenu', (e) => { e.preventDefault(); createContextMenu(e, [ {label: "Open Inspector", action: () => localAppServices.handleOpenTrackInspector(track.id)}, {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)}, {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)}, {separator: true}, {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)}, {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)}, {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)}, {separator: true}, {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)} ], localAppServices); });
         container.appendChild(trackDiv);
         const volKnobPlaceholder = trackDiv.querySelector(`#volumeKnob-mixer-${track.id}-placeholder`);
@@ -1350,8 +1399,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             barsInput.addEventListener('change', (e) => {
                 const newNumBars = parseInt(e.target.value, 10);
                 if (!Number.isFinite(newNumBars) || newNumBars < 1 || newNumBars > (Constants.MAX_BARS || 16)) {
-                    showNotification(`Invalid number of bars. Must be 1-${Constants.MAX_BARS || 16}.`, 2000);
-                    e.target.value = Math.max(1, activeSequence.length / Constants.STEPS_PER_BAR);
+                    showNotification(`Invalid number of bars. Must be 1-${Constants.MAX_BARS || 16}.`, 3000);
                     return;
                 }
                 const newLength = newNumBars * Constants.STEPS_PER_BAR;
@@ -1380,7 +1428,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 
                 // Re-render the sequencer window
                 openTrackSequencerWindow(trackId, true);
-                showNotification(`Sequence length changed to ${newNumBars} bars.`, 1500);
+                showNotification(`Sequence length changed to ${newNumBars} bars.`, 2000);
             });
         }
 
