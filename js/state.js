@@ -802,6 +802,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
 }
 
 
+// --- Manual Project Save/Load (file download/upload) ---
 export function saveProjectInternal() {
     try {
         const projectData = gatherProjectDataInternal();
@@ -1114,6 +1115,86 @@ export async function exportStemsInternal() {
     Tone.Transport.cancel(0);
     
     appServices.showNotification("Stems export complete!", 3000);
+}
+
+
+// --- Auto-Save to LocalStorage ---
+const AUTOSAVE_KEY = 'snugosAutosave';
+const AUTOSAVE_TIMESTAMP_KEY = 'snugosAutosaveTimestamp';
+const AUTOSAVE_INTERVAL_MS = 120000; // 2 minutes
+
+let autoSaveIntervalId = null;
+
+export function startAutoSave() {
+    if (autoSaveIntervalId !== null) return; // Already running
+    autoSaveIntervalId = setInterval(() => {
+        autoSaveToLocalStorage();
+    }, AUTOSAVE_INTERVAL_MS);
+    console.log(`[State] Auto-save started (every ${AUTOSAVE_INTERVAL_MS / 1000}s)`);
+}
+
+export function stopAutoSave() {
+    if (autoSaveIntervalId !== null) {
+        clearInterval(autoSaveIntervalId);
+        autoSaveIntervalId = null;
+        console.log("[State] Auto-save stopped");
+    }
+}
+
+export function autoSaveToLocalStorage() {
+    try {
+        const projectData = gatherProjectDataInternal();
+        if (!projectData) {
+            console.warn("[State autoSaveToLocalStorage] No project data to save");
+            return false;
+        }
+        // Don't save if no tracks exist
+        if (!projectData.tracks || projectData.tracks.length === 0) {
+            return false;
+        }
+        const jsonString = JSON.stringify(projectData);
+        localStorage.setItem(AUTOSAVE_KEY, jsonString);
+        localStorage.setItem(AUTOSAVE_TIMESTAMP_KEY, new Date().toISOString());
+        console.log("[State] Project auto-saved to localStorage");
+        return true;
+    } catch (error) {
+        console.error("[State autoSaveToLocalStorage] Error:", error);
+        // Quota exceeded or other storage error
+        if (error.name === 'QuotaExceededError' || error.message.includes('localStorage')) {
+            console.warn("[State] localStorage quota exceeded, skipping auto-save");
+        }
+        return false;
+    }
+}
+
+export function hasAutoSavedProject() {
+    return localStorage.getItem(AUTOSAVE_KEY) !== null;
+}
+
+export function getAutoSavedProjectTimestamp() {
+    return localStorage.getItem(AUTOSAVE_TIMESTAMP_KEY) || null;
+}
+
+export async function recoverAutoSavedProject() {
+    try {
+        const savedJson = localStorage.getItem(AUTOSAVE_KEY);
+        if (!savedJson) {
+            console.log("[State recoverAutoSavedProject] No auto-saved project found");
+            return null;
+        }
+        const projectData = JSON.parse(savedJson);
+        console.log("[State recoverAutoSavedProject] Found auto-saved project, version:", projectData.version);
+        return projectData;
+    } catch (error) {
+        console.error("[State recoverAutoSavedProject] Error loading auto-saved project:", error);
+        return null;
+    }
+}
+
+export function clearAutoSavedProject() {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_TIMESTAMP_KEY);
+    console.log("[State] Auto-saved project cleared");
 }
 
 
