@@ -93,3 +93,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-21 — Day 6
 - **Step Velocity Visual Feedback** (`js/ui.js`, `style.css`): Added velocity-based brightness coloring to sequencer step cells. Higher velocity = brighter purple shades. Updated `updateSequencerCellUI()` to accept a `velocity` parameter (default 0.7) and apply the appropriate CSS class (`vel-100` through `vel-10`). The sequencer click handler now passes the step's velocity when calling `updateSequencerCellUI()`. Added 10 velocity-based CSS classes spanning from `#6d28d9` (100%) to `#faf5ff` (10%), with lower velocities getting progressively lighter and text color darkening for contrast.
+
+### 2026-04-22 — Day 7
+- **Timeline Zoom with Scroll Wheel** (`js/ui.js`): Added zoom controls to the Timeline window. Features: zoom in/out buttons with percentage display (25%-400%), scroll wheel zoom (Ctrl+scroll or Cmd+scroll), reset button (1:1). Ruler and tracks area now sync their scroll position horizontally. Background sizes update dynamically based on zoom level. Module-level variables `timelineZoomLevel` and `timelineScrollX` track state. `updatePlayheadPosition()` now reads real transport position from `Tone.Transport.position` instead of requiring a progress argument, making it work as a live update in the animation frame loop.

@@ -1,5 +1,5 @@
 // js/ui.js - UI Module (v2025.02)
-// Last updated: Fixed timeline clip context menu
+// Last updated: Timeline ruler with zoom control via scroll wheel
 import { SnugWindow } from './SnugWindow.js';
 // Added showConfirmationDialog to the import statement
 import { showNotification, createDropZoneHTML, setupGenericDropZoneListeners, showCustomModal, createContextMenu, showConfirmationDialog } from './utils.js';
@@ -17,6 +17,8 @@ import { getTracksState } from './state.js';
 let localAppServices = {};
 let selectedSoundForPreviewData = null; // Holds data for the sound selected for preview
 let soundBrowserSearchQuery = ''; // Search/filter query for the sound browser
+let timelineZoomLevel = 1.0; // Timeline zoom: 1.0 = default, higher = zoomed in
+let timelineScrollX = 0; // Horizontal scroll offset for timeline
 
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
@@ -1232,10 +1234,12 @@ export function renderMixer(container) {
 function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const stepsPerBar = Constants.STEPS_PER_BAR;
     const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
-
-    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div> <label for="seqLengthInput-${track.id}">Bars: </label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> </div> </div>`;
+    // Snap-to-grid settings: 0=off, 4=1/4, 8=1/8, 16=1/16
+    const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
+    const snapLabel = snapValue === 0 ? 'Off' : (snapValue === 4 ? '1/4' : (snapValue === 8 ? '1/8' : '1/16'));
+    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
     html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 50px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
-    for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; html += `<div class="sequencer-header-cell sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
+    for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; const isSnapPoint = snapValue === 0 || i % snapValue === 0; const snapClass = isSnapPoint ? 'snap-point' : 'non-snap-point'; html += `<div class="sequencer-header-cell ${snapClass} sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
 
     const activeSequence = track.getActiveSequence();
     const sequenceData = activeSequence ? activeSequence.data : [];
@@ -1432,12 +1436,44 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             });
         }
 
+        // Handle snap-to-grid toggle button
+        const snapBtn = sequencerWindow.element.querySelector(`#seqSnapToggle-${track.id}`);
+        if (snapBtn) {
+            snapBtn.addEventListener('click', () => {
+                const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
+                // Cycle: 16 -> 8 -> 4 -> 0 -> 16
+                let nextSnap = 16;
+                if (currentSnap === 16) nextSnap = 8;
+                else if (currentSnap === 8) nextSnap = 4;
+                else if (currentSnap === 4) nextSnap = 0;
+                else if (currentSnap === 0) nextSnap = 16;
+                window.SEQUENCER_SNAP_VALUE = nextSnap;
+                const snapLabel = nextSnap === 0 ? 'Off' : (nextSnap === 4 ? '1/4' : (nextSnap === 8 ? '1/8' : '1/16'));
+                snapBtn.textContent = `Snap: ${snapLabel}`;
+                showNotification(`Snap set to ${snapLabel}`, 1500);
+            });
+        }
+
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
             if (targetCell) {
-                const row = parseInt(targetCell.dataset.row, 10); const col = parseInt(targetCell.dataset.col, 10);
+                let row = parseInt(targetCell.dataset.row, 10); let col = parseInt(targetCell.dataset.col, 10);
                 const currentActiveSeq = track.getActiveSequence();
                 if (!currentActiveSeq || !currentActiveSeq.data) return;
+
+                // Apply snap quantization if enabled
+                const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
+                if (snapValue > 0) {
+                    // Snap the column to the nearest snap point
+                    const nearestSnapCol = Math.round(col / snapValue) * snapValue;
+                    if (nearestSnapCol !== col) {
+                        // Find the actual cell at the snapped position
+                        const snappedCell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${nearestSnapCol}"]`);
+                        if (snappedCell) {
+                            col = nearestSnapCol;
+                        }
+                    }
+                }
 
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                     if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
@@ -1544,11 +1580,19 @@ export function openTimelineWindow(savedState = null) {
         }
     }
 
-    // Create timeline content
+    // Create timeline content with zoom controls
     const timelineContent = `
         <div id="timeline-container">
             <div id="timeline-header">
-                <div id="timeline-ruler"></div>
+                <div id="timeline-ruler-container" style="display: flex; align-items: center;">
+                    <div id="timeline-zoom-controls" style="display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: #2a2a2a; border-right: 1px solid #3a3a3a;">
+                        <button id="timeline-zoom-out" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom out (-)">−</button>
+                        <span id="timeline-zoom-level" style="font-size: 10px; color: #aaa; min-width: 32px; text-align: center;">100%</span>
+                        <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
+                        <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
+                    </div>
+                    <div id="timeline-ruler" style="flex: 1; overflow: hidden;"></div>
+                </div>
             </div>
             <div id="timeline-tracks-container">
                 <div id="timeline-tracks-area">
@@ -1568,11 +1612,71 @@ export function openTimelineWindow(savedState = null) {
             { width: 900, height: 400, x: 50, y: 50 },
         );
         
+        // Setup zoom controls after window is created
+        setupTimelineZoomControls(timelineWindow.element);
+        
         // Render tracks in timeline
         renderTimeline();
     } else {
         console.error('createWindow service not available');
     }
+}
+
+function setupTimelineZoomControls(timelineElement) {
+    // Zoom in button
+    const zoomInBtn = timelineElement.querySelector('#timeline-zoom-in');
+    const zoomOutBtn = timelineElement.querySelector('#timeline-zoom-out');
+    const zoomResetBtn = timelineElement.querySelector('#timeline-zoom-reset');
+    const zoomLevelDisplay = timelineElement.querySelector('#timeline-zoom-level');
+    const ruler = timelineElement.querySelector('#timeline-ruler');
+    const tracksArea = timelineElement.querySelector('#timeline-tracks-area');
+    const tracksContainer = timelineElement.querySelector('#timeline-tracks-container');
+    
+    if (!zoomInBtn || !zoomOutBtn || !ruler || !tracksArea) {
+        console.warn('[Timeline] Zoom control elements not found');
+        return;
+    }
+    
+    function applyZoom(newZoom) {
+        timelineZoomLevel = Math.min(4, Math.max(0.25, newZoom));
+        const zoomPercent = Math.round(timelineZoomLevel * 100);
+        if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${zoomPercent}%`;
+        
+        // Update ruler background size
+        ruler.style.backgroundSize = `${120 * timelineZoomLevel}px 100%, ${30 * timelineZoomLevel}px 100%`;
+        
+        // Update tracks area width
+        tracksArea.style.width = `${4000 * timelineZoomLevel}px`;
+        
+        // Sync horizontal scroll
+        if (tracksContainer && ruler.parentElement) {
+            tracksContainer.scrollLeft = ruler.parentElement.scrollLeft;
+        }
+        
+        showNotification(`Zoom: ${zoomPercent}%`, 800);
+    }
+    
+    zoomInBtn.addEventListener('click', () => applyZoom(timelineZoomLevel * 1.5));
+    zoomOutBtn.addEventListener('click', () => applyZoom(timelineZoomLevel / 1.5));
+    zoomResetBtn.addEventListener('click', () => applyZoom(1.0));
+    
+    // Scroll wheel zoom on the tracks container
+    tracksContainer.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.8 : 1.25;
+            applyZoom(timelineZoomLevel * delta);
+        }
+    }, { passive: false });
+    
+    // Sync scroll between ruler and tracks
+    tracksContainer.addEventListener('scroll', () => {
+        ruler.parentElement.scrollLeft = tracksContainer.scrollLeft;
+        timelineScrollX = tracksContainer.scrollLeft;
+    });
+    
+    // Initial zoom display
+    applyZoom(timelineZoomLevel);
 }
 
 export function renderTimeline() {
