@@ -22,6 +22,8 @@ import {
     getActiveMIDIInputState
 } from './state.js';
 
+import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn } from './audio.js';
+
 let localAppServices = {};
 let transportKeepAliveBufferSource = null;
 let silentKeepAliveBuffer = null;
@@ -207,30 +209,49 @@ export function attachGlobalControlEvents(elements) {
                     if (!wasPaused) transport.position = 0;
 
                     console.log(`[EventHandlers Play/Resume] Starting/Resuming from ${startTime.toFixed(2)}s.`);
-                    transport.loop = true; 
-                    transport.loopStart = 0;
-                    transport.loopEnd = 3600; 
 
-                    if (!silentKeepAliveBuffer && Tone.context) {
-                        try {
-                            silentKeepAliveBuffer = Tone.context.createBuffer(1, 1, Tone.context.sampleRate);
-                            silentKeepAliveBuffer.getChannelData(0)[0] = 0;
-                        } catch (e) { console.error("Error creating silent buffer:", e); silentKeepAliveBuffer = null; }
-                    }
-                    if (silentKeepAliveBuffer) {
-                        transportKeepAliveBufferSource = new Tone.BufferSource(silentKeepAliveBuffer).toDestination();
-                        transportKeepAliveBufferSource.loop = true;
-                        transportKeepAliveBufferSource.start(Tone.now() + 0.02, 0, transport.loopEnd);
-                    }
+                    const countInBars = getCountInBars();
+                    const metronomeOn = isMetronomeEnabled();
 
-                    for (const track of tracks) {
-                        if (typeof track.schedulePlayback === 'function') {
-                            await track.schedulePlayback(startTime, transport.loopEnd);
+                    // Helper function to actually start playback
+                    const doStartPlayback = () => {
+                        transport.loop = true; 
+                        transport.loopStart = 0;
+                        transport.loopEnd = 3600; 
+
+                        if (!silentKeepAliveBuffer && Tone.context) {
+                            try {
+                                silentKeepAliveBuffer = Tone.context.createBuffer(1, 1, Tone.context.sampleRate);
+                                silentKeepAliveBuffer.getChannelData(0)[0] = 0;
+                            } catch (e) { console.error("Error creating silent buffer:", e); silentKeepAliveBuffer = null; }
                         }
+                        if (silentKeepAliveBuffer) {
+                            transportKeepAliveBufferSource = new Tone.BufferSource(silentKeepAliveBuffer).toDestination();
+                            transportKeepAliveBufferSource.loop = true;
+                            transportKeepAliveBufferSource.loopEnd = 3600;
+                            transportKeepAliveBufferSource.start(Tone.now() + 0.02, 0, transport.loopEnd);
+                        }
+
+                        for (const track of tracks) {
+                            if (typeof track.schedulePlayback === 'function') {
+                                await track.schedulePlayback(startTime, transport.loopEnd);
+                            }
+                        }
+                        transport.start(Tone.now() + 0.05, startTime);
+                        playBtnGlobal.textContent = 'Pause';
+                        playBtnGlobal.classList.add('playing');
+                    };
+
+                    if (countInBars > 0 && !wasPaused && metronomeOn) {
+                        // Count-in before playback: schedule count-in then start
+                        showNotification(`Count-in: ${countInBars} bar${countInBars > 1 ? 's' : ''}...`, 1500);
+                        startCountIn(() => {
+                            doStartPlayback();
+                        }, 0);
+                    } else {
+                        // No count-in, start immediately
+                        doStartPlayback();
                     }
-                    transport.start(Tone.now() + 0.05, startTime);
-                    playBtnGlobal.textContent = 'Pause';
-                    playBtnGlobal.classList.add('playing');
                 } else { 
                     console.log(`[EventHandlers Play/Resume] Pausing transport.`);
                     transport.pause();
@@ -477,7 +498,7 @@ export function selectMIDIInput(deviceId, silent = false) {
         }
     } catch (error) {
         console.error("[EventHandlers selectMIDIInput] Error:", error);
-        if (!silent && localAppServices.showNotification) showNotification("Error selecting MIDI input.", 3000);
+        if (!silent && localAppServices.showNotification) localAppServices.showNotification("Error selecting MIDI input.", 3000);
     }
 }
 

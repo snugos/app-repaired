@@ -74,3 +74,6 @@ Need to create `.github/workflows/deploy.yml` that:
 - **Global controls bar**: Added "Metronome" toggle button between Master meter and MIDI/KBD indicators. Blue active state when on.
 - **Bug fixes**: Fixed typos `isReconstructinging` → `isReconstructing` in main.js.
 - **Version**: Bumped to 0.2.0 in `constants.js`.
+
+### 2026-04-17 — Day 2
+- **Count-in before playback** (`audio.js`, `eventHandlers.js`, `index.html`, `main.js`): Added configurable count-in (1, 2, or 4 bars) that plays before transport starts. Uses existing metronome clicks during count-in. Only triggers on fresh start (not resume from pause). Selector dropdown in global controls bar next to Metronome button. Functions added to `audio.js`: `getCountInBars()`, `setCountInBars()`, `isCountInActive()`, `startCountIn()`, `cleanupCountIn()`.

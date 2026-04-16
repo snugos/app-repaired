@@ -897,7 +897,7 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
             console.log(`[Audio Fetch DEBUG] Calling setLoadedZipFilesState for ${libraryName} (loadedZips) with keys:`, Object.keys(latestLoadedZipsAfterLoad));
             localAppServices.setLoadedZipFilesState(latestLoadedZipsAfterLoad);
         } else {
-            console.error(`[Audio Fetch ERROR] localAppServices.setLoadedZipFilesState is UNDEFINED for ${libraryName} (loadedZips)`);
+            console.error(`[Audio Fetch ERROR] localAppServices.setLoadedZipFilesState is UNDEFINED from ${libraryName} (loadedZips)`);
         }
 
 
@@ -1309,8 +1309,15 @@ let metronomeEnabled = false;
 let metronomeSynth = null;
 let metronomeScheduledId = null;
 let _metronomeVolume = 0.25; // -12dB roughly
+let countInActive = false;
+let countInScheduledId = null;
+let countInBars = 1; // Default 1 bar count-in
 
 export function isMetronomeEnabled() { return metronomeEnabled; }
+
+export function getCountInBars() { return countInBars; }
+export function setCountInBars(bars) { countInBars = Math.max(0, Math.min(4, Math.floor(bars))); }
+export function isCountInActive() { return countInActive; }
 
 export function setMetronomeEnabled(enabled) {
     if (enabled === metronomeEnabled) return;
@@ -1391,4 +1398,39 @@ export function cleanupMetronome() {
         try { metronomeSynth.dispose(); } catch(e){}
         metronomeSynth = null;
     }
+}
+
+export function cleanupCountIn() {
+    if (countInScheduledId !== null) {
+        try { Tone.Transport.clear(countInScheduledId); } catch(e){}
+        countInScheduledId = null;
+    }
+    countInActive = false;
+}
+
+export function startCountIn(onCountInComplete, startPosition = 0) {
+    if (countInBars <= 0) {
+        if (onCountInComplete) onCountInComplete();
+        return;
+    }
+    if (!Tone.context || Tone.context.state !== 'running') {
+        console.warn('[CountIn] Cannot start: audio context not running.');
+        if (onCountInComplete) onCountInComplete();
+        return;
+    }
+
+    cleanupCountIn();
+    countInActive = true;
+    const barsPerBeat = 4;
+    const totalSixteenths = countInBars * barsPerBeat * 4;
+
+    countInScheduledId = Tone.Transport.schedule((time) => {
+        countInActive = false;
+        countInScheduledId = null;
+        if (onCountInComplete) {
+            Tone.getTransport().schedule((t) => { onCountInComplete(); }, time);
+        }
+    }, `+0:${totalSixteenths}:0`);
+
+    console.log(`[CountIn] Started ${countInBars} bar count-in, scheduled to complete at ${totalSixteenths} sixteenths. ID:`, countInScheduledId);
 }

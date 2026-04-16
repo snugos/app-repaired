@@ -60,7 +60,9 @@ import {
     startAudioRecording,
     stopAudioRecording,
     isMetronomeEnabled,
-    setMetronomeEnabled
+    setMetronomeEnabled,
+    setCountInBars,
+    getCountInBars
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -465,7 +467,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -485,7 +487,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -501,8 +503,8 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructConstruct && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -525,8 +527,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -791,6 +793,25 @@ async function initializeSnugOS() {
             }
         };
         attachMetronomeHandler();
+
+        // Count-in select dropdown handler
+        const attachCountInHandler = () => {
+            const countInSelect = document.getElementById('countInSelectGlobal');
+            if (countInSelect) {
+                countInSelect.addEventListener('change', (e) => {
+                    const bars = parseInt(e.target.value, 10);
+                    if (typeof setCountInBars === 'function') {
+                        setCountInBars(bars);
+                        console.log(`[Main] Count-in set to ${bars} bar(s)`);
+                    }
+                });
+                console.log("[Main] Count-in dropdown handler attached");
+            } else {
+                console.warn("[Main] Count-in select not found in DOM, retrying...");
+                setTimeout(attachCountInHandler, 500);
+            }
+        };
+        attachCountInHandler();
 
         // Restore saved background (image or video)
         await restoreDesktopBackground();

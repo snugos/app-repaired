@@ -33,6 +33,8 @@ export const samplerMIDINoteStart = 36; // C2, used for mapping MIDI notes to sa
 
 export const defaultVelocity = 0.7; // Default velocity for new notes
 
+export const DEFAULT_COUNT_IN_BARS = 1; // Number of bars for count-in (0 = off)
+
 export const defaultDesktopBg = '#101010'; // Matches style.css body background
 
 export const MAX_HISTORY_STATES = 50; // Increased from 30 for more undo/redo capacity
