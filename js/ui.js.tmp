@@ -1,3 +1,0 @@
-export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
-    // Implementation would highlight the current step in the sequencer
-}
