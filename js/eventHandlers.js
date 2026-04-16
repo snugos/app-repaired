@@ -1,6 +1,6 @@
 // js/eventHandlers.js - Global Event Listeners and Input Handling Module
 import * as Constants from './constants.js';
-import { showNotification, showConfirmationDialog, createContextMenu } from './utils.js';
+import { showNotification, showConfirmationDialog, createContextMenu, showCustomModal } from './utils.js';
 import {
     getTracksState as getTracks,
     getTrackByIdState as getTrackById,
@@ -157,7 +157,16 @@ export function attachGlobalControlEvents(elements) {
         console.error("[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.");
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, shortcutsBtnGlobal } = elements;
+
+    // Shortcuts button
+    if (shortcutsBtnGlobal) {
+        shortcutsBtnGlobal.addEventListener('click', () => {
+            showKeyboardShortcutsModal();
+        });
+    } else {
+        console.warn("[EventHandlers] shortcutsBtnGlobal not found in provided elements.");
+    }
 
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
@@ -611,6 +620,26 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // Tab - cycle through armed tracks
+        if (key === 'tab' && !(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA'))) {
+            event.preventDefault();
+            const tracks = getTracks().filter(t => t && t.instrument && !t.instrument.disposed);
+            if (tracks.length === 0) return;
+            const currentArmedId = getArmedTrackId();
+            const currentIdx = currentArmedId ? tracks.findIndex(t => t.id === currentArmedId) : -1;
+            const direction = event.shiftKey ? -1 : 1;
+            const nextIdx = currentIdx === -1 ? 0 : (currentIdx + direction + tracks.length) % tracks.length;
+            setArmedTrackId(tracks[nextIdx].id);
+            showNotification(`Armed: ${tracks[nextIdx].name}`, 1000);
+            return;
+        }
+
+        // ? - show keyboard shortcuts
+        if (key === '?') {
+            showKeyboardShortcutsModal();
+            return;
+        }
+
         let midiNote = keyToMIDIMap[event.key]; 
         if (midiNote === undefined && keyToMIDIMap[key]) midiNote = keyToMIDIMap[key]; 
 
@@ -679,6 +708,50 @@ document.addEventListener('keyup', (event) => {
     }
 });
 
+
+// --- Keyboard Shortcuts Overlay ---
+export function showKeyboardShortcutsModal() {
+    const shortcuts = [
+        { section: "Transport", items: [
+            { keys: "Space", desc: "Play / Pause" },
+            { keys: "Enter", desc: "Stop and Rewind" },
+        ]},
+        { section: "Track Navigation", items: [
+            { keys: "Tab", desc: "Cycle to next armed track" },
+            { keys: "Shift+Tab", desc: "Cycle to previous armed track" },
+        ]},
+        { section: "Keyboard Input", items: [
+            { keys: "A–Z, 0–9", desc: "Play note on armed track (piano keyboard)" },
+            { keys: "Z / X", desc: "Octave shift down / up" },
+        ]},
+        { section: "Undo / Redo", items: [
+            { keys: "Ctrl+Z", desc: "Undo" },
+            { keys: "Ctrl+Y", desc: "Redo" },
+        ]},
+        { section: "General", items: [
+            { keys: "?", desc: "Show this shortcut overlay" },
+            { keys: "Esc", desc: "Close modal / blur input" },
+        ]},
+    ];
+
+    let html = `<div style="font-size:0.85rem; min-width: 300px;">`;
+    shortcuts.forEach(section => {
+        html += `<div style="margin-bottom:12px;">
+            <div style="color:#00b0b0; font-weight:bold; margin-bottom:6px; border-bottom:1px solid #3a3a3a; padding-bottom:3px;">${section.section}</div>`;
+        section.items.forEach(item => {
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#c0c0c0;">
+                <span style="color:#e0e0e0; font-family:monospace; background:#2a2a2a; padding:2px 8px; border-radius:3px; border:1px solid #4a4a4a; min-width:100px; text-align:center;">${item.keys}</span>
+                <span style="flex:1; text-align:right; margin-right:10px;">${item.desc}</span>
+            </div>`;
+        });
+        html += `</div>`;
+    });
+    html += `</div>`;
+
+    showCustomModal("Keyboard Shortcuts", html, [
+        { text: "Close", action: () => {} }
+    ], 'keyboard-shortcuts-modal');
+}
 
 // --- Track Control Handlers ---
 export function handleTrackMute(trackId) {

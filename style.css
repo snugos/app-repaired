@@ -799,3 +799,11 @@ input::placeholder,
     box-shadow: 0 0 10px rgba(149, 125, 173, 0.5);
     z-index: 10;
 }
+
+.keyboard-shortcuts-modal .modal-dialog {
+    min-width: 400px;
+    max-width: 500px;
+}
+.keyboard-shortcuts-modal .modal-title-bar {
+    text-align: center;
+}
