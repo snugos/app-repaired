@@ -86,7 +86,7 @@ export const AVAILABLE_EFFECTS = {
         toneClass: 'Chorus',
         params: [
             { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 1.5, decimals: 1, displaySuffix: 'Hz', isSignal: true },
-            { key: 'delayTime', label: 'Delay', type: 'knob', min: 0.5, max: 20, step: 0.1, defaultValue: 3.5, decimals: 1, displaySuffix: 'ms', isSignal: false }, 
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 0.5, max: 20, step: 0.1, defaultValue: 3.5, decimals: 1, displaySuffix: 's', isSignal: false }, 
             { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.7, decimals: 2, isSignal: false }, 
             { key: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 0.99, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: true },
             { key: 'spread', label: 'Spread', type: 'knob', min: 0, max: 180, step: 1, defaultValue: 180, decimals: 0, displaySuffix: '°', isSignal: false }, 
@@ -101,6 +101,14 @@ export const AVAILABLE_EFFECTS = {
             { key: 'distortion', label: 'Amount', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.4, decimals: 2, isSignal: false }, 
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
             { key: 'oversample', label: 'Oversample', type: 'select', options: ['none', '2x', '4x'], defaultValue: 'none', isSignal: false }
+        ]
+    },
+    Delay: {
+        displayName: 'Delay',
+        toneClass: 'Delay',
+        params: [
+            { key: 'delayTime', label: 'Time', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.3, decimals: 3, displaySuffix: 's', isSignal: true },
+            { key: 'maxDelay', label: 'Max Delay', type: 'knob', min: 0.001, max: 2, step: 0.001, defaultValue: 1, decimals: 3, displaySuffix: 's', isSignal: false },
         ]
     },
     FeedbackDelay: {
