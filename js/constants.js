@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.4.0"; // Timeline clip rendering with draggable/resizable clips
+export const APP_VERSION = "0.5.0"; // Project rename feature, wiring project name through state/save/load
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks

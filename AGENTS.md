@@ -144,3 +144,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 18
 - **Add Missing Delay Effect** (`js/effectsRegistry.js`): Added the missing `Delay` effect (basic delay with Time and Max Delay parameters) to the effects registry alongside the existing FeedbackDelay and PingPongDelay. Also fixed the Chorus effect's Delay parameter — it was using 'ms' suffix but default value 3.5ms is too small for Tone.js Chorus which expects seconds, so changed to 's' suffix with appropriate range (0.5-20s).
+
+### 2026-04-17 — Day 19
+- **Project Rename** (`index.html`, `js/state.js`, `js/main.js`): Wired up the `projectNameBtnGlobal` button that was already in the HTML but had no handler. Added `projectNameState` variable to state.js with `getProjectNameState()` and `setProjectNameState(name)` functions. Project name is now saved in `gatherProjectDataInternal()` and restored in `reconstructDAWInternal()`. Added `updateProjectNameDisplay(name)` to appServices for UI updates. Click the project name button in the global controls bar to rename via prompt dialog. Version bumped to 0.5.0.

@@ -61,6 +61,8 @@ import {
     clearRecentlyPlayed,
     // Loop Region
     setLoopRegion, setLoopRegionEnabled, isLoopRegionEnabled, getLoopStartBars, getLoopEndBars,
+    // Project Name
+    getProjectNameState, setProjectNameState,
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
@@ -187,8 +189,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -207,7 +209,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -224,7 +226,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -248,8 +250,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -299,6 +301,11 @@ import {
             console.warn("[Main appServices.onPlaybackModeChange] Playback mode toggle button not found in UI cache.");
         }
         if (appServices.renderTimeline && typeof appServices.renderTimeline === 'function') appServices.renderTimeline();
+    },
+    updateProjectNameDisplay: (name) => {
+        if (uiElementsCache.projectNameBtnGlobal) {
+            uiElementsCache.projectNameBtnGlobal.textContent = name || 'Untitled Project';
+        }
     },
     renameTrackInState
 };
@@ -448,7 +455,8 @@ async function initializeSnugOS() {
             loopEndInputGlobal: document.getElementById('loopEndInputGlobal'),
             punchToggleBtnGlobal: document.getElementById('punchToggleBtnGlobal'),
             punchInInputGlobal: document.getElementById('punchInInputGlobal'),
-            punchOutInputGlobal: document.getElementById('punchOutInputGlobal')
+            punchOutInputGlobal: document.getElementById('punchOutInputGlobal'),
+            projectNameBtnGlobal: document.getElementById('projectNameBtnGlobal')
         };
         
         // Add to cache
@@ -680,8 +688,30 @@ async function initializeSnugOS() {
         };
         attachPunchRegionHandler();
 
-        // Restore saved background (image or video)
-        await restoreDesktopBackground();
+        // Project name button handler - click to rename
+        const attachProjectNameHandler = () => {
+            const projectNameBtn = uiElementsCache.projectNameBtnGlobal;
+            if (projectNameBtn) {
+                projectNameBtn.addEventListener('click', () => {
+                    const currentName = getProjectNameState ? getProjectNameState() : 'Untitled Project';
+                    const newName = prompt('Enter project name:', currentName);
+                    if (newName !== null && newName.trim()) {
+                        const trimmedName = newName.trim();
+                        if (typeof setProjectNameState === 'function') {
+                            setProjectNameState(trimmedName);
+                        }
+                        projectNameBtn.textContent = trimmedName;
+                        projectNameBtn.title = 'Rename Project';
+                        showSafeNotification(`Project renamed to "${trimmedName}"`, 1500);
+                    }
+                });
+                console.log("[Main] Project name handler attached");
+            } else {
+                console.warn("[Main] Project name button not found in cache, retrying...");
+                setTimeout(attachProjectNameHandler, 500);
+            }
+        };
+        attachProjectNameHandler();
 
         if (typeof initializeStateModule === 'function') initializeStateModule(appServices); else console.error("initializeStateModule is not a function");
         if (typeof initializeUIModule === 'function') initializeUIModule(appServices); else console.error("initializeUIModule is not a function");

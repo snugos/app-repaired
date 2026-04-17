@@ -9,6 +9,9 @@ import {
 } from './audio.js';
 // import { getAudio, storeAudio } from './db.js'; // Not directly used in this file after refactor to Track class
 
+// --- Project Metadata ---
+let projectNameState = 'Untitled Project';
+
 // --- Centralized State Variables ---
 let tracks = [];
 let trackIdCounter = 0;
@@ -129,6 +132,8 @@ export function getActiveSequencerTrackIdState() { return activeSequencerTrackId
 export function getUndoStackState() { return undoStack; }
 export function getRedoStackState() { return redoStack; }
 export function getPlaybackModeState() { return globalPlaybackMode; }
+export function getProjectNameState() { return projectNameState; }
+export function setProjectNameState(name) { projectNameState = typeof name === 'string' && name.trim() ? name.trim() : 'Untitled Project'; }
 
 
 // --- Setters for Centralized State (called internally or via appServices) ---
@@ -542,6 +547,7 @@ export function gatherProjectDataInternal() {
     try {
         const projectData = {
             version: Constants.APP_VERSION || "5.9.1", // Use a constant for app version
+            projectName: getProjectNameState(),
             globalSettings: {
                 tempo: Tone.Transport.bpm.value,
                 masterVolume: getMasterGainValueState(),
@@ -677,11 +683,16 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
 
     try { // --- Global Settings ---
         const gs = projectData.globalSettings || {};
+        // Restore project name if saved
+        if (projectData.projectName) {
+            setProjectNameState(projectData.projectName);
+            if (appServices.updateProjectNameDisplay) appServices.updateProjectNameDisplay(projectData.projectName);
+        }
         Tone.Transport.bpm.value = Number.isFinite(gs.tempo) ? gs.tempo : 120;
         setMasterGainValueState(Number.isFinite(gs.masterVolume) ? gs.masterVolume : Tone.dbToGain(0));
-        if (appServices.setActualMasterVolume) appServices.setActualMasterVolume(getMasterGainValueState());
+        if (appServices && typeof appServices.setActualMasterVolume === 'function') appServices.setActualMasterVolume(getMasterGainValueState());
         setPlaybackModeStateInternal(gs.playbackMode === 'timeline' || gs.playbackMode === 'sequencer' ? gs.playbackMode : 'sequencer');
-        if (appServices.updateTaskbarTempoDisplay) appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
+        if (appServices && typeof appServices.updateTaskbarTempoDisplay === 'function') appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
         setHighestZState(Number.isFinite(gs.highestZIndex) ? gs.highestZIndex : 100);
         // Armed and Soloed will be set after tracks are created
     } catch (error) {
