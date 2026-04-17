@@ -108,7 +108,7 @@ export function getPreviewPlayerState() { return previewPlayerGlobal; }
 export function getClipboardDataState() { return clipboardDataGlobal; }
 
 export function getArmedTrackIdState() { return armedTrackId; }
-export function getSoloedTrackIdState() { return soloedTrackId; }
+export function setSoloedTrackIdState(id) { soloedTrackId = id; }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
 export function getRecordingStartTimeState() { 
@@ -1121,6 +1121,9 @@ export async function exportStemsInternal() {
 // --- Auto-Save to LocalStorage ---
 const AUTOSAVE_KEY = 'snugosAutosave';
 const AUTOSAVE_TIMESTAMP_KEY = 'snugosAutosaveTimestamp';
+const FAVORITES_KEY = 'snugosFavorites';
+const RECENTLY_PLAYED_KEY = 'snugosRecentlyPlayed';
+const MAX_RECENTLY_PLAYED = 20;
 const AUTOSAVE_INTERVAL_MS = 120000; // 2 minutes
 
 let autoSaveIntervalId = null;
@@ -1196,6 +1199,103 @@ export function clearAutoSavedProject() {
     localStorage.removeItem(AUTOSAVE_TIMESTAMP_KEY);
     console.log("[State] Auto-saved project cleared");
 }
+
+// --- Favorites and Recently Played for Sound Browser ---
+let favoriteSoundsGlobal = [];
+let recentlyPlayedGlobal = [];
+
+function loadFavoritesFromStorage() {
+    try {
+        const stored = localStorage.getItem(FAVORITES_KEY);
+        if (stored) {
+            favoriteSoundsGlobal = JSON.parse(stored);
+            console.log("[State] Favorites loaded:", favoriteSoundsGlobal.length);
+        }
+    } catch (e) {
+        console.warn("[State] Error loading favorites:", e);
+        favoriteSoundsGlobal = [];
+    }
+}
+
+function saveFavoritesToStorage() {
+    try {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteSoundsGlobal));
+    } catch (e) {
+        console.warn("[State] Error saving favorites:", e);
+    }
+}
+
+function makeSoundKey(sound) {
+    return `${sound.libraryName}:${sound.fullPath}`;
+}
+
+export function getFavoriteSounds() {
+    if (favoriteSoundsGlobal.length === 0) loadFavoritesFromStorage();
+    return [...favoriteSoundsGlobal];
+}
+
+export function isFavorite(sound) {
+    if (favoriteSoundsGlobal.length === 0) loadFavoritesFromStorage();
+    const key = makeSoundKey(sound);
+    return favoriteSoundsGlobal.some(f => makeSoundKey(f) === key);
+}
+
+export function toggleFavorite(sound) {
+    if (favoriteSoundsGlobal.length === 0) loadFavoritesFromStorage();
+    const key = makeSoundKey(sound);
+    const idx = favoriteSoundsGlobal.findIndex(f => makeSoundKey(f) === key);
+    if (idx >= 0) {
+        favoriteSoundsGlobal.splice(idx, 1);
+        console.log("[State] Removed from favorites:", sound.fileName);
+    } else {
+        favoriteSoundsGlobal.push({ ...sound, addedAt: Date.now() });
+        console.log("[State] Added to favorites:", sound.fileName);
+    }
+    saveFavoritesToStorage();
+    return idx >= 0; // returns true if was favorite (now removed), false if added
+}
+
+export function addToRecentlyPlayed(sound) {
+    try {
+        const stored = localStorage.getItem(RECENTLY_PLAYED_KEY);
+        recentlyPlayedGlobal = stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        recentlyPlayedGlobal = [];
+    }
+    const key = makeSoundKey(sound);
+    // Remove if already exists (to move to top)
+    recentlyPlayedGlobal = recentlyPlayedGlobal.filter(f => makeSoundKey(f) !== key);
+    // Add to front
+    recentlyPlayedGlobal.unshift({ ...sound, playedAt: Date.now() });
+    // Trim to max
+    if (recentlyPlayedGlobal.length > MAX_RECENTLY_PLAYED) {
+        recentlyPlayedGlobal = recentlyPlayedGlobal.slice(0, MAX_RECENTLY_PLAYED);
+    }
+    try {
+        localStorage.setItem(RECENTLY_PLAYED_KEY, JSON.stringify(recentlyPlayedGlobal));
+    } catch (e) {
+        console.warn("[State] Error saving recently played:", e);
+    }
+}
+
+export function getRecentlyPlayedSounds() {
+    try {
+        const stored = localStorage.getItem(RECENTLY_PLAYED_KEY);
+        recentlyPlayedGlobal = stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        recentlyPlayedGlobal = [];
+    }
+    return [...recentlyPlayedGlobal];
+}
+
+export function clearRecentlyPlayed() {
+    recentlyPlayedGlobal = [];
+    localStorage.removeItem(RECENTLY_PLAYED_KEY);
+    console.log("[State] Recently played cleared");
+}
+
+// Initialize favorites on load
+loadFavoritesFromStorage();
 
 
 // Helper function to convert AudioBuffer to WAV

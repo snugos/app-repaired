@@ -20,6 +20,9 @@ let soundBrowserSearchQuery = ''; // Search/filter query for the sound browser
 let timelineZoomLevel = 1.0; // Timeline zoom: 1.0 = default, higher = zoomed in
 let timelineScrollX = 0; // Horizontal scroll offset for timeline
 
+// Sound Browser tab state: 'browse' | 'favorites' | 'recent'
+    let soundBrowserActiveTab = 'browse';
+
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
 
@@ -779,7 +782,7 @@ export function openSoundBrowserWindow(savedState = null) {
         return win;
     }
 
-    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300"> <div class="flex space-x-1 mb-1"> <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="">Select Library...</option> </select> <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button> </div> <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div> <div id="soundBrowserSearchContainer" class="mb-1"> <input type="text" id="soundBrowserSearchInput" placeholder="🔍 Search sounds..." class="w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-400"> </div> <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto"> <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p> </div> <div id="soundPreviewControls" class="mt-1 text-center"> <button id="previewSoundBtn" class="px-2 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>Preview</button> </div> </div>`;
+    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300"> <div id="soundBrowserTabs" class="flex border-b border-gray-300 dark:border-slate-600 mb-1"> <button id="tabBrowse" class="tab-btn flex-1 py-1 text-xs font-semibold border-b-2 border-purple-500 text-purple-600 dark:text-purple-400">Browse</button> <button id="tabFavorites" class="tab-btn flex-1 py-1 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400">⭐ Favorites</button> <button id="tabRecent" class="tab-btn flex-1 py-1 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400">🕐 Recent</button> </div> <div id="browseControls" class="space-y-1"> <div class="flex space-x-1"> <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="">Select Library...</option> </select> <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button> </div> <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate">/</div> <div id="soundBrowserSearchContainer"> <input type="text" id="soundBrowserSearchInput" placeholder="🔍 Search sounds..." class="w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-400"> </div> </div> <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto"> <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p> </div> <div id="soundPreviewControls" class="mt-1 text-center"> <button id="previewSoundBtn" class="px-2 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>Preview</button> </div> </div>`;
     const browserOptions = { width: 380, height: 450, minWidth: 300, minHeight: 300, initialContentKey: windowId };
     if (savedState) Object.assign(browserOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
 
@@ -833,8 +836,68 @@ export function openSoundBrowserWindow(savedState = null) {
             }
         });
 
-        // Search/filter input for sound browser
+        // Tab click handlers
+        const tabBrowse = browserWindow.element.querySelector('#tabBrowse');
+        const tabFavorites = browserWindow.element.querySelector('#tabFavorites');
+        const tabRecent = browserWindow.element.querySelector('#tabRecent');
+        const browseControls = browserWindow.element.querySelector('#browseControls');
+        const listDiv = browserWindow.element.querySelector('#soundBrowserList');
+        const pathDisplay = browserWindow.element.querySelector('#currentPathDisplay');
+        const previewBtn = browserWindow.element.querySelector('#previewSoundBtn');
         const searchInput = browserWindow.element.querySelector('#soundBrowserSearchInput');
+        const searchContainer = browserWindow.element.querySelector('#soundBrowserSearchContainer');
+
+        function updateTabStyles() {
+            [tabBrowse, tabFavorites, tabRecent].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('border-b-2', 'border-purple-500', 'text-purple-600', 'dark:text-purple-400', 'font-semibold');
+                    btn.classList.add('text-gray-500', 'dark:text-slate-400');
+                }
+            });
+            const activeBtn = soundBrowserActiveTab === 'browse' ? tabBrowse : soundBrowserActiveTab === 'favorites' ? tabFavorites : tabRecent;
+            if (activeBtn) {
+                activeBtn.classList.add('border-b-2', 'border-purple-500', 'text-purple-600', 'dark:text-purple-400', 'font-semibold');
+                activeBtn.classList.remove('text-gray-500', 'dark:text-slate-400');
+            }
+        }
+
+        function showBrowseTab() {
+            soundBrowserActiveTab = 'browse';
+            browseControls.style.display = '';
+            if (searchContainer) searchContainer.style.display = '';
+            if (pathDisplay) pathDisplay.style.display = '';
+            updateTabStyles();
+            // Restore browse view
+            const currentPath = localAppServices.getCurrentSoundBrowserPath ? localAppServices.getCurrentSoundBrowserPath() : [];
+            const tree = localAppServices.getCurrentSoundFileTree ? localAppServices.getCurrentSoundFileTree() : null;
+            if (tree) renderSoundBrowserDirectoryFiltered(currentPath, tree, soundBrowserSearchQuery);
+            else listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p>';
+        }
+
+        function showFavoritesTab() {
+            soundBrowserActiveTab = 'favorites';
+            browseControls.style.display = 'none';
+            if (searchContainer) searchContainer.style.display = 'none';
+            if (pathDisplay) pathDisplay.style.display = 'none';
+            updateTabStyles();
+            renderSoundBrowserFavorites(listDiv, previewBtn);
+        }
+
+        function showRecentTab() {
+            soundBrowserActiveTab = 'recent';
+            browseControls.style.display = 'none';
+            if (searchContainer) searchContainer.style.display = 'none';
+            if (pathDisplay) pathDisplay.style.display = 'none';
+            updateTabStyles();
+            renderSoundBrowserRecent(listDiv, previewBtn);
+        }
+
+        tabBrowse?.addEventListener('click', showBrowseTab);
+        tabFavorites?.addEventListener('click', showFavoritesTab);
+        tabRecent?.addEventListener('click', showRecentTab);
+        updateTabStyles();
+
+        // Search/filter input for sound browser
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 soundBrowserSearchQuery = e.target.value.toLowerCase().trim();
@@ -855,6 +918,11 @@ export function openSoundBrowserWindow(savedState = null) {
 
             if (selectedSound && typeof Tone !== 'undefined') {
                 const { fullPath, libraryName } = selectedSound;
+                
+                // Add to recently played
+                if (localAppServices.addToRecentlyPlayed) {
+                    localAppServices.addToRecentlyPlayed(selectedSound);
+                }
                 
                 // FIX Bug #5: Check if library is loaded before trying to play
                 const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
@@ -1148,10 +1216,21 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
             });
         }
         else { // File
+            const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
+            const isFav = localAppServices.isFavorite ? localAppServices.isFavorite(soundToSelect) : false;
+            const star = document.createElement('span');
+            star.className = 'mr-0.5 cursor-pointer ' + (isFav ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300');
+            star.textContent = isFav ? '⭐' : '☆';
+            star.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+            star.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(soundToSelect);
+                renderSoundBrowserDirectoryFiltered(pathArray, treeNode, soundBrowserSearchQuery);
+            });
+            listItem.appendChild(star);
             listItem.addEventListener('click', () => {
                 listDiv.querySelectorAll('.bg-blue-200,.dark\\\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
                 listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
-                const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
                 console.log('[UI SoundFile Click] Sound selected:', JSON.stringify(soundToSelect));
                 if (localAppServices.setSelectedSoundForPreview) {
                     localAppServices.setSelectedSoundForPreview(soundToSelect);
@@ -1170,6 +1249,109 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
 
 export function renderSoundBrowserDirectory(pathArray, treeNode) {
     renderSoundBrowserDirectoryFiltered(pathArray, treeNode, '');
+}
+
+export function renderSoundBrowserFavorites(listDiv, previewBtn) {
+    listDiv.innerHTML = '';
+    if (!localAppServices.getFavoriteSounds) {
+        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Favorites not available.</p>';
+        return;
+    }
+    const favorites = localAppServices.getFavoriteSounds();
+    if (favorites.length === 0) {
+        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">No favorites yet. Click ⭐ on any sound to add it.</p>';
+        return;
+    }
+    favorites.forEach(sound => {
+        const item = document.createElement('div');
+        item.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
+        item.draggable = true;
+        const star = document.createElement('span');
+        star.className = 'mr-1 cursor-pointer text-yellow-400 hover:text-yellow-300';
+        star.textContent = '⭐';
+        star.title = 'Remove from favorites';
+        star.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(sound);
+            renderSoundBrowserFavorites(listDiv, previewBtn);
+        });
+        item.appendChild(star);
+        const icon = document.createElement('span');
+        icon.className = 'mr-1.5';
+        icon.textContent = '🎵';
+        item.appendChild(icon);
+        const text = document.createElement('span');
+        text.className = 'flex-grow truncate';
+        text.textContent = sound.fileName;
+        item.appendChild(text);
+        const libTag = document.createElement('span');
+        libTag.className = 'text-[9px] ml-1 text-gray-400 dark:text-slate-500';
+        libTag.textContent = sound.libraryName;
+        item.appendChild(libTag);
+        item.addEventListener('click', () => {
+            listDiv.querySelectorAll('.bg-blue-200,.dark\\:\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
+            item.classList.add('bg-blue-200', 'dark:bg-purple-500');
+            if (localAppServices.setSelectedSoundForPreview) localAppServices.setSelectedSoundForPreview(sound);
+            if (previewBtn) previewBtn.disabled = false;
+        });
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('application/json', JSON.stringify({ fileName: sound.fileName, fullPath: sound.fullPath, libraryName: sound.libraryName, type: 'sound-browser-item' }));
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+        listDiv.appendChild(item);
+    });
+}
+
+export function renderSoundBrowserRecent(listDiv, previewBtn) {
+    listDiv.innerHTML = '';
+    if (!localAppServices.getRecentlyPlayedSounds) {
+        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Recently played not available.</p>';
+        return;
+    }
+    const recent = localAppServices.getRecentlyPlayedSounds();
+    if (recent.length === 0) {
+        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">No recently played sounds. Preview a sound to see it here.</p>';
+        return;
+    }
+    recent.forEach(sound => {
+        const item = document.createElement('div');
+        item.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
+        item.draggable = true;
+        const isFav = localAppServices.isFavorite ? localAppServices.isFavorite(sound) : false;
+        const star = document.createElement('span');
+        star.className = 'mr-1 cursor-pointer hover:text-yellow-300 ' + (isFav ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600');
+        star.textContent = isFav ? '⭐' : '☆';
+        star.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+        star.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(sound);
+            renderSoundBrowserRecent(listDiv, previewBtn);
+        });
+        item.appendChild(star);
+        const icon = document.createElement('span');
+        icon.className = 'mr-1.5';
+        icon.textContent = '🎵';
+        item.appendChild(icon);
+        const text = document.createElement('span');
+        text.className = 'flex-grow truncate';
+        text.textContent = sound.fileName;
+        item.appendChild(text);
+        const libTag = document.createElement('span');
+        libTag.className = 'text-[9px] ml-1 text-gray-400 dark:text-slate-500';
+        libTag.textContent = sound.libraryName;
+        item.appendChild(libTag);
+        item.addEventListener('click', () => {
+            listDiv.querySelectorAll('.bg-blue-200,.dark\\:\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
+            item.classList.add('bg-blue-200', 'dark:bg-purple-500');
+            if (localAppServices.setSelectedSoundForPreview) localAppServices.setSelectedSoundForPreview(sound);
+            if (previewBtn) previewBtn.disabled = false;
+        });
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('application/json', JSON.stringify({ fileName: sound.fileName, fullPath: sound.fullPath, libraryName: sound.libraryName, type: 'sound-browser-item' }));
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+        listDiv.appendChild(item);
+    });
 }
 
 // --- Mixer Window ---

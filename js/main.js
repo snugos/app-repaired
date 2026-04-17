@@ -50,6 +50,12 @@ import {
     clearAutoSave: clearAutoSavedProject,
     hasAutoSavedProject: hasAutoSavedProject,
     getAutoSavedTimestamp: getAutoSavedProjectTimestamp,
+    // Sound Browser Favorites & Recent
+    getFavoriteSounds, isFavorite,
+    toggleFavorite,
+    addToRecentlyPlayed,
+    getRecentlyPlayedSounds,
+    clearRecentlyPlayed,
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
