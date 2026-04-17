@@ -57,6 +57,8 @@ import {
     addToRecentlyPlayed,
     getRecentlyPlayedSounds,
     clearRecentlyPlayed,
+    // Loop Region
+    setLoopRegion, setLoopRegionEnabled, isLoopRegionEnabled, getLoopStartBars, getLoopEndBars,
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
@@ -183,7 +185,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -438,7 +440,10 @@ async function initializeSnugOS() {
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
             shortcutsBtnGlobal: document.getElementById('shortcutsBtnGlobal'),
             playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
-            metronomeBtnGlobal: document.getElementById('metronomeToggleBtnGlobal')
+            metronomeBtnGlobal: document.getElementById('metronomeToggleBtnGlobal'),
+            loopToggleBtnGlobal: document.getElementById('loopToggleBtnGlobal'),
+            loopStartInputGlobal: document.getElementById('loopStartInputGlobal'),
+            loopEndInputGlobal: document.getElementById('loopEndInputGlobal')
         };
         
         // Add to cache
@@ -553,6 +558,53 @@ async function initializeSnugOS() {
             }
         };
         attachTapTempoHandler();
+
+        // Loop Region toggle button handler
+        const attachLoopRegionHandler = () => {
+            const loopToggleBtn = uiElementsCache.loopToggleBtnGlobal;
+            const loopStartInput = uiElementsCache.loopStartInputGlobal;
+            const loopEndInput = uiElementsCache.loopEndInputGlobal;
+            if (loopToggleBtn && loopStartInput && loopEndInput) {
+                loopToggleBtn.addEventListener('click', () => {
+                    const newEnabled = !isLoopRegionEnabled();
+                    setLoopRegionEnabled(newEnabled);
+                    loopToggleBtn.classList.toggle('loop-active', newEnabled);
+                    showSafeNotification(newEnabled ? "Loop ON" : "Loop OFF", 1500);
+                });
+                // Sync button state
+                loopToggleBtn.classList.toggle('loop-active', isLoopRegionEnabled());
+
+                loopStartInput.addEventListener('change', (e) => {
+                    const startBars = parseInt(e.target.value, 10) || 0;
+                    const endBars = parseInt(loopEndInput.value, 10) || 16;
+                    if (setLoopRegion(startBars, endBars)) {
+                        if (isLoopRegionEnabled()) {
+                            Tone.Transport.loopStart = `${startBars}:0:0`;
+                            Tone.Transport.loopEnd = `${endBars}:0:0`;
+                        }
+                        showSafeNotification(`Loop: ${startBars} - ${endBars} bars`, 1000);
+                    }
+                });
+
+                loopEndInput.addEventListener('change', (e) => {
+                    const startBars = parseInt(loopStartInput.value, 10) || 0;
+                    const endBars = parseInt(e.target.value, 10) || 16;
+                    if (setLoopRegion(startBars, endBars)) {
+                        if (isLoopRegionEnabled()) {
+                            Tone.Transport.loopStart = `${startBars}:0:0`;
+                            Tone.Transport.loopEnd = `${endBars}:0:0`;
+                        }
+                        showSafeNotification(`Loop: ${startBars} - ${endBars} bars`, 1000);
+                    }
+                });
+
+                console.log("[Main] Loop region handlers attached");
+            } else {
+                console.warn("[Main] Loop region elements not found in cache, retrying...");
+                setTimeout(attachLoopRegionHandler, 500);
+            }
+        };
+        attachLoopRegionHandler();
 
         // Restore saved background (image or video)
         await restoreDesktopBackground();

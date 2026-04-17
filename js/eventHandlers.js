@@ -649,6 +649,16 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // L - Toggle loop region
+        if (key === 'l') {
+            if (typeof isLoopRegionEnabled === 'function' && typeof setLoopRegionEnabled === 'function') {
+                const newEnabled = !isLoopRegionEnabled();
+                setLoopRegionEnabled(newEnabled);
+                showNotification(newEnabled ? "Loop ON" : "Loop OFF", 1500);
+            }
+            return;
+        }
+
         // S - Toggle snap-to-grid for sequencer
         if (key === 's' && !(event.ctrlKey || event.metaKey)) {
             const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
@@ -745,6 +755,7 @@ export function showKeyboardShortcutsModal() {
             { keys: "Space", desc: "Play / Pause" },
             { keys: "Enter", desc: "Stop and Rewind" },
             { keys: "T", desc: "Tap Tempo" },
+            { keys: "L", desc: "Toggle Loop Region" },
         ]},
         { section: "Track Navigation", items: [
             { keys: "Tab", desc: "Cycle to next armed track" },

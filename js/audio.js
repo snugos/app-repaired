@@ -1505,3 +1505,47 @@ export function getTapTempoBpm() {
 export function isTapTempoReady() {
     return tapTempoTaps.length >= TAP_TEMPO_MIN_TAPS;
 }
+
+// ============================================================
+// LOOP REGION MODULE
+// ============================================================
+let loopRegion = { start: 0, end: 16, enabled: false }; // Loop region in bars
+
+export function getLoopRegion() {
+    return { ...loopRegion };
+}
+
+export function setLoopRegion(startBars, endBars) {
+    if (startBars < 0 || endBars <= startBars || endBars > Constants.MAX_BARS) {
+        console.warn('[LoopRegion] Invalid region:', startBars, endBars);
+        return false;
+    }
+    loopRegion.start = startBars;
+    loopRegion.end = endBars;
+    // Sync Tone.Transport.loop region if enabled
+    Tone.Transport.loop = loopRegion.enabled;
+    if (loopRegion.enabled) {
+        Tone.Transport.loopStart = `${loopRegion.start}:0:0`;
+        Tone.Transport.loopEnd = `${loopRegion.end}:0:0`;
+    }
+    console.log(`[LoopRegion] Set to ${loopRegion.start} - ${loopRegion.end} bars`);
+    return true;
+}
+
+export function setLoopRegionEnabled(enabled) {
+    loopRegion.enabled = !!enabled;
+    Tone.Transport.loop = loopRegion.enabled;
+    if (loopRegion.enabled) {
+        Tone.Transport.loopStart = `${loopRegion.start}:0:0`;
+        Tone.Transport.loopEnd = `${loopRegion.end}:0:0`;
+    }
+    console.log(`[LoopRegion] ${loopRegion.enabled ? 'Enabled' : 'Disabled'}`);
+    return loopRegion.enabled;
+}
+
+export function isLoopRegionEnabled() {
+    return loopRegion.enabled;
+}
+
+export function getLoopStartBars() { return loopRegion.start; }
+export function getLoopEndBars() { return loopRegion.end; }
