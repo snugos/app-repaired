@@ -31,10 +31,21 @@ export const numSlices = 8; // Default number of slices for a new Sampler track
 export const numDrumSamplerPads = 8; // Number of pads for the DrumSampler
 export const samplerMIDINoteStart = 36; // C2, used for mapping MIDI notes to sampler slices/pads
 
-export const defaultVelocity = 0.7; // Default velocity for new notes
-
-export const DEFAULT_COUNT_IN_BARS = 1; // Number of bars for count-in (0 = off)
-
+// Preset track color palette (12 distinct colors for track color coding)
+export const TRACK_COLORS = [
+    '#6366f1', // indigo
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#f43f5e', // rose
+    '#ef4444', // red
+    '#f97316', // orange
+    '#eab308', // yellow
+    '#22c55e', // green
+    '#14b8a6', // teal
+    '#06b6d4', // cyan
+    '#3b82f6', // blue
+    '#a855f7', // purple
+];
 export const defaultDesktopBg = '#101010'; // Matches style.css body background
 
 export const MAX_HISTORY_STATES = 50; // Increased from 30 for more undo/redo capacity

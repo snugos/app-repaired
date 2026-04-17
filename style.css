@@ -819,3 +819,52 @@ input::placeholder,
 .keyboard-shortcuts-modal .modal-title-bar {
     text-align: center;
 }
+
+/* Track color indicator dot */
+.track-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+.track-color-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px;
+    background: #f9f9f9;
+    border-radius: 4px;
+    max-width: 120px;
+}
+.dark .track-color-picker {
+    background: #374151;
+}
+.track-color-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+}
+.track-color-swatch:hover {
+    transform: scale(1.2);
+}
+.track-color-swatch.selected {
+    border-color: #333;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+/* Velocity step classes */
+.vel-100 { background-color: #6d28d9; color: #fff; }
+.vel-90 { background-color: #7c3aed; color: #fff; }
+.vel-80 { background-color: #8b5cf6; color: #fff; }
+.vel-70 { background-color: #a78bfa; color: #fff; }
+.vel-60 { background-color: #c4b5fd; color: #1e1b4b; }
+.vel-50 { background-color: #ddd6fe; color: #1e1b4b; }
+.vel-40 { background-color: #ede9fe; color: #1e1b4b; }
+.vel-30 { background-color: #f5f3ff; color: #1e1b4b; }
+.vel-20 { background-color: #faf5ff; color: #1e1b4b; }
+.vel-10 { background-color: #faf5ff; color: #1e1b4b; }

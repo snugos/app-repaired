@@ -415,7 +415,7 @@ function buildTrackInspectorContentDOM(track) {
             </div>
             <div id="volumeKnob-${track.id}-placeholder" class="mb-1"></div>
             <div id="trackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden my-1">
-                <div id="trackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div>
+                <div id="trackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%; background-color:${track.trackColor || '#6366f1'}"></div>
             </div>
             <div class="type-specific-controls mt-1 border-t dark:border-slate-600 pt-1">${specificControlsHTML}</div>
             <div class="inspector-nav grid ${track.type === 'Audio' ? 'grid-cols-2' : 'grid-cols-3'} gap-1 mt-2">
@@ -509,6 +509,42 @@ function initializeTypeSpecificInspectorControls(track, winEl) {
 }
 
 // --- Modular Effects Rack UI ---
+function showTrackColorPicker(track) {
+    const colors = Constants.TRACK_COLORS || ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#a855f7'];
+    let swatchesHTML = '';
+    colors.forEach(color => {
+        const isSelected = track.trackColor === color;
+        swatchesHTML += `<div class="track-color-swatch ${isSelected ? 'selected' : ''}" 
+            style="background-color:${color}" 
+            data-color="${color}"
+            title="${color}"></div>`;
+    });
+
+    const modal = showCustomModal(`Color for ${track.name}`, 
+        `<div class="track-color-picker">${swatchesHTML}</div>`,
+        [{ label: 'Done', action: () => modal.overlay.remove() }]
+    );
+
+    if (modal?.contentDiv) {
+        modal.contentDiv.querySelectorAll('.track-color-swatch').forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                const newColor = swatch.dataset.color;
+                if (localAppServices.captureStateForUndo) {
+                    localAppServices.captureStateForUndo(`Change track color on ${track.name}`);
+                }
+                track.setTrackColor(newColor);
+                modal.overlay.remove();
+                // Re-render mixer to update color dots
+                const mixerWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('mixer')?.element : null;
+                if (mixerWindowEl) {
+                    const container = mixerWindowEl.querySelector('#mixerContent');
+                    if (container) renderMixer(container);
+                }
+            });
+        });
+    }
+}
+
 function buildModularEffectsRackDOM(owner, ownerType = 'track') {
     const ownerId = (ownerType === 'track' && owner) ? owner.id : 'master';
     const ownerName = (ownerType === 'track' && owner) ? owner.name : 'Master Bus';
@@ -1228,6 +1264,7 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
                 renderSoundBrowserDirectoryFiltered(pathArray, treeNode, soundBrowserSearchQuery);
             });
             listItem.appendChild(star);
+            listItem.innerHTML += `<span class="ml-1 text-[9px] text-gray-400 dark:text-slate-500">${nodeData.libraryName}</span>`;
             listItem.addEventListener('click', () => {
                 listDiv.querySelectorAll('.bg-blue-200,.dark\\\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
                 listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
@@ -1266,10 +1303,11 @@ export function renderSoundBrowserFavorites(listDiv, previewBtn) {
         const item = document.createElement('div');
         item.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
         item.draggable = true;
+        const isFav = localAppServices.isFavorite ? localAppServices.isFavorite(sound) : false;
         const star = document.createElement('span');
-        star.className = 'mr-1 cursor-pointer text-yellow-400 hover:text-yellow-300';
-        star.textContent = '⭐';
-        star.title = 'Remove from favorites';
+        star.className = 'mr-1 cursor-pointer hover:text-yellow-300 ' + (isFav ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600');
+        star.textContent = isFav ? '⭐' : '☆';
+        star.title = isFav ? 'Remove from favorites' : 'Add to favorites';
         star.addEventListener('click', (e) => {
             e.stopPropagation();
             if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(sound);
@@ -1399,11 +1437,22 @@ export function renderMixer(container) {
     tracks.forEach(track => {
         const trackDiv = document.createElement('div');
         trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
-        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="${track.name}">${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-16 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
+        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200 flex items-center" title="${track.name}"><span class="track-color-dot" style="background-color:${track.trackColor || '#6366f1'}" title="Track color"></span>${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-16 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
                 <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'U' : 'M'}</button>
                 <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'U' : 'S'}</button>
-            </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
-        trackDiv.addEventListener('contextmenu', (e) => { e.preventDefault(); createContextMenu(e, [ {label: "Open Inspector", action: () => localAppServices.handleOpenTrackInspector(track.id)}, {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)}, {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)}, {separator: true}, {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)}, {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)}, {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)}, {separator: true}, {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)} ], localAppServices); });
+            </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%; background-color:${track.trackColor || '#6366f1'}"></div> </div>`;
+        trackDiv.addEventListener('contextmenu', (e) => { e.preventDefault(); createContextMenu(e, [
+            {label: "Open Inspector", action: () => localAppServices.handleOpenTrackInspector(track.id)},
+            {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)},
+            {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)},
+            {separator: true},
+            {label: "Change Color...", action: () => showTrackColorPicker(track)},
+            {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)},
+            {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)},
+            {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)},
+            {separator: true},
+            {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)}
+        ], localAppServices); });
         container.appendChild(trackDiv);
         const volKnobPlaceholder = trackDiv.querySelector(`#volumeKnob-mixer-${track.id}-placeholder`);
         if (volKnobPlaceholder) { const volKnob = createKnob({ label: `Vol ${track.id}`, min: 0, max: 1.2, step: 0.01, initialValue: track.previousVolumeBeforeMute, decimals: 2, trackRef: track, onValueChange: (val, o, fromInteraction) => track.setVolume(val, fromInteraction) }); volKnobPlaceholder.innerHTML = ''; volKnobPlaceholder.appendChild(volKnob.element); }
@@ -1569,7 +1618,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : {};
             const menuItems = [
                 { label: `Copy \"${currentActiveSeq.name}\"`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence \"${currentActiveSeq.name}\" copied.`, 2000); } } },
-                { label: `Paste into \"${currentActiveSeq.name}\"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }, disabled: (!clipboard || clipboard.type !== 'sequence' || !clipboard.data || (clipboard.sourceTrackType && currentTrackForMenu && clipboard.sourceTrackType !== currentTrackForMenu.type)) },
+                { label: `Paste into \"${currentActiveSeq.name}\"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
                 { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
                 { label: `Shift Notes Down`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Down on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(-1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) down.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift down.", 2000); } } },
@@ -1688,7 +1737,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                         } else {
                             // No notes to shift - just toggle if inactive
                             currentActiveSeq.data[row][col] = { active: true, velocity: currentStepData?.velocity || Constants.defaultVelocity };
-                            updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, Constants.defaultVelocity);
+                            updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, currentStepData?.velocity || Constants.defaultVelocity);
                         }
                     } else if (e.ctrlKey || e.metaKey) {
                         // Ctrl/Cmd+Click: copy velocity to clipboard
@@ -1786,7 +1835,7 @@ export function drawWaveform(track) {
         const endX = ((slice.offset + slice.duration) / buffer.duration) * canvas.width;
         ctx.fillStyle = index === track.selectedSliceForEdit ? 'rgba(255, 0, 0, 0.3)' : (ctx.canvas.classList.contains('dark') ? 'rgba(59, 130, 246, 0.2)' : 'rgba(0, 0, 255, 0.15)');
         ctx.fillRect(startX, 0, endX - startX, canvas.height);
-        ctx.strokeStyle = index === track.selectedSliceForEdit ? 'rgba(255,0,0,0.7)' : (ctx.canvas.classList.contains('dark') ? 'rgba(96, 165, 250, 0.5)' : 'rgba(0,0,255,0.4)');
+        ctx.strokeStyle = index === track.selectedSliceForEdit ? 'rgba(255,0,0,0.7)' : (ctx.canvas.classList.contains('dark') ? 'rgba(52, 211, 153, 0.5)' : 'rgba(0,0,255,0.4)');
         ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.moveTo(endX, 0); ctx.lineTo(endX, canvas.height); ctx.stroke();
         ctx.fillStyle = index === track.selectedSliceForEdit ? '#FEC8D8' : (ctx.canvas.classList.contains('dark') ? '#E0BBE4' : '#0000cc');
         ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`S${index + 1}`, startX + 2, 10);
@@ -1962,9 +2011,13 @@ export function renderTimeline() {
     // Render each track as a lane
     let tracksHTML = '';
     tracks.forEach(track => {
+        const trackColor = track.trackColor || '#6366f1';
         tracksHTML += `
             <div class="timeline-track-lane" data-track-id="${track.id}">
-                <div class="timeline-track-lane-name">${track.name}</div>
+                <div class="timeline-track-lane-name flex items-center gap-1">
+                    <span class="track-color-dot" style="background-color:${trackColor}"></span>
+                    <span class="truncate">${track.name}</span>
+                </div>
                 <div class="timeline-track-content" style="flex: 1; position: relative;">
                     <!-- Clips would go here -->
                 </div>

@@ -27,6 +27,8 @@ export class Track {
         const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
         this.isSoloed = currentSoloedId === this.id;
         this.previousVolumeBeforeMute = initialData?.volume ?? 0.7;
+        // Track color for visual identification
+        this.trackColor = initialData?.trackColor || Constants.TRACK_COLORS[(id - 1) % Constants.TRACK_COLORS.length];
 
         // Synth specific
         if (this.type === 'Synth') {
@@ -930,6 +932,13 @@ export class Track {
         }
     }
 
+    setTrackColor(color) {
+        this.trackColor = color;
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'trackColorChanged');
+        }
+    }
+
     setInstrumentSamplerRootNote(noteName) {
         if (this.instrumentSamplerSettings) {
             this.instrumentSamplerSettings.rootNote = noteName;
@@ -1309,7 +1318,7 @@ export class Track {
                                 const tempPlayer = new Tone.Player(this.audioBuffer);
                                 const tempEnv = new Tone.AmplitudeEnvelope(sliceData.envelope);
                                 const tempGain = new Tone.Gain(targetVolumeLinear);
-                                tempPlayer.chain(tempEnv, tempGain, effectsChainStartPoint);
+                                tempPlayer.chain(tempEnv, tempGain);
                                 tempPlayer.playbackRate = playbackRate; tempPlayer.reverse = sliceData.reverse || false; tempPlayer.loop = sliceData.loop || false;
                                 tempPlayer.loopStart = sliceData.offset; tempPlayer.loopEnd = sliceData.offset + sliceData.duration;
                                 tempPlayer.start(time, sliceData.offset, sliceData.loop ? undefined : playDuration);
@@ -1318,7 +1327,6 @@ export class Track {
                                 Tone.Transport.scheduleOnce(() => {
                                     try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                     try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
-                                    try { if(tempGain && !tempGain.disposed) tempGain.dispose(); } catch(e){}
                                 }, time + playDuration + (sliceData.envelope?.release || 0.1) + 0.3);
                             } else if (this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed && this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed && this.slicerMonoGain && !this.slicerMonoGain.disposed) {
                                 if (this.slicerMonoPlayer.state === 'started') this.slicerMonoPlayer.stop(time);
