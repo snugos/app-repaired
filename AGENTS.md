@@ -156,3 +156,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 22
 - **UI Polish — Window Shadows, Modal Depth, Hover Effects** (`style.css`): Enhanced visual depth across the app. (1) **Window shadows**: Replaced flat single shadow with layered shadows (4px + 10px + 20px + inset highlight) creating a floating, dimensional feel. (2) **Modal dialog shadows**: Added matching layered shadow depth to `.modal-dialog`. (3) **Context menu hover animation**: Menu items now slide right 6px on hover (`padding-left: 18px`) with smooth transition for tactile feedback. (4) **Scrollbar styling**: Enhanced thumb size, rounded corners, and border for better visibility on dark theme. All changes use CSS transitions for smooth animation.
+
+### 2026-04-17 — Day 23
+- **Add Missing Reverb Effect** (`js/effectsRegistry.js`): Added the `Reverb` effect to the effects registry (alphabetically between EQ3 and Filter). Tone.js Reverb params: `decay` (0.1-10, default 2.5) for reverb decay time, `wet` (0-1, default 0.5) for wet/dry mix. Version bumped to 0.5.1.

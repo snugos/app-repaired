@@ -187,54 +187,23 @@ export const AVAILABLE_EFFECTS = {
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
-    Reverb: { 
-        displayName: 'Reverb (Algorithmic)',
+    EQ3: {
+        displayName: 'EQ3',
+        toneClass: 'EQ3',
+        params: [
+            { key: 'low', label: 'Low', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'mid', label: 'Mid', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'high', label: 'High', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'lowFrequency', label: 'Low Freq', type: 'knob', min: 20, max: 2000, step: 10, defaultValue: 400, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFrequency', label: 'High Freq', type: 'knob', min: 200, max: 12000, step: 10, defaultValue: 2500, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+        ]
+    },
+    Reverb: {
+        displayName: 'Reverb',
         toneClass: 'Reverb',
         params: [
-            { key: 'decay', label: 'Decay', type: 'knob', min: 0.001, max: 20, step: 0.01, defaultValue: 1.5, decimals: 2, displaySuffix: 's', isSignal: false }, 
-            { key: 'preDelay', label: 'PreDelay', type: 'knob', min: 0, max: 1, step: 0.001, defaultValue: 0.01, decimals: 3, displaySuffix: 's', isSignal: false }, 
+            { key: 'decay', label: 'Decay', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 2.5, decimals: 1, isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
-        ]
-    },
-    StereoWidener: {
-        displayName: 'Stereo Widener',
-        toneClass: 'StereoWidener',
-        params: [
-            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
-            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-        ]
-    },
-    Tremolo: {
-        displayName: 'Tremolo',
-        toneClass: 'Tremolo',
-        params: [
-            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 40, step: 0.1, defaultValue: 10, decimals: 1, displaySuffix: 'Hz', isSignal: true },
-            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
-            { key: 'spread', label: 'Spread', type: 'knob', min: 0, max: 180, step: 1, defaultValue: 180, decimals: 0, displaySuffix: '°', isSignal: false }, 
-            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-            { key: 'type', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
-        ]
-    },
-    Vibrato: {
-        displayName: 'Vibrato',
-        toneClass: 'Vibrato',
-        params: [
-            { key: 'maxDelay', label: 'Max Delay', type: 'knob', min: 0, max: 0.01, step: 0.0001, defaultValue: 0.005, decimals: 4, displaySuffix: 's', isSignal: false }, 
-            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 5, decimals: 1, displaySuffix: 'Hz', isSignal: true },
-            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: true },
-            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-            { key: 'type', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
-        ]
-    },
-    EQ3: {
-        displayName: '3-Band EQ',
-        toneClass: 'EQ3',
-        params: [ 
-            { key: 'low', label: 'Low Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
-            { key: 'mid', label: 'Mid Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
-            { key: 'high', label: 'High Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
-            { key: 'lowFrequency', label: 'Low Freq', type: 'knob', min: 20, max: 800, step: 10, defaultValue: 400, decimals: 0, displaySuffix: 'Hz', isSignal: true }, 
-            { key: 'highFrequency', label: 'High Freq', type: 'knob', min: 800, max: 18000, step: 100, defaultValue: 2500, decimals: 0, displaySuffix: 'Hz', isSignal: true }, 
         ]
     },
     Filter: { 
