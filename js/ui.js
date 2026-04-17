@@ -1368,7 +1368,7 @@ export function renderMixer(container) {
     container.innerHTML = '';
     const masterTrackDiv = document.createElement('div');
     masterTrackDiv.className = 'mixer-track master-track inline-block align-top p-1.5 border rounded bg-gray-200 dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
-    masterTrackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="Master">Master</div> <div id="masterVolumeKnob-mixer-placeholder" class="h-16 mx-auto mb-1"></div> <div id="mixerMasterMeterContainer" class="h-3 w-full bg-gray-300 dark:bg-slate-600 rounded border border-gray-400 dark:border-slate-500 overflow-hidden mt-1"> <div id="mixerMasterMeterBar" class="h-full bg-purple-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
+    masterTrackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="Master">Master</div> <div id="masterVolumeKnob-mixer-placeholder" class="h-16 mx-auto mb-1"></div> <div id="mixerMasterMeterContainer" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-1"> <div id="mixerMasterMeterBar" class="h-full bg-purple-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
     container.appendChild(masterTrackDiv);
     const masterVolKnobPlaceholder = masterTrackDiv.querySelector('#masterVolumeKnob-mixer-placeholder');
     if (masterVolKnobPlaceholder) {
@@ -2010,85 +2010,263 @@ export function renderTimeline() {
         return;
     }
 
+    // Pixels per second - adjust this to scale clips on the timeline
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const TRACK_NAME_WIDTH = 120; // matches CSS --timeline-track-name-width
+
     // Render each track as a lane
     let tracksHTML = '';
     tracks.forEach(track => {
         const trackColor = track.trackColor || '#6366f1';
+        
+        // Generate clip HTML for this track
+        let clipsHTML = '';
+        const clips = track.timelineClips || [];
+        clips.forEach(clip => {
+            const clipLeft = TRACK_NAME_WIDTH + (clip.startTime * PIXELS_PER_SECOND);
+            const clipWidth = Math.max(clip.duration * PIXELS_PER_SECOND, 20); // minimum 20px width
+            const isAudioClip = clip.type === 'audio';
+            const isSequenceClip = clip.type === 'sequence';
+            const clipClass = isAudioClip ? 'audio-clip' : (isSequenceClip ? 'sequence-clip' : 'audio-clip');
+            
+            clipsHTML += `
+                <div class="${clipClass}" 
+                     data-clip-id="${clip.id}" 
+                     data-track-id="${track.id}"
+                     style="left: ${clipLeft}px; width: ${clipWidth}px;"
+                     title="${clip.name || 'Untitled'}">
+                    <div class="clip-resize-handle clip-resize-handle-left"></div>
+                    <span class="clip-label">${clip.name || 'Untitled'}</span>
+                    <div class="clip-resize-handle clip-resize-handle-right"></div>
+                </div>
+            `;
+        });
+
         tracksHTML += `
             <div class="timeline-track-lane" data-track-id="${track.id}">
                 <div class="timeline-track-lane-name flex items-center gap-1">
                     <span class="track-color-dot" style="background-color:${trackColor}"></span>
                     <span class="truncate">${track.name}</span>
                 </div>
-                <div class="timeline-track-content" style="flex: 1; position: relative;">
-                    <!-- Clips would go here -->
+                <div class="timeline-track-content" style="flex: 1; position: relative; height: 100%;">
+                    ${clipsHTML}
                 </div>
             </div>
         `;
     });
     
     tracksArea.innerHTML = tracksHTML;
-    console.log(`[UI renderTimeline] Rendered ${tracks.length} tracks`);
+    
+    // Attach click handlers for clip selection
+    attachClipEventHandlers();
+    
+    // Update playhead position
+    updatePlayheadPosition();
+    
+    console.log(`[UI renderTimeline] Rendered ${tracks.length} tracks with clips`);
 }
 
-export function updateSequencerCellUI(winElement, trackType, row, col, isActive, velocity = 0.7) {
-    if (!winElement) return;
+function attachClipEventHandlers() {
+    // Clip click (select)
+    document.querySelectorAll('.audio-clip, .sequence-clip').forEach(clipEl => {
+        clipEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('clip-resize-handle')) return;
+            const clipId = clipEl.dataset.clipId;
+            const trackId = clipEl.dataset.trackId;
+            selectClip(trackId, clipId);
+        });
+    });
     
-    const cell = winElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
-    if (!cell) return;
+    // Clip drag (move)
+    document.querySelectorAll('.audio-clip, .sequence-clip').forEach(clipEl => {
+        clipEl.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('clip-resize-handle')) return;
+            e.preventDefault();
+            startClipDrag(e, clipEl);
+        });
+    });
     
-    // Remove any existing active classes and velocity classes
-    cell.classList.remove('active-synth', 'active-sampler', 'active-drum-sampler', 'active-instrument-sampler');
-    // Remove all velocity classes
-    cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
+    // Resize handles
+    document.querySelectorAll('.clip-resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const clipEl = handle.closest('.audio-clip, .sequence-clip');
+            const isLeft = handle.classList.contains('clip-resize-handle-left');
+            startClipResize(e, clipEl, isLeft);
+        });
+    });
+}
+
+let clipDragState = null;
+
+function startClipDrag(e, clipEl) {
+    const clipId = clipEl.dataset.clipId;
+    const trackId = clipEl.dataset.trackId;
+    const tracks = typeof localAppServices.getTracks === 'function' ? localAppServices.getTracks() : [];
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
     
-    if (isActive) {
-        // Add the appropriate active class based on track type
-        let baseClass = 'active-synth';
-        switch (trackType) {
-            case 'Synth':
-                baseClass = 'active-synth';
-                break;
-            case 'sampler':
-                baseClass = 'active-sampler';
-                break;
-            case 'DrumSampler':
-                baseClass = 'active-drum-sampler';
-                break;
-            case 'InstrumentSampler':
-                baseClass = 'active-instrument-sampler';
-                break;
-            default:
-                baseClass = 'active-synth';
-        }
-        cell.classList.add(baseClass);
-        
-        // Apply velocity-based brightness class
-        const velPercent = Math.round(velocity * 100);
-        let velClass = 'vel-70'; // default
-        if (velPercent >= 100) velClass = 'vel-100';
-        else if (velPercent >= 90) velClass = 'vel-90';
-        else if (velPercent >= 80) velClass = 'vel-80';
-        else if (velPercent >= 60) velClass = 'vel-60';
-        else if (velPercent >= 50) velClass = 'vel-50';
-        else if (velPercent >= 40) velClass = 'vel-40';
-        else if (velPercent >= 30) velClass = 'vel-30';
-        else if (velPercent >= 20) velClass = 'vel-20';
-        else if (velPercent >= 10) velClass = 'vel-10';
-        cell.classList.add(velClass);
+    const clip = track.timelineClips.find(c => c.id === clipId);
+    if (!clip) return;
+    
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const startX = e.clientX;
+    const originalLeft = clip.startTime * PIXELS_PER_SECOND;
+    
+    clipDragState = {
+        clipEl,
+        clip,
+        track,
+        startX,
+        originalLeft,
+        PIXELS_PER_SECOND
+    };
+    
+    document.addEventListener('mousemove', onClipDrag);
+    document.addEventListener('mouseup', stopClipDrag);
+}
+
+function onClipDrag(e) {
+    if (!clipDragState) return;
+    const { clipEl, startX, originalLeft, PIXELS_PER_SECOND, clip } = clipDragState;
+    
+    const deltaX = e.clientX - startX;
+    const newLeft = Math.max(0, originalLeft + deltaX);
+    const newStartTime = newLeft / PIXELS_PER_SECOND;
+    
+    clipEl.style.left = `${newLeft}px`;
+    clip.startTime = newStartTime;
+}
+
+function stopClipDrag(e) {
+    if (!clipDragState) return;
+    const { clip, track, clipEl } = clipDragState;
+    
+    // Finalize position
+    if (typeof track.updateAudioClipPosition === 'function') {
+        track.updateAudioClipPosition(clip.id, clip.startTime);
     }
+    
+    clipDragState = null;
+    document.removeEventListener('mousemove', onClipDrag);
+    document.removeEventListener('mouseup', stopClipDrag);
+}
+
+let clipResizeState = null;
+
+function startClipResize(e, clipEl, isLeft) {
+    const clipId = clipEl.dataset.clipId;
+    const trackId = clipEl.dataset.trackId;
+    const tracks = typeof localAppServices.getTracks === 'function' ? localAppServices.getTracks() : [];
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+    
+    const clip = track.timelineClips.find(c => c.id === clipId);
+    if (!clip) return;
+    
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const startX = e.clientX;
+    const originalLeft = clip.startTime * PIXELS_PER_SECOND;
+    const originalWidth = clip.duration * PIXELS_PER_SECOND;
+    
+    clipResizeState = {
+        clipEl,
+        clip,
+        track,
+        isLeft,
+        startX,
+        originalLeft,
+        originalWidth,
+        PIXELS_PER_SECOND
+    };
+    
+    document.addEventListener('mousemove', onClipResize);
+    document.addEventListener('mouseup', stopClipResize);
+}
+
+function onClipResize(e) {
+    if (!clipResizeState) return;
+    const { clipEl, clip, isLeft, startX, originalLeft, originalWidth, PIXELS_PER_SECOND } = clipResizeState;
+    
+    const deltaX = e.clientX - startX;
+    
+    if (isLeft) {
+        // Resize from left (change start time and width)
+        const newLeft = Math.max(0, originalLeft + deltaX);
+        const newWidth = Math.max(20, originalWidth - deltaX);
+        const newStartTime = newLeft / PIXELS_PER_SECOND;
+        clip.startTime = newStartTime;
+        clip.duration = newWidth / PIXELS_PER_SECOND;
+        clipEl.style.left = `${newLeft}px`;
+        clipEl.style.width = `${newWidth}px`;
+    } else {
+        // Resize from right (change width only)
+        const newWidth = Math.max(20, originalWidth + deltaX);
+        clip.duration = newWidth / PIXELS_PER_SECOND;
+        clipEl.style.width = `${newWidth}px`;
+    }
+}
+
+function stopClipResize(e) {
+    if (!clipResizeState) return;
+    const { clip, track } = clipResizeState;
+    
+    // Call the track's update function to persist and handle undo
+    if (typeof track.updateAudioClipPosition === 'function') {
+        track.updateAudioClipPosition(clip.id, clip.startTime);
+    }
+    
+    clipResizeState = null;
+    document.removeEventListener('mousemove', onClipResize);
+    document.removeEventListener('mouseup', stopClipResize);
+}
+
+function selectClip(trackId, clipId) {
+    // Highlight selected clip
+    document.querySelectorAll('.audio-clip, .sequence-clip').forEach(el => {
+        el.style.outline = '';
+    });
+    const clipEl = document.querySelector(`.audio-clip[data-clip-id="${clipId}"], .sequence-clip[data-clip-id="${clipId}"]`);
+    if (clipEl) {
+        clipEl.style.outline = '2px solid #fff';
+    }
+    
+    // Could also open an inspector or show clip details
+    console.log(`Selected clip ${clipId} on track ${trackId}`);
 }
 
 export function updatePlayheadPosition(progress = undefined) {
     // Update the timeline playhead position
     const playhead = document.getElementById('timeline-playhead');
-    if (playhead && progress !== undefined) {
-        // Calculate position based on progress (0-1)
-        const trackNameWidth = 120; // pixels reserved for track names
-        const timelineWidth = 4000; // total timeline width
-        const position = trackNameWidth + (progress * (timelineWidth - trackNameWidth));
-        playhead.style.left = `${position}px`;
+    if (!playhead) return;
+    
+    const tracksArea = document.getElementById('timeline-tracks-area');
+    if (!tracksArea) return;
+    
+    if (progress === undefined) {
+        // Get real transport position
+        try {
+            const transportPosition = Tone.Transport.position;
+            const [bars, beats, sixteenths] = transportPosition.split(':').map(Number);
+            const secondsPerBeat = 60 / Tone.Transport.bpm.value;
+            const secondsPerBar = secondsPerBeat * 4;
+            const currentSeconds = (bars * secondsPerBar) + (beats * secondsPerBeat) + (sixteenths * secondsPerBeat / 4);
+            progress = currentSeconds / (16 * secondsPerBar); // Normalize to 16 bars
+        } catch (e) {
+            progress = 0;
+        }
     }
+    
+    const TRACK_NAME_WIDTH = 120;
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const totalBars = 16;
+    const totalSeconds = totalBars * (60 / Tone.Transport.bpm.value) * 4;
+    const timelineWidth = TRACK_NAME_WIDTH + (totalSeconds * PIXELS_PER_SECOND);
+    const position = TRACK_NAME_WIDTH + (progress * (timelineWidth - TRACK_NAME_WIDTH));
+    
+    playhead.style.left = `${position}px`;
+    playhead.style.display = 'block';
 }
 
 export function renderDrumSamplerPads(track) {

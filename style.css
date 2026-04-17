@@ -776,6 +776,66 @@ input::placeholder,
     text-overflow: ellipsis;
     cursor: grab;
 }
+
+/* Sequence clip styling (different from audio clip) */
+.sequence-clip {
+    position: absolute;
+    height: 80%;
+    top: 10%;
+    background-color: #06b6d4;
+    border: 1px solid #67e8f9;
+    border-radius: 3px;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: white;
+    font-size: 11px;
+    padding: 2px 4px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+}
+
+/* Clip resize handles */
+.clip-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+    z-index: 5;
+}
+
+.clip-resize-handle-left {
+    left: 0;
+}
+
+.clip-resize-handle-right {
+    right: 0;
+}
+
+.clip-resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.audio-clip .clip-resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.sequence-clip .clip-resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Clip label styling */
+.clip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    pointer-events: none;
+}
+
 /* In style.css */
 :root {
     --timeline-track-name-width: 120px; /* Or your desired width */
