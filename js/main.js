@@ -562,6 +562,37 @@ async function initializeSnugOS() {
         };
         attachTapTempoHandler();
 
+        // Snap Grid toggle button handler
+        const attachSnapToggleHandler = () => {
+            const snapToggleBtn = document.getElementById('snapToggleBtnGlobal');
+            if (snapToggleBtn) {
+                const updateSnapButtonUI = () => {
+                    const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
+                    const snapLabel = currentSnap === 0 ? 'Off' : (currentSnap === 4 ? '1/4' : (currentSnap === 8 ? '1/8' : '1/16'));
+                    snapToggleBtn.textContent = `Snap: ${snapLabel}`;
+                    snapToggleBtn.classList.toggle('snap-active', currentSnap !== 0);
+                };
+                snapToggleBtn.addEventListener('click', () => {
+                    const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
+                    let nextSnap = 16;
+                    if (currentSnap === 16) nextSnap = 8;
+                    else if (currentSnap === 8) nextSnap = 4;
+                    else if (currentSnap === 4) nextSnap = 0;
+                    else if (currentSnap === 0) nextSnap = 16;
+                    window.SEQUENCER_SNAP_VALUE = nextSnap;
+                    updateSnapButtonUI();
+                    const snapLabel = nextSnap === 0 ? 'Off' : (nextSnap === 4 ? '1/4' : (nextSnap === 8 ? '1/8' : '1/16'));
+                    showSafeNotification(`Snap: ${snapLabel}`, 1500);
+                });
+                updateSnapButtonUI();
+                console.log("[Main] Snap toggle handler attached");
+            } else {
+                console.warn("[Main] Snap toggle button not found, retrying...");
+                setTimeout(attachSnapToggleHandler, 500);
+            }
+        };
+        attachSnapToggleHandler();
+
         // Loop Region toggle button handler
         const attachLoopRegionHandler = () => {
             const loopToggleBtn = uiElementsCache.loopToggleBtnGlobal;

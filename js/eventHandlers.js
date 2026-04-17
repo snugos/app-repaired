@@ -680,6 +680,12 @@ document.addEventListener('keydown', (event) => {
             window.SEQUENCER_SNAP_VALUE = nextSnap;
             const snapLabel = nextSnap === 0 ? 'Off' : (nextSnap === 4 ? '1/4' : (nextSnap === 8 ? '1/8' : '1/16'));
             showNotification(`Snap: ${snapLabel}`, 1500);
+            // Update snap button UI in global controls bar
+            const snapBtn = document.getElementById('snapToggleBtnGlobal');
+            if (snapBtn) {
+                snapBtn.textContent = `Snap: ${snapLabel}`;
+                snapBtn.classList.toggle('snap-active', nextSnap !== 0);
+            }
             return;
         }
 

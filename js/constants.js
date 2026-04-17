@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.2.1"; // Version bump: copy/paste pattern sections
+export const APP_VERSION = "0.3.0"; // Version bump: copy/paste pattern sections
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
