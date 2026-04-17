@@ -159,3 +159,7 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 23
 - **Add Missing Reverb Effect** (`js/effectsRegistry.js`): Added the `Reverb` effect to the effects registry (alphabetically between EQ3 and Filter). Tone.js Reverb params: `decay` (0.1-10, default 2.5) for reverb decay time, `wet` (0-1, default 0.5) for wet/dry mix. Version bumped to 0.5.1.
+
+### 2026-04-17 — Day 24
+- **Bug Fix: drawInstrumentWaveform missing "No audio" message** (`js/ui.js`): The `drawInstrumentWaveform` function had an empty if-block when no audio was loaded — it did nothing, leaving a blank canvas instead of showing the "No audio loaded or processed" message. Added the proper canvas-clearing and text-rendering code, matching the existing `drawWaveform` function's behavior.
+- **Bug Fix: drawWaveform "No audio" text color inconsistency** (`js/ui.js`): The `drawWaveform` function's "No audio loaded or processed" text used `#E0BBE4` (light pink/purple) while the waveform itself uses `#957DAD`. Changed the text color to `#D291BC` (matching the Instrument track waveform color) for consistency across both waveform rendering functions.

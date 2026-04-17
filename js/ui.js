@@ -1615,7 +1615,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : {};
             const menuItems = [
                 { label: `Copy Full Sequence`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence "${currentActiveSeq.name}" copied.`, 2000); } } },
-                { label: `Copy Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } if (localAppServices.setClipboardData) { const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); const selData = []; for (let r = r1; r <= r2; r++) { const row = []; for (let c = c1; c <= c2; c++) { row.push(currentActiveSeq.data && currentActiveSeq.data[r] ? (currentActiveSeq.data[r][c] || null) : null); } selData.push(row); } localAppServices.setClipboardData({ type: 'selection', sourceTrackType: currentTrackForMenu.type, data: selData, selectionRows: r2 - r1 + 1, selectionCols: c2 - c1 + 1, originalRow: r1, originalCol: c1 }); showNotification(`Selection (${r2-r1+1}x${c2-c1+1}) copied.`, 2000); } } },
+                { label: `Copy Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } if (localAppServices.setClipboardData) { const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); const selData = []; for (let r = r1; r <= r2; r++) { const row = []; for (let c = c1; c <= c2; c++) { row.push(currentActiveSeq.data && currentActiveSeq.data[r] ? (currentActiveSeq.data[r][c] || null) : null); } selData.push(row); } localAppServices.setClipboardData({ type: 'selection', sourceTrackType: currentTrackForMenu.type, data: selData, selectionRows: r2 - r1 + 1, selectionCols: c2 - c1 + 1, originalRow: r1, originalCol: c1 }); showNotification(`Selection (${r2-r1+1}x${c2-c1+1}) copied.`, 2000); } },
                 { label: `Paste Selection`, action: () => { const cb = clipboard; if (!cb || cb.type !== 'selection' || !cb.data) { showNotification("Use Copy Selection first.", 2000); return; } if (cb.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch.`, 3000); return; } const r1 = selectionStartCell ? Math.min(selectionStartCell.row, selectionEndCell.row) : 0; const c1 = selectionStartCell ? Math.min(selectionStartCell.col, selectionEndCell.col) : 0; if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Selection on ${currentTrackForMenu.name}`); const rows = cb.data.length; const cols = cb.data[0] ? cb.data[0].length : 0; for (let r = 0; r < rows; r++) { if (!currentActiveSeq.data[r + r1]) currentActiveSeq.data[r + r1] = Array(currentActiveSeq.length).fill(null); for (let c = 0; c < cols; c++) { if (cb.data[r] && cb.data[r][c]) { currentActiveSeq.data[r + r1][c + c1] = JSON.parse(JSON.stringify(cb.data[r][c])); } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Selection pasted at (${r1+1}, ${c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Paste Full Sequence`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
@@ -1818,7 +1818,7 @@ export function drawWaveform(track) {
             track.waveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
             track.waveformCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#E0BBE4' : '#a0a0a0';
+            track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#D291BC' : '#a0a0a0';
             track.waveformCanvasCtx.textAlign = 'center';
             track.waveformCanvasCtx.fillText('No audio loaded or processed', canvas.width / 2, canvas.height / 2);
         }
@@ -1852,7 +1852,16 @@ export function drawWaveform(track) {
 
 export function drawInstrumentWaveform(track) {
     if (!((track) && (track).instrumentWaveformCanvasCtx) || !((track.instrumentSamplerSettings.audioBuffer) && (track.instrumentSamplerSettings.audioBuffer).loaded)) {
-        if (((track) && (track).instrumentWaveformCanvasCtx)) { /* Draw 'No audio' message, similar to drawWaveform */ } return;
+        if (((track) && (track).instrumentWaveformCanvasCtx)) {
+            const canvas = track.instrumentWaveformCanvasCtx.canvas;
+            track.instrumentWaveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            track.instrumentWaveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
+            track.instrumentWaveformCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            track.instrumentWaveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#D291BC' : '#a0a0a0';
+            track.instrumentWaveformCanvasCtx.textAlign = 'center';
+            track.instrumentWaveformCanvasCtx.fillText('No audio loaded or processed', canvas.width / 2, canvas.height / 2);
+        }
+        return;
     }
     const canvas = track.instrumentWaveformCanvasCtx.canvas; const ctx = track.instrumentWaveformCanvasCtx;
     const buffer = track.instrumentSamplerSettings.audioBuffer.get(); const data = buffer.getChannelData(0);
