@@ -52,8 +52,8 @@ import {
     hasAutoSavedProject: hasAutoSavedProject,
     getAutoSavedTimestamp: getAutoSavedProjectTimestamp,
     // Sound Browser Favorites & Recent
-    getFavoriteSounds, isFavorite,
-    toggleFavorite,
+    getFavoriteSounds,
+    isFavorite,
     addToRecentlyPlayed,
     getRecentlyPlayedSounds,
     clearRecentlyPlayed,
