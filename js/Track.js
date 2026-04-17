@@ -1112,6 +1112,75 @@ export class Track {
         console.log(`[Track ${this.id}] Doubled length of sequence "${activeSeq.name}" to ${newLength} steps.`);
     }
 
+    shiftSequenceNotes(semitones) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id} shiftSequenceNotes] No active sequence found.`);
+            return 0;
+        }
+
+        let shiftedCount = 0;
+        const numRows = activeSeq.data.length;
+        const totalSteps = activeSeq.length;
+
+        // Determine row shift based on track type
+        let rowShift = 0;
+        if (this.type === 'Synth' || this.type === 'InstrumentSampler') {
+            rowShift = -semitones; // Higher pitch = lower row index
+        } else {
+            // For Sampler/DrumSampler, just return 0 (can't meaningfully shift pads)
+            return 0;
+        }
+
+        if (rowShift === 0) return 0;
+
+        const newData = activeSeq.data.map((row, rowIndex) => {
+            const newRow = Array(totalSteps).fill(null);
+            for (let col = 0; col < totalSteps; col++) {
+                const stepData = row && row[col];
+                if (stepData && stepData.active) {
+                    const sourceRow = rowIndex + rowShift;
+                    if (sourceRow >= 0 && sourceRow < numRows) {
+                        newRow[col] = { ...stepData };
+                        shiftedCount++;
+                    }
+                }
+            }
+            return newRow;
+        });
+
+        activeSeq.data = newData;
+        return shiftedCount;
+    }
+
+    humanizeVelocity(amount = 0.15) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id} humanizeVelocity] No active sequence found.`);
+            return 0;
+        }
+
+        let humanizedCount = 0;
+        const totalSteps = activeSeq.length;
+
+        activeSeq.data.forEach(row => {
+            if (!row) return;
+            for (let col = 0; col < totalSteps; col++) {
+                const stepData = row[col];
+                if (stepData && stepData.active && stepData.velocity !== undefined) {
+                    const variation = (Math.random() * 2 - 1) * amount; // -amount to +amount
+                    const newVelocity = Math.max(0.05, Math.min(1.0, stepData.velocity + variation));
+                    row[col].velocity = Math.round(newVelocity * 100) / 100; // Round to 2 decimal places
+                    humanizedCount++;
+                }
+            }
+        });
+
+        return humanizedCount;
+    }
+
     setSequenceLength(newLengthInSteps, skipUndoCapture = false) {
         if (this.type === 'Audio') return;
         const activeSeq = this.getActiveSequence();
@@ -1485,7 +1554,7 @@ export class Track {
                                 URL.revokeObjectURL(url);
                                 const destNode = (this.activeEffects.length > 0 && this.activeEffects[0].toneNode && !this.activeEffects[0].toneNode.disposed)
                                     ? this.activeEffects[0].toneNode
-                                    : (this.gainNode && !this.gainNode.disposed ? this.gainNode : null);
+                                    : (this.gainNode || null);
                                 if (destNode) player.connect(destNode); else player.toDestination();
                                 player.start(effectivePlayStart, offsetIntoSource, playDurationInWindow);
                             };

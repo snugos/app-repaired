@@ -1461,7 +1461,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 existingWindow.close(true);
             } catch (e) {console.warn(`[UI openTrackSequencerWindow] Error closing existing sequencer window for redraw for track ${trackId}:`, e)}
         } else {
-            console.log(`[UI openTrackSequencerWindow] Force redraw: Window ${windowId} found in map but no close method or not an instance, or map is missing.`);
+            console.log(`[UI openTrackSequencerWindow] Force redraw: Window ${windowId} found in map but no close method or not instance, or map is missing.`);
         }
     }
     if (openWindows.has(windowId) && !forceRedraw && !savedState) {
@@ -1568,16 +1568,21 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const currentActiveSeq = currentTrackForMenu.getActiveSequence(); if(!currentActiveSeq) return;
             const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : {};
             const menuItems = [
-                { label: `Copy "${currentActiveSeq.name}"`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence "${currentActiveSeq.name}" copied.`, 2000); } } },
-                { label: `Paste into "${currentActiveSeq.name}"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }, disabled: (!clipboard || clipboard.type !== 'sequence' || !clipboard.data || (clipboard.sourceTrackType && currentTrackForMenu && clipboard.sourceTrackType !== currentTrackForMenu.type)) },
+                { label: `Copy \"${currentActiveSeq.name}\"`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence \"${currentActiveSeq.name}\" copied.`, 2000); } } },
+                { label: `Paste into \"${currentActiveSeq.name}\"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }, disabled: (!clipboard || clipboard.type !== 'sequence' || !clipboard.data || (clipboard.sourceTrackType && currentTrackForMenu && clipboard.sourceTrackType !== currentTrackForMenu.type)) },
                 { separator: true },
-                { label: `Erase "${currentActiveSeq.name}"`, action: () => { showConfirmationDialog(`Erase Sequence "${currentActiveSeq.name}" for ${currentTrackForMenu.name}?`, "This will clear all notes. This can be undone.", () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Erase Sequence ${currentActiveSeq.name} for ${currentTrackForMenu.name}`); let numRowsErase = currentActiveSeq.data.length; currentActiveSeq.data = Array(numRowsErase).fill(null).map(() => Array(currentActiveSeq.length).fill(null)); currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence "${currentActiveSeq.name}" erased.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }); } },
+                { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
+                { label: `Shift Notes Down`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Down on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(-1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) down.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift down.", 2000); } } },
+                { separator: true },
+                { label: `Humanize Velocities (+/- 15%)`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Humanize Velocities on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.humanizeVelocity(0.15); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Humanized ${result} velocity value(s).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to humanize.", 2000); } } },
+                { label: `Humanize Velocities (+/- 25%)`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Humanize Velocities on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.humanizeVelocity(0.25); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Humanized ${result} velocity value(s).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to humanize.", 2000); } } },
+                { separator: true },
+                { label: `Erase \"${currentActiveSeq.name}\"`, action: () => { showConfirmationDialog(`Erase Sequence "${currentActiveSeq.name}" for ${currentTrackForMenu.name}?`, "This will clear all notes. This can be undone.", () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Erase Sequence ${currentActiveSeq.name} for ${currentTrackForMenu.name}`); let numRowsErase = currentActiveSeq.data.length; currentActiveSeq.data = Array(numRowsErase).fill(null).map(() => Array(currentActiveSeq.length).fill(null)); currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence "${currentActiveSeq.name}" erased.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }); } },
                 { label: `Double Length of "${currentActiveSeq.name}"`, action: () => { const currentNumBars = currentActiveSeq.length / Constants.STEPS_PER_BAR; if (currentNumBars * 2 > (Constants.MAX_BARS || 16)) { showNotification(`Exceeds max of ${Constants.MAX_BARS || 16} bars.`, 3000); return; } currentTrackForMenu.doubleSequence(); showNotification(`Sequence length doubled for "${currentActiveSeq.name}".`, 2000); } }
             ];
             createContextMenu(event, menuItems, localAppServices);
         };
         if (grid) grid.addEventListener('contextmenu', sequencerContextMenuHandler);
-        if (controlsDiv) controlsDiv.addEventListener('contextmenu', sequencerContextMenuHandler);
 
         // Handle bars input change
         const barsInput = sequencerWindow.element.querySelector(`#seqLengthInput-${track.id}`);
@@ -1661,13 +1666,89 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                     if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
                     const currentStepData = currentActiveSeq.data[row][col];
                     const isActive = !(currentStepData?.active);
-                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Step (${row + 1},${col + 1}) on ${track.name} (${currentActiveSeq.name})`);
-                    currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: Constants.defaultVelocity } : null;
-                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive, currentActiveSeq.data[row][col]?.velocity || Constants.defaultVelocity);
+
+                    if (e.shiftKey && (e.ctrlKey || e.metaKey)) {
+                        // Shift+Ctrl/Cmd: paste velocity from clipboard
+                        if (clipboard && clipboard.type === 'velocity' && clipboard.velocity !== undefined) {
+                            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Velocity on ${track.name}`);
+                            if (currentStepData && currentStepData.active) {
+                                currentActiveSeq.data[row][col].velocity = clipboard.velocity;
+                                updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, clipboard.velocity);
+                                showNotification(`Velocity set to ${Math.round(clipboard.velocity * 100)}%`, 1000);
+                            }
+                        }
+                    } else if (e.shiftKey) {
+                        // Shift+Click: transpose notes up by 1 semitone
+                        if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Transpose Notes Up on ${track.name}`);
+                        const result = track.shiftSequenceNotes(-1); // negative row shift = higher pitch (up)
+                        if (result > 0) {
+                            track.recreateToneSequence(true);
+                            if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                            showNotification(`Shifted ${result} note(s) up`, 1500);
+                        } else {
+                            // No notes to shift - just toggle if inactive
+                            currentActiveSeq.data[row][col] = { active: true, velocity: currentStepData?.velocity || Constants.defaultVelocity };
+                            updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, Constants.defaultVelocity);
+                        }
+                    } else if (e.ctrlKey || e.metaKey) {
+                        // Ctrl/Cmd+Click: copy velocity to clipboard
+                        if (currentStepData && currentStepData.active) {
+                            if (localAppServices.setClipboardData) localAppServices.setClipboardData({ type: 'velocity', velocity: currentStepData.velocity || Constants.defaultVelocity });
+                            showNotification(`Velocity ${Math.round((currentStepData.velocity || Constants.defaultVelocity) * 100)}% copied`, 1000);
+                        }
+                    } else {
+                        // Normal click: toggle step
+                        if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Step (${row + 1},${col + 1}) on ${track.name} (${currentActiveSeq.name})`);
+                        currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: currentStepData?.velocity || Constants.defaultVelocity } : null;
+                        updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive, currentStepData?.velocity || Constants.defaultVelocity);
+                    }
                 }
             }
         });
 
+        // Right-click on a cell: open velocity editor
+        if (grid) grid.addEventListener('contextmenu', (e) => {
+            const targetCell = e.target.closest('.sequencer-step-cell');
+            if (!targetCell) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let row = parseInt(targetCell.dataset.row, 10);
+            let col = parseInt(targetCell.dataset.col, 10);
+            const currentActiveSeq = track.getActiveSequence();
+            if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+            
+            const stepData = currentActiveSeq.data[row][col];
+            if (!stepData || !stepData.active) {
+                showNotification("No note at this step to edit.", 1500);
+                return;
+            }
+            
+            const currentVel = stepData.velocity || Constants.defaultVelocity;
+            const velPct = Math.round(currentVel * 100);
+            
+            const menuItems = [
+                { label: `Velocity: ${velPct}%`, action: () => {}, disabled: true },
+                { separator: true },
+                { label: `Set to 100%`, action: () => { setVelocity(row, col, 1.0); } },
+                { label: `Set to 80%`, action: () => { setVelocity(row, col, 0.8); } },
+                { label: `Set to 60%`, action: () => { setVelocity(row, col, 0.6); } },
+                { label: `Set to 40%`, action: () => { setVelocity(row, col, 0.4); } },
+                { label: `Set to 20%`, action: () => { setVelocity(row, col, 0.2); } },
+                { separator: true },
+                { label: `+ 10%`, action: () => { setVelocity(row, col, Math.min(1.0, currentVel + 0.1)); } },
+                { label: `- 10%`, action: () => { setVelocity(row, col, Math.max(0.05, currentVel - 0.1)); } },
+            ];
+            
+            function setVelocity(r, c, v) {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set Velocity on ${track.name}`);
+                currentActiveSeq.data[r][c].velocity = Math.round(v * 100) / 100;
+                updateSequencerCellUI(sequencerWindow.element, track.type, r, c, true, currentActiveSeq.data[r][c].velocity);
+                showNotification(`Velocity: ${Math.round(currentActiveSeq.data[r][c].velocity * 100)}%`, 1000);
+            }
+            
+            createContextMenu(e, menuItems, localAppServices);
+        });
     }
     return sequencerWindow;
 }

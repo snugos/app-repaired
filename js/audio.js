@@ -1034,6 +1034,37 @@ export function clearAllMasterEffectNodes() {
 
 
 // --- Audio Recording Functions ---
+export function setTrackMonitoring(trackId, enabled) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track || track.type !== 'Audio') {
+        console.warn("[Audio setTrackMonitoring] Invalid track for monitoring toggle:", trackId);
+        return;
+    }
+    if (!mic) {
+        console.warn("[Audio setTrackMonitoring] No mic instance available.");
+        return;
+    }
+    if (mic.state !== 'started') {
+        console.warn("[Audio setTrackMonitoring] Mic is not open, cannot toggle monitoring.");
+        return;
+    }
+    if (!track.inputChannel || track.inputChannel.disposed) {
+        console.warn("[Audio setTrackMonitoring] Track inputChannel is invalid.");
+        return;
+    }
+    try {
+        if (enabled) {
+            mic.connect(track.inputChannel);
+            console.log(`[Audio setTrackMonitoring] Monitoring ENABLED for track ${track.name}`);
+        } else {
+            mic.disconnect(track.inputChannel);
+            console.log(`[Audio setTrackMonitoring] Monitoring DISABLED for track ${track.name}`);
+        }
+    } catch(e) {
+        console.error("[Audio setTrackMonitoring] Error toggling monitoring:", e);
+    }
+}
+
 export async function startAudioRecording(track, isMonitoringEnabled) {
     console.log("[Audio startAudioRecording] Called for track:", track?.name, "Monitoring:", isMonitoringEnabled);
 
@@ -1224,7 +1255,7 @@ export async function stopAudioRecording() {
             }
         }
         recorder = null;
-        console.log("[Audio stopAudioRecording] Recorder instance nullified and disposed.");
+        console.log("[Audio stopAudioRecording] Recorder disposed and nullified.");
     }
 
     // Process the recorded blob
