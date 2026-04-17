@@ -1434,7 +1434,23 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
             if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
             else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
             else if (j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
-            html += `<div class="sequencer-step-cell ${activeClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" title="R${i+1},S${j+1}"></div>`;
+            // Apply velocity-based brightness class during initial render
+            let velClass = '';
+            if (((stepData) && (stepData).active)) {
+                const vel = ((stepData) && (stepData).velocity) || 0.7;
+                const velPercent = Math.round(vel * 100);
+                if (velPercent >= 100) velClass = 'vel-100';
+                else if (velPercent >= 90) velClass = 'vel-90';
+                else if (velPercent >= 80) velClass = 'vel-80';
+                else if (velPercent >= 70) velClass = 'vel-70';
+                else if (velPercent >= 60) velClass = 'vel-60';
+                else if (velPercent >= 50) velClass = 'vel-50';
+                else if (velPercent >= 40) velClass = 'vel-40';
+                else if (velPercent >= 30) velClass = 'vel-30';
+                else if (velPercent >= 20) velClass = 'vel-20';
+                else velClass = 'vel-10';
+            }
+            html += `<div class="sequencer-step-cell ${activeClass} ${velClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" title="R${i+1},S${j+1}"></div>`;
         }
     }
     html += `</div></div>`; return html;
