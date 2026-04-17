@@ -121,3 +121,12 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 12
 - **Meter Update Throttling** (`js/main.js`): Throttled `updateMetersLoop()` from unlimited RAF (~60fps+) down to 30fps max using `performance.now()` timing with a 33ms throttle interval. Meter updates are the most expensive part of the UI loop (DOM writes per track), so this significantly reduces CPU/GPU load without any visible impact on meter smoothness. Added `THROTTLE_MS = 33` constant and `_lastMeterUpdateTime` property on the function for clean throttling.
+### 2026-04-17 — Day 13
+- **Bug fixes — typos, missing exports, browser compatibility**:
+  - Replaced all optional chaining () with  fallback patterns across all JS files (249 occurrences in 9 files) — the deployed app threw  on older browsers.
+  - Fixed  →  in  and added missing import.
+  - Fixed  typo cascade: renamed  →  and all  →  across all call sites. Without this fix, undo bypass never worked for add/remove/reorder master effects.
+  - Added missing  getter and removed duplicate  definition.
+  - Fixed  incorrectly calling  on star toggle.
+  - Fixed  re-parsing localStorage on every call instead of caching in memory.
+
