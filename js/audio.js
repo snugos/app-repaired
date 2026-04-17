@@ -60,10 +60,10 @@ export async function initAudioContextAndMasterMeter(isUserInitiated = false) {
         return true;
     }
 
-    console.log('[Audio initAudioContextAndMasterMeter] Attempting Tone.start(). Current context state:', Tone.context?.state);
+    console.log('[Audio initAudioContextAndMasterMeter] Attempting Tone.start(). Current context state:', ((Tone.context) && (Tone.context).state));
     try {
         await Tone.start();
-        console.log('[Audio initAudioContextAndMasterMeter] Tone.start() completed. Context state:', Tone.context?.state);
+        console.log('[Audio initAudioContextAndMasterMeter] Tone.start() completed. Context state:', ((Tone.context) && (Tone.context).state));
 
         if (Tone.context && Tone.context.state === 'running') {
             if (!audioContextInitialized) {
@@ -79,7 +79,7 @@ export async function initAudioContextAndMasterMeter(isUserInitiated = false) {
             console.log('[Audio initAudioContextAndMasterMeter] Audio context initialized and running.');
             return true;
         } else {
-            console.warn('[Audio initAudioContextAndMasterMeter] Audio context NOT running after Tone.start(). State:', Tone.context?.state);
+            console.warn('[Audio initAudioContextAndMasterMeter] Audio context NOT running after Tone.start(). State:', ((Tone.context) && (Tone.context).state));
             const message = "AudioContext could not be started. Please click again or refresh the page.";
             if (localAppServices.showNotification) {
                 localAppServices.showNotification(message, 5000);
@@ -205,7 +205,7 @@ export function rebuildMasterEffectChain() {
             console.error(`[Audio rebuildMasterEffectChain] Error connecting master chain output to masterGainNodeActual:`, e);
         }
     } else {
-        console.warn('[Audio rebuildMasterEffectChain] Could not connect master chain output to masterGainNodeActual. Current end:', currentAudioPathEnd?.toString(), 'Master Gain:', masterGainNodeActual?.toString());
+        console.warn('[Audio rebuildMasterEffectChain] Could not connect master chain output to masterGainNodeActual. Current end:', ((currentAudioPathEnd) && (currentAudioPathEnd).toString)(), 'Master Gain:', ((masterGainNodeActual) && (masterGainNodeActual).toString)());
          if (!masterEffectsBusInputNode.numberOfOutputs && masterGainNodeActual && !masterGainNodeActual.disposed) { // If no effects, connect input directly
             try {
                 masterEffectsBusInputNode.connect(masterGainNodeActual);
@@ -465,7 +465,7 @@ export async function playDrumSamplerPadPreview(trackId, padIndex, velocity = 0.
     const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
 
     if (!track || track.type !== 'DrumSampler' || !track.drumPadPlayers[padIndex] || track.drumPadPlayers[padIndex].disposed || !track.drumPadPlayers[padIndex].loaded) {
-        console.warn(`[Audio playDrumSamplerPadPreview] Conditions not met for playing drum pad preview for track ${trackId}, pad ${padIndex}. Player loaded: ${track?.drumPadPlayers[padIndex]?.loaded}`);
+        console.warn(`[Audio playDrumSamplerPadPreview] Conditions not met for playing drum pad preview for track ${trackId}, pad ${padIndex}. Player loaded: ${((track) && (track).drumPadPlayers)[padIndex]?.loaded}`);
         if (localAppServices.showNotification && track && track.type === 'DrumSampler' && (!track.drumPadPlayers[padIndex] || !track.drumPadPlayers[padIndex].loaded) ) {
             localAppServices.showNotification(`Sample for Pad ${padIndex + 1} not loaded or player error.`, 2000);
         }
@@ -549,7 +549,7 @@ async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHin
             track.disposeSlicerMonoNodes(); // Important to call before setting new buffer related properties
             track.audioBuffer = newAudioBuffer;
             track.samplerAudioData = { fileName: sourceName, /* audioBufferDataURL: base64DataURL, */ dbKey: dbKey, status: 'loaded' };
-            if (!track.slicerIsPolyphonic && track.audioBuffer?.loaded) track.setupSlicerMonoNodes();
+            if (!track.slicerIsPolyphonic && ((track.audioBuffer) && (track.audioBuffer).loaded)) track.setupSlicerMonoNodes();
             if (localAppServices.autoSliceSample && track.audioBuffer.loaded && (!track.slices || track.slices.every(s => s.duration === 0))) {
                 localAppServices.autoSliceSample(track.id, Constants.numSlices);
             }
@@ -1066,7 +1066,7 @@ export function setTrackMonitoring(trackId, enabled) {
 }
 
 export async function startAudioRecording(track, isMonitoringEnabled) {
-    console.log("[Audio startAudioRecording] Called for track:", track?.name, "Monitoring:", isMonitoringEnabled);
+    console.log("[Audio startAudioRecording] Called for track:", ((track) && (track).name), "Monitoring:", isMonitoringEnabled);
 
     // Ensure previous instances are robustly closed and disposed
     if (mic) {
@@ -1105,7 +1105,7 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
     console.log("[Audio startAudioRecording] New Tone.Recorder instance created.");
 
     if (!track || track.type !== 'Audio' || !track.inputChannel || track.inputChannel.disposed) {
-        const errorMsg = `Recording failed: Track (ID: ${track?.id}) is not a valid audio track or its input channel is missing/disposed. Type: ${track?.type}. Input channel valid: ${!!(track?.inputChannel && !track.inputChannel.disposed)}`;
+        const errorMsg = `Recording failed: Track (ID: ${((track) && (track).id)}) is not a valid audio track or its input channel is missing/disposed. Type: ${((track) && (track).type)}. Input channel valid: ${!!(((track) && (track).inputChannel) && !track.inputChannel.disposed)}`;
         console.error(`[Audio startAudioRecording] ${errorMsg}`);
         if (localAppServices.showNotification) localAppServices.showNotification(errorMsg, 4000);
         return false;
@@ -1207,7 +1207,7 @@ export async function stopAudioRecording() {
             try {
                 console.log("[Audio stopAudioRecording] Stopping recorder...");
                 blob = await recorder.stop(); // This resolves with the Blob
-                console.log("[Audio stopAudioRecording] Recorder stopped. Blob received, size:", blob?.size, "type:", blob?.type);
+                console.log("[Audio stopAudioRecording] Recorder stopped. Blob received, size:", ((blob) && (blob).size), "type:", ((blob) && (blob).type));
             } catch (e) {
                 console.error("[Audio stopAudioRecording] Error stopping recorder:", e);
                 if (localAppServices.showNotification) localAppServices.showNotification("Error stopping recorder. Recording may be lost.", 3000);

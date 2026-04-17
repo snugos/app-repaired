@@ -157,7 +157,7 @@ export function createKnob(options) {
 // --- Specific Inspector DOM Builders ---
 function buildSynthSpecificInspectorDOM(track) {
     const engineType = track.synthEngineType || 'MonoSynth';
-    const definitions = localAppServices.effectsRegistryAccess?.synthEngineControlDefinitions?.[engineType] || [];
+    const definitions = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).synthEngineControlDefinitions)?.[engineType] || [];
     let controlsHTML = `<div id="synthEngineControls-${track.id}" class="grid grid-cols-2 md:grid-cols-3 gap-2 p-1">`;
     definitions.forEach(def => { controlsHTML += `<div id="${def.idPrefix}-${track.id}-placeholder"></div>`; });
     controlsHTML += `</div>`;
@@ -251,7 +251,7 @@ function buildDrumSamplerSpecificInspectorDOM(track) {
 
 // --- Specific Inspector Control Initializers ---
 function buildSynthEngineControls(track, container, engineType) {
-    const definitions = localAppServices.effectsRegistryAccess?.synthEngineControlDefinitions?.[engineType] || [];
+    const definitions = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).synthEngineControlDefinitions)?.[engineType] || [];
     definitions.forEach(def => {
         const placeholder = container.querySelector(`#${def.idPrefix}-${track.id}-placeholder`);
         if (!placeholder) return;
@@ -264,7 +264,7 @@ function buildSynthEngineControls(track, container, engineType) {
             } else { currentValObj = undefined; break; }
         }
         initialValue = (currentValObj !== undefined) ? currentValObj : def.defaultValue;
-        if (def.path.endsWith('.value') && track.instrument?.get) { // For Tone.Signal parameters
+        if (def.path.endsWith('.value') && ((track.instrument) && (track.instrument).get)) { // For Tone.Signal parameters
             const signalPath = def.path.substring(0, def.path.lastIndexOf('.value'));
             const signalValue = track.instrument.get(signalPath)?.value;
             if (signalValue !== undefined) initialValue = signalValue;
@@ -324,7 +324,7 @@ function initializeSamplerSpecificControls(track, winEl) {
     const canvas = winEl.querySelector(`#waveformCanvas-${track.id}`);
     if (canvas) {
         track.waveformCanvasCtx = canvas.getContext('2d');
-        if(track.audioBuffer?.loaded) drawWaveform(track);
+        if(((track.audioBuffer) && (track.audioBuffer).loaded)) drawWaveform(track);
     }
     updateSliceEditorUI(track);
 
@@ -444,7 +444,7 @@ export function openTrackInspectorWindow(trackId, savedState = null) {
 
     const inspectorWindow = localAppServices.createWindow(windowId, `Inspector: ${track.name}`, contentDOM, inspectorOptions);
 
-    if (inspectorWindow?.element) {
+    if (((inspectorWindow) && (inspectorWindow).element)) {
         initializeCommonInspectorControls(track, inspectorWindow.element);
         initializeTypeSpecificInspectorControls(track, inspectorWindow.element);
     }
@@ -525,7 +525,7 @@ function showTrackColorPicker(track) {
         [{ label: 'Done', action: () => modal.overlay.remove() }]
     );
 
-    if (modal?.contentDiv) {
+    if (((modal) && (modal).contentDiv)) {
         modal.contentDiv.querySelectorAll('.track-color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => {
                 const newColor = swatch.dataset.color;
@@ -566,7 +566,7 @@ export function renderEffectsList(owner, ownerType, listDiv, controlsContainer) 
         if (controlsContainer) controlsContainer.innerHTML = ''; return;
     }
 
-    const AVAILABLE_EFFECTS_LOCAL = localAppServices.effectsRegistryAccess?.AVAILABLE_EFFECTS || {};
+    const AVAILABLE_EFFECTS_LOCAL = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).AVAILABLE_EFFECTS) || {};
 
     effectsArray.forEach((effect, index) => {
         const effectDef = AVAILABLE_EFFECTS_LOCAL[effect.type];
@@ -611,7 +611,7 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
 
     if (!effectWrapper) { controlsContainer.innerHTML = '<p class="text-xs text-gray-500 dark:text-slate-400 italic">Select an effect.</p>'; return; }
 
-    const AVAILABLE_EFFECTS_LOCAL = localAppServices.effectsRegistryAccess?.AVAILABLE_EFFECTS || {};
+    const AVAILABLE_EFFECTS_LOCAL = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).AVAILABLE_EFFECTS) || {};
     const effectDef = AVAILABLE_EFFECTS_LOCAL[effectWrapper.type];
 
     if (!effectDef) { controlsContainer.innerHTML = `<p class="text-xs text-red-500">Error: Definition for "${effectWrapper.type}" not found.</p>`; return; }
@@ -686,7 +686,7 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
 function showAddEffectModal(owner, ownerType) {
     const ownerName = (ownerType === 'track' && owner) ? owner.name : 'Master Bus';
     let modalContentHTML = `<div class="max-h-60 overflow-y-auto"><ul class="list-none p-0 m-0">`;
-    const AVAILABLE_EFFECTS_LOCAL = localAppServices.effectsRegistryAccess?.AVAILABLE_EFFECTS || {};
+    const AVAILABLE_EFFECTS_LOCAL = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).AVAILABLE_EFFECTS) || {};
     
     // DEBUG: Log what we're getting
     console.log('[showAddEffectModal] effectsRegistryAccess:', localAppServices.effectsRegistryAccess);
@@ -696,7 +696,7 @@ function showAddEffectModal(owner, ownerType) {
     for (const effectKey in AVAILABLE_EFFECTS_LOCAL) { modalContentHTML += `<li class="p-1.5 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-sm dark:text-slate-200" data-effect-type="${effectKey}">${AVAILABLE_EFFECTS_LOCAL[effectKey].displayName}</li>`; }
     modalContentHTML += `</ul></div>`;
     const modal = showCustomModal(`Add Effect to ${ownerName}`, modalContentHTML, [], 'add-effect-modal');
-    if (modal?.contentDiv) {
+    if (((modal) && (modal).contentDiv)) {
         modal.contentDiv.querySelectorAll('li[data-effect-type]').forEach(item => {
             item.addEventListener('click', () => {
                 const effectType = item.dataset.effectType;
@@ -723,7 +723,7 @@ export function openTrackEffectsRackWindow(trackId, savedState = null) {
     const rackOptions = { width: 350, height: 400, minWidth: 300, minHeight: 250, initialContentKey: windowId };
     if (savedState) Object.assign(rackOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const rackWindow = localAppServices.createWindow(windowId, `Effects: ${track.name}`, contentDOM, rackOptions);
-    if (rackWindow?.element) {
+    if (((rackWindow) && (rackWindow).element)) {
         renderEffectsList(track, 'track', rackWindow.element.querySelector(`#effectsList-${track.id}`), rackWindow.element.querySelector(`#effectControlsContainer-${track.id}`));
         rackWindow.element.querySelector(`#addEffectBtn-${track.id}`)?.addEventListener('click', () => showAddEffectModal(track, 'track'));
     }
@@ -739,7 +739,7 @@ export function openMasterEffectsRackWindow(savedState = null) {
     const rackOptions = { width: 350, height: 400, minWidth: 300, minHeight: 250, initialContentKey: windowId };
     if (savedState) Object.assign(rackOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const rackWindow = localAppServices.createWindow(windowId, 'Master Effects Rack', contentDOM, rackOptions);
-    if (rackWindow?.element) {
+    if (((rackWindow) && (rackWindow).element)) {
         renderEffectsList(null, 'master', rackWindow.element.querySelector(`#effectsList-master`), rackWindow.element.querySelector(`#effectControlsContainer-master`));
         rackWindow.element.querySelector(`#addEffectBtn-master`)?.addEventListener('click', () => showAddEffectModal(null, 'master'));
     }
@@ -785,7 +785,7 @@ export function openGlobalControlsWindow(onReadyCallback, savedState = null) {
     const options = { width: 280, height: 360, minWidth: 250, minHeight: 340, closable: true, minimizable: true, resizable: true, initialContentKey: windowId }; // Adjusted height slightly
     if (savedState) Object.assign(options, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const newWindow = localAppServices.createWindow(windowId, 'Global Controls', contentHTML, options);
-    if (newWindow?.element && typeof onReadyCallback === 'function') {
+    if (((newWindow) && (newWindow).element) && typeof onReadyCallback === 'function') {
         onReadyCallback({
             playBtnGlobal: newWindow.element.querySelector('#playBtnGlobal'),
             recordBtnGlobal: newWindow.element.querySelector('#recordBtnGlobal'),
@@ -824,7 +824,7 @@ export function openSoundBrowserWindow(savedState = null) {
 
     const browserWindow = localAppServices.createWindow(windowId, 'Sound Browser', contentHTML, browserOptions);
 
-    if (browserWindow?.element) {
+    if (((browserWindow) && (browserWindow).element)) {
         const libSelect = browserWindow.element.querySelector('#librarySelect');
         if (Constants.soundLibraries) {
             Object.keys(Constants.soundLibraries).forEach(libName => {
@@ -928,9 +928,9 @@ export function openSoundBrowserWindow(savedState = null) {
             renderSoundBrowserRecent(listDiv, previewBtn);
         }
 
-        tabBrowse?.addEventListener('click', showBrowseTab);
-        tabFavorites?.addEventListener('click', showFavoritesTab);
-        tabRecent?.addEventListener('click', showRecentTab);
+        ((tabBrowse) && (tabBrowse).addEventListener)('click', showBrowseTab);
+        ((tabFavorites) && (tabFavorites).addEventListener)('click', showFavoritesTab);
+        ((tabRecent) && (tabRecent).addEventListener)('click', showRecentTab);
         updateTabStyles();
 
         // Search/filter input for sound browser
@@ -987,7 +987,7 @@ export function openSoundBrowserWindow(savedState = null) {
 
                 console.log(`[UI PreviewButton] Attempting to preview: ${fullPath} from ${libraryName}`);
 
-                if (loadedZips?.[libraryName] && loadedZips[libraryName] !== "loading") {
+                if (((loadedZips) && (loadedZips)[libraryName] && loadedZips[libraryName] !== "loading") {
                     const zipEntry = loadedZips[libraryName].file(fullPath);
                     if (zipEntry) {
                         console.log(`[UI PreviewButton] Found zipEntry for ${fullPath}. Converting to blob.`);
@@ -1031,7 +1031,7 @@ export function openSoundBrowserWindow(savedState = null) {
             const soundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
 
             console.log(`[UI SoundBrowser Open DEBUG] Initial Global State Check. currentLibNameFromState: ${currentLibNameFromState}. soundTrees keys: ${soundTrees ? Object.keys(soundTrees) : 'undefined'}. soundTrees[Drums] exists: ${soundTrees ? !!soundTrees["Drums"] : 'false'}`);
-            console.log(`[UI SoundBrowser Open] Initial check. Current lib in state: ${currentLibNameFromState}, Dropdown value: ${libSelect?.value}`);
+            console.log(`[UI SoundBrowser Open] Initial check. Current lib in state: ${currentLibNameFromState}, Dropdown value: ${((libSelect) && (libSelect).value)}`);
 
             if (currentLibNameFromState && soundTrees && soundTrees[currentLibNameFromState] && libSelect) {
                 console.log(`[UI SoundBrowser Open] State has current library '${currentLibNameFromState}' with loaded data. Setting dropdown and updating UI.`);
@@ -1400,17 +1400,17 @@ export function openMixerWindow(savedState = null) {
 
     const contentContainer = document.createElement('div'); contentContainer.id = 'mixerContentContainer';
     contentContainer.className = 'p-2 overflow-x-auto whitespace-nowrap h-full bg-gray-100 dark:bg-slate-800';
-    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
-    const mixerOptions = { width: Math.min(800, (desktopEl?.offsetWidth || 800) - 40), height: 300, minWidth: 300, minHeight: 200, initialContentKey: windowId };
+    const desktopEl = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).desktop) || document.getElementById('desktop');
+    const mixerOptions = { width: Math.min(800, (((desktopEl) && (desktopEl).offsetWidth) || 800) - 40), height: 300, minWidth: 300, minHeight: 200, initialContentKey: windowId };
     if (savedState) Object.assign(mixerOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const mixerWindow = localAppServices.createWindow(windowId, 'Mixer', contentContainer, mixerOptions);
-    if (mixerWindow?.element) updateMixerWindow();
+    if (((mixerWindow) && (mixerWindow).element)) updateMixerWindow();
     return mixerWindow;
 }
 
 export function updateMixerWindow() {
     const mixerWindow = localAppServices.getWindowById ? localAppServices.getWindowById('mixer') : null;
-    if (!mixerWindow?.element || mixerWindow.isMinimized) return;
+    if (!((mixerWindow) && (mixerWindow).element) || mixerWindow.isMinimized) return;
     const container = mixerWindow.element.querySelector('#mixerContentContainer');
     if (container) renderMixer(container);
 }
@@ -1481,7 +1481,7 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
         for (let j = 0; j < totalSteps; j++) {
             const stepData = sequenceData[i]?.[j];
             let activeClass = '';
-            if (stepData?.active) { if (track.type === 'Synth') activeClass = 'active-synth'; else if (track.type === 'Sampler') activeClass = 'active-sampler'; else if (track.type === 'DrumSampler') activeClass = 'active-drum-sampler'; else if (track.type === 'InstrumentSampler') activeClass = 'active-instrument-sampler'; }
+            if (((stepData) && (stepData).active)) { if (track.type === 'Synth') activeClass = 'active-synth'; else if (track.type === 'Sampler') activeClass = 'active-sampler'; else if (track.type === 'DrumSampler') activeClass = 'active-drum-sampler'; else if (track.type === 'InstrumentSampler') activeClass = 'active-instrument-sampler'; }
             let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
             if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
             else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
@@ -1536,11 +1536,11 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
 
     const contentDOM = buildSequencerContentDOM(track, rows, rowLabels, numBars);
 
-    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const desktopEl = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).desktop) || document.getElementById('desktop');
     const safeDesktopWidth = (desktopEl && typeof desktopEl.offsetWidth === 'number' && desktopEl.offsetWidth > 0)
                            ? desktopEl.offsetWidth
                            : 1024; // More robust fallback
-    console.log(`[UI openTrackSequencerWindow] For track ${trackId}: Desktop element: ${desktopEl ? 'found' : 'NOT found'}, offsetWidth: ${desktopEl?.offsetWidth}, safeDesktopWidth: ${safeDesktopWidth}, NumBars: ${numBars}`);
+    console.log(`[UI openTrackSequencerWindow] For track ${trackId}: Desktop element: ${desktopEl ? 'found' : 'NOT found'}, offsetWidth: ${((desktopEl) && (desktopEl).offsetWidth)}, safeDesktopWidth: ${safeDesktopWidth}, NumBars: ${numBars}`);
 
 
     let calculatedWidth = Math.max(400, Math.min(900, safeDesktopWidth - 40));
@@ -1575,7 +1575,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
     console.log(`[UI openTrackSequencerWindow] For track ${trackId}: Creating window with options:`, JSON.stringify(seqOptions));
     const sequencerWindow = localAppServices.createWindow(windowId, `Sequencer: ${track.name} - ${activeSequence.name}`, contentDOM, seqOptions);
 
-    if (sequencerWindow?.element) {
+    if (((sequencerWindow) && (sequencerWindow).element)) {
         const allCells = Array.from(sequencerWindow.element.querySelectorAll('.sequencer-step-cell'));
         sequencerWindow.stepCellsGrid = [];
         const currentSequenceLength = activeSequence ? activeSequence.length : Constants.defaultStepsPerBar;
@@ -1714,7 +1714,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
                     if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
                     const currentStepData = currentActiveSeq.data[row][col];
-                    const isActive = !(currentStepData?.active);
+                    const isActive = !(((currentStepData) && (currentStepData).active));
 
                     if (e.shiftKey && (e.ctrlKey || e.metaKey)) {
                         // Shift+Ctrl/Cmd: paste velocity from clipboard
@@ -1736,8 +1736,8 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                             showNotification(`Shifted ${result} note(s) up`, 1500);
                         } else {
                             // No notes to shift - just toggle if inactive
-                            currentActiveSeq.data[row][col] = { active: true, velocity: currentStepData?.velocity || Constants.defaultVelocity };
-                            updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, currentStepData?.velocity || Constants.defaultVelocity);
+                            currentActiveSeq.data[row][col] = { active: true, velocity: ((currentStepData) && (currentStepData).velocity) || Constants.defaultVelocity };
+                            updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true, ((currentStepData) && (currentStepData).velocity) || Constants.defaultVelocity);
                         }
                     } else if (e.ctrlKey || e.metaKey) {
                         // Ctrl/Cmd+Click: copy velocity to clipboard
@@ -1748,8 +1748,8 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                     } else {
                         // Normal click: toggle step
                         if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Step (${row + 1},${col + 1}) on ${track.name} (${currentActiveSeq.name})`);
-                        currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: currentStepData?.velocity || Constants.defaultVelocity } : null;
-                        updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive, currentStepData?.velocity || Constants.defaultVelocity);
+                        currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: ((currentStepData) && (currentStepData).velocity) || Constants.defaultVelocity } : null;
+                        updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive, ((currentStepData) && (currentStepData).velocity) || Constants.defaultVelocity);
                     }
                 }
             }
@@ -1804,8 +1804,8 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
 
 // --- UI Update & Drawing Functions ---
 export function drawWaveform(track) {
-    if (!track?.waveformCanvasCtx || !track.audioBuffer?.loaded) {
-        if (track?.waveformCanvasCtx) {
+    if (!((track) && (track).waveformCanvasCtx) || !((track.audioBuffer) && (track.audioBuffer).loaded)) {
+        if (((track) && (track).waveformCanvasCtx)) {
             const canvas = track.waveformCanvasCtx.canvas;
             track.waveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             track.waveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
@@ -1843,8 +1843,8 @@ export function drawWaveform(track) {
 }
 
 export function drawInstrumentWaveform(track) {
-    if (!track?.instrumentWaveformCanvasCtx || !track.instrumentSamplerSettings.audioBuffer?.loaded) {
-        if (track?.instrumentWaveformCanvasCtx) { /* Draw 'No audio' message, similar to drawWaveform */ } return;
+    if (!((track) && (track).instrumentWaveformCanvasCtx) || !((track.instrumentSamplerSettings.audioBuffer) && (track.instrumentSamplerSettings.audioBuffer).loaded)) {
+        if (((track) && (track).instrumentWaveformCanvasCtx)) { /* Draw 'No audio' message, similar to drawWaveform */ } return;
     }
     const canvas = track.instrumentWaveformCanvasCtx.canvas; const ctx = track.instrumentWaveformCanvasCtx;
     const buffer = track.instrumentSamplerSettings.audioBuffer.get(); const data = buffer.getChannelData(0);
@@ -2199,16 +2199,16 @@ export function updateSliceEditorUI(track) {
         if (track.inspectorControls.slicePitch && sliceData) {
             track.inspectorControls.slicePitch.setValue(sliceData.pitchShift !== undefined ? sliceData.pitchShift : 0, false);
         }
-        if (track.inspectorControls.sliceEnvAttack && sliceData?.envelope) {
+        if (track.inspectorControls.sliceEnvAttack && ((sliceData) && (sliceData).envelope)) {
             track.inspectorControls.sliceEnvAttack.setValue(sliceData.envelope.attack || 0.01, false);
         }
-        if (track.inspectorControls.sliceEnvDecay && sliceData?.envelope) {
+        if (track.inspectorControls.sliceEnvDecay && ((sliceData) && (sliceData).envelope)) {
             track.inspectorControls.sliceEnvDecay.setValue(sliceData.envelope.decay || 0.1, false);
         }
-        if (track.inspectorControls.sliceEnvSustain && sliceData?.envelope) {
+        if (track.inspectorControls.sliceEnvSustain && ((sliceData) && (sliceData).envelope)) {
             track.inspectorControls.sliceEnvSustain.setValue(sliceData.envelope.sustain !== undefined ? sliceData.envelope.sustain : 1.0, false);
         }
-        if (track.inspectorControls.sliceEnvRelease && sliceData?.envelope) {
+        if (track.inspectorControls.sliceEnvRelease && ((sliceData) && (sliceData).envelope)) {
             track.inspectorControls.sliceEnvRelease.setValue(sliceData.envelope.release || 0.1, false);
         }
         

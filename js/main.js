@@ -188,7 +188,7 @@ import {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
-            if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
+            if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
             }
             const defaultParams = appServices.effectsRegistryAccess.getEffectDefaultParams(effectType);
@@ -255,14 +255,14 @@ import {
         try {
             const inspectorWindow = getWindowByIdState(`trackInspector-${trackId}`);
             const mixerWindow = getWindowByIdState('mixer');
-            if (inspectorWindow?.element && !inspectorWindow.isMinimized) {
+            if (((inspectorWindow) && (inspectorWindow).element) && !inspectorWindow.isMinimized) {
                 const meterBar = inspectorWindow.element.querySelector(`#trackMeterBar-${trackId}`);
                 if (meterBar) {
                     meterBar.style.width = `${Math.min(100, Math.max(0, level * 100))}%`;
                     meterBar.classList.toggle('clipping', isClipping);
                 }
             }
-            if (mixerWindow?.element && !mixerWindow.isMinimized) {
+            if (((mixerWindow) && (mixerWindow).element) && !mixerWindow.isMinimized) {
                 const meterBar = mixerWindow.element.querySelector(`#mixerTrackMeterBar-${trackId}`);
                 if (meterBar) {
                     meterBar.style.width = `${Math.min(100, Math.max(0, level * 100))}%`;
@@ -274,7 +274,7 @@ import {
     updateMasterEffectsRackUI: () => {
         try {
             const masterRackWindow = getWindowByIdState('masterEffectsRack');
-            if (masterRackWindow?.element && !masterRackWindow.isMinimized && typeof renderEffectsList === 'function') {
+            if (((masterRackWindow) && (masterRackWindow).element) && !masterRackWindow.isMinimized && typeof renderEffectsList === 'function') {
                 const listDiv = masterRackWindow.element.querySelector('#effectsList-master');
                 const controlsContainer = masterRackWindow.element.querySelector('#effectControlsContainer-master');
                 if (listDiv && controlsContainer) {
@@ -312,7 +312,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
     const getOpenWindowElement = (winId) => {
         if (!getWindowByIdState) return null;
         const win = getWindowByIdState(winId);
-        return (win?.element && !win.isMinimized) ? win.element : null;
+        return (((win) && (win).element) && !win.isMinimized) ? win.element : null;
     };
 
     const inspectorElement = getOpenWindowElement(`trackInspector-${trackId}`);
@@ -355,7 +355,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                     if(dzContainer) {
                         const audioData = track.type === 'Sampler' ? track.samplerAudioData : track.instrumentSamplerSettings;
                         const inputId = track.type === 'Sampler' ? `fileInput-${track.id}` : `instrumentFileInput-${track.id}`;
-                        dzContainer.innerHTML = createDropZoneHTML(track.id, inputId, track.type, null, {originalFileName: audioData?.fileName, status: 'loaded'});
+                        dzContainer.innerHTML = createDropZoneHTML(track.id, inputId, track.type, null, {originalFileName: ((audioData) && (audioData).fileName), status: 'loaded'});
                         const fileInputEl = dzContainer.querySelector(`#${inputId}`);
                         const loadFn = appServices.loadSampleFile;
                         if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
@@ -701,7 +701,7 @@ function updateMetersLoop() {
     try {
         if (typeof updateMeters === 'function') {
             const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
-            const mixerMasterMeterBar = mixerWindow?.element && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
+            const mixerMasterMeterBar = ((mixerWindow) && (mixerWindow).element) && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
             const tracks = getTracksState ? getTracksState() : [];
             updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
         }

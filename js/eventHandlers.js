@@ -104,21 +104,21 @@ export function initializePrimaryEventListeners(appContext) {
         }
 
         const menuActions = {
-            menuAddSynthTrack: () => services.addTrack?.('Synth', {_isUserActionPlaceholder: true}),
-            menuAddSamplerTrack: () => services.addTrack?.('Sampler', {_isUserActionPlaceholder: true}),
-            menuAddDrumSamplerTrack: () => services.addTrack?.('DrumSampler', {_isUserActionPlaceholder: true}),
-            menuAddInstrumentSamplerTrack: () => services.addTrack?.('InstrumentSampler', {_isUserActionPlaceholder: true}),
-            menuAddAudioTrack: () => services.addTrack?.('Audio', {_isUserActionPlaceholder: true}),
-            menuOpenSoundBrowser: () => services.openSoundBrowserWindow?.(),
-            menuOpenTimeline: () => services.openTimelineWindow?.(),
-            menuOpenGlobalControls: () => services.openGlobalControlsWindow?.(),
-            menuOpenMixer: () => services.openMixerWindow?.(),
-            menuOpenMasterEffects: () => services.openMasterEffectsRackWindow?.(),
-            menuUndo: () => services.undoLastAction?.(),
-            menuRedo: () => services.redoLastAction?.(),
-            menuSaveProject: () => services.saveProject?.(),
-            menuLoadProject: () => services.loadProject?.(),
-            menuExportWav: () => services.exportToWav?.(),
+            menuAddSynthTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Synth', {_isUserActionPlaceholder: true}),
+            menuAddSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Sampler', {_isUserActionPlaceholder: true}),
+            menuAddDrumSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'DrumSampler', {_isUserActionPlaceholder: true}),
+            menuAddInstrumentSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'InstrumentSampler', {_isUserActionPlaceholder: true}),
+            menuAddAudioTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Audio', {_isUserActionPlaceholder: true}),
+            menuOpenSoundBrowser: () => ((services.openSoundBrowserWindow && typeof services.openSoundBrowserWindow === "function") ? services.openSoundBrowserWindow() : undefined)),
+            menuOpenTimeline: () => ((services.openTimelineWindow && typeof services.openTimelineWindow === "function") ? services.openTimelineWindow() : undefined)),
+            menuOpenGlobalControls: () => ((services.openGlobalControlsWindow && typeof services.openGlobalControlsWindow === "function") ? services.openGlobalControlsWindow() : undefined)),
+            menuOpenMixer: () => ((services.openMixerWindow && typeof services.openMixerWindow === "function") ? services.openMixerWindow() : undefined)),
+            menuOpenMasterEffects: () => ((services.openMasterEffectsRackWindow && typeof services.openMasterEffectsRackWindow === "function") ? services.openMasterEffectsRackWindow() : undefined)),
+            menuUndo: () => ((services.undoLastAction && typeof services.undoLastAction === "function") ? services.undoLastAction() : undefined)),
+            menuRedo: () => ((services.redoLastAction && typeof services.redoLastAction === "function") ? services.redoLastAction() : undefined)),
+            menuSaveProject: () => ((services.saveProject && typeof services.saveProject === "function") ? services.saveProject() : undefined)),
+            menuLoadProject: () => ((services.loadProject && typeof services.loadProject === "function") ? services.loadProject() : undefined)),
+            menuExportWav: () => ((services.exportToWav && typeof services.exportToWav === "function") ? services.exportToWav() : undefined)),
             menuToggleFullScreen: toggleFullScreen,
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };
@@ -289,7 +289,7 @@ export function attachGlobalControlEvents(elements) {
                     Tone.Transport.stop();
                     Tone.Transport.cancel(0);
                 }
-                const playButton = localAppServices.uiElementsCache?.playBtnGlobal;
+                const playButton = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).playBtnGlobal);
                 if(playButton) {
                     playButton.textContent = 'Play';
                     playButton.classList.remove('playing');
@@ -433,7 +433,7 @@ function onMIDISuccess(midiAccess) {
     }
 
     const inputs = midiAccess.inputs.values();
-    const selectElement = localAppServices.uiElementsCache?.midiInputSelectGlobal;
+    const selectElement = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).midiInputSelectGlobal);
 
     if (!selectElement) {
         console.warn("[EventHandlers onMIDISuccess] MIDI input select element not found in UI cache.");
@@ -516,7 +516,7 @@ function handleMIDIMessage(message) {
         const [command, note, velocity] = message.data;
         const armedTrackId = getArmedTrackId();
         const armedTrack = armedTrackId !== null ? getTrackById(armedTrackId) : null;
-        const midiIndicator = localAppServices.uiElementsCache?.midiIndicatorGlobal;
+        const midiIndicator = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).midiIndicatorGlobal);
 
         if (midiIndicator) {
             midiIndicator.classList.add('active');
@@ -582,7 +582,7 @@ document.addEventListener('keydown', (event) => {
     try {
         if (event.repeat) return;
         const key = event.key.toLowerCase();
-        const kbdIndicator = localAppServices.uiElementsCache?.keyboardIndicatorGlobal;
+        const kbdIndicator = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).keyboardIndicatorGlobal);
 
         const activeEl = document.activeElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
@@ -615,7 +615,7 @@ document.addEventListener('keydown', (event) => {
         }
         if (key === ' ' && !(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA'))) { 
             event.preventDefault(); 
-            const playBtn = localAppServices.uiElementsCache?.playBtnGlobal;
+            const playBtn = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).playBtnGlobal);
             if (playBtn) playBtn.click();
             return;
         }
@@ -701,7 +701,7 @@ document.addEventListener('keyup', (event) => {
 
     try {
         const key = event.key.toLowerCase();
-        const kbdIndicator = localAppServices.uiElementsCache?.keyboardIndicatorGlobal;
+        const kbdIndicator = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).keyboardIndicatorGlobal);
         if (kbdIndicator) kbdIndicator.classList.remove('active');
 
         const armedTrackId = getArmedTrackId();

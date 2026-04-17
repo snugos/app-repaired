@@ -210,7 +210,7 @@ export function setPlaybackModeStateInternal(mode) {
             Tone.Transport.cancel(0); // Cancel all scheduled events
             console.log("[State setPlaybackModeStateInternal] Tone.Transport events cancelled.");
 
-            if (appServices.uiElementsCache?.playBtnGlobal) {
+            if (((appServices.uiElementsCache) && (appServices.uiElementsCache).playBtnGlobal)) {
                 appServices.uiElementsCache.playBtnGlobal.textContent = 'Play';
                 console.log("[State setPlaybackModeStateInternal] Play button text reset.");
             } else {
@@ -398,7 +398,7 @@ export function removeTrackFromStateInternal(trackId) {
 // --- Master Effects Chain Management ---
 export function addMasterEffectToState(effectType, initialParams) {
     const effectId = `mastereffect_${effectType}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
-    const defaultParams = appServices.effectsRegistryAccess?.getEffectDefaultParams
+    const defaultParams = ((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)
         ? appServices.effectsRegistryAccess.getEffectDefaultParams(effectType)
         : getEffectDefaultParamsFromRegistry(effectType); // Fallback
 
@@ -581,10 +581,10 @@ export function gatherProjectDataInternal() {
                     trackData.synthParams = track.synthParams ? JSON.parse(JSON.stringify(track.synthParams)) : {};
                 } else if (track.type === 'Sampler') {
                     trackData.samplerAudioData = {
-                        fileName: track.samplerAudioData?.fileName,
-                        dbKey: track.samplerAudioData?.dbKey,
+                        fileName: ((track.samplerAudioData) && (track.samplerAudioData).fileName),
+                        dbKey: ((track.samplerAudioData) && (track.samplerAudioData).dbKey),
                         // status is runtime, not strictly needed for save, but useful for rehydration hint
-                        status: track.samplerAudioData?.dbKey ? 'persisted' : (track.samplerAudioData?.fileName ? 'volatile' : 'empty')
+                        status: ((track.samplerAudioData) && (track.samplerAudioData).dbKey) ? 'persisted' : (((track.samplerAudioData) && (track.samplerAudioData).fileName) ? 'volatile' : 'empty')
                     };
                     trackData.slices = track.slices ? JSON.parse(JSON.stringify(track.slices)) : [];
                     trackData.selectedSliceForEdit = track.selectedSliceForEdit;
@@ -599,14 +599,14 @@ export function gatherProjectDataInternal() {
                     trackData.selectedDrumPadForEdit = track.selectedDrumPadForEdit;
                 } else if (track.type === 'InstrumentSampler') {
                     trackData.instrumentSamplerSettings = {
-                        originalFileName: track.instrumentSamplerSettings?.originalFileName,
-                        dbKey: track.instrumentSamplerSettings?.dbKey,
-                        rootNote: track.instrumentSamplerSettings?.rootNote,
-                        loop: track.instrumentSamplerSettings?.loop,
-                        loopStart: track.instrumentSamplerSettings?.loopStart,
-                        loopEnd: track.instrumentSamplerSettings?.loopEnd,
-                        envelope: track.instrumentSamplerSettings?.envelope ? JSON.parse(JSON.stringify(track.instrumentSamplerSettings.envelope)) : {},
-                        status: track.instrumentSamplerSettings?.dbKey ? 'persisted' : (track.instrumentSamplerSettings?.originalFileName ? 'volatile' : 'empty')
+                        originalFileName: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).originalFileName),
+                        dbKey: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).dbKey),
+                        rootNote: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).rootNote),
+                        loop: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).loop),
+                        loopStart: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).loopStart),
+                        loopEnd: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).loopEnd),
+                        envelope: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).envelope) ? JSON.parse(JSON.stringify(track.instrumentSamplerSettings.envelope)) : {},
+                        status: ((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).dbKey) ? 'persisted' : (((track.instrumentSamplerSettings) && (track.instrumentSamplerSettings).originalFileName) ? 'volatile' : 'empty')
                     };
                     trackData.instrumentSamplerIsPolyphonic = track.instrumentSamplerIsPolyphonic;
                 }
@@ -738,7 +738,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
     // Window reconstruction needs to happen after tracks are potentially created, as some windows depend on track IDs.
     try {
         if (projectData.windowStates && Array.isArray(projectData.windowStates)) {
-            const sortedWindowStates = projectData.windowStates.sort((a, b) => (a?.zIndex || 0) - (b?.zIndex || 0));
+            const sortedWindowStates = projectData.windowStates.sort((a, b) => (((a) && (a).zIndex) || 0) - (((b) && (b).zIndex) || 0));
             for (const winState of sortedWindowStates) {
                 if (!winState || !winState.id) { console.warn("[State reconstructDAWInternal] Invalid window state found:", winState); continue; }
                 const key = winState.initialContentKey || winState.id; // Use initialContentKey for routing
@@ -826,7 +826,7 @@ export function saveProjectInternal() {
 }
 
 export function loadProjectInternal() {
-    const loadProjectInputEl = appServices.uiElementsCache?.loadProjectInput;
+    const loadProjectInputEl = ((appServices.uiElementsCache) && (appServices.uiElementsCache).loadProjectInput);
     if (loadProjectInputEl) {
         loadProjectInputEl.click();
     } else {
@@ -891,9 +891,9 @@ export async function exportToWavInternal() {
 
         if (currentPlaybackMode === 'timeline') {
             tracks.forEach(track => {
-                if (track?.timelineClips) {
+                if (((track) && (track).timelineClips)) {
                     track.timelineClips.forEach(clip => {
-                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                        if (((clip) && (clip).startTime) !== undefined && ((clip) && (clip).duration) !== undefined) {
                             maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
                         }
                     });
@@ -903,7 +903,7 @@ export async function exportToWavInternal() {
             tracks.forEach(track => {
                 if (track && track.type !== 'Audio') {
                     const activeSeq = track.getActiveSequence();
-                    if (activeSeq?.length > 0) {
+                    if (((activeSeq) && (activeSeq).length) > 0) {
                         const sixteenthNoteTime = Tone.Time("16n").toSeconds();
                         maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
                     }
@@ -922,7 +922,7 @@ export async function exportToWavInternal() {
         // Stop everything first
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        tracks.forEach(t => { if (((t) && (t).stopPlayback)) t.stopPlayback(); });
         await new Promise(r => setTimeout(r, 100));
 
         appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
@@ -946,7 +946,7 @@ export async function exportToWavInternal() {
         
         // Schedule all tracks
         for (const track of tracks) {
-            if (track?.schedulePlayback) {
+            if (((track) && (track).schedulePlayback)) {
                 await track.schedulePlayback(0, maxDuration);
             }
         }
@@ -968,7 +968,7 @@ export async function exportToWavInternal() {
         // Stop transport
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        tracks.forEach(t => { if (((t) && (t).stopPlayback)) t.stopPlayback(); });
 
         // Cleanup
         try { masterGain.disconnect(recorder); } catch (e) {}
@@ -976,7 +976,7 @@ export async function exportToWavInternal() {
 
         if (!recording || recording.size < 1000) {
             appServices.showNotification("Export failed: No audio recorded.", 3000);
-            console.error("[Export] Recording too small:", recording?.size);
+            console.error("[Export] Recording too small:", ((recording) && (recording).size));
             return;
         }
 
@@ -1017,16 +1017,16 @@ export async function exportStemsInternal() {
     
     // Calculate max duration
     tracks.forEach(track => {
-        if (track?.timelineClips) {
+        if (((track) && (track).timelineClips)) {
             track.timelineClips.forEach(clip => {
-                if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                if (((clip) && (clip).startTime) !== undefined && ((clip) && (clip).duration) !== undefined) {
                     maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
                 }
             });
         }
         if (track && track.type !== 'Audio') {
             const activeSeq = track.getActiveSequence();
-            if (activeSeq?.length > 0) {
+            if (((activeSeq) && (activeSeq).length) > 0) {
                 const sixteenthNoteTime = Tone.Time("16n").toSeconds();
                 maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
             }
@@ -1048,7 +1048,7 @@ export async function exportStemsInternal() {
         // Stop everything
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        tracks.forEach(t => { if (((t) && (t).stopPlayback)) t.stopPlayback(); });
         await new Promise(r => setTimeout(r, 100));
         
         // Setup recorder
@@ -1072,7 +1072,7 @@ export async function exportStemsInternal() {
         Tone.Transport.position = 0;
         Tone.Transport.loop = false;
         
-        if (track?.schedulePlayback) {
+        if (((track) && (track).schedulePlayback)) {
             await track.schedulePlayback(0, maxDuration);
         }
         
@@ -1108,7 +1108,7 @@ export async function exportStemsInternal() {
     }
     
     // Restore all tracks
-    tracks.forEach(t => { if (t?.gainNode) t.gainNode.gain.value = t.isMuted ? 0 : 1; });
+    tracks.forEach(t => { if (((t) && (t).gainNode)) t.gainNode.gain.value = t.isMuted ? 0 : 1; });
     
     Tone.Transport.stop();
     Tone.Transport.cancel(0);

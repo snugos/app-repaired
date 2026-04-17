@@ -347,7 +347,7 @@ export function createEffectInstance(effectType, initialParams = {}) {
 
                          if (target && typeof target[keys[keys.length-1]] !== 'undefined') {
                               const finalKey = keys[keys.length-1];
-                              if (target[finalKey] && typeof target[finalKey].value !== 'undefined' && paramDefForPath?.isSignal) {
+                              if (target[finalKey] && typeof target[finalKey].value !== 'undefined' && ((paramDefForPath) && (paramDefForPath).isSignal)) {
                                  target[finalKey].value = value;
                                  console.log(`[EffectsRegistry Fallback] Set signal ${keyPath}.value = ${value}`);
                               } else {

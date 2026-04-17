@@ -7,33 +7,33 @@ import { storeAudio, getAudio } from './db.js';
 
 export class Track {
     constructor(id, type, initialData = null, appServices = {}) {
-        this.id = initialData?.id || id;
+        this.id = ((initialData) && (initialData).id) || id;
         this.type = type;
         this.appServices = appServices || {}; // Ensure appServices is at least an empty object
 
-        this.name = initialData?.name || `${type} Track ${this.id}`;
+        this.name = ((initialData) && (initialData).name) || `${type} Track ${this.id}`;
         if (type === 'DrumSampler') {
-            this.name = initialData?.name || `Sampler (Pads) ${this.id}`;
+            this.name = ((initialData) && (initialData).name) || `Sampler (Pads) ${this.id}`;
         } else if (type === 'Synth') {
-            this.name = initialData?.name || `MonoSynth ${this.id}`;
+            this.name = ((initialData) && (initialData).name) || `MonoSynth ${this.id}`;
         } else if (type === 'Audio') {
-            this.name = initialData?.name || `Audio ${this.id}`;
+            this.name = ((initialData) && (initialData).name) || `Audio ${this.id}`;
         }
         console.log(`[Track ${this.id} Constructor] Initializing track "${this.name}" of type "${this.type}". InitialData present: ${!!initialData}`);
 
-        this.isMuted = initialData?.isMuted || false;
-        this.isMonitoringEnabled = initialData?.isMonitoringEnabled !== undefined ? initialData.isMonitoringEnabled : (this.type === 'Audio'); 
+        this.isMuted = ((initialData) && (initialData).isMuted) || false;
+        this.isMonitoringEnabled = ((initialData) && (initialData).isMonitoringEnabled) !== undefined ? initialData.isMonitoringEnabled : (this.type === 'Audio'); 
 
         const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
         this.isSoloed = currentSoloedId === this.id;
-        this.previousVolumeBeforeMute = initialData?.volume ?? 0.7;
+        this.previousVolumeBeforeMute = ((initialData) && (initialData).volume) ?? 0.7;
         // Track color for visual identification
-        this.trackColor = initialData?.trackColor || Constants.TRACK_COLORS[(id - 1) % Constants.TRACK_COLORS.length];
+        this.trackColor = ((initialData) && (initialData).trackColor) || Constants.TRACK_COLORS[(id - 1) % Constants.TRACK_COLORS.length];
 
         // Synth specific
         if (this.type === 'Synth') {
-            this.synthEngineType = initialData?.synthEngineType || 'MonoSynth';
-            this.synthParams = initialData?.synthParams ? JSON.parse(JSON.stringify(initialData.synthParams)) : this.getDefaultSynthParams();
+            this.synthEngineType = ((initialData) && (initialData).synthEngineType) || 'MonoSynth';
+            this.synthParams = ((initialData) && (initialData).synthParams) ? JSON.parse(JSON.stringify(initialData.synthParams)) : this.getDefaultSynthParams();
         } else {
             this.synthEngineType = null;
             this.synthParams = {};
@@ -41,60 +41,60 @@ export class Track {
 
         // Sampler (Slicer) specific
         this.samplerAudioData = {
-            fileName: initialData?.samplerAudioData?.fileName || null,
-            audioBufferDataURL: initialData?.samplerAudioData?.audioBufferDataURL || null, 
-            dbKey: initialData?.samplerAudioData?.dbKey || null,
-            status: initialData?.samplerAudioData?.status || (initialData?.samplerAudioData?.dbKey || initialData?.samplerAudioData?.audioBufferDataURL ? 'missing' : 'empty')
+            fileName: ((initialData) && (initialData).samplerAudioData)?.fileName || null,
+            audioBufferDataURL: ((initialData) && (initialData).samplerAudioData)?.audioBufferDataURL || null, 
+            dbKey: ((initialData) && (initialData).samplerAudioData)?.dbKey || null,
+            status: ((initialData) && (initialData).samplerAudioData)?.status || (((initialData) && (initialData).samplerAudioData)?.dbKey || ((initialData) && (initialData).samplerAudioData)?.audioBufferDataURL ? 'missing' : 'empty')
         };
         this.audioBuffer = null; 
-        this.slices = initialData?.slices && initialData.slices.length > 0 ?
+        this.slices = ((initialData) && (initialData).slices) && initialData.slices.length > 0 ?
             JSON.parse(JSON.stringify(initialData.slices)) :
             Array(Constants.numSlices).fill(null).map(() => ({
                 offset: 0, duration: 0, userDefined: false, volume: 0.7, pitchShift: 0,
                 loop: false, reverse: false,
                 envelope: { attack: 0.005, decay: 0.1, sustain: 0.9, release: 0.2 }
             }));
-        this.selectedSliceForEdit = initialData?.selectedSliceForEdit || 0;
-        this.waveformZoom = initialData?.waveformZoom || 1;
-        this.waveformScrollOffset = initialData?.waveformScrollOffset || 0;
-        this.slicerIsPolyphonic = initialData?.slicerIsPolyphonic !== undefined ? initialData.slicerIsPolyphonic : true;
+        this.selectedSliceForEdit = ((initialData) && (initialData).selectedSliceForEdit) || 0;
+        this.waveformZoom = ((initialData) && (initialData).waveformZoom) || 1;
+        this.waveformScrollOffset = ((initialData) && (initialData).waveformScrollOffset) || 0;
+        this.slicerIsPolyphonic = ((initialData) && (initialData).slicerIsPolyphonic) !== undefined ? initialData.slicerIsPolyphonic : true;
         this.slicerMonoPlayer = null;
         this.slicerMonoEnvelope = null;
         this.slicerMonoGain = null;
 
         // Instrument Sampler specific
         this.instrumentSamplerSettings = {
-            sampleUrl: initialData?.instrumentSamplerSettings?.sampleUrl || null, 
+            sampleUrl: ((initialData) && (initialData).instrumentSamplerSettings)?.sampleUrl || null, 
             audioBuffer: null,
-            audioBufferDataURL: initialData?.instrumentSamplerSettings?.audioBufferDataURL || null,
-            originalFileName: initialData?.instrumentSamplerSettings?.originalFileName || null,
-            dbKey: initialData?.instrumentSamplerSettings?.dbKey || null,
-            rootNote: initialData?.instrumentSamplerSettings?.rootNote || 'C4',
-            loop: initialData?.instrumentSamplerSettings?.loop || false,
-            loopStart: initialData?.instrumentSamplerSettings?.loopStart || 0,
-            loopEnd: initialData?.instrumentSamplerSettings?.loopEnd || 0,
-            envelope: initialData?.instrumentSamplerSettings?.envelope ? JSON.parse(JSON.stringify(initialData.instrumentSamplerSettings.envelope)) : { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5 },
-            status: initialData?.instrumentSamplerSettings?.status || (initialData?.instrumentSamplerSettings?.dbKey || initialData?.instrumentSamplerSettings?.audioBufferDataURL ? 'missing' : 'empty')
+            audioBufferDataURL: ((initialData) && (initialData).instrumentSamplerSettings)?.audioBufferDataURL || null,
+            originalFileName: ((initialData) && (initialData).instrumentSamplerSettings)?.originalFileName || null,
+            dbKey: ((initialData) && (initialData).instrumentSamplerSettings)?.dbKey || null,
+            rootNote: ((initialData) && (initialData).instrumentSamplerSettings)?.rootNote || 'C4',
+            loop: ((initialData) && (initialData).instrumentSamplerSettings)?.loop || false,
+            loopStart: ((initialData) && (initialData).instrumentSamplerSettings)?.loopStart || 0,
+            loopEnd: ((initialData) && (initialData).instrumentSamplerSettings)?.loopEnd || 0,
+            envelope: ((initialData) && (initialData).instrumentSamplerSettings)?.envelope ? JSON.parse(JSON.stringify(initialData.instrumentSamplerSettings.envelope)) : { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5 },
+            status: ((initialData) && (initialData).instrumentSamplerSettings)?.status || (((initialData) && (initialData).instrumentSamplerSettings)?.dbKey || ((initialData) && (initialData).instrumentSamplerSettings)?.audioBufferDataURL ? 'missing' : 'empty')
         };
-        this.instrumentSamplerIsPolyphonic = initialData?.instrumentSamplerIsPolyphonic !== undefined ? initialData.instrumentSamplerIsPolyphonic : true;
+        this.instrumentSamplerIsPolyphonic = ((initialData) && (initialData).instrumentSamplerIsPolyphonic) !== undefined ? initialData.instrumentSamplerIsPolyphonic : true;
         this.toneSampler = null;
 
         // Drum Sampler specific
         this.drumSamplerPads = Array(Constants.numDrumSamplerPads).fill(null).map((_, padIdx) => {
-            const initialPadData = initialData?.drumSamplerPads?.[padIdx];
+            const initialPadData = ((initialData) && (initialData).drumSamplerPads)?.[padIdx];
             return {
-                sampleUrl: initialPadData?.sampleUrl || null, 
+                sampleUrl: ((initialPadData) && (initialPadData).sampleUrl) || null, 
                 audioBuffer: null,
-                audioBufferDataURL: initialPadData?.audioBufferDataURL || null,
-                originalFileName: initialPadData?.originalFileName || null,
-                dbKey: initialPadData?.dbKey || null,
-                volume: initialPadData?.volume ?? 0.7,
-                pitchShift: initialPadData?.pitchShift ?? 0,
-                envelope: initialPadData?.envelope ? JSON.parse(JSON.stringify(initialPadData.envelope)) : { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 },
-                status: initialPadData?.status || (initialPadData?.dbKey || initialPadData?.audioBufferDataURL ? 'missing' : 'empty')
+                audioBufferDataURL: ((initialPadData) && (initialPadData).audioBufferDataURL) || null,
+                originalFileName: ((initialPadData) && (initialPadData).originalFileName) || null,
+                dbKey: ((initialPadData) && (initialPadData).dbKey) || null,
+                volume: ((initialPadData) && (initialPadData).volume) ?? 0.7,
+                pitchShift: ((initialPadData) && (initialPadData).pitchShift) ?? 0,
+                envelope: ((initialPadData) && (initialPadData).envelope) ? JSON.parse(JSON.stringify(initialPadData.envelope)) : { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 },
+                status: ((initialPadData) && (initialPadData).status) || (((initialPadData) && (initialPadData).dbKey) || ((initialPadData) && (initialPadData).audioBufferDataURL) ? 'missing' : 'empty')
             };
         });
-        this.selectedDrumPadForEdit = initialData?.selectedDrumPadForEdit || 0;
+        this.selectedDrumPadForEdit = ((initialData) && (initialData).selectedDrumPadForEdit) || 0;
         this.drumPadPlayers = Array(Constants.numDrumSamplerPads).fill(null);
 
         // Effects
@@ -105,7 +105,7 @@ export class Track {
                     console.warn(`[Track ${this.id} Constructor] Skipping invalid effectData:`, effectData);
                     return;
                 }
-                const getDefaults = this.appServices.effectsRegistryAccess?.getEffectDefaultParams || getEffectDefaultParamsFromRegistry;
+                const getDefaults = ((this.appServices.effectsRegistryAccess) && (this.appServices.effectsRegistryAccess).getEffectDefaultParams) || getEffectDefaultParamsFromRegistry;
                 const paramsForInstance = effectData.params ? JSON.parse(JSON.stringify(effectData.params)) : (getDefaults ? getDefaults(effectData.type) : {});
                 const toneNode = createEffectInstance(effectData.type, paramsForInstance);
                 if (toneNode) {
@@ -125,11 +125,11 @@ export class Track {
 
         this.sequences = [];
         this.activeSequenceId = null;
-        this.timelineClips = initialData?.timelineClips ? JSON.parse(JSON.stringify(initialData.timelineClips)) : [];
+        this.timelineClips = ((initialData) && (initialData).timelineClips) ? JSON.parse(JSON.stringify(initialData.timelineClips)) : [];
 
 
         if (this.type !== 'Audio') {
-            if (initialData?.sequences && initialData.sequences.length > 0) {
+            if (((initialData) && (initialData).sequences) && initialData.sequences.length > 0) {
                 this.sequences = JSON.parse(JSON.stringify(initialData.sequences));
                 this.activeSequenceId = initialData.activeSequenceId || (this.sequences[0] ? this.sequences[0].id : null);
             } else {
@@ -143,7 +143,7 @@ export class Track {
             delete this.sequences;
             delete this.activeSequenceId;
 
-            if (initialData?.audioClips && Array.isArray(initialData.audioClips)) {
+            if (((initialData) && (initialData).audioClips) && Array.isArray(initialData.audioClips)) {
                  initialData.audioClips.forEach(ac => {
                     if (!ac || !ac.dbKey) return; 
                     const existingClip = this.timelineClips.find(tc => tc.sourceId === ac.dbKey && tc.type === 'audio');
@@ -165,7 +165,7 @@ export class Track {
         // UI related
         this.waveformCanvasCtx = null;
         this.instrumentWaveformCanvasCtx = null;
-        this.automation = initialData?.automation ? JSON.parse(JSON.stringify(initialData.automation)) : { volume: [] };
+        this.automation = ((initialData) && (initialData).automation) ? JSON.parse(JSON.stringify(initialData.automation)) : { volume: [] };
         this.inspectorControls = {};
 
         // Audio Track specific
@@ -334,7 +334,7 @@ export class Track {
         ].filter(node => node && !node.disposed);
 
         allManagedNodes.forEach(node => {
-            try { node.disconnect(); } catch(e) { console.warn(`[Track ${this.id} rebuildEffectChain] Error during disconnect of node:`, node?.toString(), e.message); }
+            try { node.disconnect(); } catch(e) { console.warn(`[Track ${this.id} rebuildEffectChain] Error during disconnect of node:`, ((node) && (node).toString)(), e.message); }
         });
         console.log(`[Track ${this.id} rebuildEffectChain] All managed nodes disconnected.`);
 
@@ -1300,7 +1300,7 @@ export class Track {
                     for (let rowIndex = 0; rowIndex < Constants.synthPitches.length; rowIndex++) {
                         const pitchName = Constants.synthPitches[rowIndex];
                         const step = sequenceDataForTone[rowIndex]?.[col];
-                        if (step?.active && !notePlayedThisStep) {
+                        if (((step) && (step).active) && !notePlayedThisStep) {
                             this.instrument.triggerAttackRelease(pitchName, "16n", time, step.velocity * Constants.defaultVelocity); 
                             notePlayedThisStep = true;
                         }
@@ -1308,7 +1308,7 @@ export class Track {
                 } else if (this.type === 'Sampler') {
                      (this.slices || []).forEach((sliceData, sliceIndex) => {
                         const step = sequenceDataForTone[sliceIndex]?.[col];
-                        if (step?.active && sliceData?.duration > 0 && this.audioBuffer?.loaded) {
+                        if (((step) && (step).active) && ((sliceData) && (sliceData).duration) > 0 && ((this.audioBuffer) && (this.audioBuffer).loaded)) {
                             const targetVolumeLinear = sliceData.volume * step.velocity;
                             const playbackRate = Math.pow(2, (sliceData.pitchShift || 0) / 12);
                             let playDuration = sliceData.duration / playbackRate;
@@ -1327,7 +1327,7 @@ export class Track {
                                 Tone.Transport.scheduleOnce(() => {
                                     try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                     try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
-                                }, time + playDuration + (sliceData.envelope?.release || 0.1) + 0.3);
+                                }, time + playDuration + (((sliceData.envelope) && (sliceData.envelope).release) || 0.1) + 0.3);
                             } else if (this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed && this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed && this.slicerMonoGain && !this.slicerMonoGain.disposed) {
                                 if (this.slicerMonoPlayer.state === 'started') this.slicerMonoPlayer.stop(time);
                                 this.slicerMonoEnvelope.triggerRelease(time);
@@ -1349,7 +1349,7 @@ export class Track {
                     Array.from({ length: Constants.numDrumSamplerPads }).forEach((_, padIndex) => {
                         const step = sequenceDataForTone[padIndex]?.[col];
                         const padData = this.drumSamplerPads[padIndex];
-                        if (step?.active && padData && this.drumPadPlayers[padIndex] && !this.drumPadPlayers[padIndex].disposed && this.drumPadPlayers[padIndex].loaded) {
+                        if (((step) && (step).active) && padData && this.drumPadPlayers[padIndex] && !this.drumPadPlayers[padIndex].disposed && this.drumPadPlayers[padIndex].loaded) {
                             const player = this.drumPadPlayers[padIndex];
                             player.volume.value = Tone.gainToDb(padData.volume * step.velocity * 0.7);
                             player.playbackRate = Math.pow(2, (padData.pitchShift || 0) / 12);
@@ -1360,7 +1360,7 @@ export class Track {
                     let notePlayedThisStep = false;
                     Constants.synthPitches.forEach((pitchName, rowIndex) => {
                         const step = sequenceDataForTone[rowIndex]?.[col];
-                        if (step?.active) {
+                        if (((step) && (step).active)) {
                             if (!this.instrumentSamplerIsPolyphonic && !notePlayedThisStep) {
                                 this.toneSampler.releaseAll(time); notePlayedThisStep = true;
                             }
@@ -1508,7 +1508,7 @@ export class Track {
     async getBlobDuration(blob) {
         if (!blob || blob.size === 0) return 0;
         const tempUrl = URL.createObjectURL(blob);
-        const audioContext = Tone.context?.rawContext;
+        const audioContext = ((Tone.context) && (Tone.context).rawContext);
         if (!audioContext) {
             console.warn(`[Track ${this.id} getBlobDuration] No raw AudioContext available from Tone.`);
             URL.revokeObjectURL(tempUrl);
@@ -1575,7 +1575,7 @@ export class Track {
                     } catch (err) { console.error(`[Track ${this.id}] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}}
                 } else if (clip.type === 'sequence') {
                     const sourceSequence = this.sequences ? this.sequences.find(s => s.id === clip.sourceSequenceId) : null;
-                    if (sourceSequence?.data?.length > 0 && sourceSequence.length > 0) {
+                    if (((sourceSequence) && (sourceSequence).data)?.length > 0 && sourceSequence.length > 0) {
                         console.log(`[Track ${this.id}] Timeline: Scheduling SEQUENCE clip "${clip.name}" (Source: "${sourceSequence.name}") from ${effectivePlayStart.toFixed(2)}s for ${playDurationInWindow.toFixed(2)}s using Tone.Part`);
 
                         const events = [];
@@ -1587,14 +1587,14 @@ export class Track {
                                 const eventTimeInPart = (clipActualStart + timeWithinSeq) - effectivePlayStart;
                                 for (let rowIdx = 0; rowIdx < sourceSequence.data.length; rowIdx++) {
                                     const stepData = sourceSequence.data[rowIdx]?.[stepIdx];
-                                    if (stepData?.active) {
+                                    if (((stepData) && (stepData).active)) {
                                         let noteValue;
                                         let noteDuration = "16n"; 
                                         if (this.type === 'Synth' || this.type === 'InstrumentSampler') {
                                             noteValue = Constants.synthPitches[rowIdx];
                                         } else if (this.type === 'Sampler') {
                                             const sliceData = this.slices[rowIdx];
-                                            if (sliceData && sliceData.duration > 0 && this.audioBuffer?.loaded) {
+                                            if (sliceData && sliceData.duration > 0 && ((this.audioBuffer) && (this.audioBuffer).loaded)) {
                                                noteValue = { type: 'slice', index: rowIdx, data: sliceData };
                                             }
                                         } else if (this.type === 'DrumSampler') {
@@ -1635,7 +1635,7 @@ export class Track {
                                         notePlayed = true;
                                     }
                                     this.toneSampler.triggerAttackRelease(Tone.Frequency(value.note).toNote(), value.duration, time, value.velocity);
-                                } else if (this.type === 'Sampler' && value.note.type === 'slice' && this.audioBuffer?.loaded) {
+                                } else if (this.type === 'Sampler' && value.note.type === 'slice' && ((this.audioBuffer) && (this.audioBuffer).loaded)) {
                                     const sliceData = value.note.data;
                                     const targetVolumeLinear = sliceData.volume * value.velocity;
                                     const playbackRate = Math.pow(2, (sliceData.pitchShift || 0) / 12);
@@ -1657,7 +1657,7 @@ export class Track {
                                             try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                             try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
                                             try { if(tempGain && !tempGain.disposed) tempGain.dispose(); } catch(e){}
-                                        }, time + playDurationPart + (sliceData.envelope?.release || 0.1) + 0.3);
+                                        }, time + playDurationPart + (((sliceData.envelope) && (sliceData.envelope).release) || 0.1) + 0.3);
                                     } else if (this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed && this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed && this.slicerMonoGain && !this.slicerMonoGain.disposed) {
                                         if (this.slicerMonoPlayer.state === 'started') this.slicerMonoPlayer.stop(time);
                                         this.slicerMonoEnvelope.triggerRelease(time); 
@@ -1893,7 +1893,7 @@ export class Track {
             p.audioBuffer = null;
         });
 
-        if (this.instrumentSamplerSettings?.audioBuffer && !this.instrumentSamplerSettings.audioBuffer.disposed) { 
+        if (((this.instrumentSamplerSettings) && (this.instrumentSamplerSettings).audioBuffer) && !this.instrumentSamplerSettings.audioBuffer.disposed) { 
             try { this.instrumentSamplerSettings.audioBuffer.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing audioBuffer (InstrumentSampler):`, e.message); }
         }
         if (this.instrumentSamplerSettings) this.instrumentSamplerSettings.audioBuffer = null;
