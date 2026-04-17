@@ -150,3 +150,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 20
 - **Sequencer Copy/Paste Section Enhancements** (`js/ui.js`): Added four new operations to the sequencer right-click context menu: (1) **Duplicate Sequence** — duplicates the active sequence with "Copy" suffix, uses existing `duplicateSequence()` method, (2) **Rename Sequence** — prompts for new name and uses existing `renameSequence()` method, (3) **Clear Selection** — clears all notes in the current drag selection (requires selection first), (4) **Invert Selection** — flips active notes to inactive and inactive to active within the selection, creating interesting pattern effects. All operations properly capture undo state before modifying the sequence. The context menu now has dedicated separators to group related operations visually.
+
+### 2026-04-17 — Day 21
+- **Add Missing Compressor Effect** (`js/effectsRegistry.js`): Added the `Compressor` effect to the effects registry (alphabetically between Chorus and Distortion). Tone.js Compressor params: threshold (-100 to 0 dB), knee (0-40 dB), ratio (1-20), attack (0-1s), release (0-1s). Also removed a duplicate Compressor definition that was incorrectly placed before EQ3.
