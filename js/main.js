@@ -47,6 +47,8 @@ import {
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal, exportStemsInternal,
     // Auto-save
+    startAutoSave, stopAutoSave, autoSaveToLocalStorage, recoverAutoSavedProject, hasAutoSavedProject, getAutoSavedProjectTimestamp, clearAutoSavedProject,
+    // Auto-save
     autoSaveNow: autoSaveToLocalStorage,
     clearAutoSave: clearAutoSavedProject,
     hasAutoSavedProject: hasAutoSavedProject,
