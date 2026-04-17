@@ -108,7 +108,7 @@ export function getPreviewPlayerState() { return previewPlayerGlobal; }
 export function getClipboardDataState() { return clipboardDataGlobal; }
 
 export function getArmedTrackIdState() { return armedTrackId; }
-export function setSoloedTrackIdState(id) { soloedTrackId = id; }
+export function getSoloedTrackIdState() { return soloedTrackId; }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
 export function getRecordingStartTimeState() { 
@@ -184,7 +184,6 @@ export function setPreviewPlayerState(player) { previewPlayerGlobal = player; }
 export function setClipboardDataState(data) { clipboardDataGlobal = typeof data === 'object' && data !== null ? data : { type: null, data: null }; }
 
 export function setArmedTrackIdState(id) { armedTrackId = id; }
-export function setSoloedTrackIdState(id) { soloedTrackId = id; }
 export function setIsRecordingState(status) { isRecordingGlobal = !!status; }
 export function setRecordingTrackIdState(id) { recordingTrackIdGlobal = id; }
 export function setRecordingStartTimeState(time) { recordingStartTime = Number.isFinite(time) ? time : 0; }
@@ -1279,11 +1278,15 @@ export function addToRecentlyPlayed(sound) {
 }
 
 export function getRecentlyPlayedSounds() {
-    try {
-        const stored = localStorage.getItem(RECENTLY_PLAYED_KEY);
-        recentlyPlayedGlobal = stored ? JSON.parse(stored) : [];
-    } catch (e) {
-        recentlyPlayedGlobal = [];
+    // Only load from localStorage if the in-memory array is empty
+    // (prevents discarding the in-memory state that addToRecentlyPlayed just updated)
+    if (recentlyPlayedGlobal.length === 0) {
+        try {
+            const stored = localStorage.getItem(RECENTLY_PLAYED_KEY);
+            recentlyPlayedGlobal = stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            recentlyPlayedGlobal = [];
+        }
     }
     return [...recentlyPlayedGlobal];
 }
