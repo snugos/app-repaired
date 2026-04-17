@@ -928,3 +928,4 @@ input::placeholder,
 .vel-30 { background-color: #f5f3ff; color: #1e1b4b; }
 .vel-20 { background-color: #faf5ff; color: #1e1b4b; }
 .vel-10 { background-color: #faf5ff; color: #1e1b4b; }
+.sequencer-step-cell.selected-cell { outline: 2px solid #facc15; outline-offset: -1px; background-color: rgba(250, 204, 21, 0.2); }
