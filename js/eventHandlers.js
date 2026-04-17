@@ -22,7 +22,7 @@ import {
     getActiveMIDIInputState
 } from './state.js';
 
-import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn } from './audio.js';
+import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn, getPunchRegion, setPunchRegion, setPunchRegionEnabled, isPunchRegionEnabled } from './audio.js';
 
 let localAppServices = {};
 let transportKeepAliveBufferSource = null;
@@ -659,6 +659,16 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // P - Toggle punch in/out
+        if (key === 'p') {
+            if (typeof isPunchRegionEnabled === 'function' && typeof setPunchRegionEnabled === 'function') {
+                const newEnabled = !isPunchRegionEnabled();
+                setPunchRegionEnabled(newEnabled);
+                showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
         // S - Toggle snap-to-grid for sequencer
         if (key === 's' && !(event.ctrlKey || event.metaKey)) {
             const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
@@ -670,6 +680,31 @@ document.addEventListener('keydown', (event) => {
             window.SEQUENCER_SNAP_VALUE = nextSnap;
             const snapLabel = nextSnap === 0 ? 'Off' : (nextSnap === 4 ? '1/4' : (nextSnap === 8 ? '1/8' : '1/16'));
             showNotification(`Snap: ${snapLabel}`, 1500);
+            return;
+        }
+
+        // Q - Quantize active sequence (snap notes to grid)
+        if (key === 'q') {
+            const armedTrackId = getArmedTrackId();
+            if (armedTrackId !== null) {
+                const track = getTrackById(armedTrackId);
+                if (track && typeof track.quantizeSequence === 'function') {
+                    const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
+                    if (snapValue === 0) {
+                        showNotification("Quantize: Snap is Off. Set a snap value first (S key).", 2000);
+                        return;
+                    }
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Quantize ${track.name}`);
+                    const quantized = track.quantizeSequence(snapValue);
+                    if (quantized > 0) {
+                        track.recreateToneSequence(true);
+                        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                        showNotification(`Quantized ${quantized} note(s) to 1/${snapValue}`, 2000);
+                    } else {
+                        showNotification("No notes to quantize.", 1500);
+                    }
+                }
+            }
             return;
         }
 
@@ -756,6 +791,12 @@ export function showKeyboardShortcutsModal() {
             { keys: "Enter", desc: "Stop and Rewind" },
             { keys: "T", desc: "Tap Tempo" },
             { keys: "L", desc: "Toggle Loop Region" },
+            { keys: "P", desc: "Toggle Punch In/Out" },
+        ]},
+        { section: "Sequencer", items: [
+            { keys: "S", desc: "Cycle snap grid (Off / 1/4 / 1/8 / 1/16)" },
+            { keys: "Q", desc: "Quantize notes to current snap grid" },
+            { keys: "Shift+Click", desc: "Transpose notes up 1 semitone" },
         ]},
         { section: "Track Navigation", items: [
             { keys: "Tab", desc: "Cycle to next armed track" },

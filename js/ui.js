@@ -1126,60 +1126,7 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
         performFullUIUpdate = true;
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: Set initial view to '${libraryName}' from 'Select Library...'.`);
     } else if (libraryName && !isLoading && !hasError) {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: NO CHANGE to visible UI. Loading/Error for non-selected library '${libraryName}'. Current view: '${currentDropdownSelection}'.`);
-        return;
-    }
-
-
-    if (performFullUIUpdate) {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Proceeding with UI update for '${libraryName}'.`);
-        if (localAppServices.setCurrentLibraryName) localAppServices.setCurrentLibraryName(libraryName);
-        if (localAppServices.setCurrentSoundBrowserPath) localAppServices.setCurrentSoundBrowserPath([]);
-        if (libSelect && libSelect.value !== (libraryName || "")) {
-            console.log(`[UI updateSoundBrowserDisplayForLibrary] Setting libSelect.value to: '${libraryName || ""}' (was '${currentDropdownSelection}')`);
-            libSelect.value = libraryName || "";
-        }
-    } else {
-        if (!libraryName) {
-             performFullUIUpdate = true;
-             console.log(`[UI updateSoundBrowserDisplayForLibrary] Condition: Explicitly setting to "Select a library" view.`);
-             if (localAppServices.setCurrentLibraryName) localAppServices.setCurrentLibraryName(null);
-             if (libSelect) libSelect.value = "";
-        } else {
-            console.error(`[UI updateSoundBrowserDisplayForLibrary] LOGIC ERROR: Reached unexpected state for '${libraryName}'. No UI update performed when one might have been expected.`);
-            return;
-        }
-    }
-
-    if (!libraryName) {
-        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">Select a library.</p>';
-        pathDisplay.textContent = '/';
-        if (localAppServices.setCurrentSoundFileTree) localAppServices.setCurrentSoundFileTree(null);
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering "Select a library" view.`);
-        return;
-    }
-
-    if (isLoading || (localAppServices.getLoadedZipFiles && localAppServices.getLoadedZipFiles()[libraryName] === "loading")) {
-        listDiv.innerHTML = `<p class="text-gray-500 dark:text-slate-400 italic">Loading ${libraryName}...</p>`;
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering "Loading ${libraryName}..." view.`);
-    } else if (hasError) {
-        listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" failed.</p>`;
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering "Error: Library '${libraryName}' failed." view.`);
-    } else {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] About to check trees. Library: ${libraryName}`);
-        const currentTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
-        console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Current trees from getSoundLibraryFileTrees. Keys:`, currentTrees ? Object.keys(currentTrees) : 'undefined');
-
-        if (currentTrees && currentTrees[libraryName]) {
-            const treeForLib = currentTrees[libraryName];
-            console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Found tree for "${libraryName}". Keys:`, treeForLib ? Object.keys(treeForLib) : 'Tree is null/undefined');
-            if (treeForLib && Object.keys(treeForLib).length > 0) {
-                 console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Tree for "${libraryName}" is NOT empty.`);
-                 if (localAppServices.setCurrentSoundFileTree) localAppServices.setCurrentSoundFileTree(treeForLib);
-                 if (localAppServices.renderSoundBrowserDirectory) localAppServices.renderSoundBrowserDirectory([], localAppServices.getCurrentSoundFileTree());
-                 console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering directory for library '${libraryName}'.`);
-            } else {
-                console.warn(`[UI updateSoundBrowserDisplayForLibrary WARN] Tree for "${libraryName}" was found but considered empty or invalid. Tree:`, treeForLib);
+        console.log(`[UI updateSoundBrowserDisplayForLibrary WARN] Tree for "${libraryName}" was found but considered empty or invalid. Tree:`, treeForLib);
                 listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" data is empty or corrupt.</p>`;
             }
         } else {
@@ -1212,6 +1159,7 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
     const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
     if (!browserWindowEl || !treeNode) return;
     const listDiv = browserWindowEl.querySelector('#soundBrowserList');
+    const libSelect = browserWindowEl.querySelector('#librarySelect');
     const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
     const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
     listDiv.innerHTML = '';
@@ -1611,6 +1559,40 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
         }
 
 
+        // Track selection state for copy/paste sections
+        let selectionStartCell = null;
+        let selectionEndCell = null;
+        let isSelecting = false;
+
+        function clearSelection() {
+            if (sequencerWindow.element) {
+                sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
+                    cell.classList.remove('selected-cell');
+                });
+            }
+            selectionStartCell = null;
+            selectionEndCell = null;
+            isSelecting = false;
+        }
+
+        function updateSelectionUI() {
+            if (!selectionStartCell || !selectionEndCell || !sequencerWindow.element) return;
+            const r1 = Math.min(selectionStartCell.row, selectionEndCell.row);
+            const r2 = Math.max(selectionStartCell.row, selectionEndCell.row);
+            const c1 = Math.min(selectionStartCell.col, selectionEndCell.col);
+            const c2 = Math.max(selectionStartCell.col, selectionEndCell.col);
+
+            sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
+                cell.classList.remove('selected-cell');
+            });
+            for (let r = r1; r <= r2; r++) {
+                for (let c = c1; c <= c2; c++) {
+                    const cell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${r}"][data-col="${c}"]`);
+                    if (cell) cell.classList.add('selected-cell');
+                }
+            }
+        }
+
         const sequencerContextMenuHandler = (event) => {
             event.preventDefault(); event.stopPropagation();
             const currentTrackForMenu = localAppServices.getTrackById ? localAppServices.getTrackById(track.id) : null; if (!currentTrackForMenu) return;
@@ -1625,6 +1607,10 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 { separator: true },
                 { label: `Humanize Velocities (+/- 15%)`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Humanize Velocities on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.humanizeVelocity(0.15); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Humanized ${result} velocity value(s).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to humanize.", 2000); } } },
                 { label: `Humanize Velocities (+/- 25%)`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Humanize Velocities on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.humanizeVelocity(0.25); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Humanized ${result} velocity value(s).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to humanize.", 2000); } } },
+                { separator: true },
+                { label: `Quantize to 1/16`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Quantize to 1/16 on ${currentTrackForMenu.name}`); const result = currentTrackForMenu.quantizeSequence(16); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Quantized ${result} note(s) to 1/16.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to quantize.", 2000); } } },
+                { label: `Quantize to 1/8`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Quantize to 1/8 on ${currentTrackForMenu.name}`); const result = currentTrackForMenu.quantizeSequence(8); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Quantized ${result} note(s) to 1/8.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to quantize.", 2000); } } },
+                { label: `Quantize to 1/4`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Quantize to 1/4 on ${currentTrackForMenu.name}`); const result = currentTrackForMenu.quantizeSequence(4); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Quantized ${result} note(s) to 1/4.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to quantize.", 2000); } } },
                 { separator: true },
                 { label: `Erase \"${currentActiveSeq.name}\"`, action: () => { showConfirmationDialog(`Erase Sequence "${currentActiveSeq.name}" for ${currentTrackForMenu.name}?`, "This will clear all notes. This can be undone.", () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Erase Sequence ${currentActiveSeq.name} for ${currentTrackForMenu.name}`); let numRowsErase = currentActiveSeq.data.length; currentActiveSeq.data = Array(numRowsErase).fill(null).map(() => Array(currentActiveSeq.length).fill(null)); currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence "${currentActiveSeq.name}" erased.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }); } },
                 { label: `Double Length of "${currentActiveSeq.name}"`, action: () => { const currentNumBars = currentActiveSeq.length / Constants.STEPS_PER_BAR; if (currentNumBars * 2 > (Constants.MAX_BARS || 16)) { showNotification(`Exceeds max of ${Constants.MAX_BARS || 16} bars.`, 3000); return; } currentTrackForMenu.doubleSequence(); showNotification(`Sequence length doubled for "${currentActiveSeq.name}".`, 2000); } }

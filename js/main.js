@@ -246,7 +246,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -443,7 +443,10 @@ async function initializeSnugOS() {
             metronomeBtnGlobal: document.getElementById('metronomeToggleBtnGlobal'),
             loopToggleBtnGlobal: document.getElementById('loopToggleBtnGlobal'),
             loopStartInputGlobal: document.getElementById('loopStartInputGlobal'),
-            loopEndInputGlobal: document.getElementById('loopEndInputGlobal')
+            loopEndInputGlobal: document.getElementById('loopEndInputGlobal'),
+            punchToggleBtnGlobal: document.getElementById('punchToggleBtnGlobal'),
+            punchInInputGlobal: document.getElementById('punchInInputGlobal'),
+            punchOutInputGlobal: document.getElementById('punchOutInputGlobal')
         };
         
         // Add to cache
@@ -606,6 +609,44 @@ async function initializeSnugOS() {
         };
         attachLoopRegionHandler();
 
+        // Punch In/Out toggle button handler
+        const attachPunchRegionHandler = () => {
+            const punchToggleBtn = uiElementsCache.punchToggleBtnGlobal;
+            const punchInInput = uiElementsCache.punchInInputGlobal;
+            const punchOutInput = uiElementsCache.punchOutInputGlobal;
+            if (punchToggleBtn && punchInInput && punchOutInput) {
+                punchToggleBtn.addEventListener('click', () => {
+                    const newEnabled = !isPunchRegionEnabled();
+                    setPunchRegionEnabled(newEnabled);
+                    punchToggleBtn.classList.toggle('punch-active', newEnabled);
+                    showSafeNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+                });
+                punchToggleBtn.classList.toggle('punch-active', isPunchRegionEnabled());
+
+                punchInInput.addEventListener('change', (e) => {
+                    const inBars = parseInt(e.target.value, 10) || 0;
+                    const outBars = parseInt(punchOutInput.value, 10) || 16;
+                    if (setPunchRegion(inBars, outBars)) {
+                        showSafeNotification(`Punch: ${inBars} - ${outBars} bars`, 1000);
+                    }
+                });
+
+                punchOutInput.addEventListener('change', (e) => {
+                    const inBars = parseInt(punchInInput.value, 10) || 0;
+                    const outBars = parseInt(e.target.value, 10) || 16;
+                    if (setPunchRegion(inBars, outBars)) {
+                        showSafeNotification(`Punch: ${inBars} - ${outBars} bars`, 1000);
+                    }
+                });
+
+                console.log("[Main] Punch region handlers attached");
+            } else {
+                console.warn("[Main] Punch region elements not found in cache, retrying...");
+                setTimeout(attachPunchRegionHandler, 500);
+            }
+        };
+        attachPunchRegionHandler();
+
         // Restore saved background (image or video)
         await restoreDesktopBackground();
 
@@ -698,18 +739,25 @@ async function initializeSnugOS() {
 }
 
 function updateMetersLoop() {
-    try {
-        if (typeof updateMeters === 'function') {
-            const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
-            const mixerMasterMeterBar = ((mixerWindow) && (mixerWindow).element) && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
-            const tracks = getTracksState ? getTracksState() : [];
-            updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
+    const now = performance.now();
+    const THROTTLE_MS = 33; // ~30fps
+    if (!updateMetersLoop._lastMeterUpdateTime) updateMetersLoop._lastMeterUpdateTime = 0;
+
+    if (now - updateMetersLoop._lastMeterUpdateTime >= THROTTLE_MS) {
+        updateMetersLoop._lastMeterUpdateTime = now;
+        try {
+            if (typeof updateMeters === 'function') {
+                const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
+                const mixerMasterMeterBar = ((mixerWindow) && (mixerWindow).element) && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
+                const tracks = getTracksState ? getTracksState() : [];
+                updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
+            }
+            if (typeof updatePlayheadPosition === 'function') {
+                updatePlayheadPosition();
+            }
+        } catch (loopError) {
+            console.warn("[Main updateMetersLoop] Error in UI update loop:", loopError);
         }
-        if (typeof updatePlayheadPosition === 'function') {
-            updatePlayheadPosition();
-        }
-    } catch (loopError) {
-        console.warn("[Main updateMetersLoop] Error in UI update loop:", loopError);
     }
     requestAnimationFrame(updateMetersLoop);
 }
