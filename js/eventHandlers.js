@@ -22,7 +22,9 @@ import {
     getActiveMIDIInputState
 } from './state.js';
 
-import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn, getPunchRegion, setPunchRegion, setPunchRegionEnabled, isPunchRegionEnabled } from './audio.js';
+import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn, getPunchRegion, setPunchRegion, setPunchRegionEnabled, isPunchRegionEnabled, isPositionInPunchRegion,
+    scheduleRecordingForPunch, cancelScheduledRecording
+} from './audio.js';
 
 let localAppServices = {};
 let transportKeepAliveBufferSource = null;
@@ -104,21 +106,21 @@ export function initializePrimaryEventListeners(appContext) {
         }
 
         const menuActions = {
-            menuAddSynthTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Synth', {_isUserActionPlaceholder: true}),
-            menuAddSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Sampler', {_isUserActionPlaceholder: true}),
-            menuAddDrumSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'DrumSampler', {_isUserActionPlaceholder: true}),
-            menuAddInstrumentSamplerTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'InstrumentSampler', {_isUserActionPlaceholder: true}),
-            menuAddAudioTrack: () => ((services.addTrack && typeof services.addTrack === "function") ? services.addTrack() : undefined)'Audio', {_isUserActionPlaceholder: true}),
-            menuOpenSoundBrowser: () => ((services.openSoundBrowserWindow && typeof services.openSoundBrowserWindow === "function") ? services.openSoundBrowserWindow() : undefined)),
-            menuOpenTimeline: () => ((services.openTimelineWindow && typeof services.openTimelineWindow === "function") ? services.openTimelineWindow() : undefined)),
-            menuOpenGlobalControls: () => ((services.openGlobalControlsWindow && typeof services.openGlobalControlsWindow === "function") ? services.openGlobalControlsWindow() : undefined)),
-            menuOpenMixer: () => ((services.openMixerWindow && typeof services.openMixerWindow === "function") ? services.openMixerWindow() : undefined)),
-            menuOpenMasterEffects: () => ((services.openMasterEffectsRackWindow && typeof services.openMasterEffectsRackWindow === "function") ? services.openMasterEffectsRackWindow() : undefined)),
-            menuUndo: () => ((services.undoLastAction && typeof services.undoLastAction === "function") ? services.undoLastAction() : undefined)),
-            menuRedo: () => ((services.redoLastAction && typeof services.redoLastAction === "function") ? services.redoLastAction() : undefined)),
-            menuSaveProject: () => ((services.saveProject && typeof services.saveProject === "function") ? services.saveProject() : undefined)),
-            menuLoadProject: () => ((services.loadProject && typeof services.loadProject === "function") ? services.loadProject() : undefined)),
-            menuExportWav: () => ((services.exportToWav && typeof services.exportToWav === "function") ? services.exportToWav() : undefined)),
+            menuAddSynthTrack: () => { if(services.addTrack) services.addTrack('Synth', {_isUserActionPlaceholder: true}); },
+            menuAddSamplerTrack: () => { if(services.addTrack) services.addTrack('Sampler', {_isUserActionPlaceholder: true}); },
+            menuAddDrumSamplerTrack: () => { if(services.addTrack) services.addTrack('DrumSampler', {_isUserActionPlaceholder: true}); },
+            menuAddInstrumentSamplerTrack: () => { if(services.addTrack) services.addTrack('InstrumentSampler', {_isUserActionPlaceholder: true}); },
+            menuAddAudioTrack: () => { if(services.addTrack) services.addTrack('Audio', {_isUserActionPlaceholder: true}); },
+            menuOpenSoundBrowser: () => { if(services.openSoundBrowserWindow) services.openSoundBrowserWindow(); },
+            menuOpenTimeline: () => { if(services.openTimelineWindow) services.openTimelineWindow(); },
+            menuOpenGlobalControls: () => { if(services.openGlobalControlsWindow) services.openGlobalControlsWindow(); },
+            menuOpenMixer: () => { if(services.openMixerWindow) services.openMixerWindow(); },
+            menuOpenMasterEffects: () => { if(services.openMasterEffectsRackWindow) services.openMasterEffectsRackWindow(); },
+            menuUndo: () => { if(services.undoLastAction) services.undoLastAction(); },
+            menuRedo: () => { if(services.redoLastAction) services.redoLastAction(); },
+            menuSaveProject: () => { if(services.saveProject) services.saveProject(); },
+            menuLoadProject: () => { if(services.loadProject) services.loadProject(); },
+            menuExportWav: () => { if(services.exportToWav) services.exportToWav(); },
             menuToggleFullScreen: toggleFullScreen,
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };
@@ -320,17 +322,29 @@ export function attachGlobalControlEvents(elements) {
                     let recordingInitialized = false;
                     if (trackToRecord.type === 'Audio') {
                         if (localAppServices.startAudioRecording) {
-                            // FIX: Capture the recording start position BEFORE starting transport
-                            // This ensures we know where recording actually began for accurate timeline placement
+                            // Handle punch-in/out: if punch is enabled, start transport at punch-in point
+                            const punchEnabled = isPunchRegionEnabled();
+                            const punchInPoint = punchEnabled ? getPunchInBars() : 0;
                             let recordingStartPosition = Tone.Transport.position;
                             if (Tone.Transport.state !== 'started') { 
                                 Tone.Transport.cancel(0); 
-                                Tone.Transport.position = 0; 
-                                recordingStartPosition = 0; // Reset to 0 if we reset transport
+                                Tone.Transport.position = punchInPoint; 
+                                recordingStartPosition = `${punchInPoint}:0:0`;
                             }
-                            // FIX: Store the transport position (in measures:beats:sixteenths) not seconds
-                            // This ensures accurate timeline placement regardless of tempo
                             setRecordingStartTime(recordingStartPosition);
+
+                            // Schedule punch-out recording stop if punch is enabled
+                            if (punchEnabled) {
+                                if (localAppServices.scheduleRecordingForPunch) {
+                                    localAppServices.scheduleRecordingForPunch(trackToRecord.id, null);
+                                }
+                            } else {
+                                // Cancel any stale scheduled recording when punch is off
+                                if (localAppServices.cancelScheduledRecording) {
+                                    localAppServices.cancelScheduledRecording();
+                                }
+                            }
+
                             recordingInitialized = await localAppServices.startAudioRecording(trackToRecord, trackToRecord.isMonitoringEnabled);
                         } else { console.error("[EventHandlers] startAudioRecording service not available."); showNotification("Recording service unavailable.", 3000); }
                     } else { recordingInitialized = true; } 
@@ -338,22 +352,25 @@ export function attachGlobalControlEvents(elements) {
                     if (recordingInitialized) {
                         setIsRecording(true);
                         setRecordingTrackId(trackToRecord.id);
-                        // FIX: Capture the recording start position BEFORE starting transport
-                        // This ensures we know where recording actually began for accurate timeline placement
+                        const punchEnabled = isPunchRegionEnabled();
+                        const punchInPoint = punchEnabled ? getPunchInBars() : 0;
                         let recordingStartPosition = Tone.Transport.position;
                         if (Tone.Transport.state !== 'started') { 
                             Tone.Transport.cancel(0); 
-                            Tone.Transport.position = 0; 
-                            recordingStartPosition = 0; // Reset to 0 if we reset transport
+                            Tone.Transport.position = punchInPoint; 
+                            recordingStartPosition = `${punchInPoint}:0:0`;
                         }
-                        // FIX: Store the transport position (in measures:beats:sixteenths) not seconds
-                        // This ensures accurate timeline placement regardless of tempo
                         setRecordingStartTime(recordingStartPosition);
                         if (Tone.Transport.state !== 'started') Tone.Transport.start(); 
                         if (localAppServices.updateRecordButtonUI) localAppServices.updateRecordButtonUI(true);
-                        showNotification(`Recording started for ${trackToRecord.name}.`, 2000);
+                        const punchNote = punchEnabled ? ` (Punch ${getPunchInBars()}-${getPunchOutBars()})` : '';
+                        showNotification(`Recording started for ${trackToRecord.name}${punchNote}.`, 2000);
                     } else { showNotification(`Failed to initialize recording for ${trackToRecord.name}.`, 3000); }
                 } else { 
+                    // Stop recording - cleanup scheduling first
+                    if (localAppServices.cleanupRecordingScheduling) {
+                        localAppServices.cleanupRecordingScheduling();
+                    }
                     if (localAppServices.stopAudioRecording && getRecordingTrackId() !== null && getTrackById(getRecordingTrackId())?.type === 'Audio') {
                         await localAppServices.stopAudioRecording();
                     } 
@@ -498,7 +515,7 @@ export function selectMIDIInput(deviceId, silent = false) {
                 });
             } else {
                 if (localAppServices.setActiveMIDIInput) localAppServices.setActiveMIDIInput(null);
-                if (!silent && localAppServices.showNotification) localAppServices.showNotification("Selected MIDI input not found.", 2000);
+                if (!silent && deviceId !== "" && localAppServices.showNotification) showNotification("MIDI input disconnected.", 2000);
                 console.warn(`[MIDI] Input with ID ${deviceId} not found.`);
             }
         } else {

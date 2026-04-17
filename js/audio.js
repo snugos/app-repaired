@@ -19,6 +19,8 @@ let localAppServices = {};
 // Variables for audio recording
 let mic = null;
 let recorder = null;
+let recordingScheduledId = null; // For punch-in/out enforcement callback
+let recordingScheduledTrackId = null; // Track ID for the scheduled recording callback
 
 
 export function initializeAudioModule(appServicesFromMain) {
@@ -518,7 +520,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructing) {
+    if (localAppServices.captureStateForUndo && !isReconstructinging) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -936,9 +938,6 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
         console.log(`[Audio Fetch DEBUG] localAppServices.setSoundLibraryFileTreesState exists:`, !!localAppServices.setSoundLibraryFileTreesState);
         if (localAppServices.setSoundLibraryFileTreesState) {
             console.log(`[Audio Fetch DEBUG] Calling setSoundLibraryFileTreesState for ${libraryName} (soundTrees) with keys:`, Object.keys(latestSoundTrees));
-            if(latestSoundTrees[libraryName]) {
-                console.log(`[Audio Fetch DEBUG] Tree for ${libraryName} being set has children count:`, Object.keys(latestSoundTrees[libraryName]).length);
-            }
             localAppServices.setSoundLibraryFileTreesState(latestSoundTrees);
         } else {
              console.error(`[Audio Fetch ERROR] localAppServices.setSoundLibraryFileTreesState is UNDEFINED from ${libraryName} (soundTrees)`);
@@ -1225,7 +1224,7 @@ export async function stopAudioRecording() {
                     console.log("[Audio stopAudioRecording] Closing microphone.");
                     try {
                         mic.disconnect(recorder); // Disconnect from recorder first
-                    } catch(e) { /* ignore disconnect errors */ }
+                    } catch(e) { /* ignore */ }
                     
                     if (localAppServices.getRecordingTrackId) { // Disconnect from track input if monitoring was on
                         const recTrack = localAppServices.getTrackById(localAppServices.getRecordingTrackId());
@@ -1592,4 +1591,52 @@ export function isPositionInPunchRegion(positionString) {
     const punchInSixteenths = punchRegion.in * 16;
     const punchOutSixteenths = punchRegion.out * 16;
     return totalSixteenths >= punchInSixteenths && totalSixteenths < punchOutSixteenths;
+}
+
+// ============================================================
+// PUNCH-IN/OUT RECORDING ENFORCEMENT
+// ============================================================
+// When punch-in is enabled, we need to schedule a callback that starts/stops the
+// actual Tone.Recorder at the correct transport positions (punch in/out points).
+// The Tone.Recorder is an offline recorder — we need to manage its start/stop
+// based on transport position to implement punch-in/out correctly.
+
+export function scheduleRecordingForPunch(trackId, onPunchOutTriggered) {
+    // Clear any previous scheduling
+    if (recordingScheduledId !== null) {
+        try { Tone.Transport.clear(recordingScheduledId); } catch(e) {}
+        recordingScheduledId = null;
+    }
+    recordingScheduledTrackId = trackId;
+
+    // Schedule the punch-out trigger
+    const punchOutPosition = `+0:${punchRegion.out * 16}:0`;
+    recordingScheduledId = Tone.Transport.schedule((time) => {
+        console.log(`[Punch Recording] Punch-out point reached at ${punchOutPosition}. Stopping recorder.`);
+        if (recorder && recorder.state === 'started') {
+            recorder.stop().then(() => {
+                console.log('[Punch Recording] Recorder stopped at punch-out.');
+                if (onPunchOutTriggered) onPunchOutTriggered();
+            }).catch(e => console.error('[Punch Recording] Error stopping at punch-out:', e));
+        }
+    }, punchOutPosition);
+    console.log(`[Punch Recording] Scheduled punch-out at ${punchOutPosition}, ID:`, recordingScheduledId);
+}
+
+export function cancelScheduledRecording() {
+    if (recordingScheduledId !== null) {
+        try { Tone.Transport.clear(recordingScheduledId); } catch(e) {}
+        recordingScheduledId = null;
+    }
+    recordingScheduledTrackId = null;
+    console.log('[Punch Recording] Cancelled scheduled recording.');
+}
+
+export function getRecordingScheduledTrackId() {
+    return recordingScheduledTrackId;
+}
+
+// Cleanup function to be called when recording stops
+export function cleanupRecordingScheduling() {
+    cancelScheduledRecording();
 }

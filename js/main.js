@@ -189,8 +189,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -250,7 +250,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -307,7 +307,12 @@ import {
             uiElementsCache.projectNameBtnGlobal.textContent = name || 'Untitled Project';
         }
     },
-    renameTrackInState
+    renameTrackInState,
+
+    // Punch-in/out recording scheduling
+    scheduleRecordingForPunch,
+    cancelScheduledRecording,
+    cleanupRecordingScheduling,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

@@ -153,3 +153,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 21
 - **Add Missing Compressor Effect** (`js/effectsRegistry.js`): Added the `Compressor` effect to the effects registry (alphabetically between Chorus and Distortion). Tone.js Compressor params: threshold (-100 to 0 dB), knee (0-40 dB), ratio (1-20), attack (0-1s), release (0-1s). Also removed a duplicate Compressor definition that was incorrectly placed before EQ3.
+
+### 2026-04-17 — Day 22
+- **UI Polish — Window Shadows, Modal Depth, Hover Effects** (`style.css`): Enhanced visual depth across the app. (1) **Window shadows**: Replaced flat single shadow with layered shadows (4px + 10px + 20px + inset highlight) creating a floating, dimensional feel. (2) **Modal dialog shadows**: Added matching layered shadow depth to `.modal-dialog`. (3) **Context menu hover animation**: Menu items now slide right 6px on hover (`padding-left: 18px`) with smooth transition for tactile feedback. (4) **Scrollbar styling**: Enhanced thumb size, rounded corners, and border for better visibility on dark theme. All changes use CSS transitions for smooth animation.
