@@ -1549,3 +1549,47 @@ export function isLoopRegionEnabled() {
 
 export function getLoopStartBars() { return loopRegion.start; }
 export function getLoopEndBars() { return loopRegion.end; }
+
+// ============================================================
+// PUNCH IN/OUT MODULE
+// ============================================================
+let punchRegion = { in: 0, out: 16, enabled: false }; // Punch in/out in bars
+
+export function getPunchRegion() {
+    return { ...punchRegion };
+}
+
+export function setPunchRegion(inBars, outBars) {
+    if (inBars < 0 || outBars <= inBars || outBars > Constants.MAX_BARS) {
+        console.warn('[Punch] Invalid region:', inBars, outBars);
+        return false;
+    }
+    punchRegion.in = inBars;
+    punchRegion.out = outBars;
+    console.log(`[Punch] Set to ${punchRegion.in} - ${punchRegion.out} bars`);
+    return true;
+}
+
+export function setPunchRegionEnabled(enabled) {
+    punchRegion.enabled = !!enabled;
+    console.log(`[Punch] ${punchRegion.enabled ? 'Enabled' : 'Disabled'}`);
+    return punchRegion.enabled;
+}
+
+export function isPunchRegionEnabled() {
+    return punchRegion.enabled;
+}
+
+export function getPunchInBars() { return punchRegion.in; }
+export function getPunchOutBars() { return punchRegion.out; }
+
+export function isPositionInPunchRegion(positionString) {
+    if (!punchRegion.enabled) return false;
+    const posParts = positionString.split(':').map(Number);
+    if (posParts.length < 3 || posParts.some(isNaN)) return false;
+    const [bars, beats, sixteenths] = posParts;
+    const totalSixteenths = bars * 16 + beats * 4 + sixteenths;
+    const punchInSixteenths = punchRegion.in * 16;
+    const punchOutSixteenths = punchRegion.out * 16;
+    return totalSixteenths >= punchInSixteenths && totalSixteenths < punchOutSixteenths;
+}

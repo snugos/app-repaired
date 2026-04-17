@@ -1336,6 +1336,46 @@ export class Track {
         return sectionData;
     }
 
+    pasteSequenceSection(sectionData, targetCol, skipUndo = false) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data || !sectionData) {
+            console.warn(`[Track ${this.id} pasteSequenceSection] No active sequence or no section data.`);
+            return 0;
+        }
+
+        let pastedCount = 0;
+        const sectionNumRows = sectionData.length;
+        const sectionLength = sectionData[0]?.length || 0;
+
+        for (let rowIndex = 0; rowIndex < activeSeq.data.length; rowIndex++) {
+            const targetRow = activeSeq.data[rowIndex];
+            if (!targetRow) continue;
+
+            const sourceRowIndex = rowIndex < sectionNumRows ? rowIndex : (sectionNumRows > 1 ? sectionNumRows - 1 : 0);
+            const sourceRow = sectionData[sourceRowIndex];
+            if (!sourceRow) continue;
+
+            for (let colIndex = 0; colIndex < sectionLength; colIndex++) {
+                const targetColIndex = targetCol + colIndex;
+                if (targetColIndex < 0 || targetColIndex >= targetRow.length) continue;
+                const noteData = sourceRow[colIndex];
+                if (noteData && noteData.active) {
+                    if (!targetRow[targetColIndex] || !targetRow[targetColIndex].active) {
+                        pastedCount++;
+                    }
+                    targetRow[targetColIndex] = JSON.parse(JSON.stringify(noteData));
+                } else {
+                    if (targetColIndex >= 0 && targetColIndex < targetRow.length) {
+                        targetRow[targetColIndex] = null;
+                    }
+                }
+            }
+        }
+
+        return pastedCount;
+    }
+
     setSequenceLength(newLengthInSteps, skipUndoCapture = false) {
         if (this.type === 'Audio') return;
         const activeSeq = this.getActiveSequence();

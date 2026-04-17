@@ -22,7 +22,7 @@ import {
     getActiveMIDIInputState
 } from './state.js';
 
-import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn } from './audio.js';
+import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn, getPunchRegion, setPunchRegion, setPunchRegionEnabled, isPunchRegionEnabled } from './audio.js';
 
 let localAppServices = {};
 let transportKeepAliveBufferSource = null;
@@ -659,6 +659,16 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // P - Toggle punch in/out
+        if (key === 'p') {
+            if (typeof isPunchRegionEnabled === 'function' && typeof setPunchRegionEnabled === 'function') {
+                const newEnabled = !isPunchRegionEnabled();
+                setPunchRegionEnabled(newEnabled);
+                showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
         // S - Toggle snap-to-grid for sequencer
         if (key === 's' && !(event.ctrlKey || event.metaKey)) {
             const currentSnap = window.SEQUENCER_SNAP_VALUE || 16;
@@ -781,6 +791,7 @@ export function showKeyboardShortcutsModal() {
             { keys: "Enter", desc: "Stop and Rewind" },
             { keys: "T", desc: "Tap Tempo" },
             { keys: "L", desc: "Toggle Loop Region" },
+            { keys: "P", desc: "Toggle Punch In/Out" },
         ]},
         { section: "Sequencer", items: [
             { keys: "S", desc: "Cycle snap grid (Off / 1/4 / 1/8 / 1/16)" },

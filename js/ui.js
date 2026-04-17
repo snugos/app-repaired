@@ -1159,6 +1159,7 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
     const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
     if (!browserWindowEl || !treeNode) return;
     const listDiv = browserWindowEl.querySelector('#soundBrowserList');
+    const libSelect = browserWindowEl.querySelector('#librarySelect');
     const pathDisplay = browserWindowEl.querySelector('#currentPathDisplay');
     const previewBtn = browserWindowEl.querySelector('#previewSoundBtn');
     listDiv.innerHTML = '';
@@ -1557,6 +1558,40 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             });
         }
 
+
+        // Track selection state for copy/paste sections
+        let selectionStartCell = null;
+        let selectionEndCell = null;
+        let isSelecting = false;
+
+        function clearSelection() {
+            if (sequencerWindow.element) {
+                sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
+                    cell.classList.remove('selected-cell');
+                });
+            }
+            selectionStartCell = null;
+            selectionEndCell = null;
+            isSelecting = false;
+        }
+
+        function updateSelectionUI() {
+            if (!selectionStartCell || !selectionEndCell || !sequencerWindow.element) return;
+            const r1 = Math.min(selectionStartCell.row, selectionEndCell.row);
+            const r2 = Math.max(selectionStartCell.row, selectionEndCell.row);
+            const c1 = Math.min(selectionStartCell.col, selectionEndCell.col);
+            const c2 = Math.max(selectionStartCell.col, selectionEndCell.col);
+
+            sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
+                cell.classList.remove('selected-cell');
+            });
+            for (let r = r1; r <= r2; r++) {
+                for (let c = c1; c <= c2; c++) {
+                    const cell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${r}"][data-col="${c}"]`);
+                    if (cell) cell.classList.add('selected-cell');
+                }
+            }
+        }
 
         const sequencerContextMenuHandler = (event) => {
             event.preventDefault(); event.stopPropagation();
