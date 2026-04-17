@@ -141,3 +141,6 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-17 — Day 17
 - **Effects Registry Cleanup** (`js/effectsRegistry.js`): Removed duplicate effect definitions (AutoWah was listed twice). Also removed obsolete `Sustainer` effect that was not a valid Tone.js class. This ensures the Add Effect modal shows a clean, correct list of available effects without errors or duplicates.
+
+### 2026-04-17 — Day 18
+- **Add Missing Delay Effect** (`js/effectsRegistry.js`): Added the missing `Delay` effect (basic delay with Time and Max Delay parameters) to the effects registry alongside the existing FeedbackDelay and PingPongDelay. Also fixed the Chorus effect's Delay parameter — it was using 'ms' suffix but default value 3.5ms is too small for Tone.js Chorus which expects seconds, so changed to 's' suffix with appropriate range (0.5-20s).
