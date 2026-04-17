@@ -246,7 +246,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -739,18 +739,25 @@ async function initializeSnugOS() {
 }
 
 function updateMetersLoop() {
-    try {
-        if (typeof updateMeters === 'function') {
-            const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
-            const mixerMasterMeterBar = mixerWindow?.element && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
-            const tracks = getTracksState ? getTracksState() : [];
-            updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
+    const now = performance.now();
+    const THROTTLE_MS = 33; // ~30fps
+    if (!updateMetersLoop._lastMeterUpdateTime) updateMetersLoop._lastMeterUpdateTime = 0;
+
+    if (now - updateMetersLoop._lastMeterUpdateTime >= THROTTLE_MS) {
+        updateMetersLoop._lastMeterUpdateTime = now;
+        try {
+            if (typeof updateMeters === 'function') {
+                const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
+                const mixerMasterMeterBar = mixerWindow?.element && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
+                const tracks = getTracksState ? getTracksState() : [];
+                updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
+            }
+            if (typeof updatePlayheadPosition === 'function') {
+                updatePlayheadPosition();
+            }
+        } catch (loopError) {
+            console.warn("[Main updateMetersLoop] Error in UI update loop:", loopError);
         }
-        if (typeof updatePlayheadPosition === 'function') {
-            updatePlayheadPosition();
-        }
-    } catch (loopError) {
-        console.warn("[Main updateMetersLoop] Error in UI update loop:", loopError);
     }
     requestAnimationFrame(updateMetersLoop);
 }
