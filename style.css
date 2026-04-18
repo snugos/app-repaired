@@ -997,3 +997,99 @@ button.automation-armed:hover { background-color: #b91c1c; }
 .sequencer-grid-layout .sequencer-header-cell.non-snap-point {
     color: #94a3b8;
 }
+/* Piano keyboard octave display in piano roll row labels */
+.piano-key-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+    transition: background-color 0.15s ease;
+}
+.piano-key-cell .key-indicator {
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    margin-left: 3px;
+    border: 1px solid rgba(0,0,0,0.3);
+    box-shadow: inset 0 -2px 3px rgba(0,0,0,0.2);
+}
+.piano-key-cell.piano-white-key .key-indicator {
+    background: linear-gradient(to bottom, #fafafa 0%, #d8d8d8 100%);
+    height: 18px;
+    width: 14px;
+}
+.piano-key-cell.piano-black-key .key-indicator {
+    background: linear-gradient(to bottom, #3a3a3a 0%, #1a1a1a 100%);
+    height: 14px;
+    width: 10px;
+}
+
+/* Active note highlight in piano roll: override velocity with track-type color */
+.piano-key-cell.piano-active-highlight .key-indicator {
+    box-shadow: 0 0 6px 2px currentColor;
+    border-color: currentColor;
+}
+.piano-key-cell.piano-white-key.piano-active-highlight .key-indicator {
+    background: linear-gradient(to bottom, #a855f7 0%, #7c3aed 100%);
+}
+.piano-key-cell.piano-black-key.piano-active-highlight .key-indicator {
+    background: linear-gradient(to bottom, #7c3aed 0%, #5b21b6 100%);
+}
+
+/* Piano roll note dots on the grid */
+.piano-note-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    margin: auto;
+}
+
+/* Synth track notes: violet/purple gradient based on octave */
+.piano-note-synth .piano-note-dot {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    box-shadow: 0 1px 3px rgba(139, 92, 246, 0.5);
+}
+/* Sampler track notes: teal */
+.piano-note-sampler .piano-note-dot {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    box-shadow: 0 1px 3px rgba(20, 184, 166, 0.5);
+}
+/* DrumSampler track notes: orange/amber */
+.piano-note-drum .piano-note-dot {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.5);
+}
+/* InstrumentSampler track notes: blue */
+.piano-note-instrument .piano-note-dot {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.5);
+}
+
+/* MIDI Learn / CC Mapping active indicator */
+.midi-cc-learn-active .knob {
+    box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.6), 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* MIDI Learn pulse animation for pending learn */
+@keyframes midi-learn-pulse {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(250, 204, 21, 0.4), 0 1px 3px rgba(0,0,0,0.4); }
+    50% { box-shadow: 0 0 12px 3px rgba(250, 204, 21, 0.7), 0 1px 3px rgba(0,0,0,0.4); }
+}
+.midi-learn-pending .knob {
+    animation: midi-learn-pulse 1s ease-in-out infinite;
+}
+
+/* Note name tooltip for piano roll cells */
+.piano-note-tooltip {
+    position: absolute;
+    background: rgba(20, 20, 20, 0.95);
+    color: #e0e0e0;
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1000;
+    border: 1px solid #404040;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}

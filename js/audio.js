@@ -4,7 +4,7 @@ import * as Constants from './constants.js';
 // import { showNotification } from './utils.js'; // Not directly imported, accessed via appServices
 import { createEffectInstance } from './effectsRegistry.js';
 import { storeAudio, getAudio } from './db.js';
-import { getRecordingStartTimeState, getLoadedZipFilesState } from './state.js';
+import { getRecordingStartTimeState, getLoadedZipFilesState, getTracksState, getPlaybackModeState } from './state.js';
 
 
 let masterEffectsBusInputNode = null;
@@ -522,7 +522,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructing) {
+    if (localAppServices.captureStateForUndo && !isReconstructinging) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -1826,34 +1826,74 @@ export async function exportMixdownToWav(durationSeconds) {
     const wasPlaying = Tone.Transport.state === 'started';
     if (wasPlaying) {
         Tone.Transport.pause();
-        console.log('[Audio exportMixdownToWav] Transport paused for offline rendering.');
+        console.log('[Audio exportMixdownToWav] Transport paused before export.');
     }
 
     try {
-        // Tone.Offline renders all audio through the transport/scheduler
-        const buffer = await Tone.Offline(async () => {
-            // Reconstruct the transport schedule so offline context plays all scheduled events
-            if (typeof reconstructTransportSchedule === 'function') {
-                await reconstructTransportSchedule();
+        // Use Tone.Recorder to capture output via live transport playback
+        // This approach is more reliable than Tone.Offline which requires a
+        // reconstructTransportSchedule() function that doesn't exist
+        const recorder = new Tone.Recorder();
+        const masterGain = getActualMasterGainNode();
+
+        if (!masterGain || masterGain.disposed) {
+            throw new Error('Master output not available.');
+        }
+
+        // Connect master gain to recorder
+        masterGain.connect(recorder);
+        console.log('[Audio exportMixdownToWav] Recorder connected to master gain.');
+
+        // Reset transport state
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+
+        // Stop any existing playback on tracks
+        const tracks = getTracksState();
+        tracks.forEach(t => {
+            if (t && typeof t.stopPlayback === 'function') t.stopPlayback();
+        });
+        await new Promise(r => setTimeout(r, 100));
+
+        // Schedule all tracks for playback
+        for (const track of tracks) {
+            if (track && typeof track.schedulePlayback === 'function') {
+                await track.schedulePlayback(0, safeDuration);
             }
-            // Schedule the transport to play for the full duration
-            Tone.Transport.start(0, 0);
-            // Let it run for the requested duration
-            await new Promise(resolve => setTimeout(resolve, (safeDuration + 0.5) * 1000));
-        }, safeDuration + 0.5);
+        }
 
-        console.log('[Audio exportMixdownToWav] Offline buffer created. Channels:', buffer.numberOfChannels, 'Duration:', buffer.duration, 's');
+        // Start recording and transport
+        await recorder.start();
+        console.log('[Audio exportMixdownToWav] Recording started.');
 
-        // Convert ToneAudioBuffer to AudioBuffer
-        const audioBuffer = buffer.get ? buffer.get() : buffer;
+        Tone.Transport.start();
+        console.log('[Audio exportMixdownToWav] Transport started.');
 
-        // Encode as WAV using a simple PCM encoder
-        const wavBlob = audioBufferToWav(audioBuffer);
-        console.log('[Audio exportMixdownToWav] WAV blob created. Size:', wavBlob.size, 'bytes');
+        // Wait for full duration
+        await new Promise(resolve => setTimeout(resolve, safeDuration * 1000 + 500));
 
-        return wavBlob;
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log('[Audio exportMixdownToWav] Recording stopped, size:', recording?.size);
+
+        // Stop transport and cleanup
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => {
+            if (t && typeof t.stopPlayback === 'function') t.stopPlayback();
+        });
+
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        if (!recording || recording.size < 1000) {
+            throw new Error('No audio recorded. Add some notes or audio first.');
+        }
+
+        console.log('[Audio exportMixdownToWav] Export complete, size:', recording.size);
+        return recording;
     } catch (err) {
-        console.error('[Audio exportMixdownToWav] Error during offline rendering:', err);
+        console.error('[Audio exportMixdownToWav] Error during export:', err);
         throw err;
     } finally {
         // Restore transport state
@@ -1864,56 +1904,107 @@ export async function exportMixdownToWav(durationSeconds) {
     }
 }
 
-function audioBufferToWav(audioBuffer) {
-    const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
+// ============================================================
+// EXPORT MIXDOWN TO WAV
+// ============================================================
 
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
+// export async function exportMixdownToWav(durationSeconds) {
+//     console.log('[Audio exportMixdownToWav] Starting export, duration:', durationSeconds, 's');
+//     const maxDuration = 600; // 10 minutes max
+//     const safeDuration = Math.min(Math.max(durationSeconds, 1), maxDuration);
 
-    // Interleave channels
-    const length = audioBuffer.length;
-    const samples = new Int16Array(length * numChannels);
-    for (let i = 0; i < length; i++) {
-        for (let ch = 0; ch < numChannels; ch++) {
-            const val = audioBuffer.getChannelData(ch)[i];
-            // Clamp to Int16 range and convert float [-1,1] to Int16
-            const int16 = Math.max(-32768, Math.min(32767, Math.round(val * 32768)));
-            samples[i * numChannels + ch] = int16;
-        }
-    }
+//     // Pause transport if running to avoid double audio
+//     const wasPlaying = Tone.Transport.state === 'started';
+//     if (wasPlaying) {
+//         Tone.Transport.pause();
+//         console.log('[Audio exportMixdownToWav] Transport paused for offline rendering.');
+//     }
 
-    const dataSize = samples.length * bytesPerSample;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
+//     try {
+//         // Tone.Offline renders all audio through the transport/scheduler
+//         const buffer = await Tone.Offline(async () => {
+//             // Reconstruct the transport schedule so offline context plays all scheduled events
+//             if (typeof reconstructTransportSchedule === 'function') {
+//                 await reconstructTransportSchedule();
+//             }
+//             // Schedule the transport to play for the full duration
+//             Tone.Transport.start(0, 0);
+//             // Let it run for the requested duration
+//             await new Promise(resolve => setTimeout(resolve, (safeDuration + 0.5) * 1000));
+//         }, safeDuration + 0.5);
 
-    // RIFF header
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(view, 8, 'WAVE');
+//         console.log('[Audio exportMixdownToWav] Offline buffer created. Channels:', buffer.numberOfChannels, 'Duration:', buffer.duration, 's');
 
-    // fmt chunk
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // chunk size
-    view.setUint16(20, format, true); // PCM format
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true); // byte rate
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
+//         // Convert ToneAudioBuffer to AudioBuffer
+//         const audioBuffer = buffer.get ? buffer.get() : buffer;
 
-    // data chunk
-    writeString(view, 36, 'data');
-    view.setUint32(40, dataSize, true);
-    new Int16Array(buffer, 44).set(samples);
+//         // Encode as WAV using a simple PCM encoder
+//         const wavBlob = audioBufferToWav(audioBuffer);
+//         console.log('[Audio exportMixdownToWav] WAV blob created. Size:', wavBlob.size, 'bytes');
 
-    return new Blob([buffer], { type: 'audio/wav' });
-}
+//         return wavBlob;
+//     } catch (err) {
+//         console.error('[Audio exportMixdownToWav] Error during offline rendering:', err);
+//         throw err;
+//     } finally {
+//         // Restore transport state
+//         if (wasPlaying) {
+//             Tone.Transport.start();
+//             console.log('[Audio exportMixdownToWav] Transport resumed.');
+//         }
+//     }
+// }
 
-function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-    }
-}
+// function audioBufferToWav(audioBuffer) {
+//     const numChannels = audioBuffer.numberOfChannels;
+//     const sampleRate = audioBuffer.sampleRate;
+//     const format = 1; // PCM
+//     const bitDepth = 16;
+
+//     const bytesPerSample = bitDepth / 8;
+//     const blockAlign = numChannels * bytesPerSample;
+
+//     // Interleave channels
+//     const length = audioBuffer.length;
+//     const samples = new Int16Array(length * numChannels);
+//     for (let i = 0; i < length; i++) {
+//         for (let ch = 0; ch < numChannels; ch++) {
+//             const val = audioBuffer.getChannelData(ch)[i];
+//             // Clamp to Int16 range and convert float [-1,1] to Int16
+//             const int16 = Math.max(-32768, Math.min(32767, Math.round(val * 32768)));
+//             samples[i * numChannels + ch] = int16;
+//         }
+//     }
+
+//     const dataSize = samples.length * bytesPerSample;
+//     const buffer = new ArrayBuffer(44 + dataSize);
+//     const view = new DataView(buffer);
+
+//     // RIFF header
+//     writeString(view, 0, 'RIFF');
+//     view.setUint32(4, 36 + dataSize, true);
+//     writeString(view, 8, 'WAVE');
+
+//     // fmt chunk
+//     writeString(view, 12, 'fmt ');
+//     view.setUint32(16, 16, true); // chunk size
+//     view.setUint16(20, format, true); // PCM format
+//     view.setUint16(22, numChannels, true);
+//     view.setUint32(24, sampleRate, true);
+//     view.setUint32(28, sampleRate * blockAlign, true); // byte rate
+//     view.setUint16(32, blockAlign, true);
+//     view.setUint16(34, bitDepth, true);
+
+//     // data chunk
+//     writeString(view, 36, 'data');
+//     view.setUint32(40, dataSize, true);
+//     new Int16Array(buffer, 44).set(samples);
+
+//     return new Blob([buffer], { type: 'audio/wav' });
+// }
+
+// function writeString(view, offset, string) {
+//     for (let i = 0; i < string.length; i++) {
+//         view.setUint8(offset + i, string.charCodeAt(i));
+//     }
+// }

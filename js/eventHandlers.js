@@ -241,13 +241,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -810,6 +836,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -1549,13 +1583,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -2118,6 +2178,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -2857,13 +2925,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -3426,6 +3520,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -4165,13 +4267,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -4734,6 +4862,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -5473,13 +5609,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -6042,6 +6204,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -6781,13 +6951,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -7350,6 +7546,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -8089,13 +8293,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -8658,6 +8888,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -9397,13 +9635,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -9966,6 +10230,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -10705,13 +10977,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -11274,6 +11572,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -12013,13 +12319,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -12582,6 +12914,14 @@ document.addEventListener('keydown', (event) => {
                 const newEnabled = !isPunchRegionEnabled();
                 setPunchRegionEnabled(newEnabled);
                 showNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+            }
+            return;
+        }
+
+        // V - Toggle sequencer piano roll / step view
+        if (key === 'v') {
+            if (typeof toggleSequencerViewMode === 'function') {
+                toggleSequencerViewMode();
             }
             return;
         }
@@ -13321,13 +13661,39 @@ export function attachGlobalControlEvents(elements) {
                 const { exportMixdownToWav } = await import('./audio.js');
                 const projectName = localAppServices.getProjectNameState ? localAppServices.getProjectNameState() : 'SnugOS';
                 const safeName = projectName.replace(/[^a-z0-9_\-]/gi, '_');
-                const duration = 60;
+                let maxDuration = 60;
+                if (localAppServices.getTracks && localAppServices.getPlaybackMode) {
+                    const tracks = localAppServices.getTracks();
+                    const playbackMode = localAppServices.getPlaybackMode();
+                    if (playbackMode === 'timeline') {
+                        tracks.forEach(track => {
+                            if (track && track.timelineClips) {
+                                track.timelineClips.forEach(clip => {
+                                    if (clip && clip.startTime !== undefined && clip.duration !== undefined) {
+                                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        tracks.forEach(track => {
+                            if (track && track.type !== 'Audio') {
+                                const activeSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                                if (activeSeq && activeSeq.length > 0) {
+                                    maxDuration = Math.max(maxDuration, activeSeq.length * 0.0625);
+                                }
+                            }
+                        });
+                    }
+                }
+                maxDuration = Math.min(maxDuration + 2, 600);
+                console.log(`[EventHandlers Export] Calculated duration: ${maxDuration.toFixed(1)}s`);
 
-                showNotification("Rendering mixdown... Please wait.", 2000);
+                showNotification(`Rendering mixdown (${maxDuration.toFixed(0)}s)... Please wait.`, 2000);
                 exportBtnGlobal.textContent = 'Rendering...';
                 exportBtnGlobal.disabled = true;
 
-                const wavBlob = await exportMixdownToWav(duration);
+                const wavBlob = await exportMixdownToWav(maxDuration);
                 const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a');
                 a.href = url;

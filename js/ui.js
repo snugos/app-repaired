@@ -424,6 +424,73 @@ function initializeSynthSpecificControls(track, winEl) {
     if (container) {
         buildSynthEngineControls(track, container, engineType);
     }
+    // Wire synth preset controls
+    const selectEl = winEl.querySelector(`#synthPresetSelect-${track.id}`);
+    const loadBtn = winEl.querySelector(`#synthPresetLoadBtn-${track.id}`);
+    const saveBtn = winEl.querySelector(`#synthPresetSaveBtn-${track.id}`);
+    const deleteBtn = winEl.querySelector(`#synthPresetDeleteBtn-${track.id}`);
+    const nameInput = winEl.querySelector(`#synthPresetName-${track.id}`);
+    if (selectEl) {
+        const allPresets = localAppServices.getSynthPresets ? localAppServices.getSynthPresets() : {};
+        selectEl.innerHTML = '<option value="">— Load Preset —</option>';
+        Object.keys(allPresets).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            selectEl.appendChild(opt);
+        });
+        selectEl.addEventListener('change', () => {
+            if (nameInput) nameInput.value = selectEl.value;
+        });
+    }
+    if (loadBtn) {
+        loadBtn.addEventListener('click', async () => {
+            const selectedName = selectEl.value;
+            if (!selectedName) { showNotification('Select a preset to load.', 2000); return; }
+            const allPresets = localAppServices.getSynthPresets ? localAppServices.getSynthPresets() : {};
+            const presetData = allPresets[selectedName];
+            if (!presetData) { showNotification(`Preset "${selectedName}" not found.`, 2000); return; }
+            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Load Preset "${selectedName}" on ${track.name}`);
+            await track.applySynthPreset(presetData);
+            // Rebuild engine controls for new engine type
+            if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'inspectorUpdated');
+            showNotification(`Preset "${selectedName}" loaded.`, 2000);
+        });
+    }
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const name = nameInput && nameInput.value.trim();
+            if (!name) { showNotification('Enter a preset name to save.', 2000); return; }
+            const presetData = {
+                synthEngineType: track.synthEngineType || 'MonoSynth',
+                synthParams: JSON.parse(JSON.stringify(track.synthParams || {}))
+            };
+            if (localAppServices.saveSynthPreset) localAppServices.saveSynthPreset(name, presetData);
+            if (selectEl) {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                selectEl.appendChild(opt);
+                selectEl.value = name;
+            }
+            if (nameInput) nameInput.value = '';
+            showNotification(`Preset "${name}" saved.`, 2000);
+        });
+    }
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const selectedName = selectEl.value || (nameInput && nameInput.value.trim());
+            if (!selectedName) { showNotification('Select a preset to delete.', 2000); return; }
+            if (localAppServices.deleteSynthPreset) localAppServices.deleteSynthPreset(selectedName);
+            if (selectEl) {
+                for (let i = selectEl.options.length - 1; i >= 0; i--) {
+                    if (selectEl.options[i].value === selectedName) selectEl.remove(i);
+                }
+                selectEl.value = '';
+            }
+            if (nameInput) nameInput.value = '';
+            showNotification(`Preset "${selectedName}" deleted.`, 2000);
+        });
+    }
 }
 
 function initializeSamplerSpecificControls(track, winEl) {
@@ -668,6 +735,73 @@ function initializeSynthSpecificControls(track, winEl) {
     const container = winEl.querySelector(`#synthEngineControls-${track.id}`);
     if (container) {
         buildSynthEngineControls(track, container, engineType);
+    }
+    // Wire synth preset controls
+    const selectEl = winEl.querySelector(`#synthPresetSelect-${track.id}`);
+    const loadBtn = winEl.querySelector(`#synthPresetLoadBtn-${track.id}`);
+    const saveBtn = winEl.querySelector(`#synthPresetSaveBtn-${track.id}`);
+    const deleteBtn = winEl.querySelector(`#synthPresetDeleteBtn-${track.id}`);
+    const nameInput = winEl.querySelector(`#synthPresetName-${track.id}`);
+    if (selectEl) {
+        const allPresets = localAppServices.getSynthPresets ? localAppServices.getSynthPresets() : {};
+        selectEl.innerHTML = '<option value="">— Load Preset —</option>';
+        Object.keys(allPresets).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            selectEl.appendChild(opt);
+        });
+        selectEl.addEventListener('change', () => {
+            if (nameInput) nameInput.value = selectEl.value;
+        });
+    }
+    if (loadBtn) {
+        loadBtn.addEventListener('click', async () => {
+            const selectedName = selectEl.value;
+            if (!selectedName) { showNotification('Select a preset to load.', 2000); return; }
+            const allPresets = localAppServices.getSynthPresets ? localAppServices.getSynthPresets() : {};
+            const presetData = allPresets[selectedName];
+            if (!presetData) { showNotification(`Preset "${selectedName}" not found.`, 2000); return; }
+            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Load Preset "${selectedName}" on ${track.name}`);
+            await track.applySynthPreset(presetData);
+            // Rebuild engine controls for new engine type
+            if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'inspectorUpdated');
+            showNotification(`Preset "${selectedName}" loaded.`, 2000);
+        });
+    }
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const name = nameInput && nameInput.value.trim();
+            if (!name) { showNotification('Enter a preset name to save.', 2000); return; }
+            const presetData = {
+                synthEngineType: track.synthEngineType || 'MonoSynth',
+                synthParams: JSON.parse(JSON.stringify(track.synthParams || {}))
+            };
+            if (localAppServices.saveSynthPreset) localAppServices.saveSynthPreset(name, presetData);
+            if (selectEl) {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                selectEl.appendChild(opt);
+                selectEl.value = name;
+            }
+            if (nameInput) nameInput.value = '';
+            showNotification(`Preset "${name}" saved.`, 2000);
+        });
+    }
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const selectedName = selectEl.value || (nameInput && nameInput.value.trim());
+            if (!selectedName) { showNotification('Select a preset to delete.', 2000); return; }
+            if (localAppServices.deleteSynthPreset) localAppServices.deleteSynthPreset(selectedName);
+            if (selectEl) {
+                for (let i = selectEl.options.length - 1; i >= 0; i--) {
+                    if (selectEl.options[i].value === selectedName) selectEl.remove(i);
+                }
+                selectEl.value = '';
+            }
+            if (nameInput) nameInput.value = '';
+            showNotification(`Preset "${selectedName}" deleted.`, 2000);
+        });
     }
 }
 
@@ -1827,61 +1961,59 @@ export function renderMixer(container) {
 }
 
 // --- Sequencer Window ---
-// Piano Roll View Mode: shows piano-style note labels and keys
+// Piano Roll View Mode: shows piano-style note labels and piano-key visual for each row
 function buildPianoRollContentDOM(track, rows, rowLabels, numBars) {
     const stepsPerBar = Constants.STEPS_PER_BAR;
     const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
     const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
     const snapLabel = snapValue === 0 ? 'Off' : (snapValue === 4 ? '1/4' : (snapValue === 8 ? '1/8' : '1/16'));
     let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <div class="flex items-center gap-2"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <button id="seqViewToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle step/velocity view (V key)">Step</button> </div> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
+    // Piano roll label column: 70px, shows octave piano-key visuals
     html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 70px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
     for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; const isSnapPoint = snapValue === 0 || i % snapValue === 0; const snapClass = isSnapPoint ? 'snap-point' : 'non-snap-point'; html += `<div class="sequencer-header-cell ${snapClass} sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
 
     const activeSequence = track.getActiveSequence();
     const sequenceData = activeSequence ? activeSequence.data : [];
 
+    // Determine track-type-specific dot class prefix for active note dots
+    let dotClassPrefix = 'piano-note-synth';
+    if (track.type === 'Sampler') dotClassPrefix = 'piano-note-sampler';
+    else if (track.type === 'DrumSampler') dotClassPrefix = 'piano-note-drum';
+    else if (track.type === 'InstrumentSampler') dotClassPrefix = 'piano-note-instrument';
+
     for (let i = 0; i < rows; i++) {
-        // Piano-style row labels: show note name (e.g., C4, C#4) with black key indicator
         const noteLabel = rowLabels[i] || `R${i + 1}`;
         const isBlackKey = noteLabel.includes('#');
-        const whiteKeyClass = isBlackKey ? 'piano-black-key' : 'piano-white-key';
-        html += `<div class="sequencer-label-cell sticky left-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-end pr-1 text-[10px] ${whiteKeyClass}" title="${rowLabels[i] || ''}">${noteLabel}</div>`;
+        // Row label: piano key visual with note name
+        html += `<div class="piano-key-cell ${isBlackKey ? 'piano-black-key' : 'piano-white-key'} sticky left-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700" style="width:70px;height:20px;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;gap:4px;" title="${rowLabels[i] || ''}">
+            <span style="font-size:10px;font-family:monospace;font-weight:600;color:${isBlackKey ? '#e2e8f0' : '#1e293b'};">${noteLabel}</span>
+            <div class="key-indicator"></div>
+        </div>`;
         for (let j = 0; j < totalSteps; j++) {
             const stepData = sequenceData[i]?.[j];
-            let activeClass = '';
-            if (((stepData) && (stepData).active)) { if (track.type === 'Synth') activeClass = 'active-synth'; else if (track.type === 'Sampler') activeClass = 'active-sampler'; else if (track.type === 'DrumSampler') activeClass = 'active-drum-sampler'; else if (track.type === 'InstrumentSampler') activeClass = 'active-instrument-sampler'; }
             let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
             if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
             else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
             else if (j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
-            let velClass = '';
+
+            // Active note: show centered piano note dot with track-type color
             if (((stepData) && (stepData).active)) {
                 const vel = ((stepData) && (stepData).velocity) || 0.7;
                 const velPercent = Math.round(vel * 100);
-                if (velPercent >= 100) velClass = 'vel-100';
-                else if (velPercent >= 90) velClass = 'vel-90';
-                else if (velPercent >= 80) velClass = 'vel-80';
-                else if (velPercent >= 70) velClass = 'vel-70';
-                else if (velPercent >= 60) velClass = 'vel-60';
-                else if (velPercent >= 50) velClass = 'vel-50';
-                else if (velPercent >= 40) velClass = 'vel-40';
-                else if (velPercent >= 30) velClass = 'vel-30';
-                else if (velPercent >= 20) velClass = 'vel-20';
-                else velClass = 'vel-10';
+                // Slight brightness adjustment based on velocity
+                const velClass = velPercent >= 80 ? 'vel-100' : (velPercent >= 60 ? 'vel-80' : (velPercent >= 40 ? 'vel-60' : 'vel-40'));
+                html += `<div class="sequencer-step-cell ${velClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" style="display:flex;align-items:center;justify-content:center;padding:0;">
+                    <div class="piano-note-dot ${dotClassPrefix}" style="width:14px;height:14px;border-radius:3px;"></div>
+                </div>`;
+            } else {
+                html += `<div class="sequencer-step-cell ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}"></div>`;
             }
-            // Piano roll: colored by pitch range (higher notes = brighter)
-            let pianoRollClass = '';
-            if (((stepData) && (stepData).active)) {
-                // Add gradient effect based on row (pitch) position
-                const pitchBrightness = 0.4 + (0.6 * (rows - i - 1) / Math.max(rows - 1, 1));
-                pianoRollClass = `piano-note-${Math.round(pitchBrightness * 10)}`;
-            }
-            html += `<div class="sequencer-step-cell ${activeClass} ${velClass} ${pianoRollClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" title="${noteLabel},S${j+1}"></div>`;
         }
     }
     html += `</div></div>`; return html;
 }
 
+// Step/velocity view (default sequencer view)
 function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const stepsPerBar = Constants.STEPS_PER_BAR;
     const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
