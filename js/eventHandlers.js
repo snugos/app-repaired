@@ -607,7 +607,7 @@ document.addEventListener('keydown', (event) => {
             return; 
         }
         if (event.metaKey || event.ctrlKey) {
-            if (!((key === 'z' || key === 'y'))) { 
+            if (!((key === 'z' || key === 'y' || key === 'c' || key === 'v'))) { 
                  return;
             }
         }
