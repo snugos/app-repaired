@@ -1816,3 +1816,104 @@ export function getContextSuspensionCount() {
 export function getContextState() {
     return Tone.context ? Tone.context.state : 'unavailable';
 }
+
+export async function exportMixdownToWav(durationSeconds) {
+    console.log('[Audio exportMixdownToWav] Starting export, duration:', durationSeconds, 's');
+    const maxDuration = 600; // 10 minutes max
+    const safeDuration = Math.min(Math.max(durationSeconds, 1), maxDuration);
+
+    // Pause transport if running to avoid double audio
+    const wasPlaying = Tone.Transport.state === 'started';
+    if (wasPlaying) {
+        Tone.Transport.pause();
+        console.log('[Audio exportMixdownToWav] Transport paused for offline rendering.');
+    }
+
+    try {
+        // Tone.Offline renders all audio through the transport/scheduler
+        const buffer = await Tone.Offline(async () => {
+            // Reconstruct the transport schedule so offline context plays all scheduled events
+            if (typeof reconstructTransportSchedule === 'function') {
+                await reconstructTransportSchedule();
+            }
+            // Schedule the transport to play for the full duration
+            Tone.Transport.start(0, 0);
+            // Let it run for the requested duration
+            await new Promise(resolve => setTimeout(resolve, (safeDuration + 0.5) * 1000));
+        }, safeDuration + 0.5);
+
+        console.log('[Audio exportMixdownToWav] Offline buffer created. Channels:', buffer.numberOfChannels, 'Duration:', buffer.duration, 's');
+
+        // Convert ToneAudioBuffer to AudioBuffer
+        const audioBuffer = buffer.get ? buffer.get() : buffer;
+
+        // Encode as WAV using a simple PCM encoder
+        const wavBlob = audioBufferToWav(audioBuffer);
+        console.log('[Audio exportMixdownToWav] WAV blob created. Size:', wavBlob.size, 'bytes');
+
+        return wavBlob;
+    } catch (err) {
+        console.error('[Audio exportMixdownToWav] Error during offline rendering:', err);
+        throw err;
+    } finally {
+        // Restore transport state
+        if (wasPlaying) {
+            Tone.Transport.start();
+            console.log('[Audio exportMixdownToWav] Transport resumed.');
+        }
+    }
+}
+
+function audioBufferToWav(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+
+    // Interleave channels
+    const length = audioBuffer.length;
+    const samples = new Int16Array(length * numChannels);
+    for (let i = 0; i < length; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const val = audioBuffer.getChannelData(ch)[i];
+            // Clamp to Int16 range and convert float [-1,1] to Int16
+            const int16 = Math.max(-32768, Math.min(32767, Math.round(val * 32768)));
+            samples[i * numChannels + ch] = int16;
+        }
+    }
+
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // chunk size
+    view.setUint16(20, format, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true); // byte rate
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+
+    // data chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+    new Int16Array(buffer, 44).set(samples);
+
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}

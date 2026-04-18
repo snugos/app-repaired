@@ -457,6 +457,14 @@ button.active { /* Generic active state for other toggles if needed */
     z-index: 5; 
 }
 
+/* Selection highlight for sequencer cells (drag-select) */
+.sequencer-step-cell.selected {
+    outline: 1px dashed #ffaa00 !important;
+    outline-offset: -1px;
+    z-index: 1;
+    position: relative;
+}
+
 /* --- Notification Area --- */
 #notification-area { /* ... unchanged ... */ }
 .notification-message { /* ... unchanged ... */ }
@@ -954,7 +962,7 @@ input::placeholder,
 .vel-30 { background-color: #f5f3ff; color: #1e1b4b; }
 .vel-20 { background-color: #faf5ff; color: #1e1b4b; }
 .vel-10 { background-color: #faf5ff; color: #1e1b4b; }
-.sequencer-step-cell.selected-cell { outline: 2px solid #facc15; outline-offset: -1px; background-color: rgba(250, 204, 21, 0.2); }
+.sequencer-step-cell.selected { outline: 2px solid #facc15; outline-offset: -1px; background-color: rgba(250, 204, 21, 0.15); }
 
 /* Snap point indicators in sequencer header */
 .sequencer-header-cell.snap-point { background-color: rgba(99, 102, 241, 0.15); }

@@ -1054,7 +1054,7 @@ export function openGlobalControlsWindow(onReadyCallback, savedState = null) {
         return win;
     }
 
-    // MODIFICATION: Added stopBtnGlobal to the HTML and adjusted grid layout
+    // MODIFICATION: Added stop button to the HTML and adjusted grid layout
     const contentHTML = `<div id="global-controls-content" class="p-2.5 space-y-3 text-sm text-gray-700 dark:text-slate-300">
         <div class="grid grid-cols-3 gap-2 items-center">
             <button id="playBtnGlobal" title="Play/Pause (Spacebar)" class="bg-pink-400 hover:bg-pink-500 text-white font-semibold py-1.5 px-3 rounded shadow transition-colors duration-150 dark:bg-pink-500 dark:hover:bg-pink-600">Play</button>
@@ -1673,7 +1673,7 @@ export function renderMixer(container) {
     container.innerHTML = '';
     const masterTrackDiv = document.createElement('div');
     masterTrackDiv.className = 'mixer-track master-track inline-block align-top p-1.5 border rounded bg-gray-200 dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
-    masterTrackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="Master">Master</div> <div id="masterVolumeKnob-mixer-placeholder" class="h-16 mx-auto mb-1"></div> <div id="mixerMasterMeterContainer" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-1"> <div id="mixerMasterMeterBar" class="h-full bg-purple-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
+    masterTrackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="Master">Master</div> <div id="masterVolumeKnob-mixer-placeholder" class="h-16 mx-auto mb-1"></div> <div id="mixerMasterMeterContainer" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden my-1"> <div id="mixerMasterMeterBar" class="h-full bg-purple-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
     container.appendChild(masterTrackDiv);
     const masterVolKnobPlaceholder = masterTrackDiv.querySelector('#masterVolumeKnob-mixer-placeholder');
     if (masterVolKnobPlaceholder) {
@@ -1952,8 +1952,8 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
 
         function clearSelection() {
             if (sequencerWindow.element) {
-                sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
-                    cell.classList.remove('selected-cell');
+                sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected').forEach(cell => {
+                    cell.classList.remove('selected');
                 });
             }
             selectionStartCell = null;
@@ -1968,13 +1968,13 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const c1 = Math.min(selectionStartCell.col, selectionEndCell.col);
             const c2 = Math.max(selectionStartCell.col, selectionEndCell.col);
 
-            sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell').forEach(cell => {
-                cell.classList.remove('selected-cell');
+            sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
             });
             for (let r = r1; r <= r2; r++) {
                 for (let c = c1; c <= c2; c++) {
                     const cell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${r}"][data-col="${c}"]`);
-                    if (cell) cell.classList.add('selected-cell');
+                    if (cell) cell.classList.add('selected');
                 }
             }
         }
@@ -1992,7 +1992,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 { separator: true },
                 { label: `Duplicate Sequence`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Duplicate Sequence on ${currentTrackForMenu.name}`); const newSeq = currentTrackForMenu.duplicateSequence(currentActiveSeq.id); if (newSeq) { showNotification(`Duplicated "${currentActiveSeq.name}" -> "${newSeq.name}".`, 2000); } else { showNotification("Cannot duplicate sequence.", 2000); } } },
                 { label: `Rename Sequence...`, action: () => { const currentName = currentActiveSeq.name || ''; const newName = window.prompt(`Rename Sequence "${currentName}":`, currentName); if (newName !== null && newName.trim() !== '' && newName.trim() !== currentName) { currentTrackForMenu.renameSequence(currentActiveSeq.id, newName.trim()); showNotification(`Renamed to "${newName.trim()}".`, 2000); } } },
-                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+2}x${c2-c1+2}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
+                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+2}x${c2-c1+2}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Invert Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Invert Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); let count = 0; for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c] && currentActiveSeq.data[r][c].active) { currentActiveSeq.data[r][c] = null; count++; } else if (currentActiveSeq.data[r]) { const defaultVel = Constants.defaultVelocity || 0.7; currentActiveSeq.data[r][c] = { active: true, velocity: defaultVel }; count++; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Inverted ${count} cell(s) in selection.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
                 { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
