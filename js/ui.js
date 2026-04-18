@@ -32,6 +32,29 @@ let timelineScrollX = 0; // Horizontal scroll offset for timeline
 // Sequencer view mode: 'step' (default) or 'piano' (piano roll)
 let sequencerViewMode = 'step';
 
+export function toggleSequencerViewMode() {
+    sequencerViewMode = sequencerViewMode === 'step' ? 'piano' : 'step';
+    console.log(`[UI] Sequencer view mode switched to: ${sequencerViewMode}`);
+    // Refresh the active sequencer window if one is open
+    const armed = localAppServices.getArmedTrackId ? localAppServices.getArmedTrackId() : null;
+    if (armed && localAppServices.openTrackSequencerWindow) {
+        localAppServices.openTrackSequencerWindow(armed, true);
+    } else {
+        // Fallback: find any open sequencer window and refresh it
+        const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+        for (const [id, win] of openWindows) {
+            if (id.startsWith('sequencerWin-') && typeof win.close === 'function') {
+                const trackId = id.replace('sequencerWin-', '');
+                try { win.close(true); } catch(e) {}
+                if (localAppServices.openTrackSequencerWindow) {
+                    localAppServices.openTrackSequencerWindow(trackId, false);
+                }
+                break;
+            }
+        }
+    }
+}
+
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
 

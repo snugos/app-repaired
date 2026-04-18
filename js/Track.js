@@ -1386,6 +1386,27 @@ export class Track {
         return humanizedCount;
     }
 
+    // Set the length (in steps) of a note at a specific row/col
+    setNoteLength(row, col, lengthInSteps) {
+        if (this.type === 'Audio') return;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) return;
+        const stepData = activeSeq.data[row]?.[col];
+        if (!stepData || !stepData.active) return;
+        const clamped = Math.max(1, Math.min(lengthInSteps, activeSeq.length - col));
+        activeSeq.data[row][col].length = clamped;
+    }
+
+    // Get the length (in steps) of a note at a specific row/col
+    getNoteLength(row, col) {
+        if (this.type === 'Audio') return 1;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) return 1;
+        const stepData = activeSeq.data[row]?.[col];
+        if (!stepData || !stepData.active) return 0;
+        return stepData.length || 1;
+    }
+
     quantizeSequence(quantizeTo = 16) {
         if (this.type === 'Audio') return 0;
         const activeSeq = this.getActiveSequence();

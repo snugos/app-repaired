@@ -1113,7 +1113,7 @@ export function showKeyboardShortcutsModal() {
             { keys: "Ctrl+C / Ctrl+V", desc: "Copy / Paste sequencer selection" },
             { keys: "S", desc: "Cycle snap grid (Off / 1/4 / 1/8 / 1/16)" },
             { keys: "Q", desc: "Quantize notes to current snap grid" },
-            { keys: "Shift+Click", desc: "Transpose notes up 1 semitone" },
+            { keys: "Shift+Click", desc: "Transpose notes up 1 semitone" },            { keys: "V", desc: "Toggle Piano Roll / Step Grid view" },
         ]},
         { section: "Track Navigation", items: [
             { keys: "Tab", desc: "Cycle to next armed track" },
