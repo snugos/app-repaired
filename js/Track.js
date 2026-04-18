@@ -842,13 +842,47 @@ export class Track {
         }
     }
 
-    setVolume(volume, fromInteraction = false) { 
-        this.previousVolumeBeforeMute = Math.max(0, Math.min(parseFloat(volume) || 0, 1.5)); 
+    setVolume(volume, fromInteraction = false) {
+        this.previousVolumeBeforeMute = Math.max(0, Math.min(parseFloat(volume) || 0, 1.5));
         if (this.gainNode && !this.gainNode.disposed && !this.isMuted) {
             try {
                 this.gainNode.gain.setValueAtTime(this.previousVolumeBeforeMute, Tone.now());
             } catch (e) { console.error(`[Track ${this.id}] Error setting gainNode volume:`, e); }
         }
+        // Record volume automation when arm is enabled and user interacts with the knob
+        if (fromInteraction && this.automationArmed) {
+            const transportPos = Tone.Transport.position;
+            const timeInSeconds = Tone.Transport.seconds;
+            this.writeVolumeAutomation(timeInSeconds, this.previousVolumeBeforeMute);
+            console.log(`[Track ${this.id}] Volume automation recorded at pos ${transportPos}, time ${timeInSeconds.toFixed(3)}s, value ${this.previousVolumeBeforeMute.toFixed(3)}`);
+        }
+    }
+
+    toggleMuteAutomationNow() {
+        if (!this.automationArmed) {
+            showNotification(`Arm automation recording first for ${this.name}`, 1500);
+            return;
+        }
+        const transportPos = Tone.Transport.position;
+        const timeInSeconds = Tone.Transport.seconds;
+        this.writeMuteAutomation(timeInSeconds, this.isMuted ? 1 : 0);
+        showNotification(`Mute: ${this.isMuted ? 'ON' : 'OFF'} recorded at ${transportPos}`, 1500);
+        console.log(`[Track ${this.id}] Mute automation recorded at pos ${transportPos}, time ${timeInSeconds.toFixed(3)}s, value ${this.isMuted ? 1 : 0}`);
+    }
+
+    toggleSoloAutomationNow() {
+        if (!this.automationArmed) {
+            showNotification(`Arm automation recording first for ${this.name}`, 1500);
+            return;
+        }
+        const transportPos = Tone.Transport.position;
+        const timeInSeconds = Tone.Transport.seconds;
+        // Solo state at this moment
+        const soloedId = this.appServices && this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
+        const isCurrentlySoloed = (soloedId === this.id);
+        this.writeSoloAutomation(timeInSeconds, isCurrentlySoloed ? 1 : 0);
+        showNotification(`Solo: ${isCurrentlySoloed ? 'ON' : 'OFF'} recorded at ${transportPos}`, 1500);
+        console.log(`[Track ${this.id}] Solo automation recorded at pos ${transportPos}, time ${timeInSeconds.toFixed(3)}s, value ${isCurrentlySoloed ? 1 : 0}`);
     }
 
     setPan(panValue, fromInteraction = false) {

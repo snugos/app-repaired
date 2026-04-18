@@ -46,6 +46,7 @@ let clipboardDataGlobal = { type: null, data: null, sourceTrackType: null, seque
 // Transport/Sequencing State
 let activeSequencerTrackId = null;
 let soloedTrackId = null;
+let mutedTrackIds = []; // Array of muted track IDs for multi-mute support
 let armedTrackId = null;
 let isRecordingGlobal = false;
 let recordingTrackIdGlobal = null;
@@ -165,6 +166,11 @@ export function setSoloedTrackIdState(id) {
     const previousId = soloedTrackId;
     soloedTrackId = (id === null || id === undefined) ? null : id;
     console.log(`[State setSoloedTrackIdState] Changed soloed track: ${previousId} → ${soloedTrackId}`);
+}
+export function getMutedTrackIdsState() { return [...mutedTrackIds]; }
+export function setMutedTrackIdsState(ids) {
+    mutedTrackIds = Array.isArray(ids) ? ids : [];
+    console.log(`[State setMutedTrackIdsState] Changed muted tracks:`, mutedTrackIds);
 }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
@@ -359,6 +365,9 @@ export async function addTrackToStateInternal(type, initialData = null, isUserAc
 
         const trackAppServices = { // Pass necessary services to the Track instance
             getSoloedTrackId: getSoloedTrackIdState,
+            setSoloedTrackId: setSoloedTrackIdState,
+            getMutedTrackIds: getMutedTrackIdsState,
+            setMutedTrackIds: setMutedTrackIdsState,
             captureStateForUndo: captureStateForUndoInternal,
             updateTrackUI: appServices.updateTrackUI, // These come from main.js
             highlightPlayingStep: appServices.highlightPlayingStep,

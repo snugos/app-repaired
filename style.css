@@ -937,3 +937,20 @@ input::placeholder,
 .vel-20 { background-color: #faf5ff; color: #1e1b4b; }
 .vel-10 { background-color: #faf5ff; color: #1e1b4b; }
 .sequencer-step-cell.selected-cell { outline: 2px solid #facc15; outline-offset: -1px; background-color: rgba(250, 204, 21, 0.2); }
+
+/* Snap point indicators in sequencer header */
+.sequencer-header-cell.snap-point { background-color: rgba(99, 102, 241, 0.15); }
+.sequencer-header-cell.non-snap-point { background-color: transparent; }
+
+/* Automation arm button active state */
+button.automation-armed { background-color: #dc2626; color: #fff; border-color: #dc2626; }
+button.automation-armed:hover { background-color: #b91c1c; }
+
+/* Sequencer snap-point indicator in header cells */
+.sequencer-grid-layout .sequencer-header-cell.snap-point {
+    color: #6366f1;
+    font-weight: 600;
+}
+.sequencer-grid-layout .sequencer-header-cell.non-snap-point {
+    color: #94a3b8;
+}

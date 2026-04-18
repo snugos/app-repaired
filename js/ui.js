@@ -654,21 +654,15 @@ function buildTrackInspectorContentDOM(track) {
     else if (track.type === 'InstrumentSampler') specificControlsHTML = buildInstrumentSamplerSpecificInspectorDOM(track);
 
     const armedTrackId = localAppServices.getArmedTrackId ? localAppServices.getArmedTrackId() : null;
-    let sequencerButtonHTML = '';
-    if (track.type !== 'Audio') {
-        sequencerButtonHTML = `<button id="openSequencerBtn-${track.id}" class="px-1 py-0.5 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500">Sequencer</button>`;
-    }
-
-    let monitorButtonHTML = '';
-    if (track.type === 'Audio') {
-        monitorButtonHTML = `<button id="monitorBtn-${track.id}" title="Toggle Input Monitoring" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isMonitoringEnabled ? 'active' : ''}">Monitor</button>`;
-    }
-
+    const sequencerButtonHTML = `<button id="openSequencerBtn-${track.id}" class="px-1 py-0.5 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500">Sequencer</button>`;
+    const monitorButtonHTML = `<button id="monitorBtn-${track.id}" title="Toggle Input Monitoring" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isMonitoringEnabled ? 'active' : ''}">Monitor</button>`;
     return `
         <div class="track-inspector-content p-1 space-y-1 text-xs text-gray-700 dark:text-slate-300 overflow-y-auto h-full">
             <div class="common-controls grid ${track.type === 'Audio' ? 'grid-cols-5' : 'grid-cols-4'} gap-1 mb-1">
                 <button id="muteBtn-${track.id}" title="Mute Track" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'Unmute' : 'Mute'}</button>
+                <button id="muteAutomationBtn-${track.id}" title="Record Mute Automation" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 text-[10px]">M</button>
                 <button id="soloBtn-${track.id}" title="Solo Track" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'Unsolo' : 'Solo'}</button>
+                <button id="soloAutomationBtn-${track.id}" title="Record Solo Automation" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 text-[10px]">S</button>
                 ${monitorButtonHTML}
                 <button id="armInputBtn-${track.id}" title="Arm for MIDI/Keyboard Input or Audio Recording" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${armedTrackId === track.id ? 'armed' : ''}">Arm</button>
                 <button id="automationArmBtn-${track.id}" title="Arm for Automation Recording" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.automationArmed ? 'automation-armed' : ''}">A</button>
@@ -734,30 +728,35 @@ function initializeCommonInspectorControls(track, winEl) {
     const monitorBtn = winEl.querySelector(`#monitorBtn-${track.id}`);
     if (monitorBtn) {
         monitorBtn.addEventListener('click', () => {
-            if (track.type === 'Audio') { // Ensure it's an audio track
-                track.isMonitoringEnabled = !track.isMonitoringEnabled;
-                monitorBtn.classList.toggle('active', track.isMonitoringEnabled);
-                showNotification(`Input Monitoring ${track.isMonitoringEnabled ? 'ON' : 'OFF'} for ${track.name}`, 2000);
-                if (localAppServices.captureStateForUndo) {
-                    localAppServices.captureStateForUndo(`Toggle Monitoring for ${track.name} to ${track.isMonitoringEnabled ? 'ON' : 'OFF'}`);
-                }
+            track.isMonitoringEnabled = !track.isMonitoringEnabled;
+            monitorBtn.classList.toggle('active', track.isMonitoringEnabled);
+            showNotification(`Input monitoring ${track.isMonitoringEnabled ? 'enabled' : 'disabled'} for ${track.name}`, 1500);
+            if (localAppServices.setTrackMonitoring) localAppServices.setTrackMonitoring(track.id, track.isMonitoringEnabled);
+        });
+    }
+
+    // Mute automation record button
+    const muteAutomationBtn = winEl.querySelector(`#muteAutomationBtn-${track.id}`);
+    if (muteAutomationBtn) {
+        muteAutomationBtn.addEventListener('click', () => {
+            if (track.toggleMuteAutomationNow) {
+                track.toggleMuteAutomationNow();
+            } else {
+                showNotification('Automation recording not available for this track', 1500);
             }
         });
     }
 
-    winEl.querySelector(`#removeTrackBtn-${track.id}`)?.addEventListener('click', () => handleRemoveTrack(track.id));
-    winEl.querySelector(`#openEffectsBtn-${track.id}`)?.addEventListener('click', () => handleOpenEffectsRack(track.id));
-
-    const sequencerBtn = winEl.querySelector(`#openSequencerBtn-${track.id}`);
-    if (sequencerBtn) {
-        sequencerBtn.addEventListener('click', () => handleOpenSequencer(track.id));
-    }
-
-
-    const volumeKnobPlaceholder = winEl.querySelector(`#volumeKnob-${track.id}-placeholder`);
-    if (volumeKnobPlaceholder) {
-        const volumeKnob = createKnob({ label: 'Volume', min: 0, max: 1.2, step: 0.01, initialValue: track.previousVolumeBeforeMute, decimals: 2, trackRef: track, onValueChange: (val, o, fromInteraction) => track.setVolume(val, fromInteraction) });
-        volumeKnobPlaceholder.innerHTML = ''; volumeKnobPlaceholder.appendChild(volumeKnob.element); track.inspectorControls.volume = volumeKnob;
+    // Solo automation record button
+    const soloAutomationBtn = winEl.querySelector(`#soloAutomationBtn-${track.id}`);
+    if (soloAutomationBtn) {
+        soloAutomationBtn.addEventListener('click', () => {
+            if (track.toggleSoloAutomationNow) {
+                track.toggleSoloAutomationNow();
+            } else {
+                showNotification('Automation recording not available for this track', 1500);
+            }
+        });
     }
 }
 
@@ -904,16 +903,16 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
             const controlWrapper = document.createElement('div');
             let initialValue;
             const pathKeys = paramDef.key.split('.');
-            let tempVal = effectWrapper.params;
+            let currentValObj = effectWrapper.params;
             for (const key of pathKeys) {
-                if (tempVal && typeof tempVal === 'object' && key in tempVal) {
-                    tempVal = tempVal[key];
+                if (currentValObj && typeof currentValObj === 'object' && key in currentValObj) {
+                    currentValObj = currentValObj[key];
                 } else {
-                    tempVal = undefined;
+                    currentValObj = undefined;
                     break;
                 }
             }
-            initialValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
+            initialValue = (currentValObj !== undefined) ? currentValObj : paramDef.defaultValue;
 
             if (paramDef.type === 'knob') {
                 const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: initialValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
@@ -1679,6 +1678,9 @@ export function renderMixer(container) {
             {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)},
             {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)},
             {separator: true},
+            {label: "Record Mute Automation", action: () => { if (track.toggleMuteAutomationNow) track.toggleMuteAutomationNow(); else showNotification('Arm automation first', 1500); }},
+            {label: "Record Solo Automation", action: () => { if (track.toggleSoloAutomationNow) track.toggleSoloAutomationNow(); else showNotification('Arm automation first', 1500); }},
+            {separator: true},
             {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)}
         ], localAppServices); });
         container.appendChild(trackDiv);
@@ -1906,7 +1908,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 { separator: true },
                 { label: `Duplicate Sequence`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Duplicate Sequence on ${currentTrackForMenu.name}`); const newSeq = currentTrackForMenu.duplicateSequence(currentActiveSeq.id); if (newSeq) { showNotification(`Duplicated "${currentActiveSeq.name}" -> "${newSeq.name}".`, 2000); } else { showNotification("Cannot duplicate sequence.", 2000); } } },
                 { label: `Rename Sequence...`, action: () => { const currentName = currentActiveSeq.name || ''; const newName = window.prompt(`Rename Sequence "${currentName}":`, currentName); if (newName !== null && newName.trim() !== '' && newName.trim() !== currentName) { currentTrackForMenu.renameSequence(currentActiveSeq.id, newName.trim()); showNotification(`Renamed to "${newName.trim()}".`, 2000); } } },
-                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name}`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+1}x${c2-c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
+                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name}`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+4}x${c2-c1+4}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Invert Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Invert Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); let count = 0; for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c] && currentActiveSeq.data[r][c].active) { currentActiveSeq.data[r][c] = null; count++; } else if (currentActiveSeq.data[r]) { const defaultVel = Constants.defaultVelocity || 0.7; currentActiveSeq.data[r][c] = { active: true, velocity: defaultVel }; count++; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Inverted ${count} cell(s) in selection.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
                 { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
