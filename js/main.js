@@ -5,7 +5,7 @@ import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners, showConfirmationDialog } from './utils.js';
-import { getActualMasterGainNode, getMasterEffectsBusInputNode } from './audio.js';
+import { getActualMasterGainNode, getMasterEffectsBusInputNode, writeMasterVolumeAutomation, getMasterVolumeAutomation, setMasterVolumeAutomation, startContextSuspensionMonitoring } from './audio.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -228,8 +228,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -238,7 +238,7 @@ import {
             showSafeNotification("Failed to reorder master effect.", 3000);
         }
     },
-    setActualMasterVolume: (volumeValue) => {
+    setActualMasterVolume: (volumeValue, fromInteraction = false) => {
         if (typeof getActualMasterGainNode === 'function') {
             const actualMasterNode = getActualMasterGainNode();
             if (actualMasterNode && actualMasterNode.gain && typeof actualMasterNode.gain.setValueAtTime === 'function') {
@@ -247,6 +247,12 @@ import {
                 } catch (e) { console.error("Error setting master volume via Tone:", e); }
             } else { console.warn("Master gain node or its gain property not available."); }
         } else { console.warn("getActualMasterGainNode not available."); }
+        // Record master volume automation when user interacts with the knob
+        if (fromInteraction && appServices.masterAutomationArmed) {
+            const timeInSeconds = Tone.Transport.seconds;
+            writeMasterVolumeAutomation(timeInSeconds, volumeValue);
+            console.log(`[Main] Master volume automation recorded at time ${timeInSeconds.toFixed(3)}s, value ${volumeValue.toFixed(3)}`);
+        }
     },
     getMasterEffectsBus: () => {
         if (typeof getMasterEffectsBusInputNode === 'function') {
@@ -731,7 +737,8 @@ async function initializeSnugOS() {
         if (typeof initializeStateModule === 'function') initializeStateModule(appServices); else console.error("initializeStateModule is not a function");
         if (typeof initializeUIModule === 'function') initializeUIModule(appServices); else console.error("initializeUIModule is not a function");
         if (typeof initializeAudioModule === 'function') initializeAudioModule(appServices); else console.error("initializeAudioModule is not a function");
-        if (typeof initializeEventHandlersModule === 'function') initializeEventHandlersModule(appServices); else console.error("initializeEventHandlersModule is not a function");
+        // Start context suspension monitoring for auto-recovery after browser tab inactivity
+        if (typeof startContextSuspensionMonitoring === 'function') startContextSuspensionMonitoring(3000);
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);

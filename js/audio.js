@@ -13,6 +13,8 @@ let masterMeterNode = null;
 let activeMasterEffectNodes = new Map();
 
 let audioContextInitialized = false;
+let contextSuspendedCount = 0; // Track suspension events for monitoring/recovery
+let resumeAttemptScheduled = false;
 
 let localAppServices = {};
 
@@ -1480,6 +1482,10 @@ function tickAutomation(time) {
             } catch (e) { console.warn(`[Audio tickAutomation] Error applying automation for track ${track.id}:`, e.message); }
         }
     }
+    // Apply master volume automation
+    try {
+        applyMasterVolumeAutomationAtTime(time);
+    } catch (e) { console.warn(`[Audio tickAutomation] Error applying master volume automation:`, e.message); }
 }
 
 function scheduleAutomation() {
@@ -1521,6 +1527,49 @@ export function onTransportStart() {
 // Called when transport stops
 export function onTransportStop() {
     cancelAutomation();
+}
+
+// ============================================================
+// MASTER VOLUME AUTOMATION MODULE
+// ============================================================
+let masterVolumeAutomation = []; // Array of {time, value} events
+
+export function writeMasterVolumeAutomation(time, value) {
+    const event = { time: parseFloat(time), value: Math.max(0, Math.min(parseFloat(value) || 0, 1.5)) };
+    masterVolumeAutomation.push(event);
+    if (masterVolumeAutomation.length > 10000) masterVolumeAutomation.splice(0, 1000);
+    masterVolumeAutomation.sort((a, b) => a.time - b.time);
+    return event;
+}
+
+export function applyMasterVolumeAutomationAtTime(time) {
+    if (!masterVolumeAutomation || masterVolumeAutomation.length === 0) return;
+    // Find the most recent event at or before this time
+    let eventToApply = null;
+    for (const event of masterVolumeAutomation) {
+        if (event.time <= time) {
+            eventToApply = event;
+        } else {
+            break; // events are sorted by time
+        }
+    }
+    if (eventToApply !== null && masterGainNodeActual && !masterGainNodeActual.disposed) {
+        try {
+            masterGainNodeActual.gain.setValueAtTime(eventToApply.value, Tone.now());
+            // Also sync the state so UI is consistent
+            if (localAppServices.setMasterGainValueState) {
+                localAppServices.setMasterGainValueState(eventToApply.value);
+            }
+        } catch (e) { console.warn('[Audio applyMasterVolumeAutomationAtTime] Error:', e.message); }
+    }
+}
+
+export function getMasterVolumeAutomation() {
+    return masterVolumeAutomation;
+}
+
+export function setMasterVolumeAutomation(automationData) {
+    masterVolumeAutomation = Array.isArray(automationData) ? JSON.parse(JSON.stringify(automationData)) : [];
 }
 
 // ============================================================
@@ -1697,4 +1746,73 @@ export function getRecordingScheduledTrackId() {
 // Cleanup function to be called when recording stops
 export function cleanupRecordingScheduling() {
     cancelScheduledRecording();
+}
+
+// ============================================================
+// CONTEXT SUSPENSION MONITORING & RECOVERY
+// ============================================================
+
+// Monitor the Tone.context.state and attempt to recover from suspension.
+// This handles the case where browsers auto-suspend AudioContext after
+// a period of inactivity (especially on mobile/low-power modes).
+export function startContextSuspensionMonitoring(intervalMs = 3000) {
+    if (resumeAttemptScheduled) return; // Already monitoring
+    resumeAttemptScheduled = true;
+
+    const checkInterval = setInterval(() => {
+        if (!Tone.context) {
+            resumeAttemptScheduled = false;
+            clearInterval(checkInterval);
+            return;
+        }
+
+        const currentState = Tone.context.state;
+        if (currentState === 'suspended') {
+            contextSuspendedCount++;
+            console.warn(`[Audio ContextMonitor] Context suspended (count: ${contextSuspendedCount}). Attempting auto-resume...`);
+            Tone.context.resume().then(() => {
+                if (Tone.context.state === 'running') {
+                    console.log('[Audio ContextMonitor] Context resumed successfully after suspension.');
+                    // Re-initialize master bus components if they were disposed
+                    if (masterEffectsBusInputNode?.disposed || masterGainNodeActual?.disposed || masterMeterNode?.disposed) {
+                        console.log('[Audio ContextMonitor] Master bus components disposed during suspension. Re-initializing...');
+                        setupMasterBus();
+                    }
+                    // Emit a notification if this was a significant suspension
+                    if (contextSuspendedCount > 0 && localAppServices.showNotification) {
+                        localAppServices.showNotification('Audio context resumed.', 2000);
+                    }
+                } else {
+                    console.warn('[Audio ContextMonitor] Resume attempted but context still not running. State:', Tone.context.state);
+                    if (contextSuspendedCount >= 3 && localAppServices.showNotification) {
+                        localAppServices.showNotification('Audio suspended. Tap/click to reactivate.', 4000);
+                    }
+                }
+            }).catch(err => {
+                console.error('[Audio ContextMonitor] Error during context resume:', err.message);
+            });
+        } else if (currentState === 'running') {
+            // Context is running — reset the suspension counter if we were previously suspended
+            if (contextSuspendedCount > 0) {
+                console.log('[Audio ContextMonitor] Context running normally. Resetting suspension counter.');
+                contextSuspendedCount = 0;
+            }
+        }
+    }, intervalMs);
+
+    console.log('[Audio ContextMonitor] Started context suspension monitoring, interval:', intervalMs, 'ms');
+}
+
+export function stopContextSuspensionMonitoring() {
+    resumeAttemptScheduled = false;
+    contextSuspendedCount = 0;
+    console.log('[Audio ContextMonitor] Stopped context suspension monitoring.');
+}
+
+export function getContextSuspensionCount() {
+    return contextSuspendedCount;
+}
+
+export function getContextState() {
+    return Tone.context ? Tone.context.state : 'unavailable';
 }
