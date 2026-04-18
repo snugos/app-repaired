@@ -2,7 +2,7 @@
 
 ; // Mixer channel strip enhancements: FX effect count badges, monitoring toggle for audio tracks
 ; // Perf: lazy-load Sound Browser items (50/batch with "Load More" button)
-export const APP_VERSION = "0.5.5"
+export const APP_VERSION = "0.5.6"
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
