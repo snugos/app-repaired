@@ -1929,7 +1929,7 @@ export function renderMixer(container) {
         const trackDiv = document.createElement('div');
         trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-28 mr-2 text-xs';
         const effectCount = track.activeEffects ? track.activeEffects.length : 0;
-        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200 flex items-center" title="${track.name}"><span class="track-color-dot" style="background-color:${track.trackColor || '#6366f1'}" title="Track color"></span>${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div id="panKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div class="flex justify-center mb-0.5"> <button id="fxBtn-mixer-${track.id}" title="Effects Rack (${effectCount} effect${effectCount !== 1 ? 's' : ''})" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 relative">FX${effectCount > 0 ? `<span class="absolute -top-1 -right-1 bg-purple-500 text-white text-[9px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold" style="font-size:9px;min-width:14px;height:14px;padding:0;line-height:1;">${effectCount}</span>` : ''}</button> </div> <div class="grid grid-cols-3 gap-x-1 gap-y-1 items-center text-xs">
+        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200 flex items-center" title="${track.name}"><span class="track-color-dot" style="background-color:${track.trackColor || '#6366f1'}" title="Track color"></span>${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div id="panKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div id="mixerFxSlots-${track.id}" class="mixer-fx-slots flex flex-wrap gap-0.5 mb-0.5 justify-center min-h-[18px]"></div> <div class="flex justify-center mb-0.5"> <button id="fxBtn-mixer-${track.id}" title="Effects Rack" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">FX</button> </div> <div class="grid grid-cols-3 gap-x-1 gap-y-1 items-center text-xs">
                 <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">M</button>
                 <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">S</button>
                 <button id="mixerArmBtn-${track.id}" title="Arm" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${(localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? 'armed' : ''}">R</button>
@@ -1958,6 +1958,40 @@ export function renderMixer(container) {
         trackDiv.querySelector(`#mixerSoloBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackSolo(track.id));
         trackDiv.querySelector(`#mixerArmBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackArm(track.id));
         trackDiv.querySelector(`#fxBtn-mixer-${track.id}`).addEventListener('click', () => localAppServices.handleOpenEffectsRack(track.id));
+
+        // Populate mixer FX slots with effect tags
+        const fxSlotsContainer = trackDiv.querySelector(`#mixerFxSlots-${track.id}`);
+        if (fxSlotsContainer && track.activeEffects && track.activeEffects.length > 0) {
+            const AVAILABLE_EFFECTS_LOCAL = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).AVAILABLE_EFFECTS) || {};
+            track.activeEffects.forEach(effect => {
+                const effectDef = AVAILABLE_EFFECTS_LOCAL[effect.type];
+                const displayName = effectDef ? effectDef.displayName : effect.type;
+                const slot = document.createElement('button');
+                slot.className = 'mixer-fx-slot-btn text-[9px] px-1 py-0 border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 hover:bg-slate-300 dark:bg-slate-800 truncate max-w-[50px]';
+                slot.title = `Open ${displayName} for ${track.name}`;
+                slot.textContent = displayName;
+                slot.style.borderColor = track.trackColor || '#6366f1';
+                slot.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    localAppServices.handleOpenEffectsRack(track.id);
+                    // Highlight the specific effect after a short delay
+                    setTimeout(() => {
+                        const rackWindow = localAppServices.getWindowById ? localAppServices.getWindowById(`effectsRack-${track.id}`) : null;
+                        if (rackWindow && rackWindow.element) {
+                            const effectItems = rackWindow.element.querySelectorAll('.effect-item');
+                            effectItems.forEach(item => {
+                                const nameSpan = item.querySelector('.effect-name');
+                                if (nameSpan && nameSpan.textContent.trim() === displayName) {
+                                    item.click();
+                                }
+                            });
+                        }
+                    }, 100);
+                });
+                fxSlotsContainer.appendChild(slot);
+            });
+        }
+
         // Wire monitoring toggle for audio tracks
         const monitorBtn = trackDiv.querySelector(`#mixerMonitorBtn-${track.id}`);
         if (monitorBtn) {

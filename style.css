@@ -1093,3 +1093,29 @@ button.automation-armed:hover { background-color: #b91c1c; }
     border: 1px solid #404040;
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
+
+/* Mixer FX Slots - effect tags shown on each channel strip */
+.mixer-fx-slots {
+    min-height: 18px;
+}
+.mixer-fx-slot-btn {
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background-color: var(--bg-secondary, #1e293b);
+    border-width: 1px;
+    border-style: solid;
+    max-width: 50px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mixer-fx-slot-btn:hover {
+    filter: brightness(1.2);
+    transform: scale(1.05);
+}
+.mixer-fx-slot-btn:active {
+    transform: scale(0.95);
+}
