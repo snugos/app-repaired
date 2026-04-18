@@ -1,10 +1,8 @@
 // js/constants.js - Shared constants for SnugOS
 
-<<<<<<< HEAD
-export const APP_VERSION = "0.5.5"; // Mixer channel strip enhancements: FX effect count badges, monitoring toggle for audio tracks
-=======
-export const APP_VERSION = "0.5.4"; // Perf: lazy-load Sound Browser items (50/batch with "Load More" button)
->>>>>>> 86ec083e7f3e155689b163856d9933dc08e8011d
+; // Mixer channel strip enhancements: FX effect count badges, monitoring toggle for audio tracks
+; // Perf: lazy-load Sound Browser items (50/batch with "Load More" button)
+export const APP_VERSION = "0.5.5"
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks

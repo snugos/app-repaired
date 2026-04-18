@@ -2605,7 +2605,6 @@ export function updateSequencerCellUI(windowElement, trackType, row, col, isActi
     if (!cell) return;
 
     // Remove all velocity classes
-<<<<<<< HEAD
     cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
     cell.classList.remove('active', 'active-synth', 'active-sampler', 'active-drum-sampler', 'active-instrument-sampler');
 
@@ -2631,20 +2630,6 @@ export function updateSequencerCellUI(windowElement, trackType, row, col, isActi
         else if (velPercent >= 30) velClass = 'vel-30';
         else if (velPercent >= 20) velClass = 'vel-20';
         else velClass = 'vel-10';
-=======
-    for (let v = 10; v <= 100; v += 10) {
-        cell.classList.remove(`vel-${v}`);
-    }
-    // Remove active class
-    cell.classList.remove('active');
-
-    // Apply active state
-    if (isActive) {
-        cell.classList.add('active');
-        // Apply velocity brightness class
-        const velPct = Math.round(velocity * 100);
-        const velClass = `vel-${Math.max(10, Math.min(100, Math.round(velPct / 10) * 10))}`;
->>>>>>> 86ec083e7f3e155689b163856d9933dc08e8011d
         cell.classList.add(velClass);
     }
 }
