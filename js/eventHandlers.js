@@ -23,7 +23,8 @@ import {
 } from './state.js';
 
 import { isMetronomeEnabled, getCountInBars, isCountInActive, startCountIn, getPunchRegion, setPunchRegion, setPunchRegionEnabled, isPunchRegionEnabled, isPositionInPunchRegion,
-    scheduleRecordingForPunch, cancelScheduledRecording
+    scheduleRecordingForPunch, cancelScheduledRecording,
+    startAutomation, stopAutomation
 } from './audio.js';
 
 let localAppServices = {};
@@ -251,6 +252,7 @@ export function attachGlobalControlEvents(elements) {
                         transport.start(Tone.now() + 0.05, startTime);
                         playBtnGlobal.textContent = 'Pause';
                         playBtnGlobal.classList.add('playing');
+                        startAutomation();
                         if (localAppServices.onTransportStart) localAppServices.onTransportStart();
                     };
 
@@ -267,6 +269,7 @@ export function attachGlobalControlEvents(elements) {
                 } else { 
                     console.log(`[EventHandlers Play/Resume] Pausing transport.`);
                     transport.pause();
+                    stopAutomation();
                     if (localAppServices.onTransportStop) localAppServices.onTransportStop();
                     playBtnGlobal.textContent = 'Play';
                     playBtnGlobal.classList.remove('playing');
@@ -285,6 +288,7 @@ export function attachGlobalControlEvents(elements) {
             console.log("[EventHandlers StopAll] Stop All button clicked.");
             if (localAppServices.panicStopAllAudio) {
                 localAppServices.panicStopAllAudio();
+                stopAutomation();
             } else {
                 console.error("[EventHandlers StopAll] panicStopAllAudio service not available.");
                 if (typeof Tone !== 'undefined') {
@@ -634,6 +638,12 @@ document.addEventListener('keydown', (event) => {
             event.preventDefault(); 
             const playBtn = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).playBtnGlobal);
             if (playBtn) playBtn.click();
+            return;
+        }
+
+        // Enter key handler for stop-and-rewind
+        if (key === 'enter' || key === ' ') {
+            if (stopBtnGlobal) stopBtnGlobal.click();
             return;
         }
 
