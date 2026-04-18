@@ -103,3 +103,12 @@ export const computerKeySamplerMap = {
     'Digit8': samplerMIDINoteStart + 7
     // Can extend to 'Digit9', 'Digit0' or other keys if more pads/slices are common
 };
+
+// MIDI CC Learn / Mapping system
+// Stores CC mappings: targetId -> { cc: number, channel: number, min: float, max: float }
+export const midiCCMappings = {};
+
+// Currently active CC learn session: { targetId, paramPath, trackId } or null
+export let midiCCLearnActive = null;
+export const MIDI_CC_MIN = 0;
+export const MIDI_CC_MAX = 127;

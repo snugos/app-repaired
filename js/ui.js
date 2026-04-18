@@ -23,6 +23,9 @@ let timelineScrollX = 0; // Horizontal scroll offset for timeline
 // Sound Browser tab state: 'browse' | 'favorites' | 'recent'
     let soundBrowserActiveTab = 'browse';
 
+// Sequencer view mode: 'step' (default) or 'piano' (piano roll)
+let sequencerViewMode = 'step';
+
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
 
@@ -1704,13 +1707,68 @@ export function renderMixer(container) {
 }
 
 // --- Sequencer Window ---
+// Piano Roll View Mode: shows piano-style note labels and keys
+function buildPianoRollContentDOM(track, rows, rowLabels, numBars) {
+    const stepsPerBar = Constants.STEPS_PER_BAR;
+    const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
+    const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
+    const snapLabel = snapValue === 0 ? 'Off' : (snapValue === 4 ? '1/4' : (snapValue === 8 ? '1/8' : '1/16'));
+    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <div class="flex items-center gap-2"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <button id="seqViewToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle step/velocity view (V key)">Step</button> </div> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
+    html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 70px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
+    for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; const isSnapPoint = snapValue === 0 || i % snapValue === 0; const snapClass = isSnapPoint ? 'snap-point' : 'non-snap-point'; html += `<div class="sequencer-header-cell ${snapClass} sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
+
+    const activeSequence = track.getActiveSequence();
+    const sequenceData = activeSequence ? activeSequence.data : [];
+
+    for (let i = 0; i < rows; i++) {
+        // Piano-style row labels: show note name (e.g., C4, C#4) with black key indicator
+        const noteLabel = rowLabels[i] || `R${i + 1}`;
+        const isBlackKey = noteLabel.includes('#');
+        const whiteKeyClass = isBlackKey ? 'piano-black-key' : 'piano-white-key';
+        html += `<div class="sequencer-label-cell sticky left-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-end pr-1 text-[10px] ${whiteKeyClass}" title="${rowLabels[i] || ''}">${noteLabel}</div>`;
+        for (let j = 0; j < totalSteps; j++) {
+            const stepData = sequenceData[i]?.[j];
+            let activeClass = '';
+            if (((stepData) && (stepData).active)) { if (track.type === 'Synth') activeClass = 'active-synth'; else if (track.type === 'Sampler') activeClass = 'active-sampler'; else if (track.type === 'DrumSampler') activeClass = 'active-drum-sampler'; else if (track.type === 'InstrumentSampler') activeClass = 'active-instrument-sampler'; }
+            let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
+            if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
+            else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
+            else if (j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
+            let velClass = '';
+            if (((stepData) && (stepData).active)) {
+                const vel = ((stepData) && (stepData).velocity) || 0.7;
+                const velPercent = Math.round(vel * 100);
+                if (velPercent >= 100) velClass = 'vel-100';
+                else if (velPercent >= 90) velClass = 'vel-90';
+                else if (velPercent >= 80) velClass = 'vel-80';
+                else if (velPercent >= 70) velClass = 'vel-70';
+                else if (velPercent >= 60) velClass = 'vel-60';
+                else if (velPercent >= 50) velClass = 'vel-50';
+                else if (velPercent >= 40) velClass = 'vel-40';
+                else if (velPercent >= 30) velClass = 'vel-30';
+                else if (velPercent >= 20) velClass = 'vel-20';
+                else velClass = 'vel-10';
+            }
+            // Piano roll: colored by pitch range (higher notes = brighter)
+            let pianoRollClass = '';
+            if (((stepData) && (stepData).active)) {
+                // Add gradient effect based on row (pitch) position
+                const pitchBrightness = 0.4 + (0.6 * (rows - i - 1) / Math.max(rows - 1, 1));
+                pianoRollClass = `piano-note-${Math.round(pitchBrightness * 10)}`;
+            }
+            html += `<div class="sequencer-step-cell ${activeClass} ${velClass} ${pianoRollClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" title="${noteLabel},S${j+1}"></div>`;
+        }
+    }
+    html += `</div></div>`; return html;
+}
+
 function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const stepsPerBar = Constants.STEPS_PER_BAR;
     const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
     // Snap-to-grid settings: 0=off, 4=1/4, 8=1/8, 16=1/16
     const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
     const snapLabel = snapValue === 0 ? 'Off' : (snapValue === 4 ? '1/4' : (snapValue === 8 ? '1/8' : '1/16'));
-    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
+    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <div class="flex items-center gap-2"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <button id="seqViewToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle piano roll view (V key)">Piano</button> </div> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
     html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 50px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
     for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; const isSnapPoint = snapValue === 0 || i % snapValue === 0; const snapClass = isSnapPoint ? 'snap-point' : 'non-snap-point'; html += `<div class="sequencer-header-cell ${snapClass} sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
 
@@ -1792,7 +1850,9 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
     else if (track.type === 'DrumSampler') { rows = Constants.numDrumSamplerPads; rowLabels = Array.from({ length: rows }, (_, i) => `Pad ${i + 1}`); }
     else { rows = 0; rowLabels = []; }
 
-    const contentDOM = buildSequencerContentDOM(track, rows, rowLabels, numBars);
+    const contentDOM = sequencerViewMode === 'piano' 
+        ? buildPianoRollContentDOM(track, rows, rowLabels, numBars)
+        : buildSequencerContentDOM(track, rows, rowLabels, numBars);
 
     const desktopEl = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).desktop) || document.getElementById('desktop');
     const safeDesktopWidth = (desktopEl && typeof desktopEl.offsetWidth === 'number' && desktopEl.offsetWidth > 0)
@@ -2183,7 +2243,7 @@ export function drawInstrumentWaveform(track) {
 // Updates a single sequencer cell's visual state (active class and velocity brightness)
 export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity) {
     if (!windowElement) return;
-    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${j}"]`);
     if (!cell) return;
     
     // Remove all velocity classes

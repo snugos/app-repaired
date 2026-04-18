@@ -228,10 +228,10 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
-            reorderMasterEffectInAudio(effectId, newIndex); 
+            reorderMasterEffectInAudio(effectId, newIndex);
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
         } catch (error) {
             console.error(`[Main reorderMasterEffect] Error reordering ${effectId}:`, error);
@@ -267,7 +267,7 @@ import {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true,
-    _isReconstructingingDAW_flag: false,
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -329,6 +329,7 @@ import {
     scheduleRecordingForPunch,
     cancelScheduledRecording,
     cleanupRecordingScheduling,
+    exportToWav: exportToWavInternal,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
