@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.5.3"; // Fix Sound Browser library load race condition
+export const APP_VERSION = "0.5.4"; // Perf: lazy-load Sound Browser items (50/batch with "Load More" button)
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks

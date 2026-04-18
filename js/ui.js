@@ -22,6 +22,9 @@ let timelineScrollX = 0; // Horizontal scroll offset for timeline
 
 // Sound Browser tab state: 'browse' | 'favorites' | 'recent'
     let soundBrowserActiveTab = 'browse';
+    let soundBrowserRenderedCount = 0; // How many items currently rendered (lazy-load)
+    let soundBrowserTotalItems = 0; // Total items in current view
+    const BROWSE_PER_PAGE = 50; // Items to render per load-more batch
 
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
@@ -1218,7 +1221,7 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
     const filteredTree = searchQuery ? filterTreeBySearch(treeNode, searchQuery) : treeNode;
 
     const items = [];
-    for (const name in filteredTree) { if (filteredTree[name]?.type) items.push({ name, type: filteredTree[name].type, nodeData: filteredTree[name] }); }
+    for (const name in filteredTree) { if (filteredTree[name]?.type) items.push({ name, nodeData: filteredTree[name] }); }
     items.sort((a, b) => { if (a.type === 'folder' && b.type !== 'folder') return -1; if (a.type !== 'folder' && b.type === 'folder') return 1; return a.name.localeCompare(b.name); });
     if (items.length === 0) { 
         if (searchQuery) {
@@ -1229,50 +1232,77 @@ export function renderSoundBrowserDirectoryFiltered(pathArray, treeNode, searchQ
         return; 
     }
 
-    items.forEach(itemObj => {
-        const {name, nodeData} = itemObj; const listItem = document.createElement('div');
-        listItem.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
-        listItem.draggable = nodeData.type === 'file';
-        const icon = document.createElement('span'); icon.className = 'mr-1.5'; icon.textContent = nodeData.type === 'folder' ? '📁' : '🎵'; listItem.appendChild(icon);
-        const text = document.createElement('span'); text.textContent = name; listItem.appendChild(text);
-        if (nodeData.type === 'folder') {
-            listItem.addEventListener('click', () => {
-                const newPath = [...pathArray, name];
-                if (localAppServices.setCurrentSoundBrowserPath) localAppServices.setCurrentSoundBrowserPath(newPath);
-                renderSoundBrowserDirectory(newPath, nodeData.children);
-            });
+    // Lazy-load: reset render count and track total items
+    soundBrowserTotalItems = items.length;
+    soundBrowserRenderedCount = 0;
+    // Store current items for load-more append
+    window._soundBrowserCurrentItems = items;
+    window._soundBrowserCurrentPath = pathArray;
+    window._soundBrowserCurrentTree = treeNode;
+
+    const renderBatch = () => {
+        const start = soundBrowserRenderedCount;
+        const end = Math.min(start + BROWSE_PER_PAGE, soundBrowserTotalItems);
+        for (let i = start; i < end; i++) {
+            const itemObj = items[i];
+            const {name, nodeData} = itemObj; const listItem = document.createElement('div');
+            listItem.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
+            listItem.draggable = nodeData.type === 'file';
+            const icon = document.createElement('span'); icon.className = 'mr-1.5'; icon.textContent = nodeData.type === 'folder' ? '📁' : '🎵'; listItem.appendChild(icon);
+            const text = document.createElement('span'); text.textContent = name; listItem.appendChild(text);
+            if (nodeData.type === 'folder') {
+                listItem.addEventListener('click', () => {
+                    const newPath = [...pathArray, name];
+                    if (localAppServices.setCurrentSoundBrowserPath) localAppServices.setCurrentSoundBrowserPath(newPath);
+                    renderSoundBrowserDirectory(newPath, nodeData.children);
+                });
+            }
+            else { // File
+                const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
+                const isFav = localAppServices.isFavorite ? localAppServices.isFavorite(soundToSelect) : false;
+                const star = document.createElement('span');
+                star.className = 'mr-0.5 cursor-pointer ' + (isFav ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300');
+                star.textContent = isFav ? '⭐' : '☆';
+                star.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+                star.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(soundToSelect);
+                    renderSoundBrowserDirectoryFiltered(pathArray, treeNode, soundBrowserSearchQuery);
+                });
+                listItem.appendChild(star);
+                listItem.innerHTML += `<span class="ml-1 text-[9px] text-gray-400 dark:text-slate-500">${nodeData.libraryName}</span>`;
+                listItem.addEventListener('click', () => {
+                    listDiv.querySelectorAll('.bg-blue-200,.dark\\\\:\\\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
+                    listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
+                    console.log('[UI SoundFile Click] Sound selected:', JSON.stringify(soundToSelect));
+                    if (localAppServices.setSelectedSoundForPreview) {
+                        localAppServices.setSelectedSoundForPreview(soundToSelect);
+                        const checkSelected = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : { error: 'getSelectedSoundForPreview service not found' };
+                        console.log('[UI SoundFile Click] State after setSelectedSoundForPreview (via getter):', JSON.stringify(checkSelected));
+                    } else {
+                        console.warn('[UI SoundFile Click] setSelectedSoundForPreview service not available.');
+                    }
+                    if(previewBtn) previewBtn.disabled = false;
+                });
+                listItem.addEventListener('dragstart', (e) => { e.dataTransfer.setData("application/json", JSON.stringify({ fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName, type: 'sound-browser-item' })); e.dataTransfer.effectAllowed = "copy"; });
+            }
+            listDiv.appendChild(listItem);
+            soundBrowserRenderedCount++;
         }
-        else { // File
-            const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
-            const isFav = localAppServices.isFavorite ? localAppServices.isFavorite(soundToSelect) : false;
-            const star = document.createElement('span');
-            star.className = 'mr-0.5 cursor-pointer ' + (isFav ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300');
-            star.textContent = isFav ? '⭐' : '☆';
-            star.title = isFav ? 'Remove from favorites' : 'Add to favorites';
-            star.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (localAppServices.toggleFavorite) localAppServices.toggleFavorite(soundToSelect);
-                renderSoundBrowserDirectoryFiltered(pathArray, treeNode, soundBrowserSearchQuery);
+        // If more items remain, add a "Load More" button at the bottom
+        if (soundBrowserRenderedCount < soundBrowserTotalItems) {
+            const loadMoreDiv = document.createElement('div');
+            loadMoreDiv.id = 'soundBrowserLoadMore';
+            loadMoreDiv.className = 'p-2 text-center cursor-pointer text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-slate-700';
+            loadMoreDiv.textContent = `Show more (${soundBrowserRenderedCount}/${soundBrowserTotalItems})`;
+            loadMoreDiv.addEventListener('click', () => {
+                loadMoreDiv.remove();
+                renderBatch();
             });
-            listItem.appendChild(star);
-            listItem.innerHTML += `<span class="ml-1 text-[9px] text-gray-400 dark:text-slate-500">${nodeData.libraryName}</span>`;
-            listItem.addEventListener('click', () => {
-                listDiv.querySelectorAll('.bg-blue-200,.dark\\\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
-                listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
-                console.log('[UI SoundFile Click] Sound selected:', JSON.stringify(soundToSelect));
-                if (localAppServices.setSelectedSoundForPreview) {
-                    localAppServices.setSelectedSoundForPreview(soundToSelect);
-                    const checkSelected = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : { error: 'getSelectedSoundForPreview service not found' };
-                    console.log('[UI SoundFile Click] State after setSelectedSoundForPreview (via getter):', JSON.stringify(checkSelected));
-                } else {
-                    console.warn('[UI SoundFile Click] setSelectedSoundForPreview service not available.');
-                }
-                if(previewBtn) previewBtn.disabled = false;
-            });
-            listItem.addEventListener('dragstart', (e) => { e.dataTransfer.setData("application/json", JSON.stringify({ fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName, type: 'sound-browser-item' })); e.dataTransfer.effectAllowed = "copy"; });
+            listDiv.appendChild(loadMoreDiv);
         }
-        listDiv.appendChild(listItem);
-    });
+    };
+    renderBatch();
 }
 
 export function renderSoundBrowserDirectory(pathArray, treeNode) {
