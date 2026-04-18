@@ -533,7 +533,7 @@ function buildSynthEngineControls(track, container, engineType) {
         }
 
         if (def.type === 'knob') {
-            const knob = createKnob({ label: def.label, min: def.min, max: def.max, step: def.step, initialValue, decimals: def.decimals, displaySuffix: def.displaySuffix, trackRef: track, onValueChange: (val) => track.setSynthParam(def.path, val) });
+            const knob = createKnob({ label: def.label, min: def.min, max: def.max, step: def.step, initialValue: initialValue, decimals: def.decimals, displaySuffix: def.displaySuffix, trackRef: track, onValueChange: (val) => track.setSynthParam(def.path, val) });
             placeholder.innerHTML = ''; placeholder.appendChild(knob.element); track.inspectorControls[def.idPrefix] = knob;
         } else if (def.type === 'select') {
             const selectEl = document.createElement('select');
@@ -829,7 +829,7 @@ function buildModularEffectsRackDOM(owner, ownerType = 'track') {
     const masterAutomationHTML = isMaster ? `
         <div class="flex items-center justify-between p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600">
             <span class="text-xs font-medium dark:text-slate-300">Record Master Vol Automation</span>
-            <button id="masterAutomationArmBtn" class="text-xs px-2 py-0.5 border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${appServices.masterAutomationArmed ? 'automation-armed active' : ''}">M</button>
+            <button id="masterAutomationArmBtn" class="text-xs px-2 py-0.5 border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">M</button>
         </div>
     ` : '';
     return `<div id="effectsRackContent-${ownerId}" class="p-2 space-y-2 overflow-y-auto h-full">
@@ -932,15 +932,16 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                 const label = document.createElement('label');
                 label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300';
                 label.textContent = paramDef.label + ':';
-                const select = document.createElement('select');
-                select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
+                const selectEl = document.createElement('select');
+                selectEl.id = `${paramDef.idPrefix}-${effectId}`;
+                selectEl.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
                 paramDef.options.forEach(opt => {
                     const option = document.createElement('option');
                     option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
-                    select.appendChild(option);
+                    selectEl.appendChild(option);
                 });
-                select.value = initialValue;
-                select.addEventListener('change', (e) => {
+                selectEl.value = initialValue;
+                selectEl.addEventListener('change', (e) => {
                     const newValue = e.target.value;
                     const finalValue = (typeof paramDef.defaultValue === 'number' && !isNaN(parseFloat(newValue))) ? parseFloat(newValue) : newValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
@@ -948,7 +949,7 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                     else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, finalValue);
                 });
                 controlWrapper.appendChild(label);
-                controlWrapper.appendChild(select);
+                controlWrapper.appendChild(selectEl);
             } else if (paramDef.type === 'toggle') {
                 const button = document.createElement('button');
                 button.className = `w-full p-1 border rounded text-xs dark:border-slate-500 dark:text-slate-300 ${initialValue ? 'bg-purple-400 text-white dark:bg-purple-500' : 'bg-gray-200 dark:bg-slate-600'}`;
@@ -1415,15 +1416,30 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
         performFullUIUpdate = true;
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: Set initial view to '${libraryName}' from 'Select Library...'.`);
     } else if (libraryName && !isLoading && !hasError) {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary WARN] Tree for "${libraryName}" was found but considered empty or invalid. Tree:`, treeForLib);
-                listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" data is empty or corrupt.</p>`;
+        // Dropdown doesn't match - user switched libraries already
+        // Only show error if the tree actually doesn't exist or is empty
+        const soundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
+        const treeForLib = soundTrees[libraryName];
+        if (!treeForLib || Object.keys(treeForLib).length === 0) {
+            listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" failed to load or is empty.</p>`;
+        }
+        // If treeForLib exists, user already switched to another library - skip silently
+    }
+
+    if (performFullUIUpdate) {
+        const soundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
+        const treeForLib = soundTrees[libraryName];
+        if (treeForLib && Object.keys(treeForLib).length > 0) {
+            // Update the current library state and re-render the directory
+            if (localAppServices.setCurrentLibraryName) localAppServices.setCurrentLibraryName(libraryName);
+            if (localAppServices.setCurrentSoundBrowserPath) localAppServices.setCurrentSoundBrowserPath([]);
+            if (localAppServices.renderSoundBrowserDirectory) {
+                localAppServices.renderSoundBrowserDirectory([], treeForLib);
             }
-        } else {
-            listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" data not found after attempting load.</p>`;
-            console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering "Error: Library '${libraryName}' data not found." view. (Checked currentTrees['${libraryName}'])`);
         }
     }
-    pathDisplay.textContent = `/${libraryName || ''}/`;
+
+    if (pathDisplay) pathDisplay.textContent = `/${libraryName || ''}/`;
 }
 
 function filterTreeBySearch(treeNode, query) {
@@ -1684,7 +1700,7 @@ export function renderMixer(container) {
             {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)},
             {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)},
             {separator: true},
-            {label: "Change Color...", action: () => showTrackColorPicker(track)},
+            {label: `Change Color...`, action: () => showTrackColorPicker(track)},
             {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)},
             {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)},
             {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)},
@@ -1976,7 +1992,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 { separator: true },
                 { label: `Duplicate Sequence`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Duplicate Sequence on ${currentTrackForMenu.name}`); const newSeq = currentTrackForMenu.duplicateSequence(currentActiveSeq.id); if (newSeq) { showNotification(`Duplicated "${currentActiveSeq.name}" -> "${newSeq.name}".`, 2000); } else { showNotification("Cannot duplicate sequence.", 2000); } } },
                 { label: `Rename Sequence...`, action: () => { const currentName = currentActiveSeq.name || ''; const newName = window.prompt(`Rename Sequence "${currentName}":`, currentName); if (newName !== null && newName.trim() !== '' && newName.trim() !== currentName) { currentTrackForMenu.renameSequence(currentActiveSeq.id, newName.trim()); showNotification(`Renamed to "${newName.trim()}".`, 2000); } } },
-                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+1}x${c2-c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
+                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+2}x${c2-c1+2}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Invert Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Invert Selection on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); let count = 0; for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c] && currentActiveSeq.data[r][c].active) { currentActiveSeq.data[r][c] = null; count++; } else if (currentActiveSeq.data[r]) { const defaultVel = Constants.defaultVelocity || 0.7; currentActiveSeq.data[r][c] = { active: true, velocity: defaultVel }; count++; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Inverted ${count} cell(s) in selection.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
                 { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
@@ -2256,7 +2272,7 @@ export function drawInstrumentWaveform(track) {
 // Updates a single sequencer cell's visual state (active class and velocity brightness)
 export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity) {
     if (!windowElement) return;
-    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${j}"]`);
     if (!cell) return;
 
     // Remove all velocity classes
@@ -2274,7 +2290,7 @@ export function updateSequencerCellUI(windowElement, trackType, row, col, isActi
         // Apply velocity-based brightness class
         const vel = (velocity !== undefined) ? velocity : (Constants.defaultVelocity || 0.7);
         const velPercent = vel * 100;
-        let velClass = 'vel-70'; // default
+        let velClass = '';
         if (velPercent >= 100) velClass = 'vel-100';
         else if (velPercent >= 90) velClass = 'vel-90';
         else if (velPercent >= 80) velClass = 'vel-80';
@@ -2531,6 +2547,7 @@ function startClipDrag(e, clipEl) {
     const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
     const startX = e.clientX;
     const originalLeft = clip.startTime * PIXELS_PER_SECOND;
+    const snapValue = getSnapValue();
     
     clipDragState = {
         clipEl,
@@ -2538,7 +2555,8 @@ function startClipDrag(e, clipEl) {
         track,
         startX,
         originalLeft,
-        PIXELS_PER_SECOND
+        PIXELS_PER_SECOND,
+        snapValue
     };
     
     document.addEventListener('mousemove', onClipDrag);
@@ -2547,10 +2565,16 @@ function startClipDrag(e, clipEl) {
 
 function onClipDrag(e) {
     if (!clipDragState) return;
-    const { clipEl, startX, originalLeft, PIXELS_PER_SECOND, clip } = clipDragState;
+    const { clipEl, startX, originalLeft, PIXELS_PER_SECOND, clip, snapValue } = clipDragState;
     
     const deltaX = e.clientX - startX;
-    const newLeft = Math.max(0, originalLeft + deltaX);
+    let newLeft = Math.max(0, originalLeft + deltaX);
+    
+    // Apply snap-to-grid if enabled
+    if (snapValue > 0) {
+        newLeft = snapPixelToGrid(newLeft, snapValue, PIXELS_PER_SECOND);
+    }
+    
     const newStartTime = newLeft / PIXELS_PER_SECOND;
     
     clipEl.style.left = `${newLeft}px`;
@@ -2587,6 +2611,7 @@ function startClipResize(e, clipEl, isLeft) {
     const startX = e.clientX;
     const originalLeft = clip.startTime * PIXELS_PER_SECOND;
     const originalWidth = clip.duration * PIXELS_PER_SECOND;
+    const snapValue = getSnapValue();
     
     clipResizeState = {
         clipEl,
@@ -2596,7 +2621,8 @@ function startClipResize(e, clipEl, isLeft) {
         startX,
         originalLeft,
         originalWidth,
-        PIXELS_PER_SECOND
+        PIXELS_PER_SECOND,
+        snapValue
     };
     
     document.addEventListener('mousemove', onClipResize);
@@ -2605,22 +2631,41 @@ function startClipResize(e, clipEl, isLeft) {
 
 function onClipResize(e) {
     if (!clipResizeState) return;
-    const { clipEl, clip, isLeft, startX, originalLeft, originalWidth, PIXELS_PER_SECOND } = clipResizeState;
+    const { clipEl, clip, isLeft, startX, originalLeft, originalWidth, PIXELS_PER_SECOND, snapValue } = clipResizeState;
     
     const deltaX = e.clientX - startX;
     
     if (isLeft) {
         // Resize from left (change start time and width)
-        const newLeft = Math.max(0, originalLeft + deltaX);
-        const newWidth = Math.max(20, originalWidth - deltaX);
+        let newLeft = Math.max(0, originalLeft + deltaX);
+        let newWidth = originalWidth - deltaX;
+        
+        // Apply snap-to-grid if enabled
+        if (snapValue > 0) {
+            newLeft = snapPixelToGrid(newLeft, snapValue, PIXELS_PER_SECOND);
+            // Recalculate width from snapped left edge to original right edge
+            newWidth = (originalLeft + originalWidth) - newLeft;
+        }
+        
+        newWidth = Math.max(20, newWidth);
         const newStartTime = newLeft / PIXELS_PER_SECOND;
+        
         clipEl.style.left = `${newLeft}px`;
         clipEl.style.width = `${newWidth}px`;
         clip.startTime = newStartTime;
         clip.duration = newWidth / PIXELS_PER_SECOND;
     } else {
         // Resize from right (change width only)
-        const newWidth = Math.max(20, originalWidth + deltaX);
+        let newWidth = originalWidth + deltaX;
+        
+        // Apply snap-to-grid if enabled - snap the new right edge
+        if (snapValue > 0) {
+            const newRightEdge = originalLeft + newWidth;
+            const snappedRight = snapPixelToGrid(newRightEdge, snapValue, PIXELS_PER_SECOND);
+            newWidth = snappedRight - originalLeft;
+        }
+        
+        newWidth = Math.max(20, newWidth);
         clipEl.style.width = `${newWidth}px`;
         clip.duration = newWidth / PIXELS_PER_SECOND;
     }
@@ -2628,13 +2673,18 @@ function onClipResize(e) {
 
 function stopClipResize(e) {
     if (!clipResizeState) return;
-    const { clip, track } = clipResizeState;
+    const { clip, track, isLeft } = clipResizeState;
     
-    // Call the track's update function to persist and handle undo
+    // Call the track's update functions to persist and handle undo
     if (typeof track.updateAudioClipDuration === 'function') {
         track.updateAudioClipDuration(clip.id, clip.duration);
     } else if (typeof track.updateAudioClipPosition === 'function') {
         // Fallback: also update position since we modified it during drag
+        track.updateAudioClipPosition(clip.id, clip.startTime);
+    }
+    
+    // When resizing from the left edge, startTime was also modified - capture it for undo too
+    if (isLeft && typeof track.updateAudioClipPosition === 'function') {
         track.updateAudioClipPosition(clip.id, clip.startTime);
     }
     
@@ -2843,4 +2893,27 @@ export function updateDrumPadControlsUI(track) {
             pad.classList.toggle('selected-for-edit', index === track.selectedDrumPadForEdit);
         });
     }
+}
+
+// Snap-to-grid for clips: reads from global controls bar or defaults to sequence snap
+function getSnapValue() {
+    // First check global controls bar snap button if available
+    const snapBtn = document.getElementById('snapToggleBtnGlobal');
+    if (snapBtn) {
+        const snapText = snapBtn.textContent || '';
+        if (snapText.includes('Off')) return 0;
+        if (snapText.includes('1/4')) return 4;
+        if (snapText.includes('1/8')) return 8;
+        if (snapText.includes('1/16')) return 16;
+    }
+    // Fall back to sequence snap value
+    return window.SEQUENCER_SNAP_VALUE || 16;
+}
+
+// Snap a pixel position to the nearest grid line
+function snapPixelToGrid(pixelPos, snapValue, pixelsPerSecond) {
+    if (snapValue === 0) return pixelPos;
+    const snapInSeconds = snapValue / 4 * (60 / (Tone.Transport.bpm?.value || 120));
+    const snapInPixels = snapInSeconds * pixelsPerSecond;
+    return Math.round(pixelPos / snapInPixels) * snapInPixels;
 }
