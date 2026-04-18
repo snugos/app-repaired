@@ -1306,26 +1306,9 @@ export class Track {
                 const stepData = row[col];
                 if (stepData && stepData.active) {
                     const snappedCol = Math.round(col / quantizeTo) * quantizeTo;
-                    if (snappedCol >= 0 && snappedCol < totalSteps && !newRow[snappedCol]) {
+                    if (snappedCol !== col) {
                         newRow[snappedCol] = { ...stepData };
                         quantizedCount++;
-                    } else {
-                        // Couldn't place (out of bounds or collision) — try nearest free spot
-                        let placed = false;
-                        for (let delta = 1; delta < quantizeTo && !placed; delta++) {
-                            const down = snappedCol - delta;
-                            const up = snappedCol + delta;
-                            if (down >= 0 && newRow[down]) {
-                                newRow[down] = { ...stepData };
-                                placed = true;
-                                quantizedCount++;
-                            }
-                            if (up < totalSteps && !newRow[up]) {
-                                newRow[up] = { ...stepData };
-                                placed = true;
-                                quantizedCount++;
-                            }
-                        }
                     }
                 }
             }
@@ -2097,6 +2080,35 @@ export class Track {
             }
         } else {
             console.warn(`[Track ${this.id}] Could not find clip ${clipId} to update its position.`);
+        }
+    }
+
+    async updateAudioClipDuration(clipId, newDuration) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            const oldDuration = clip.duration;
+            clip.duration = Math.max(0.1, parseFloat(newDuration) || 0.1);
+            console.log(`[Track ${this.id}] Updated ${clip.type} clip ${clipId} duration from ${oldDuration.toFixed(2)} to ${clip.duration.toFixed(2)}`);
+            this._captureUndoState(`Resize Clip "${clip.name || clip.id.slice(-4)}" on ${this.name}`);
+
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+
+            const playbackMode = this.appServices.getPlaybackMode ? this.appServices.getPlaybackMode() : 'sequencer';
+            if (Tone.Transport.state === 'started' && playbackMode === 'timeline') {
+                console.log(`[Track ${this.id} updateAudioClipDuration] Transport running in timeline. Rescheduling all tracks.`);
+                Tone.Transport.pause();
+                const allTracks = this.appServices.getTracks ? this.appServices.getTracks() : [];
+                allTracks.forEach(t => { if (typeof t.stopPlayback === 'function') t.stopPlayback(); });
+                Tone.Transport.cancel(0);
+                const currentPlayheadPosition = Tone.Transport.seconds; 
+                const scheduleEndTime = currentPlayheadPosition + 300; 
+                for (const t of allTracks) {
+                    if (typeof t.schedulePlayback === 'function') await t.schedulePlayback(currentPlayheadPosition, scheduleEndTime);
+                }
+                Tone.Transport.start(Tone.Transport.now() + 0.05, currentPlayheadPosition); 
+            }
+        } else {
+            console.warn(`[Track ${this.id}] Could not find clip ${clipId} to update its duration.`);
         }
     }
 

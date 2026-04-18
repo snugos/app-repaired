@@ -2277,7 +2277,10 @@ function stopClipResize(e) {
     const { clip, track } = clipResizeState;
     
     // Call the track's update function to persist and handle undo
-    if (typeof track.updateAudioClipPosition === 'function') {
+    if (typeof track.updateAudioClipDuration === 'function') {
+        track.updateAudioClipDuration(clip.id, clip.duration);
+    } else if (typeof track.updateAudioClipPosition === 'function') {
+        // Fallback: also update position since we modified it during drag
         track.updateAudioClipPosition(clip.id, clip.startTime);
     }
     
