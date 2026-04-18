@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.5.4"; // MIDI Learn / CC Mapping for knobs and parameters
+export const APP_VERSION = "0.5.5"; // Mixer channel strip enhancements: FX effect count badges, monitoring toggle for audio tracks
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks

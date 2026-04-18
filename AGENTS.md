@@ -252,4 +252,11 @@ Need to create `.github/workflows/deploy.yml` that:
   - Wire Save button to capture `synthEngineType` + current `synthParams` and persist via `localAppServices.saveSynthPreset()`
   - Wire Delete button to remove preset via `localAppServices.deleteSynthPreset()` and remove from dropdown
   - Sync name input with dropdown selection on change
+- **Export Mixdown to WAV** (`js/main.js`): The Export button in the global controls bar had no handler. Now wired:
+  - Prompts user for export duration in seconds (default 30s for projects with content, 10s otherwise)
+  - Initializes audio context via `initAudioContextAndMasterMeter(true)`
+  - Calls `exportMixdownToWav(duration)` from `audio.js` which uses Tone.Recorder to capture live transport playback
+  - Disables button and shows "Exporting..." during the operation
+  - Downloads the recording as a `.webm` file named after the project with timestamp
+  - Error handling with user-friendly notifications for all failure cases
 - **Note**: Git push fails (host key verification), but zo.pub sync works as fallback. GitHub Actions CI/CD still deploys to snugos.github.io/app via push to origin/LWB-with-Bugs.
