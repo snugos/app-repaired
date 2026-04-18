@@ -832,7 +832,7 @@ function buildModularEffectsRackDOM(owner, ownerType = 'track') {
             <button id="masterAutomationArmBtn" class="text-xs px-2 py-0.5 border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">M</button>
         </div>
     ` : '';
-    return `<div id="effectsRackContent-${ownerId}" class="p-2 space-y-2 overflow-y-auto h-full">
+    return `<div id="effectsRackContent-${ownerId}" class="p-2 space-y-2 overflow-y-auto h-full dark:bg-slate-900 dark:text-slate-300">
         <h3 class="text-sm font-semibold dark:text-slate-200">Effects Rack: ${ownerName}</h3>
         ${masterAutomationHTML}
         <div id="effectsList-${ownerId}" class="space-y-1 min-h-[50px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600"></div>
@@ -2343,6 +2343,10 @@ export function openTimelineWindow(savedState = null) {
                 <div id="timeline-ruler-container" style="flex: 1; overflow: hidden;"></div>
             </div>
             <div id="timeline-tracks-container">
+                <div id="timeline-loop-start-marker" class="timeline-region-marker loop-start-marker"></div>
+                <div id="timeline-loop-end-marker" class="timeline-region-marker loop-end-marker"></div>
+                <div id="timeline-punch-start-marker" class="timeline-region-marker punch-start-marker"></div>
+                <div id="timeline-punch-end-marker" class="timeline-region-marker punch-end-marker"></div>
                 <div id="timeline-tracks-area">
                     <!-- Tracks will be rendered here -->
                 </div>
@@ -2365,6 +2369,9 @@ export function openTimelineWindow(savedState = null) {
         
         // Render tracks in timeline
         renderTimeline();
+
+        // Initial region marker update
+        updateTimelineRegionMarkers();
     } else {
         console.error('createWindow service not available');
     }
@@ -2396,6 +2403,9 @@ function setupTimelineZoomControls(timelineElement) {
         // Update tracks area width
         tracksArea.style.width = `${4000 * timelineZoomLevel}px`;
         
+        // Update region markers when zoom changes
+        updateTimelineRegionMarkers();
+        
         // Sync horizontal scroll
         if (tracksContainer && ruler.parentElement) {
             tracksContainer.scrollLeft = ruler.parentElement.scrollLeft;
@@ -2421,10 +2431,15 @@ function setupTimelineZoomControls(timelineElement) {
     tracksContainer.addEventListener('scroll', () => {
         ruler.parentElement.scrollLeft = tracksContainer.scrollLeft;
         timelineScrollX = tracksContainer.scrollLeft;
+        // Update region markers on scroll to keep them aligned
+        updateTimelineRegionMarkers();
     });
     
     // Initial zoom display
     applyZoom(timelineZoomLevel);
+    
+    // Initial region marker update
+    updateTimelineRegionMarkers();
 }
 
 export function renderTimeline() {
@@ -2651,7 +2666,6 @@ function onClipResize(e) {
         const newStartTime = newLeft / PIXELS_PER_SECOND;
         
         clipEl.style.left = `${newLeft}px`;
-        clipEl.style.width = `${newWidth}px`;
         clip.startTime = newStartTime;
         clip.duration = newWidth / PIXELS_PER_SECOND;
     } else {
@@ -2917,3 +2931,77 @@ function snapPixelToGrid(pixelPos, snapValue, pixelsPerSecond) {
     const snapInPixels = snapInSeconds * pixelsPerSecond;
     return Math.round(pixelPos / snapInPixels) * snapInPixels;
 }
+
+// --- Region Marker Update ---
+function updateTimelineRegionMarkers() {
+    const loopStartMarker = document.getElementById('timeline-loop-start-marker');
+    const loopEndMarker = document.getElementById('timeline-loop-end-marker');
+    const punchStartMarker = document.getElementById('timeline-punch-start-marker');
+    const punchEndMarker = document.getElementById('timeline-punch-end-marker');
+    const tracksArea = document.getElementById('timeline-tracks-area');
+    if (!tracksArea) return;
+
+    const TRACK_NAME_WIDTH = 120;
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const totalBars = 16;
+    const secondsPerBar = (60 / Tone.Transport.bpm.value) * 4;
+    const totalSeconds = totalBars * secondsPerBar;
+    const timelineWidth = TRACK_NAME_WIDTH + (totalSeconds * PIXELS_PER_SECOND);
+    const contentWidth = timelineWidth - TRACK_NAME_WIDTH;
+
+    // Helper to convert bars to pixels
+    function barsToPixels(bars) {
+        return TRACK_NAME_WIDTH + (bars / totalBars) * contentWidth;
+    }
+
+    // Get loop region from audio.js
+    let loopStartBars = 0, loopEndBars = 16, loopEnabled = false;
+    if (localAppServices.getLoopStartBars !== undefined) {
+        loopStartBars = localAppServices.getLoopStartBars();
+        loopEndBars = localAppServices.getLoopEndBars();
+        loopEnabled = localAppServices.isLoopRegionEnabled ? localAppServices.isLoopRegionEnabled() : false;
+    }
+    if (loopEnabled && loopEndBars > loopStartBars) {
+        const startX = barsToPixels(loopStartBars);
+        const endX = barsToPixels(loopEndBars);
+        // Loop: green vertical lines at start and end of region
+        if (loopStartMarker) {
+            loopStartMarker.style.left = `${startX}px`;
+            loopStartMarker.style.display = 'block';
+        }
+        if (loopEndMarker) {
+            loopEndMarker.style.left = `${endX}px`;
+            loopEndMarker.style.display = 'block';
+        }
+    } else {
+        if (loopStartMarker) loopStartMarker.style.display = 'none';
+        if (loopEndMarker) loopEndMarker.style.display = 'none';
+    }
+
+    // Get punch region from audio.js
+    let punchStartBars = 0, punchEndBars = 16, punchEnabled = false;
+    if (localAppServices.getPunchInBars !== undefined) {
+        punchStartBars = localAppServices.getPunchInBars();
+        punchEndBars = localAppServices.getPunchOutBars();
+        punchEnabled = localAppServices.isPunchRegionEnabled ? localAppServices.isPunchRegionEnabled() : false;
+    }
+    if (punchEnabled && punchEndBars > punchStartBars) {
+        const startX = barsToPixels(punchStartBars);
+        const endX = barsToPixels(punchEndBars);
+        // Punch: orange vertical lines at start and end of region
+        if (punchStartMarker) {
+            punchStartMarker.style.left = `${startX}px`;
+            punchStartMarker.style.display = 'block';
+        }
+        if (punchEndMarker) {
+            punchEndMarker.style.left = `${endX}px`;
+            punchEndMarker.style.display = 'block';
+        }
+    } else {
+        if (punchStartMarker) punchStartMarker.style.display = 'none';
+        if (punchEndMarker) punchEndMarker.style.display = 'none';
+    }
+}
+
+// Export so main.js can call it when global controls change
+export { updateTimelineRegionMarkers };

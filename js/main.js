@@ -636,6 +636,8 @@ async function initializeSnugOS() {
                     setLoopRegionEnabled(newEnabled);
                     loopToggleBtn.classList.toggle('loop-active', newEnabled);
                     showSafeNotification(newEnabled ? "Loop ON" : "Loop OFF", 1500);
+                    // Update timeline region markers
+                    if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                 });
                 // Sync button state
                 loopToggleBtn.classList.toggle('loop-active', isLoopRegionEnabled());
@@ -683,6 +685,8 @@ async function initializeSnugOS() {
                     setPunchRegionEnabled(newEnabled);
                     punchToggleBtn.classList.toggle('punch-active', newEnabled);
                     showSafeNotification(newEnabled ? "Punch In/Out ON" : "Punch In/Out OFF", 1500);
+                    // Update timeline region markers
+                    if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                 });
                 punchToggleBtn.classList.toggle('punch-active', isPunchRegionEnabled());
 

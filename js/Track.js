@@ -901,7 +901,10 @@ export class Track {
     applyMuteState() {
         if (this.gainNode && !this.gainNode.disposed) {
             const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
-            const isEffectivelyMuted = this.isMuted || (currentSoloedId !== null && currentSoloedId !== this.id);
+            // Check isMuted directly AND check mutedTrackIds array for multi-mute support
+            const mutedIds = this.appServices.getMutedTrackIds ? this.appServices.getMutedTrackIds() : [];
+            const isInMutedArray = mutedIds.includes(this.id);
+            const isEffectivelyMuted = this.isMuted || isInMutedArray || (currentSoloedId !== null && currentSoloedId !== this.id);
             const targetVolume = isEffectivelyMuted ? 0 : this.previousVolumeBeforeMute;
             try {
                 this.gainNode.gain.cancelScheduledValues(Tone.now());

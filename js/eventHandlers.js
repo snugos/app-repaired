@@ -1074,7 +1074,21 @@ export function handleTrackMute(trackId) {
         const track = getTrackById(trackId);
         if (!track) { console.warn(`[EventHandlers] Mute: Track ${trackId} not found.`); return; }
         captureStateForUndo(`Toggle Mute for ${track.name}`);
-        track.isMuted = !track.isMuted;
+        const newMuted = !track.isMuted;
+        track.isMuted = newMuted;
+
+        // Sync with mutedTrackIds for multi-mute support
+        if (typeof track.appServices.setMutedTrackIds === 'function') {
+            const currentMuted = track.appServices.getMutedTrackIds();
+            if (newMuted) {
+                if (!currentMuted.includes(trackId)) {
+                    track.appServices.setMutedTrackIds([...currentMuted, trackId]);
+                }
+            } else {
+                track.appServices.setMutedTrackIds(currentMuted.filter(id => id !== trackId));
+            }
+        }
+
         track.applyMuteState();
         if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(trackId, 'muteChanged');
     } catch (error) { console.error(`[EventHandlers handleTrackMute] Error for track ${trackId}:`, error); }

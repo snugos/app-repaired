@@ -616,6 +616,7 @@ export function gatherProjectDataInternal() {
                 masterVolume: getMasterGainValueState(),
                 activeMIDIInputId: getActiveMIDIInputState() ? getActiveMIDIInputState().id : null,
                 soloedTrackId: getSoloedTrackIdState(),
+                mutedTrackIds: getMutedTrackIdsState(),
                 armedTrackId: getArmedTrackIdState(),
                 highestZIndex: getHighestZState(),
                 playbackMode: getPlaybackModeState(),
@@ -800,6 +801,17 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
                         t.isSoloed = (t.id === getSoloedTrackIdState());
                         if (typeof t.applySoloState === 'function') t.applySoloState();
                         if (appServices.updateTrackUI) appServices.updateTrackUI(t.id, 'soloChanged');
+                    }
+                });
+            }
+            // Restore multi-mute state
+            if (globalSettings.mutedTrackIds && Array.isArray(globalSettings.mutedTrackIds)) {
+                setMutedTrackIdsState(globalSettings.mutedTrackIds);
+                getTracksState().forEach(t => { // Apply mute state for all muted tracks
+                    if (t && globalSettings.mutedTrackIds.includes(t.id)) {
+                        t.isMuted = true;
+                        if (typeof t.applyMuteState === 'function') t.applyMuteState();
+                        if (appServices.updateTrackUI) appServices.updateTrackUI(t.id, 'muteChanged');
                     }
                 });
             }
