@@ -597,14 +597,30 @@ export function renderEffectsList(owner, ownerType, listDiv, controlsContainer) 
     effectsArray.forEach((effect, index) => {
         const effectDef = AVAILABLE_EFFECTS_LOCAL[effect.type];
         const displayName = effectDef ? effectDef.displayName : effect.type;
+        const bypassed = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).getEffectBypassState) ? localAppServices.effectsRegistryAccess.getEffectBypassState(effect.id) : false;
         const item = document.createElement('div');
-        item.className = 'effect-item flex justify-between items-center p-1 border-b bg-white dark:bg-slate-800 dark:border-slate-700 rounded-sm shadow-xs text-xs';
-        item.innerHTML = `<span class="effect-name flex-grow cursor-pointer hover:text-purple-500 dark:text-slate-300 dark:hover:text-purple-300" title="Edit ${displayName}">${displayName}</span>
-            <div class="effect-actions">
+        item.className = `effect-item flex justify-between items-center p-1 border-b bg-white dark:bg-slate-800 dark:border-slate-700 rounded-sm shadow-xs text-xs ${bypassed ? 'opacity-50' : ''}`;
+        item.innerHTML = `<span class="effect-name flex-grow cursor-pointer hover:text-purple-500 dark:text-slate-300 dark:hover:text-purple-300 ${bypassed ? 'line-through' : ''}" title="Edit ${displayName}">${displayName}</span>
+            <div class="effect-actions flex items-center gap-1">
+                <button class="bypass-btn text-xs px-1 ${bypassed ? 'text-yellow-500 dark:text-yellow-400' : 'text-gray-400 dark:text-slate-500'} hover:text-yellow-600 dark:hover:text-yellow-300" title="${bypassed ? 'Enable Effect' : 'Bypass Effect'}">${bypassed ? '↩' : '⏸'}</button>
                 <button class="up-btn text-xs px-0.5 ${index === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:text-pink-500 dark:hover:text-pink-300'} dark:text-slate-400" ${index === 0 ? 'disabled' : ''} title="Move Up">▲</button>
                 <button class="down-btn text-xs px-0.5 ${index === effectsArray.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:text-pink-500 dark:hover:text-pink-300'} dark:text-slate-400" ${index === effectsArray.length - 1 ? 'disabled' : ''} title="Move Down">▼</button>
                 <button class="remove-btn text-xs px-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Remove Effect">✕</button>
             </div>`;
+        item.querySelector('.bypass-btn').addEventListener('click', () => {
+            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Bypass effect ${displayName}`);
+            const newBypassState = !((localAppServices.effectsRegistryAccess && localAppServices.effectsRegistryAccess.getEffectBypassState) ? localAppServices.effectsRegistryAccess.getEffectBypassState(effect.id) : false);
+            if (localAppServices.effectsRegistryAccess && localAppServices.effectsRegistryAccess.setEffectBypassState) {
+                localAppServices.effectsRegistryAccess.setEffectBypassState(effect.id, newBypassState);
+            }
+            if (owner && owner.setEffectBypass) {
+                owner.setEffectBypass(effect.id, newBypassState);
+            }
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification(newBypassState ? `Bypassed ${displayName}` : `Enabled ${displayName}`, 1500);
+            }
+            renderEffectsList(owner, ownerType, listDiv, controlsContainer);
+        });
         item.querySelector('.effect-name').addEventListener('click', () => {
             renderEffectControls(owner, ownerType, effect.id, controlsContainer);
             listDiv.querySelectorAll('.bg-blue-100,.dark\\:bg-purple-600').forEach(el => el.classList.remove('bg-blue-100', 'dark:bg-purple-600', 'border-purple-400', 'dark:border-purple-600'));
@@ -1963,34 +1979,25 @@ export function drawInstrumentWaveform(track) {
 
 // --- Sequencer Cell UI Update ---
 // Updates a single sequencer cell's visual state (active class and velocity brightness)
-export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity) {
+export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity = 0.7) {
     if (!windowElement) return;
     const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
     if (!cell) return;
-    
+
     // Remove all velocity classes
-    cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
-    
-    // Update active class
+    for (let v = 10; v <= 100; v += 10) {
+        cell.classList.remove(`vel-${v}`);
+    }
+    // Remove active class
+    cell.classList.remove('active');
+
+    // Apply active state
     if (isActive) {
         cell.classList.add('active');
-        // Apply velocity-based brightness class
-        const vel = (velocity !== undefined) ? velocity : (Constants.defaultVelocity || 0.7);
-        const velPercent = vel * 100;
-        let velClass = '';
-        if (velPercent >= 100) velClass = 'vel-100';
-        else if (velPercent >= 90) velClass = 'vel-90';
-        else if (velPercent >= 80) velClass = 'vel-80';
-        else if (velPercent >= 70) velClass = 'vel-70';
-        else if (velPercent >= 60) velClass = 'vel-60';
-        else if (velPercent >= 50) velClass = 'vel-50';
-        else if (velPercent >= 40) velClass = 'vel-40';
-        else if (velPercent >= 30) velClass = 'vel-30';
-        else if (velPercent >= 20) velClass = 'vel-20';
-        else velClass = 'vel-10';
+        // Apply velocity brightness class
+        const velPct = Math.round(velocity * 100);
+        const velClass = `vel-${Math.max(10, Math.min(100, Math.round(velPct / 10) * 10))}`;
         cell.classList.add(velClass);
-    } else {
-        cell.classList.remove('active');
     }
 }
 
