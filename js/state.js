@@ -112,6 +112,11 @@ export function getClipboardDataState() { return clipboardDataGlobal; }
 
 export function getArmedTrackIdState() { return armedTrackId; }
 export function getSoloedTrackIdState() { return soloedTrackId; }
+export function setSoloedTrackIdState(id) {
+    const previousId = soloedTrackId;
+    soloedTrackId = (id === null || id === undefined) ? null : id;
+    console.log(`[State setSoloedTrackIdState] Changed soloed track: ${previousId} → ${soloedTrackId}`);
+}
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
 export function getRecordingStartTimeState() { 
