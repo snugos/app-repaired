@@ -768,6 +768,24 @@ input::placeholder,
     pointer-events: none;
 }
 
+/* Timeline region markers (loop/punch) */
+.timeline-region-marker {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.3;
+}
+
+.loop-marker {
+    background-color: #22c55e; /* green for loop */
+}
+
+.punch-marker {
+    background-color: #f97316; /* orange for punch */
+}
+
 .audio-clip {
     position: absolute;
     height: 80%;
