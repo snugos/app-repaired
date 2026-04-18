@@ -198,3 +198,6 @@ Need to create `.github/workflows/deploy.yml` that:
   - **State exports** (`state.js`): Added `getMutedTrackIdsState()`, `setMutedTrackIdsState()` for multi-mute support. Also exports `setSoloedTrackId` and `getMutedTrackIds` to track `appServices` for automation methods to query solo state.
   - **Enter key shortcut**: Enter key now acts as Stop (rewind) button click — useful for quick stop during playback.
   - Version bumped to 0.6.0.
+
+### 2026-04-18 — Day 33
+- **CI/CD: GitHub Actions Deploy Workflow** (`.github/workflows/deploy.yml`): Created `.github/workflows/deploy.yml` for automatic GitHub Pages deployment on push to `LWB-with-Bugs`. Workflow triggers on push to the branch, uses `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4` for zero-build static site deployment. No build step needed since the app is plain HTML/CSS/JS served directly.
