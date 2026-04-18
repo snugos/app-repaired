@@ -121,6 +121,7 @@ export class Track {
 
         // Audio Nodes
         this.gainNode = null; this.trackMeter = null; this.outputNode = null;
+        this.panNode = null;
         this.instrument = null; 
 
         this.sequences = [];
@@ -287,6 +288,7 @@ export class Track {
 
             this.gainNode = new Tone.Gain(this.isMuted ? 0 : this.previousVolumeBeforeMute);
             this.trackMeter = new Tone.Meter({ smoothing: 0.8 });
+            this.panNode = new Tone.Panner(0); // Stereo panner node for mixer channel strip
             this.outputNode = this.gainNode; 
 
             if (this.type === 'Audio') {
@@ -327,10 +329,16 @@ export class Track {
         }
         console.log(`[Track ${this.id} rebuildEffectChain] Identified ${sourceNodes.length} primary source nodes.`);
 
+        if (!this.panNode || this.panNode.disposed) {
+            this.panNode = new Tone.Panner(0);
+            console.log(`[Track ${this.id} rebuildEffectChain] Created new panNode.`);
+        }
+
         const allManagedNodes = [
             ...sourceNodes,
             ...this.activeEffects.map(e => e.toneNode),
             this.gainNode,
+            this.panNode,
             this.trackMeter
         ].filter(node => node && !node.disposed);
 
@@ -395,8 +403,15 @@ export class Track {
             }
         }
 
-        if (this.gainNode && !this.gainNode.disposed && this.trackMeter && !this.trackMeter.disposed) {
-            try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter.`); }
+        if (this.gainNode && !this.gainNode.disposed && this.panNode && !this.panNode.disposed) {
+            try { this.gainNode.connect(this.panNode); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to panNode.`); }
+            catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to panNode:`, e); }
+        }
+        if (this.panNode && !this.panNode.disposed && this.trackMeter && !this.trackMeter.disposed) {
+            try { this.panNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected panNode to trackMeter.`); }
+            catch (e) { console.error(`[Track ${this.id}] Error connecting panNode to trackMeter:`, e); }
+        } else if (this.gainNode && !this.gainNode.disposed && this.trackMeter && !this.trackMeter.disposed) {
+            try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter (fallback, panNode unavailable).`); }
             catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to trackMeter:`, e); }
         }
 
@@ -833,6 +848,19 @@ export class Track {
             try {
                 this.gainNode.gain.setValueAtTime(this.previousVolumeBeforeMute, Tone.now());
             } catch (e) { console.error(`[Track ${this.id}] Error setting gainNode volume:`, e); }
+        }
+    }
+
+    setPan(panValue, fromInteraction = false) {
+        const clampedPan = Math.max(-1, Math.min(parseFloat(panValue) || 0, 1));
+        this.panValue = clampedPan;
+        if (this.panNode && !this.panNode.disposed) {
+            try {
+                this.panNode.pan.setValueAtTime(clampedPan, Tone.now());
+            } catch (e) { console.error(`[Track ${this.id}] Error setting panNode pan:`, e); }
+        }
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Set Pan to ${clampedPan.toFixed(2)} on ${this.name}`);
         }
     }
 
@@ -1329,16 +1357,7 @@ export class Track {
                     }
                 }
             }
-            // Copy over any notes that fell through (couldn't be placed at any nearby slot)
-            for (let col = 0; col < totalSteps; col++) {
-                const stepData = row[col];
-                if (stepData && stepData.active && !newRow.some(n => n && n.active && n !== stepData)) {
-                    // Still active but couldn't be placed — leave it at original position
-                    // (would overwrite, which is fine since same step data)
-                }
-            }
-            // Actually, simpler: just use the newRow as-is for placed notes
-            // Copy any notes that got placed back into the original row structure
+            // Copy over any notes that got placed back into the original row structure
             row.forEach((cell, col) => {
                 if (cell && cell.active) {
                     const snappedCol = Math.round(col / quantizeTo) * quantizeTo;
@@ -2171,6 +2190,11 @@ export class Track {
             try { this.gainNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing gainNode:`, e.message); }
         }
         this.gainNode = null;
+
+        if (this.panNode && !this.panNode.disposed) {
+            try { this.panNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing panNode:`, e.message); }
+        }
+        this.panNode = null;
 
         if (this.trackMeter && !this.trackMeter.disposed) {
             try { this.trackMeter.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing trackMeter:`, e.message); }

@@ -161,6 +161,265 @@ function buildSynthSpecificInspectorDOM(track) {
     let controlsHTML = `<div id="synthEngineControls-${track.id}" class="grid grid-cols-2 md:grid-cols-3 gap-2 p-1">`;
     definitions.forEach(def => { controlsHTML += `<div id="${def.idPrefix}-${track.id}-placeholder"></div>`; });
     controlsHTML += `</div>`;
+    // Preset controls
+    controlsHTML += `<div class="synth-preset-controls border-t dark:border-slate-600 pt-1 mt-1">
+        <div class="flex items-center gap-1 mb-1">
+            <select id="synthPresetSelect-${track.id}" class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                <option value="">— Load Preset —</option>
+            </select>
+            <button id="synthPresetLoadBtn-${track.id}" title="Load Selected Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Load</button>
+        </div>
+        <div class="flex items-center gap-1">
+            <input type="text" id="synthPresetName-${track.id}" placeholder="Preset name" class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400">
+            <button id="synthPresetSaveBtn-${track.id}" title="Save Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Save</button>
+            <button id="synthPresetDeleteBtn-${track.id}" title="Delete Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 text-red-400 dark:hover:bg-slate-600">×</button>
+        </div>
+    </div>`;
+    return controlsHTML;
+}
+
+function buildSamplerSpecificInspectorDOM(track) {
+    return `<div class="sampler-controls p-1 space-y-2">
+        <div id="dropZoneContainer-${track.id}-sampler" class="mb-2"></div>
+        <div class="waveform-section border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600">
+            <canvas id="waveformCanvas-${track.id}" class="w-full h-24 bg-white dark:bg-slate-800 rounded shadow-inner"></canvas>
+        </div>
+        <div class="slice-editor-controls mt-2 p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 space-y-1">
+            <h4 class="text-xs font-semibold dark:text-slate-200">Slice Editor (Selected: <span id="selectedSliceInfo-${track.id}">1</span>)</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="sliceVolumeSlider-${track.id}-placeholder"></div>
+                <div id="slicePitchKnob-${track.id}-placeholder"></div>
+                <button id="sliceLoopToggle-${track.id}" class="px-1.5 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Loop: OFF</button>
+                <button id="sliceReverseToggle-${track.id}" class="px-1.5 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Rev: OFF</button>
+            </div>
+            <div class="text-xs font-medium mt-1 dark:text-slate-300">Envelope:</div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="sliceEnvAttackSlider-${track.id}-placeholder"></div>
+                <div id="sliceEnvDecaySlider-${track.id}-placeholder"></div>
+                <div id="sliceEnvSustainSlider-${track.id}-placeholder"></div>
+                <div id="sliceEnvReleaseSlider-${track.id}-placeholder"></div>
+            </div>
+            </div>
+        <div id="samplePadsContainer-${track.id}" class="grid grid-cols-4 gap-1 mt-2"></div>
+        <div><button id="slicerPolyphonyToggle-${track.id}" class="text-xs px-2 py-1 border rounded mt-1 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Mode: Poly</button></div>
+    </div>`;
+}
+
+function buildInstrumentSamplerSpecificInspectorDOM(track) {
+    return `<div class="instrument-sampler-controls p-1 space-y-2">
+        <div id="dropZoneContainer-${track.id}-instrumentsampler" class="mb-2"></div>
+        <div class="waveform-section border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600">
+           <canvas id="instrumentWaveformCanvas-${track.id}" class="w-full h-24 bg-white dark:bg-slate-800 rounded shadow-inner"></canvas>
+        </div>
+        <div class="instrument-params-controls mt-2 p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 space-y-1 text-xs">
+            <div class="grid grid-cols-2 gap-2 items-center">
+                <div>
+                    <label for="instrumentRootNote-${track.id}" class="block text-xs font-medium dark:text-slate-300">Root Note:</label>
+                    <select id="instrumentRootNote-${track.id}" class="w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600"></select>
+                </div>
+                <div>
+                    <label for="instrumentLoopToggle-${track.id}" class="block text-xs font-medium dark:text-slate-300">Loop:</label>
+                    <button id="instrumentLoopToggle-${track.id}" class="px-2 py-1 text-xs border rounded w-full dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Loop: OFF</button>
+                </div>
+                <div>
+                    <label for="instrumentLoopStart-${track.id}" class="block text-xs font-medium dark:text-slate-300">Loop Start (s):</label>
+                    <input type="number" id="instrumentLoopStart-${track.id}" step="0.001" class="w-full p-1 border rounded text-xs dark:bg-slate-600 dark:text-slate-200 dark:border-slate-500">
+                </div>
+                <div>
+                    <label for="instrumentLoopEnd-${track.id}" class="block text-xs font-medium dark:text-slate-300">Loop End (s):</label>
+                    <input type="number" id="instrumentLoopEnd-${track.id}" step="0.001" class="w-full p-1 border rounded text-xs dark:bg-slate-600 dark:text-slate-200 dark:border-slate-500">
+                </div>
+            </div>
+             <div class="text-xs font-medium mt-1 dark:text-slate-300">Envelope:</div>
+             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="instrumentEnvAttack-${track.id}-placeholder"></div>
+                <div id="instrumentEnvDecay-${track.id}-placeholder"></div>
+                <div id="instrumentEnvSustain-${track.id}-placeholder"></div>
+                <div id="instrumentEnvRelease-${track.id}-placeholder"></div>
+            </div>
+            <div><button id="instrumentPolyphonyToggle-${track.id}" class="text-xs px-2 py-1 border rounded mt-1 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Mode: Poly</button></div>
+        </div>
+    </div>`;
+}
+
+function buildDrumSamplerSpecificInspectorDOM(track) {
+    return `<div class="drum-sampler-controls p-1 space-y-2">
+        <div class="selected-pad-controls p-1 border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 space-y-1">
+            <h4 class="text-xs font-semibold dark:text-slate-200">Edit Pad: <span id="selectedDrumPadInfo-${track.id}">1</span></h4>
+            <div id="drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}" class="mb-1 text-xs"></div>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadVolumeKnob-${track.id}-placeholder"></div>
+                <div id="drumPadPitchKnob-${track.id}-placeholder"></div>
+            </div>
+            <div class="text-xs font-medium mt-1 dark:text-slate-300">Envelope:</div>
+             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1 items-center text-xs">
+                <div id="drumPadEnvAttack-${track.id}-placeholder"></div>
+                <div id="drumPadEnvDecay-${track.id}-placeholder"></div>
+                <div id="drumPadEnvSustain-${track.id}-placeholder"></div>
+                <div id="drumPadEnvRelease-${track.id}-placeholder"></div>
+            </div>
+         </div>
+        <div id="drumPadsGridContainer-${track.id}" class="grid grid-cols-4 gap-1 mt-2"></div>
+    </div>`;
+}
+
+// --- Specific Inspector Control Initializers ---
+function buildSynthEngineControls(track, container, engineType) {
+    const definitions = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).synthEngineControlDefinitions)?.[engineType] || [];
+    definitions.forEach(def => {
+        const placeholder = container.querySelector(`#${def.idPrefix}-${track.id}-placeholder`);
+        if (!placeholder) return;
+        let initialValue;
+        const pathParts = def.path.split('.');
+        let currentValObj = track.synthParams;
+        for (const key of pathParts) {
+            if (currentValObj && typeof currentValObj === 'object' && key in currentValObj) {
+                currentValObj = currentValObj[key];
+            } else { currentValObj = undefined; break; }
+        }
+        initialValue = (currentValObj !== undefined) ? currentValObj : def.defaultValue;
+        if (def.path.endsWith('.value') && ((track.instrument) && (track.instrument).get)) { // For Tone.Signal parameters
+            const signalPath = def.path.substring(0, def.path.lastIndexOf('.value'));
+            const signalValue = track.instrument.get(signalPath)?.value;
+            if (signalValue !== undefined) initialValue = signalValue;
+        }
+
+        if (def.type === 'knob') {
+            const knob = createKnob({ label: def.label, min: def.min, max: def.max, step: def.step, initialValue, decimals: def.decimals, displaySuffix: def.displaySuffix, trackRef: track, onValueChange: (val) => track.setSynthParam(def.path, val) });
+            placeholder.innerHTML = ''; placeholder.appendChild(knob.element); track.inspectorControls[def.idPrefix] = knob;
+        } else if (def.type === 'select') {
+            const selectEl = document.createElement('select');
+            selectEl.id = `${def.idPrefix}-${track.id}`;
+            selectEl.className = 'synth-param-select w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600';
+            def.options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
+                selectEl.appendChild(option);
+            });
+            selectEl.value = initialValue;
+            selectEl.addEventListener('change', (e) => {
+                if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change ${def.label} for ${track.name} to ${e.target.value}`);
+                track.setSynthParam(def.path, e.target.value);
+            });
+            const labelEl = document.createElement('label');
+            labelEl.htmlFor = selectEl.id; labelEl.textContent = def.label + ':';
+            labelEl.className = 'text-xs block mb-0.5 dark:text-slate-300';
+            const wrapperDiv = document.createElement('div');
+            wrapperDiv.className = 'flex flex-col items-start'; wrapperDiv.appendChild(labelEl); wrapperDiv.appendChild(selectEl);
+            placeholder.innerHTML = ''; placeholder.appendChild(wrapperDiv); track.inspectorControls[def.idPrefix] = selectEl;
+        }
+    });
+}
+
+function initializeSynthSpecificControls(track, winEl) {
+    const engineType = track.synthEngineType || 'MonoSynth';
+    const container = winEl.querySelector(`#synthEngineControls-${track.id}`);
+    if (container) {
+        buildSynthEngineControls(track, container, engineType);
+    }
+}
+
+function initializeSamplerSpecificControls(track, winEl) {
+    console.log(`[UI] initializeSamplerSpecificControls called for track ${track.id}, type: ${track.type}`);
+    
+    const dzContainerEl = winEl.querySelector(`#dropZoneContainer-${track.id}-sampler`);
+    if (dzContainerEl) {
+        const existingAudioData = { originalFileName: track.samplerAudioData.fileName, status: track.samplerAudioData.status || (track.samplerAudioData.fileName ? 'missing' : 'empty') };
+        dzContainerEl.innerHTML = createDropZoneHTML(track.id, `fileInput-${track.id}`, 'Sampler', null, existingAudioData);
+        const dzEl = dzContainerEl.querySelector('.drop-zone');
+        const fileInputEl = dzContainerEl.querySelector(`#fileInput-${track.id}`);
+        if (dzEl) setupGenericDropZoneListeners(dzEl, track.id, 'Sampler', null, localAppServices.loadSoundFromBrowserToTarget, localAppServices.loadSampleFile);
+        if (fileInputEl) fileInputEl.onchange = (e) => { localAppServices.loadSampleFile(e, track.id, 'Sampler'); };
+    }
+    
+    console.log(`[UI] About to call renderSamplePads for track ${track.id}`);
+    renderSamplePads(track);
+    
+    const canvas = winEl.querySelector(`#waveformCanvas-${track.id}`);
+    if (canvas) {
+        track.waveformCanvasCtx = canvas.getContext('2d');
+        if(((track.audioBuffer) && (track.audioBuffer).loaded)) drawWaveform(track);
+    }
+    updateSliceEditorUI(track);
+
+    const createAndPlaceKnob = (placeholderId, options) => {
+        const placeholder = winEl.querySelector(`#${placeholderId}`);
+        if (placeholder) {
+            const knob = createKnob(options);
+            placeholder.innerHTML = ''; placeholder.appendChild(knob.element); return knob;
+        }
+        return null;
+    };
+    const selectedSlice = track.slices[track.selectedSliceForEdit] || track.slices[0] || { volume: 0.7, pitchShift: 0, envelope: { attack: 0.01, decay: 0.1, sustain: 1.0, release: 0.1 } };
+    track.inspectorControls.sliceVolume = createAndPlaceKnob(`sliceVolumeSlider-${track.id}-placeholder`, { label: 'Vol', min:0, max:1, step:0.01, initialValue: selectedSlice.volume, decimals:2, trackRef: track, onValueChange: (val) => track.setSliceVolume(track.selectedSliceForEdit, val)});
+    track.inspectorControls.slicePitch = createAndPlaceKnob(`slicePitchKnob-${track.id}-placeholder`, { label: 'Pitch', min:-24, max:24, step:1, initialValue: selectedSlice.pitchShift, decimals:0, displaySuffix:'st', trackRef: track, onValueChange: (val) => track.setSlicePitchShift(track.selectedSliceForEdit, val)});
+    track.inspectorControls.sliceEnvAttack = createAndPlaceKnob(`sliceEnvAttackSlider-${track.id}-placeholder`, { label: 'Attack', min:0.001, max:1, step:0.001, initialValue: selectedSlice.envelope.attack, decimals:3, trackRef: track, onValueChange: (val) => track.setSliceEnvelopeParam(track.selectedSliceForEdit, 'attack', val)});
+    track.inspectorControls.sliceEnvDecay = createAndPlaceKnob(`sliceEnvDecaySlider-${track.id}-placeholder`, { label: 'Decay', min:0.01, max:1, step:0.01, initialValue: selectedSlice.envelope.decay, decimals:2, trackRef: track, onValueChange: (val) => track.setSliceEnvelopeParam(track.selectedSliceForEdit, 'decay', val)});
+    track.inspectorControls.sliceEnvSustain = createAndPlaceKnob(`sliceEnvSustainSlider-${track.id}-placeholder`, { label: 'Sustain', min:0, max:1, step:0.01, initialValue: selectedSlice.envelope.sustain, decimals:2, trackRef: track, onValueChange: (val) => track.setSliceEnvelopeParam(track.selectedSliceForEdit, 'sustain', val)});
+    track.inspectorControls.sliceEnvRelease = createAndPlaceKnob(`sliceEnvReleaseSlider-${track.id}-placeholder`, { label: 'Release', min:0.01, max:2, step:0.01, initialValue: selectedSlice.envelope.release, decimals:2, trackRef: track, onValueChange: (val) => track.setSliceEnvelopeParam(track.selectedSliceForEdit, 'release', val)});
+
+    const loopToggleBtn = winEl.querySelector(`#sliceLoopToggle-${track.id}`);
+    if (loopToggleBtn) {
+        loopToggleBtn.textContent = selectedSlice.loop ? 'Loop: ON' : 'Loop: OFF';
+        loopToggleBtn.classList.toggle('active', selectedSlice.loop);
+        loopToggleBtn.addEventListener('click', (e) => {
+            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Loop for Slice ${track.selectedSliceForEdit + 1} on ${track.name}`);
+            const currentSlice = track.slices[track.selectedSliceForEdit];
+            track.setSliceLoop(track.selectedSliceForEdit, !currentSlice.loop);
+            e.target.textContent = currentSlice.loop ? 'Loop: ON' : 'Loop: OFF';
+            e.target.classList.toggle('active', currentSlice.loop);
+        });
+    }
+    const reverseToggleBtn = winEl.querySelector(`#sliceReverseToggle-${track.id}`);
+    if(reverseToggleBtn){
+        reverseToggleBtn.textContent = selectedSlice.reverse ? 'Rev: ON' : 'Rev: OFF';
+        reverseToggleBtn.classList.toggle('active', selectedSlice.reverse);
+        reverseToggleBtn.addEventListener('click', (e) => {
+            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Reverse for Slice ${track.selectedSliceForEdit + 1} on ${track.name}`);
+            const currentSlice = track.slices[track.selectedSliceForEdit];
+            track.setSliceReverse(track.selectedSliceForEdit, !currentSlice.reverse);
+            e.target.textContent = currentSlice.reverse ? 'Rev: ON' : 'Rev: OFF';
+            e.target.classList.toggle('active', currentSlice.reverse);
+        });
+    }
+    const polyToggleBtn = winEl.querySelector(`#slicerPolyphonyToggle-${track.id}`);
+    if (polyToggleBtn) {
+        polyToggleBtn.textContent = `Mode: ${track.slicerIsPolyphonic ? 'Poly' : 'Mono'}`;
+        polyToggleBtn.classList.toggle('active', track.slicerIsPolyphonic);
+        polyToggleBtn.addEventListener('click', () => {
+            if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Slicer Polyphony for ${track.name}`);
+            track.slicerIsPolyphonic = !track.slicerIsPolyphonic;
+            polyToggleBtn.textContent = `Mode: ${track.slicerIsPolyphonic ? 'Poly' : 'Mono'}`;
+        polyToggleBtn.classList.toggle('active', track.slicerIsPolyphonic);
+            if (!track.slicerIsPolyphonic) track.setupSlicerMonoNodes(); else track.disposeSlicerMonoNodes();
+            track.rebuildEffectChain();
+            showNotification(`${track.name} slicer mode: ${track.slicerIsPolyphonic ? 'Poly' : 'Mono'}`, 2000);
+        });
+    }
+}
+
+
+// --- Track Inspector Window (Entry Point) ---
+function buildSynthSpecificInspectorDOM(track) {
+    const engineType = track.synthEngineType || 'MonoSynth';
+    const definitions = ((localAppServices.effectsRegistryAccess) && (localAppServices.effectsRegistryAccess).synthEngineControlDefinitions)?.[engineType] || [];
+    let controlsHTML = `<div id="synthEngineControls-${track.id}" class="grid grid-cols-2 md:grid-cols-3 gap-2 p-1">`;
+    definitions.forEach(def => { controlsHTML += `<div id="${def.idPrefix}-${track.id}-placeholder"></div>`; });
+    controlsHTML += `</div>`;
+    // Preset controls
+    controlsHTML += `<div class="synth-preset-controls border-t dark:border-slate-600 pt-1 mt-1">
+        <div class="flex items-center gap-1 mb-1">
+            <select id="synthPresetSelect-${track.id}" class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                <option value="">— Load Preset —</option>
+            </select>
+            <button id="synthPresetLoadBtn-${track.id}" title="Load Selected Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Load</button>
+        </div>
+        <div class="flex items-center gap-1">
+            <input type="text" id="synthPresetName-${track.id}" placeholder="Preset name" class="flex-1 p-1 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400">
+            <button id="synthPresetSaveBtn-${track.id}" title="Save Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">Save</button>
+            <button id="synthPresetDeleteBtn-${track.id}" title="Delete Preset" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 text-red-400 dark:hover:bg-slate-600">×</button>
+        </div>
+    </div>`;
     return controlsHTML;
 }
 
@@ -1372,7 +1631,7 @@ export function openMixerWindow(savedState = null) {
     const mixerOptions = { width: Math.min(800, (((desktopEl) && (desktopEl).offsetWidth) || 800) - 40), height: 300, minWidth: 300, minHeight: 200, initialContentKey: windowId };
     if (savedState) Object.assign(mixerOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const mixerWindow = localAppServices.createWindow(windowId, 'Mixer', contentContainer, mixerOptions);
-    if (((mixerWindow) && (mixerWindow).element)) updateMixerWindow();
+    if (((mixerWindow) && (mixerWindow).element) || mixerWindow.isMinimized) updateMixerWindow();
     return mixerWindow;
 }
 
@@ -1404,10 +1663,11 @@ export function renderMixer(container) {
 
     tracks.forEach(track => {
         const trackDiv = document.createElement('div');
-        trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
-        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200 flex items-center" title="${track.name}"><span class="track-color-dot" style="background-color:${track.trackColor || '#6366f1'}" title="Track color"></span>${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-16 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-x-2 gap-y-1 items-center text-xs">
-                <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'U' : 'M'}</button>
-                <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'U' : 'S'}</button>
+        trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-28 mr-2 text-xs';
+        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200 flex items-center" title="${track.name}"><span class="track-color-dot" style="background-color:${track.trackColor || '#6366f1'}" title="Track color"></span>${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div id="panKnob-mixer-${track.id}-placeholder" class="h-12 mx-auto mb-0.5"></div> <div class="flex justify-center mb-0.5"> <button id="fxBtn-mixer-${track.id}" title="Effects Rack" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600">FX</button> </div> <div class="grid grid-cols-3 gap-x-1 gap-y-1 items-center text-xs">
+                <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">M</button>
+                <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">S</button>
+                <button id="mixerArmBtn-${track.id}" title="Arm" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${(localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? 'armed' : ''}">R</button>
             </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%; background-color:${track.trackColor || '#6366f1'}"></div> </div>`;
         trackDiv.addEventListener('contextmenu', (e) => { e.preventDefault(); createContextMenu(e, [
             {label: "Open Inspector", action: () => localAppServices.handleOpenTrackInspector(track.id)},
@@ -1424,8 +1684,12 @@ export function renderMixer(container) {
         container.appendChild(trackDiv);
         const volKnobPlaceholder = trackDiv.querySelector(`#volumeKnob-mixer-${track.id}-placeholder`);
         if (volKnobPlaceholder) { const volKnob = createKnob({ label: `Vol ${track.id}`, min: 0, max: 1.2, step: 0.01, initialValue: track.previousVolumeBeforeMute, decimals: 2, trackRef: track, onValueChange: (val, o, fromInteraction) => track.setVolume(val, fromInteraction) }); volKnobPlaceholder.innerHTML = ''; volKnobPlaceholder.appendChild(volKnob.element); }
+        const panKnobPlaceholder = trackDiv.querySelector(`#panKnob-mixer-${track.id}-placeholder`);
+        if (panKnobPlaceholder) { const panKnob = createKnob({ label: `Pan ${track.id}`, min: -1, max: 1, step: 0.01, initialValue: (track.panValue !== undefined) ? track.panValue : 0, decimals: 2, trackRef: track, onValueChange: (val, o, fromInteraction) => { if (track.setPan) track.setPan(val, fromInteraction); } }); panKnobPlaceholder.innerHTML = ''; panKnobPlaceholder.appendChild(panKnob.element); }
         trackDiv.querySelector(`#mixerMuteBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackMute(track.id));
         trackDiv.querySelector(`#mixerSoloBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackSolo(track.id));
+        trackDiv.querySelector(`#mixerArmBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackArm(track.id));
+        trackDiv.querySelector(`#fxBtn-mixer-${track.id}`).addEventListener('click', () => localAppServices.handleOpenEffectsRack(track.id));
     });
 }
 
@@ -1967,15 +2231,13 @@ export function openTimelineWindow(savedState = null) {
     const timelineContent = `
         <div id="timeline-container">
             <div id="timeline-header">
-                <div id="timeline-ruler-container" style="display: flex; align-items: center;">
-                    <div id="timeline-zoom-controls" style="display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: #2a2a2a; border-right: 1px solid #3a3a3a;">
-                        <button id="timeline-zoom-out" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom out (-)">−</button>
-                        <span id="timeline-zoom-level" style="font-size: 10px; color: #aaa; min-width: 32px; text-align: center;">100%</span>
-                        <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
-                        <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
-                    </div>
-                    <div id="timeline-ruler" style="flex: 1; overflow: hidden;"></div>
+                <div id="timeline-zoom-controls" style="display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: #2a2a2a; border-right: 1px solid #3a3a3a;">
+                    <button id="timeline-zoom-out" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom out (-)">−</button>
+                    <span id="timeline-zoom-level" style="font-size: 10px; color: #aaa; min-width: 32px; text-align: center;">100%</span>
+                    <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
+                    <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
                 </div>
+                <div id="timeline-ruler-container" style="flex: 1; overflow: hidden;"></div>
             </div>
             <div id="timeline-tracks-container">
                 <div id="timeline-tracks-area">
