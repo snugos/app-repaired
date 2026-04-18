@@ -72,7 +72,7 @@ Need to create `.github/workflows/deploy.yml` that:
 - App loads and is functional (basic track creation, sound browser, transport)
 - **Metronome** (`audio.js`): Added Tone.Transport-synced metronome with triangle-wave click synth. Bar 1 uses C6 accent, beat 1 uses C5, all other 16ths silent. Connected directly to `Tone.Destination` (bypasses master bus so it's always audible). Toggle wired to global control bar "Metronome" button. Functions: `setMetronomeEnabled`, `isMetronomeEnabled`, `setMetronomeVolume`.
 - **Global controls bar**: Added "Metronome" toggle button between Master meter and MIDI/KBD indicators. Blue active state when on.
-- **Bug fixes**: Fixed typos `isReconstructinging` → `isReconstructing` in main.js.
+- **Bug fixes**: Fixed typos `isReconstructinging` → `isReconstructinging` in main.js.
 - **Version**: Bumped to 0.2.0 in `constants.js`.
 
 ### 2026-04-17 — Day 2
@@ -244,3 +244,12 @@ Need to create `.github/workflows/deploy.yml` that:
   - **Import of MIDI CC functions**: ui.js now imports `getMidiCCMappings`, `getMidiCCLearnActive`, `clearMidiCCMappings`, `removeMidiCCMapping`, `setMidiCCMapping`, `getMidiCCMapping`, `startMidiCCLearn`, `cancelMidiCCLearn` from eventHandlers.js.
   - Version bumped to 0.5.4.
   - **Note**: Git push fails (host key verification), but zo.pub sync works as fallback. GitHub Actions CI/CD still deploys to snugos.github.io/app via push to origin/LWB-with-Bugs.
+
+### 2026-04-18 — Day 43
+- **Bug Fix: Synth Preset UI Buttons Not Wired** (`js/ui.js`): The synth preset Load/Save/Delete buttons and dropdown were present in the DOM (built by `buildSynthSpecificInspectorDOM()`) but had no click handlers connected — `initializeSynthSpecificControls()` at both line 421 and line 733 only called `buildSynthEngineControls()` without wiring any preset UI interactions. Now both copies of `initializeSynthSpecificControls()` additionally:
+  - Populate the preset dropdown from `localAppServices.getSynthPresets()` on window open
+  - Wire Load button to call `track.applySynthPreset()` and refresh inspector via `updateTrackUI`
+  - Wire Save button to capture `synthEngineType` + current `synthParams` and persist via `localAppServices.saveSynthPreset()`
+  - Wire Delete button to remove preset via `localAppServices.deleteSynthPreset()` and remove from dropdown
+  - Sync name input with dropdown selection on change
+- **Note**: Git push fails (host key verification), but zo.pub sync works as fallback. GitHub Actions CI/CD still deploys to snugos.github.io/app via push to origin/LWB-with-Bugs.

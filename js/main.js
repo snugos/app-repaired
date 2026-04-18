@@ -762,6 +762,82 @@ async function initializeSnugOS() {
         };
         attachProjectNameHandler();
 
+        // Export mixdown to WAV handler
+        const attachExportHandler = () => {
+            const exportBtn = uiElementsCache.exportBtnGlobal;
+            if (exportBtn) {
+                exportBtn.addEventListener('click', async () => {
+                    // Check if there's any audio content
+                    const tracks = typeof getTracksState === 'function' ? getTracksState() : [];
+                    const hasContent = tracks.some(t => {
+                        if (!t) return false;
+                        const seq = t.getActiveSequence ? t.getActiveSequence() : null;
+                        if (seq && seq.data && seq.data.some(row => row && row.some(cell => cell && cell.active))) return true;
+                        if (t.audioClips && t.audioClips.length > 0) return true;
+                        return false;
+                    });
+
+                    const durationStr = prompt('Export duration in seconds:', hasContent ? '30' : '10');
+                    if (durationStr === null) return; // User cancelled
+                    const duration = parseFloat(durationStr);
+                    if (isNaN(duration) || duration <= 0) {
+                        showSafeNotification('Invalid export duration.', 2000);
+                        return;
+                    }
+
+                    showSafeNotification('Preparing export...', 1500);
+                    exportBtn.disabled = true;
+                    exportBtn.textContent = 'Exporting...';
+
+                    try {
+                        // Ensure audio context is running
+                        const audioReady = await initAudioContextAndMasterMeter(true);
+                        if (!audioReady) {
+                            showSafeNotification('Audio not ready. Click the page first.', 2000);
+                            return;
+                        }
+
+                        // Dynamically import exportMixdownToWav
+                        const audioModule = await import('./audio.js');
+                        if (typeof audioModule.exportMixdownToWav !== 'function') {
+                            throw new Error('Export function not available.');
+                        }
+
+                        showSafeNotification(`Recording ${duration}s mixdown...`, 2000);
+                        const recording = await audioModule.exportMixdownToWav(duration);
+
+                        if (recording && recording.size > 0) {
+                            // Convert to WAV blob and download
+                            // The recording from Tone.Recorder is typically a blob
+                            const url = URL.createObjectURL(recording);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            const projectName = typeof getProjectNameState === 'function' ? getProjectNameState() : 'snugos-export';
+                            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.webm`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            showSafeNotification('Export complete! File downloaded.', 3000);
+                        } else {
+                            showSafeNotification('Export failed: No audio recorded.', 3000);
+                        }
+                    } catch (err) {
+                        console.error('[Main] Export error:', err);
+                        showSafeNotification(`Export failed: ${err.message || 'Unknown error'}`, 3000);
+                    } finally {
+                        exportBtn.disabled = false;
+                        exportBtn.textContent = 'Export';
+                    }
+                });
+                console.log('[Main] Export handler attached');
+            } else {
+                console.warn('[Main] Export button not found in cache, retrying...');
+                setTimeout(attachExportHandler, 500);
+            }
+        };
+        attachExportHandler();
+
         if (typeof initializeStateModule === 'function') initializeStateModule(appServices); else console.error("initializeStateModule is not a function");
         if (typeof initializeUIModule === 'function') initializeUIModule(appServices); else console.error("initializeUIModule is not a function");
         if (typeof initializeAudioModule === 'function') initializeAudioModule(appServices); else console.error("initializeAudioModule is not a function");
