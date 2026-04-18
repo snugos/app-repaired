@@ -296,6 +296,17 @@ export const AVAILABLE_EFFECTS = {
     },
 };
 
+// Effect bypass state - tracks bypass status per effect instance (keyed by effect id)
+const effectBypassStates = new Map();
+
+export function getEffectBypassState(effectId) {
+    return effectBypassStates.get(effectId) === true;
+}
+
+export function setEffectBypassState(effectId, bypassed) {
+    effectBypassStates.set(effectId, bypassed);
+}
+
 export function createEffectInstance(effectType, initialParams = {}) {
     if (typeof Tone === 'undefined') {
         console.error(`[EffectsRegistry createEffectInstance] Tone.js is not loaded. Cannot create effect "${effectType}".`);

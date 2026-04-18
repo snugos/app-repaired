@@ -489,6 +489,24 @@ export class Track {
         }
     }
 
+    setEffectBypass(effectId, bypassed) {
+        const effectWrapper = this.activeEffects.find(e => e.id === effectId);
+        if (!effectWrapper) {
+            console.warn(`[Track ${this.id}] Effect ${effectId} not found for bypass.`);
+            return;
+        }
+        if (!effectWrapper.toneNode || effectWrapper.toneNode.disposed) {
+            console.warn(`[Track ${this.id}] ToneNode for effect ${effectId} ("${effectWrapper.type}") is invalid or disposed.`);
+            return;
+        }
+        try {
+            effectWrapper.toneNode.bypass = !!bypassed;
+            console.log(`[Track ${this.id}] Effect "${effectWrapper.type}" (ID: ${effectId}) bypass set to ${!!bypassed}`);
+        } catch (e) {
+            console.warn(`[Track ${this.id}] Error setting bypass on effect "${effectWrapper.type}":`, e.message);
+        }
+    }
+
     updateEffectParam(effectId, paramPath, value) {
         const effectWrapper = this.activeEffects.find(e => e.id === effectId);
         if (!effectWrapper) {
