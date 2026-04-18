@@ -248,6 +248,52 @@ export const AVAILABLE_EFFECTS = {
         toneClass: 'Mono',
         params: [] 
     },
+    ToneShaper: {
+        displayName: 'Tone Shaper',
+        toneClass: 'ToneShaper',
+        params: [
+            { key: 'curve', label: 'Curve', type: 'select', options: ['linear', 'exponential', 'sigmoid', 'tangent'], defaultValue: 'sigmoid', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    Tremolo: {
+        displayName: 'Tremolo',
+        toneClass: 'Tremolo',
+        params: [
+            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 5, decimals: 1, displaySuffix: 'Hz', isSignal: true },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+            { key: 'type', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
+    Wahwah: {
+        displayName: 'Wah Wah',
+        toneClass: 'WahWah',
+        params: [
+            { key: 'frequency', label: 'Base Freq', type: 'knob', min: 20, max: 10000, step: 10, defaultValue: 800, decimals: 0, displaySuffix: 'Hz', isSignal: true },
+            { key: 'baseFrequency', label: 'Min Freq', type: 'knob', min: 20, max: 10000, step: 10, defaultValue: 100, decimals: 0, displaySuffix: 'Hz', isSignal: true },
+            { key: 'Q', label: 'Q', type: 'knob', min: 0.1, max: 15, step: 0.1, defaultValue: 2, decimals: 1, isSignal: true },
+            { key: 'sensitivity', label: 'Sensitivity', type: 'knob', min: -40, max: 0, step: 1, defaultValue: 0, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    Vibrato: {
+        displayName: 'Vibrato',
+        toneClass: 'Vibrato',
+        params: [
+            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 5, decimals: 1, displaySuffix: 'Hz', isSignal: true },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'maxDelay', label: 'Max Delay', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.05, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    Volume: {
+        displayName: 'Volume',
+        toneClass: 'Volume',
+        params: [
+            { key: 'volume', label: 'Volume', type: 'knob', min: -60, max: 60, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+        ]
+    },
 };
 
 export function createEffectInstance(effectType, initialParams = {}) {
