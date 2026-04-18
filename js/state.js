@@ -57,6 +57,55 @@ let globalPlaybackMode = 'sequencer'; // 'sequencer' or 'timeline'
 let undoStack = [];
 let redoStack = [];
 
+// --- Synth Presets Storage ---
+let synthPresetsGlobal = {};
+
+function loadSynthPresetsFromStorage() {
+    try {
+        const stored = localStorage.getItem('snugosSynthPresets');
+        if (stored) {
+            synthPresetsGlobal = JSON.parse(stored);
+        } else {
+            synthPresetsGlobal = {
+                "Init Saw": { synthEngineType: 'MonoSynth', synthParams: { portamento: 0.01, oscillator: { type: 'sawtooth' }, envelope: { attack: 0.005, decay: 0.5, sustain: 0.4, release: 0.5 }, filter: { type: 'lowpass', rolloff: -12, Q: 1, frequency: 2000 }, filterEnvelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 2, baseFrequency: 200, octaves: 7, exponent: 2 } },
+                "Init Square": { synthEngineType: 'MonoSynth', synthParams: { portamento: 0.01, oscillator: { type: 'square' }, envelope: { attack: 0.005, decay: 0.3, sustain: 0.3, release: 0.3 }, filter: { type: 'lowpass', rolloff: -12, Q: 1, frequency: 1500 }, filterEnvelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 2, baseFrequency: 200, octaves: 7, exponent: 2 } },
+                "Init Sine": { synthEngineType: 'MonoSynth', synthParams: { portamento: 0.01, oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 2, sustain: 0, release: 1 }, filter: { type: 'lowpass', rolloff: -12, Q: 1, frequency: 1000 }, filterEnvelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 2, baseFrequency: 200, octaves: 7, exponent: 2 } },
+                "Init Triangle": { synthEngineType: 'MonoSynth', synthParams: { portamento: 0.01, oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.8, sustain: 0.2, release: 0.8 }, filter: { type: 'lowpass', rolloff: -12, Q: 1, frequency: 2500 }, filterEnvelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 2, baseFrequency: 200, octaves: 7, exponent: 2 } },
+            };
+        }
+    } catch (e) {
+        synthPresetsGlobal = {};
+    }
+}
+
+function saveSynthPresetsToStorage() {
+    try {
+        localStorage.setItem('snugosSynthPresets', JSON.stringify(synthPresetsGlobal));
+    } catch (e) {
+        console.warn("[State] Error saving synth presets:", e);
+    }
+}
+
+loadSynthPresetsFromStorage();
+
+export function getSynthPresets() {
+    return { ...synthPresetsGlobal };
+}
+
+export function saveSynthPreset(name, presetData) {
+    synthPresetsGlobal[name] = JSON.parse(JSON.stringify(presetData));
+    saveSynthPresetsToStorage();
+}
+
+export function deleteSynthPreset(name) {
+    if (synthPresetsGlobal[name]) {
+        delete synthPresetsGlobal[name];
+        saveSynthPresetsToStorage();
+        return true;
+    }
+    return false;
+}
+
 // --- AppServices Placeholder (will be populated by main.js) ---
 let appServices = {}; // Populated by initializeStateModule
 

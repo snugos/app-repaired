@@ -998,6 +998,22 @@ export class Track {
         }
     }
 
+    async applySynthPreset(presetData) {
+        if (this.type !== 'Synth') return;
+        try {
+            if (presetData.synthEngineType) {
+                this.synthEngineType = presetData.synthEngineType;
+            }
+            if (presetData.synthParams) {
+                this.synthParams = JSON.parse(JSON.stringify(presetData.synthParams));
+            }
+            await this.initializeInstrument();
+            console.log(`[Track ${this.id} applySynthPreset] Applied preset.`);
+        } catch (e) {
+            console.error(`[Track ${this.id} applySynthPreset] Error applying preset:`, e);
+        }
+    }
+
     setSliceVolume(sliceIndex, volume) {
         if (this.slices && this.slices[sliceIndex]) this.slices[sliceIndex].volume = parseFloat(volume);
     }
@@ -1766,6 +1782,7 @@ export class Track {
         console.log(`[Track ${this.id}] Added sequence clip to timeline:`, newClip);
         this._captureUndoState(`Add Sequence Clip "${newClip.name}" to ${this.name}`);
 
+        if (this.appServices.updateTrackUI) this.appServices.updateTrackUI(this.id, 'sequencerContentChanged');
         if (this.appServices.renderTimeline) this.appServices.renderTimeline();
         return newClip;
     }

@@ -63,6 +63,8 @@ import {
     setLoopRegion, setLoopRegionEnabled, isLoopRegionEnabled, getLoopStartBars, getLoopEndBars,
     // Project Name
     getProjectNameState, setProjectNameState,
+    // Synth Presets
+    getSynthPresets, saveSynthPreset, deleteSynthPreset,
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
