@@ -854,6 +854,45 @@ export class Track {
         this.applyMuteState(); 
     }
 
+    // --- Automation Write Methods ---
+    writeVolumeAutomation(time, value) {
+        if (!this.automation) this.automation = { volume: [], mute: [], solo: [] };
+        if (!this.automation.volume) this.automation.volume = [];
+        const event = { time: parseFloat(time), value: Math.max(0, Math.min(parseFloat(value) || 0, 1.5)) };
+        this.automation.volume.push(event);
+        if (this.automation.volume.length > 10000) this.automation.volume.splice(0, 1000);
+        this.automation.volume.sort((a, b) => a.time - b.time);
+        return event;
+    }
+
+    writeMuteAutomation(time, value) {
+        if (!this.automation) this.automation = { volume: [], mute: [], solo: [] };
+        if (!this.automation.mute) this.automation.mute = [];
+        const event = { time: parseFloat(time), value: !!value };
+        this.automation.mute.push(event);
+        if (this.automation.mute.length > 10000) this.automation.mute.splice(0, 1000);
+        this.automation.mute.sort((a, b) => a.time - b.time);
+        return event;
+    }
+
+    writeSoloAutomation(time, value) {
+        if (!this.automation) this.automation = { volume: [], mute: [], solo: [] };
+        if (!this.automation.solo) this.automation.solo = [];
+        const event = { time: parseFloat(time), value: !!value };
+        this.automation.solo.push(event);
+        if (this.automation.solo.length > 10000) this.automation.solo.splice(0, 1000);
+        this.automation.solo.sort((a, b) => a.time - b.time);
+        return event;
+    }
+
+    removeAutomationEventsInRange(type, startTime, endTime) {
+        if (!this.automation || !this.automation[type]) return;
+        const before = this.automation[type].length;
+        this.automation[type] = this.automation[type].filter(e => e.time < startTime || e.time > endTime);
+        const removed = before - this.automation[type].length;
+        if (removed > 0) console.log(`[Track ${this.id}] Removed ${removed} ${type} automation events in range ${startTime.toFixed(2)}-${endTime.toFixed(2)}`);
+    }
+
     /**
      * Schedules automation events for playback. Call this during Tone.Transport.scheduleRepeat.
      * @param {number} time - The Tone.Transport time in seconds
@@ -1916,14 +1955,6 @@ export class Track {
                                             const releaseTime = time + playDurationPart - (sliceData.envelope.release * 0.05); 
                                             this.slicerMonoEnvelope.triggerRelease(Math.max(time, releaseTime));
                                         }
-                                    }
-                                } else if (this.type === 'DrumSampler' && value.note.type === 'drum') {
-                                    const padData = value.note.data;
-                                    const player = this.drumPadPlayers[value.note.index];
-                                    if (player && !player.disposed && player.loaded) {
-                                        player.volume.value = Tone.gainToDb(padData.volume * value.velocity * 0.7);
-                                        player.playbackRate = Math.pow(2, (padData.pitchShift || 0) / 12);
-                                        player.start(time);
                                     }
                                 }
                             }, events);

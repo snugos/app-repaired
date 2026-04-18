@@ -251,6 +251,7 @@ export function attachGlobalControlEvents(elements) {
                         transport.start(Tone.now() + 0.05, startTime);
                         playBtnGlobal.textContent = 'Pause';
                         playBtnGlobal.classList.add('playing');
+                        if (localAppServices.onTransportStart) localAppServices.onTransportStart();
                     };
 
                     if (countInBars > 0 && !wasPaused && metronomeOn) {
@@ -266,16 +267,15 @@ export function attachGlobalControlEvents(elements) {
                 } else { 
                     console.log(`[EventHandlers Play/Resume] Pausing transport.`);
                     transport.pause();
+                    if (localAppServices.onTransportStop) localAppServices.onTransportStop();
                     playBtnGlobal.textContent = 'Play';
                     playBtnGlobal.classList.remove('playing');
                 }
             } catch (error) {
                 console.error("[EventHandlers Play/Pause] Error:", error);
                 showNotification(`Error during playback: ${error.message}`, 4000);
-                if (playBtnGlobal) {
-                    playBtnGlobal.textContent = 'Play';
-                    playBtnGlobal.classList.remove('playing');
-                }
+                if (localAppServices.updateRecordButtonUI) localAppServices.updateRecordButtonUI(false); 
+                setIsRecording(false); setRecordingTrackId(null); 
             }
         });
     } else { console.warn("[EventHandlers] playBtnGlobal not found in provided elements."); }
@@ -607,7 +607,7 @@ document.addEventListener('keydown', (event) => {
             return; 
         }
         if (event.metaKey || event.ctrlKey) {
-            if (!( (event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y'))) { 
+            if (!((key === 'z' || key === 'y'))) { 
                  return;
             }
         }
@@ -737,6 +737,133 @@ document.addEventListener('keydown', (event) => {
             return;
         }
 
+        // Ctrl/Cmd+C - Copy sequencer selection to clipboard
+        if ((event.ctrlKey || event.metaKey) && key === 'c') {
+            const armedTrackId = getArmedTrackId();
+            if (armedTrackId !== null) {
+                const track = getTrackById(armedTrackId);
+                if (track && localAppServices.getClipboardData && localAppServices.setClipboardData) {
+                    const currentActiveSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                    if (currentActiveSeq && currentActiveSeq.data) {
+                        // Use the context menu approach for Copy Selection
+                        // Check if there's an active drag selection by looking at UI state
+                        const sequencerWindow = track._lastOpenedSequencerWindow;
+                        if (sequencerWindow && sequencerWindow.element) {
+                            const selectedCells = sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell');
+                            if (selectedCells.length > 0) {
+                                // Find min/max rows and cols from selected cells
+                                let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+                                selectedCells.forEach(cell => {
+                                    const r = parseInt(cell.dataset.row);
+                                    const c = parseInt(cell.dataset.col);
+                                    if (r < minRow) minRow = r;
+                                    if (r > maxRow) maxRow = r;
+                                    if (c < minCol) minCol = c;
+                                    if (c > maxCol) maxCol = c;
+                                });
+                                const selData = [];
+                                for (let r = minRow; r <= maxRow; r++) {
+                                    const row = [];
+                                    for (let c = minCol; c <= maxCol; c++) {
+                                        row.push(currentActiveSeq.data && currentActiveSeq.data[r] ? (currentActiveSeq.data[r][c] || null) : null);
+                                    }
+                                    selData.push(row);
+                                }
+                                localAppServices.setClipboardData({ type: 'selection', sourceTrackType: track.type, data: selData, selectionRows: maxRow-minRow+1, selectionCols: maxCol-minCol+1, originalRow: minRow, originalCol: minCol });
+                                showNotification(`Selection (${maxRow-minRow+1}x${maxCol-minCol+1}) copied.`, 2000);
+                                return;
+                            }
+                        }
+                        // No selection - copy full sequence
+                        localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: track.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length });
+                        showNotification(`Sequence "${currentActiveSeq.name}" copied.`, 2000);
+                    }
+                }
+            }
+            return;
+        }
+
+        // Ctrl/Cmd+V - Paste sequencer clipboard to selection or full paste
+        if ((event.ctrlKey || event.metaKey) && key === 'v') {
+            const armedTrackId = getArmedTrackId();
+            if (armedTrackId !== null) {
+                const track = getTrackById(armedTrackId);
+                if (track && localAppServices.getClipboardData) {
+                    const cb = localAppServices.getClipboardData();
+                    if (!cb || !cb.data) {
+                        showNotification("Clipboard empty.", 2000);
+                        return;
+                    }
+                    if (cb.type === 'selection' && cb.sourceTrackType === track.type) {
+                        // Paste selection
+                        const currentActiveSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                        if (!currentActiveSeq) return;
+                        const sequencerWindow = track._lastOpenedSequencerWindow;
+                        if (sequencerWindow && sequencerWindow.element) {
+                            const selectedCells = sequencerWindow.element.querySelectorAll('.sequencer-step-cell.selected-cell');
+                            if (selectedCells.length > 0) {
+                                let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+                                selectedCells.forEach(cell => {
+                                    const r = parseInt(cell.dataset.row);
+                                    const c = parseInt(cell.dataset.col);
+                                    if (r < minRow) minRow = r;
+                                    if (r > maxRow) maxRow = r;
+                                    if (c < minCol) minCol = c;
+                                    if (c > maxCol) maxCol = c;
+                                });
+                                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Selection on ${track.name}`);
+                                const rows = cb.data.length;
+                                const cols = cb.data[0] ? cb.data[0].length : 0;
+                                for (let r = 0; r < rows; r++) {
+                                    if (!currentActiveSeq.data[r + minRow]) currentActiveSeq.data[r + minRow] = Array(currentActiveSeq.length).fill(null);
+                                    for (let c = 0; c < cols; c++) {
+                                        if (cb.data[r] && cb.data[r][c]) {
+                                            currentActiveSeq.data[r + minRow][c + minCol] = JSON.parse(JSON.stringify(cb.data[r][c]));
+                                        }
+                                    }
+                                }
+                                track.recreateToneSequence(true);
+                                showNotification(`Selection pasted at (${minRow+1}, ${minCol+1}).`, 2000);
+                                if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                                return;
+                            }
+                        }
+                        // No selection - paste at beginning
+                        if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Selection on ${track.name}`);
+                        const currentActiveSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                        if (!currentActiveSeq) return;
+                        const r1 = 0, c1 = 0;
+                        const rows = cb.data.length;
+                        const cols = cb.data[0] ? cb.data[0].length : 0;
+                        for (let r = 0; r < rows; r++) {
+                            if (!currentActiveSeq.data[r + r1]) currentActiveSeq.data[r + r1] = Array(currentActiveSeq.length).fill(null);
+                            for (let c = 0; c < cols; c++) {
+                                if (cb.data[r] && cb.data[r][c]) {
+                                    currentActiveSeq.data[r + r1][c + c1] = JSON.parse(JSON.stringify(cb.data[r][c]));
+                                }
+                            }
+                        }
+                        track.recreateToneSequence(true);
+                        showNotification(`Selection pasted at (1, 1).`, 2000);
+                        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                        return;
+                    } else if (cb.type === 'sequence' && cb.sourceTrackType === track.type) {
+                        // Full sequence paste
+                        const currentActiveSeq = track.getActiveSequence ? track.getActiveSequence() : null;
+                        if (!currentActiveSeq) return;
+                        if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${track.name}`);
+                        currentActiveSeq.data = JSON.parse(JSON.stringify(cb.data));
+                        currentActiveSeq.length = cb.sequenceLength;
+                        track.recreateToneSequence(true);
+                        showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000);
+                        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
         let midiNote = keyToMIDIMap[event.key]; 
         if (midiNote === undefined && keyToMIDIMap[key]) midiNote = keyToMIDIMap[key]; 
 
@@ -817,6 +944,7 @@ export function showKeyboardShortcutsModal() {
             { keys: "P", desc: "Toggle Punch In/Out" },
         ]},
         { section: "Sequencer", items: [
+            { keys: "Ctrl+C / Ctrl+V", desc: "Copy / Paste sequencer selection" },
             { keys: "S", desc: "Cycle snap grid (Off / 1/4 / 1/8 / 1/16)" },
             { keys: "Q", desc: "Quantize notes to current snap grid" },
             { keys: "Shift+Click", desc: "Transpose notes up 1 semitone" },

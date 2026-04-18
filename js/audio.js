@@ -520,7 +520,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructinging) {
+    if (localAppServices.captureStateForUndo && !isReconstructing) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -890,7 +890,7 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
         console.log(`[Audio fetchSoundLibrary JSZIP_LOAD_ASYNC_SUCCESS] JSZip successfully loaded ${libraryName}. Num files in zip: ${Object.keys(loadedZipInstance.files).length}`);
 
         // Get the latest state again before updating
-        const latestLoadedZipsAfterLoad = localAppServices.getLoadedZipFiles ? { ...(localAppServices.getLoadedZipFiles()) } : {};
+        const latestLoadedZipsAfterLoad = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
         latestLoadedZipsAfterLoad[libraryName] = loadedZipInstance; // Store the JSZip instance
 
         console.log(`[Audio Fetch DEBUG] About to set state for ${libraryName} (loadedZips).`);
@@ -931,7 +931,7 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
         });
         console.log(`[Audio fetchSoundLibrary PARSE_ZIP_COMPLETE] Parsed ${audioFileCount} audio files for ${libraryName}. FileTree keys:`, Object.keys(fileTree));
 
-        const latestSoundTrees = localAppServices.getSoundLibraryFileTrees ? { ...(localAppServices.getSoundLibraryFileTrees()) } : {};
+        const latestSoundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
         latestSoundTrees[libraryName] = fileTree;
 
         console.log(`[Audio Fetch DEBUG] About to set state for ${libraryName} (soundTrees).`);
@@ -960,11 +960,11 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
     } catch (error) {
         console.error(`[Audio fetchSoundLibrary CATCH_ERROR] Error fetching/processing library ${libraryName} from ${zipUrl}:`, error);
 
-        const errorLoadedZips = localAppServices.getLoadedZipFiles ? { ...(localAppServices.getLoadedZipFiles()) } : {};
+        const errorLoadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
         delete errorLoadedZips[libraryName];
         if (localAppServices.setLoadedZipFilesState) localAppServices.setLoadedZipFilesState(errorLoadedZips);
 
-        const errorSoundTrees = localAppServices.getSoundLibraryFileTrees ? { ...(localAppServices.getSoundLibraryFileTrees()) } : {};
+        const errorSoundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
         delete errorSoundTrees[libraryName];
         if (localAppServices.setSoundLibraryFileTreesState) localAppServices.setSoundLibraryFileTreesState(errorSoundTrees);
 
@@ -1463,6 +1463,64 @@ export function startCountIn(onCountInComplete, startPosition = 0) {
     }, `+0:${totalSixteenths}:0`);
 
     console.log(`[CountIn] Started ${countInBars} bar count-in, scheduled to complete at ${totalSixteenths} sixteenths. ID:`, countInScheduledId);
+}
+
+// ============================================================
+// AUTOMATION SCHEDULING MODULE
+// ============================================================
+
+let automationScheduledId = null;
+
+function tickAutomation(time) {
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    for (const track of tracks) {
+        if (track && typeof track.applyAutomationAtTime === 'function') {
+            try {
+                track.applyAutomationAtTime(time);
+            } catch (e) { console.warn(`[Audio tickAutomation] Error applying automation for track ${track.id}:`, e.message); }
+        }
+    }
+}
+
+function scheduleAutomation() {
+    if (!Tone.context || Tone.context.state !== 'running') {
+        console.warn('[Automation] Cannot schedule: audio context not running.');
+        return;
+    }
+    cancelAutomation();
+    automationScheduledId = Tone.Transport.scheduleRepeat((time) => {
+        tickAutomation(time);
+    }, '16n', 0);
+    console.log('[Automation] Scheduled, ID:', automationScheduledId);
+}
+
+function cancelAutomation() {
+    if (automationScheduledId !== null) {
+        try { Tone.Transport.clear(automationScheduledId); } catch(e){}
+        automationScheduledId = null;
+    }
+}
+
+export function startAutomation() {
+    scheduleAutomation();
+}
+
+export function stopAutomation() {
+    cancelAutomation();
+}
+
+export function cleanupAutomation() {
+    stopAutomation();
+}
+
+// Called when transport starts
+export function onTransportStart() {
+    scheduleAutomation();
+}
+
+// Called when transport stops
+export function onTransportStop() {
+    cancelAutomation();
 }
 
 // ============================================================
