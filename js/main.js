@@ -189,7 +189,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
@@ -209,7 +209,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -226,7 +226,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -648,6 +648,7 @@ async function initializeSnugOS() {
                             Tone.Transport.loopEnd = `${endBars}:0:0`;
                         }
                         showSafeNotification(`Loop: ${startBars} - ${endBars} bars`, 1000);
+                        if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                     }
                 });
 
@@ -660,6 +661,7 @@ async function initializeSnugOS() {
                             Tone.Transport.loopEnd = `${endBars}:0:0`;
                         }
                         showSafeNotification(`Loop: ${startBars} - ${endBars} bars`, 1000);
+                        if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                     }
                 });
 
@@ -692,6 +694,7 @@ async function initializeSnugOS() {
                     const outBars = parseInt(punchOutInput.value, 10) || 16;
                     if (setPunchRegion(inBars, outBars)) {
                         showSafeNotification(`Punch: ${inBars} - ${outBars} bars`, 1000);
+                        if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                     }
                 });
 
@@ -700,6 +703,7 @@ async function initializeSnugOS() {
                     const outBars = parseInt(e.target.value, 10) || 16;
                     if (setPunchRegion(inBars, outBars)) {
                         showSafeNotification(`Punch: ${inBars} - ${outBars} bars`, 1000);
+                        if (localAppServices.updateTimelineRegionMarkers) localAppServices.updateTimelineRegionMarkers();
                     }
                 });
 

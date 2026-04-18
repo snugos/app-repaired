@@ -783,15 +783,36 @@ input::placeholder,
     height: 100%;
     pointer-events: none;
     z-index: 1;
-    opacity: 0.3;
+    opacity: 0.7;
+    width: 2px;
+}
+
+.loop-start-marker {
+    background-color: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+}
+
+.loop-end-marker {
+    background-color: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+}
+
+.punch-start-marker {
+    background-color: #f97316;
+    box-shadow: 0 0 6px #f97316;
+}
+
+.punch-end-marker {
+    background-color: #f97316;
+    box-shadow: 0 0 6px #f97316;
 }
 
 .loop-marker {
-    background-color: #22c55e; /* green for loop */
+    background-color: #22c55e;
 }
 
 .punch-marker {
-    background-color: #f97316; /* orange for punch */
+    background-color: #f97316;
 }
 
 .audio-clip {
