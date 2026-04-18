@@ -1272,6 +1272,7 @@ export class Track {
         });
 
         activeSeq.data = newData;
+        this._captureUndoState(`Shift Notes ${semitones > 0 ? 'Down' : 'Up'} on ${activeSeq.name}`);
         return shiftedCount;
     }
 
