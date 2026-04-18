@@ -1437,7 +1437,7 @@ export function renderMixer(container) {
             {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)},
             {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)},
             {separator: true},
-            {label: "Change Color...", action: () => showTrackColorPicker(track)},
+            {label: `Change Color...`, action: () => showTrackColorPicker(track)},
             {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)},
             {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)},
             {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)},
@@ -1947,7 +1947,7 @@ export function updateSequencerCellUI(windowElement, trackType, row, col, isActi
         // Apply velocity-based brightness class
         const vel = (velocity !== undefined) ? velocity : (Constants.defaultVelocity || 0.7);
         const velPercent = vel * 100;
-        let velClass = 'vel-70'; // default
+        let velClass = '';
         if (velPercent >= 100) velClass = 'vel-100';
         else if (velPercent >= 90) velClass = 'vel-90';
         else if (velPercent >= 80) velClass = 'vel-80';
@@ -2208,6 +2208,7 @@ function startClipDrag(e, clipEl) {
     const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
     const startX = e.clientX;
     const originalLeft = clip.startTime * PIXELS_PER_SECOND;
+    const snapValue = getSnapValue();
     
     clipDragState = {
         clipEl,
@@ -2215,7 +2216,8 @@ function startClipDrag(e, clipEl) {
         track,
         startX,
         originalLeft,
-        PIXELS_PER_SECOND
+        PIXELS_PER_SECOND,
+        snapValue
     };
     
     document.addEventListener('mousemove', onClipDrag);
@@ -2224,10 +2226,16 @@ function startClipDrag(e, clipEl) {
 
 function onClipDrag(e) {
     if (!clipDragState) return;
-    const { clipEl, startX, originalLeft, PIXELS_PER_SECOND, clip } = clipDragState;
+    const { clipEl, startX, originalLeft, PIXELS_PER_SECOND, clip, snapValue } = clipDragState;
     
     const deltaX = e.clientX - startX;
-    const newLeft = Math.max(0, originalLeft + deltaX);
+    let newLeft = Math.max(0, originalLeft + deltaX);
+    
+    // Apply snap-to-grid if enabled
+    if (snapValue > 0) {
+        newLeft = snapPixelToGrid(newLeft, snapValue, PIXELS_PER_SECOND);
+    }
+    
     const newStartTime = newLeft / PIXELS_PER_SECOND;
     
     clipEl.style.left = `${newLeft}px`;
@@ -2264,6 +2272,7 @@ function startClipResize(e, clipEl, isLeft) {
     const startX = e.clientX;
     const originalLeft = clip.startTime * PIXELS_PER_SECOND;
     const originalWidth = clip.duration * PIXELS_PER_SECOND;
+    const snapValue = getSnapValue();
     
     clipResizeState = {
         clipEl,
@@ -2273,7 +2282,8 @@ function startClipResize(e, clipEl, isLeft) {
         startX,
         originalLeft,
         originalWidth,
-        PIXELS_PER_SECOND
+        PIXELS_PER_SECOND,
+        snapValue
     };
     
     document.addEventListener('mousemove', onClipResize);
@@ -2282,22 +2292,41 @@ function startClipResize(e, clipEl, isLeft) {
 
 function onClipResize(e) {
     if (!clipResizeState) return;
-    const { clipEl, clip, isLeft, startX, originalLeft, originalWidth, PIXELS_PER_SECOND } = clipResizeState;
+    const { clipEl, clip, isLeft, startX, originalLeft, originalWidth, PIXELS_PER_SECOND, snapValue } = clipResizeState;
     
     const deltaX = e.clientX - startX;
     
     if (isLeft) {
         // Resize from left (change start time and width)
-        const newLeft = Math.max(0, originalLeft + deltaX);
-        const newWidth = Math.max(20, originalWidth - deltaX);
+        let newLeft = Math.max(0, originalLeft + deltaX);
+        let newWidth = originalWidth - deltaX;
+        
+        // Apply snap-to-grid if enabled
+        if (snapValue > 0) {
+            newLeft = snapPixelToGrid(newLeft, snapValue, PIXELS_PER_SECOND);
+            // Recalculate width from snapped left edge to original right edge
+            newWidth = (originalLeft + originalWidth) - newLeft;
+        }
+        
+        newWidth = Math.max(20, newWidth);
         const newStartTime = newLeft / PIXELS_PER_SECOND;
+        
         clipEl.style.left = `${newLeft}px`;
         clipEl.style.width = `${newWidth}px`;
         clip.startTime = newStartTime;
         clip.duration = newWidth / PIXELS_PER_SECOND;
     } else {
         // Resize from right (change width only)
-        const newWidth = Math.max(20, originalWidth + deltaX);
+        let newWidth = originalWidth + deltaX;
+        
+        // Apply snap-to-grid if enabled - snap the new right edge
+        if (snapValue > 0) {
+            const newRightEdge = originalLeft + newWidth;
+            const snappedRight = snapPixelToGrid(newRightEdge, snapValue, PIXELS_PER_SECOND);
+            newWidth = snappedRight - originalLeft;
+        }
+        
+        newWidth = Math.max(20, newWidth);
         clipEl.style.width = `${newWidth}px`;
         clip.duration = newWidth / PIXELS_PER_SECOND;
     }
@@ -2525,4 +2554,27 @@ export function updateDrumPadControlsUI(track) {
             pad.classList.toggle('selected-for-edit', index === track.selectedDrumPadForEdit);
         });
     }
+}
+
+// Snap-to-grid for clips: reads from global controls bar or defaults to sequence snap
+function getSnapValue() {
+    // First check global controls bar snap button if available
+    const snapBtn = document.getElementById('snapToggleBtnGlobal');
+    if (snapBtn) {
+        const snapText = snapBtn.textContent || '';
+        if (snapText.includes('Off')) return 0;
+        if (snapText.includes('1/4')) return 4;
+        if (snapText.includes('1/8')) return 8;
+        if (snapText.includes('1/16')) return 16;
+    }
+    // Fall back to sequence snap value
+    return window.SEQUENCER_SNAP_VALUE || 16;
+}
+
+// Snap a pixel position to the nearest grid line
+function snapPixelToGrid(pixelPos, snapValue, pixelsPerSecond) {
+    if (snapValue === 0) return pixelPos;
+    const snapInSeconds = snapValue / 4 * (60 / (Tone.Transport.bpm?.value || 120));
+    const snapInPixels = snapInSeconds * pixelsPerSecond;
+    return Math.round(pixelPos / snapInPixels) * snapInPixels;
 }
