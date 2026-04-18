@@ -5,7 +5,7 @@ import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners, showConfirmationDialog } from './utils.js';
-import { getActualMasterGainNode, getMasterEffectsBusInputNode } from './audio.js';
+import { getActualMasterGainNode, getMasterEffectsBusInputNode, writeMasterVolumeAutomation, getMasterVolumeAutomation, setMasterVolumeAutomation } from './audio.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -236,7 +236,7 @@ import {
             showSafeNotification("Failed to reorder master effect.", 3000);
         }
     },
-    setActualMasterVolume: (volumeValue) => {
+    setActualMasterVolume: (volumeValue, fromInteraction = false) => {
         if (typeof getActualMasterGainNode === 'function') {
             const actualMasterNode = getActualMasterGainNode();
             if (actualMasterNode && actualMasterNode.gain && typeof actualMasterNode.gain.setValueAtTime === 'function') {
@@ -245,6 +245,12 @@ import {
                 } catch (e) { console.error("Error setting master volume via Tone:", e); }
             } else { console.warn("Master gain node or its gain property not available."); }
         } else { console.warn("getActualMasterGainNode not available."); }
+        // Record master volume automation when user interacts with the knob
+        if (fromInteraction && appServices.masterAutomationArmed) {
+            const timeInSeconds = Tone.Transport.seconds;
+            writeMasterVolumeAutomation(timeInSeconds, volumeValue);
+            console.log(`[Main] Master volume automation recorded at time ${timeInSeconds.toFixed(3)}s, value ${volumeValue.toFixed(3)}`);
+        }
     },
     getMasterEffectsBus: () => {
         if (typeof getMasterEffectsBusInputNode === 'function') {
@@ -259,7 +265,7 @@ import {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true,
-    _isReconstructingingDAW_flag: false,
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },

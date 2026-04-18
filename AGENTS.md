@@ -201,3 +201,10 @@ Need to create `.github/workflows/deploy.yml` that:
 
 ### 2026-04-18 — Day 33
 - **CI/CD: GitHub Actions Deploy Workflow** (`.github/workflows/deploy.yml`): Created `.github/workflows/deploy.yml` for automatic GitHub Pages deployment on push to `LWB-with-Bugs`. Workflow triggers on push to the branch, uses `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4` for zero-build static site deployment. No build step needed since the app is plain HTML/CSS/JS served directly.
+
+### 2026-04-18 — Day 34
+- **Bug Fixes: isReconstructinging typo cascade (undo redo) + notification dimension typos** (`js/main.js`, `js/audio.js`, `js/ui.js`): Fixed four bugs introduced during incomplete prior edits:
+  1. **isReconstructinging → isReconstructing** in `js/audio.js` line 523: `commonLoadSampleLogic()` was checking `!isReconstructinging` (non-existent variable) instead of `!isReconstructing`, causing all sample loads to bypass undo state capture since the undefined variable is always truthy.
+  2. **isReconstructinging → isReconstructing** in `js/main.js` lines 213 and 230: `removeMasterEffect` and `reorderMasterEffect` had the same typo in their undo bypass conditions.
+  3. **isReconstructing flag name** in `js/main.js` line 268 and 780: `_isReconstructingingDAW_flag` and its assignment were still using the typo variant instead of `_isReconstructingDAW_flag`, breaking the reconstruct/recovery flag.
+  4. **Notification dimension typos** in `js/ui.js`: `"Selection (${r2-r1+1}x${c2-c1+4}) copied."` and `"Cleared selection (${r2-r1+4}x${c2-c1+4})."` showed wrong column counts (+4 instead of +1) in copied/cleared selection notifications.

@@ -1480,6 +1480,10 @@ function tickAutomation(time) {
             } catch (e) { console.warn(`[Audio tickAutomation] Error applying automation for track ${track.id}:`, e.message); }
         }
     }
+    // Apply master volume automation
+    try {
+        applyMasterVolumeAutomationAtTime(time);
+    } catch (e) { console.warn(`[Audio tickAutomation] Error applying master volume automation:`, e.message); }
 }
 
 function scheduleAutomation() {
@@ -1521,6 +1525,49 @@ export function onTransportStart() {
 // Called when transport stops
 export function onTransportStop() {
     cancelAutomation();
+}
+
+// ============================================================
+// MASTER VOLUME AUTOMATION MODULE
+// ============================================================
+let masterVolumeAutomation = []; // Array of {time, value} events
+
+export function writeMasterVolumeAutomation(time, value) {
+    const event = { time: parseFloat(time), value: Math.max(0, Math.min(parseFloat(value) || 0, 1.5)) };
+    masterVolumeAutomation.push(event);
+    if (masterVolumeAutomation.length > 10000) masterVolumeAutomation.splice(0, 1000);
+    masterVolumeAutomation.sort((a, b) => a.time - b.time);
+    return event;
+}
+
+export function applyMasterVolumeAutomationAtTime(time) {
+    if (!masterVolumeAutomation || masterVolumeAutomation.length === 0) return;
+    // Find the most recent event at or before this time
+    let eventToApply = null;
+    for (const event of masterVolumeAutomation) {
+        if (event.time <= time) {
+            eventToApply = event;
+        } else {
+            break; // events are sorted by time
+        }
+    }
+    if (eventToApply !== null && masterGainNodeActual && !masterGainNodeActual.disposed) {
+        try {
+            masterGainNodeActual.gain.setValueAtTime(eventToApply.value, Tone.now());
+            // Also sync the state so UI is consistent
+            if (localAppServices.setMasterGainValueState) {
+                localAppServices.setMasterGainValueState(eventToApply.value);
+            }
+        } catch (e) { console.warn('[Audio applyMasterVolumeAutomationAtTime] Error:', e.message); }
+    }
+}
+
+export function getMasterVolumeAutomation() {
+    return masterVolumeAutomation;
+}
+
+export function setMasterVolumeAutomation(automationData) {
+    masterVolumeAutomation = Array.isArray(automationData) ? JSON.parse(JSON.stringify(automationData)) : [];
 }
 
 // ============================================================
