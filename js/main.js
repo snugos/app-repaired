@@ -5,7 +5,7 @@ import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners, showConfirmationDialog } from './utils.js';
-import { getActualMasterGainNode } from './audio.js';
+import { getActualMasterGainNode, getMasterEffectsBusInputNode } from './audio.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -246,12 +246,20 @@ import {
             } else { console.warn("Master gain node or its gain property not available."); }
         } else { console.warn("getActualMasterGainNode not available."); }
     },
+    getMasterEffectsBus: () => {
+        if (typeof getMasterEffectsBusInputNode === 'function') {
+            return getMasterEffectsBusInputNode();
+        } else {
+            console.warn("getMasterEffectsBusInputNode not available.");
+            return null;
+        }
+    },
     effectsRegistryAccess: {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true,
-    _isReconstructingDAW_flag: false,
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
