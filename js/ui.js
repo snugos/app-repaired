@@ -271,7 +271,7 @@ function buildSynthEngineControls(track, container, engineType) {
         }
 
         if (def.type === 'knob') {
-            const knob = createKnob({ label: def.label, min: def.min, max: def.max, step: def.step, initialValue, decimals: def.decimals, displaySuffix: def.displaySuffix, trackRef: track, onValueChange: (val) => track.setSynthParam(def.path, val) });
+            const knob = createKnob({ label: def.label, min: def.min, max: def.max, step: def.step, initialValue: initialValue, decimals: def.decimals, displaySuffix: def.displaySuffix, trackRef: track, onValueChange: (val) => track.setSynthParam(def.path, val) });
             placeholder.innerHTML = ''; placeholder.appendChild(knob.element); track.inspectorControls[def.idPrefix] = knob;
         } else if (def.type === 'select') {
             const selectEl = document.createElement('select');
@@ -1977,13 +1977,13 @@ export function openTimelineWindow(savedState = null) {
     const timelineContent = `
         <div id="timeline-container">
             <div id="timeline-header">
+                <div id="timeline-zoom-controls" style="display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: #2a2a2a; border-right: 1px solid #3a3a3a;">
+                    <button id="timeline-zoom-out" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom out (-)">−</button>
+                    <span id="timeline-zoom-level" style="font-size: 10px; color: #aaa; min-width: 32px; text-align: center;">100%</span>
+                    <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
+                    <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
+                </div>
                 <div id="timeline-ruler-container" style="display: flex; align-items: center;">
-                    <div id="timeline-zoom-controls" style="display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: #2a2a2a; border-right: 1px solid #3a3a3a;">
-                        <button id="timeline-zoom-out" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom out (-)">−</button>
-                        <span id="timeline-zoom-level" style="font-size: 10px; color: #aaa; min-width: 32px; text-align: center;">100%</span>
-                        <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
-                        <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
-                    </div>
                     <div id="timeline-ruler" style="flex: 1; overflow: hidden;"></div>
                 </div>
             </div>
@@ -2289,13 +2289,18 @@ function onClipResize(e) {
 
 function stopClipResize(e) {
     if (!clipResizeState) return;
-    const { clip, track } = clipResizeState;
+    const { clip, track, isLeft } = clipResizeState;
     
-    // Call the track's update function to persist and handle undo
+    // Call the track's update functions to persist and handle undo
     if (typeof track.updateAudioClipDuration === 'function') {
         track.updateAudioClipDuration(clip.id, clip.duration);
     } else if (typeof track.updateAudioClipPosition === 'function') {
         // Fallback: also update position since we modified it during drag
+        track.updateAudioClipPosition(clip.id, clip.startTime);
+    }
+    
+    // When resizing from the left edge, startTime was also modified - capture it for undo too
+    if (isLeft && typeof track.updateAudioClipPosition === 'function') {
         track.updateAudioClipPosition(clip.id, clip.startTime);
     }
     
