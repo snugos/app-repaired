@@ -148,6 +148,17 @@ export const AVAILABLE_EFFECTS = {
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
+    Flanger: {
+        displayName: 'Flanger',
+        toneClass: 'Flanger',
+        params: [
+            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 0.5, decimals: 1, displaySuffix: 'Hz', isSignal: true },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'feedback', label: 'Feedback', type: 'knob', min: -1, max: 1, step: 0.01, defaultValue: -0.5, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
+        ]
+    },
     JCReverb: {
         displayName: 'JC Reverb',
         toneClass: 'JCReverb',

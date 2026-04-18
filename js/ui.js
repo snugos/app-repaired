@@ -407,11 +407,12 @@ function buildTrackInspectorContentDOM(track) {
 
     return `
         <div class="track-inspector-content p-1 space-y-1 text-xs text-gray-700 dark:text-slate-300 overflow-y-auto h-full">
-            <div class="common-controls grid ${track.type === 'Audio' ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-1">
+            <div class="common-controls grid ${track.type === 'Audio' ? 'grid-cols-5' : 'grid-cols-4'} gap-1 mb-1">
                 <button id="muteBtn-${track.id}" title="Mute Track" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'Unmute' : 'Mute'}</button>
                 <button id="soloBtn-${track.id}" title="Solo Track" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'Unsolo' : 'Solo'}</button>
                 ${monitorButtonHTML}
                 <button id="armInputBtn-${track.id}" title="Arm for MIDI/Keyboard Input or Audio Recording" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${armedTrackId === track.id ? 'armed' : ''}">Arm</button>
+                <button id="automationArmBtn-${track.id}" title="Arm for Automation Recording" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.automationArmed ? 'automation-armed' : ''}">A</button>
             </div>
             <div id="volumeKnob-${track.id}-placeholder" class="mb-1"></div>
             <div id="trackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden my-1">
@@ -455,6 +456,21 @@ function initializeCommonInspectorControls(track, winEl) {
     winEl.querySelector(`#muteBtn-${track.id}`)?.addEventListener('click', () => handleTrackMute(track.id));
     winEl.querySelector(`#soloBtn-${track.id}`)?.addEventListener('click', () => handleTrackSolo(track.id));
     winEl.querySelector(`#armInputBtn-${track.id}`)?.addEventListener('click', () => handleTrackArm(track.id));
+
+    // Automation arm button
+    const automationArmBtn = winEl.querySelector(`#automationArmBtn-${track.id}`);
+    if (automationArmBtn) {
+        automationArmBtn.addEventListener('click', () => {
+            track.automationArmed = !track.automationArmed;
+            automationArmBtn.classList.toggle('automation-armed', track.automationArmed);
+            const label = track.automationArmed ? 'A' : 'A';
+            automationArmBtn.textContent = label;
+            showNotification(`Automation recording ${track.automationArmed ? 'ARMED' : 'DISARMED'} for ${track.name}`, 1500);
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Toggle Automation Arm for ${track.name} to ${track.automationArmed}`);
+            }
+        });
+    }
 
     const monitorBtn = winEl.querySelector(`#monitorBtn-${track.id}`);
     if (monitorBtn) {
@@ -562,7 +578,7 @@ export function renderEffectsList(owner, ownerType, listDiv, controlsContainer) 
     const effectsArray = (ownerType === 'track' && owner) ? owner.activeEffects : (localAppServices.getMasterEffects ? localAppServices.getMasterEffects() : []);
 
     if (!effectsArray || effectsArray.length === 0) {
-        listDiv.innerHTML = '<p class="text-xs text-gray-500 dark:text-slate-400 italic">No effects added.</p>';
+        listDiv.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">No effects added.</p>';
         if (controlsContainer) controlsContainer.innerHTML = ''; return;
     }
 
@@ -1621,7 +1637,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 { separator: true },
                 { label: `Duplicate Sequence`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Duplicate Sequence on ${currentTrackForMenu.name}`); const newSeq = currentTrackForMenu.duplicateSequence(currentActiveSeq.id); if (newSeq) { showNotification(`Duplicated "${currentActiveSeq.name}" -> "${newSeq.name}".`, 2000); } else { showNotification("Cannot duplicate sequence.", 2000); } } },
                 { label: `Rename Sequence...`, action: () => { const currentName = currentActiveSeq.name || ''; const newName = window.prompt(`Rename Sequence "${currentName}":`, currentName); if (newName !== null && newName.trim() !== '' && newName.trim() !== currentName) { currentTrackForMenu.renameSequence(currentActiveSeq.id, newName.trim()); showNotification(`Renamed to "${newName.trim()}".`, 2000); } } },
-                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name}`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+1}x${c2-c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
+                { label: `Clear Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Clear Selection on ${currentTrackForMenu.name}`); for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c]) { currentActiveSeq.data[r][c] = null; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Cleared selection (${r2-r1+1}x${c2-c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Invert Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Invert Selection on ${currentTrackForMenu.name}`); let count = 0; for (let r = r1; r <= r2; r++) { for (let c = c1; c <= c2; c++) { if (currentActiveSeq.data[r] && currentActiveSeq.data[r][c] && currentActiveSeq.data[r][c].active) { currentActiveSeq.data[r][c] = null; count++; } else if (currentActiveSeq.data[r]) { const defaultVel = Constants.defaultVelocity || 0.7; currentActiveSeq.data[r][c] = { active: true, velocity: defaultVel }; count++; } } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Inverted ${count} cell(s) in selection.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
                 { label: `Shift Notes Up`, action: () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Shift Notes Up on ${currentTrackForMenu.name} (${currentActiveSeq.name})`); const result = currentTrackForMenu.shiftSequenceNotes(1); if (result > 0) { currentTrackForMenu.recreateToneSequence(true); showNotification(`Shifted ${result} note(s) up.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } else { showNotification("No notes to shift up.", 2000); } } },
@@ -1883,6 +1899,39 @@ export function drawInstrumentWaveform(track) {
 }
 
 
+
+// --- Sequencer Cell UI Update ---
+// Updates a single sequencer cell's visual state (active class and velocity brightness)
+export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity) {
+    if (!windowElement) return;
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) return;
+    
+    // Remove all velocity classes
+    cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
+    
+    // Update active class
+    if (isActive) {
+        cell.classList.add('active');
+        // Apply velocity-based brightness class
+        const vel = (velocity !== undefined) ? velocity : (Constants.defaultVelocity || 0.7);
+        const velPercent = vel * 100;
+        let velClass = 'vel-70'; // default
+        if (velPercent >= 100) velClass = 'vel-100';
+        else if (velPercent >= 90) velClass = 'vel-90';
+        else if (velPercent >= 80) velClass = 'vel-80';
+        else if (velPercent >= 70) velClass = 'vel-70';
+        else if (velPercent >= 60) velClass = 'vel-60';
+        else if (velPercent >= 50) velClass = 'vel-50';
+        else if (velPercent >= 40) velClass = 'vel-40';
+        else if (velPercent >= 30) velClass = 'vel-30';
+        else if (velPercent >= 20) velClass = 'vel-20';
+        else velClass = 'vel-10';
+        cell.classList.add(velClass);
+    } else {
+        cell.classList.remove('active');
+    }
+}
 
 export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
     const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
@@ -2211,15 +2260,15 @@ function onClipResize(e) {
         const newLeft = Math.max(0, originalLeft + deltaX);
         const newWidth = Math.max(20, originalWidth - deltaX);
         const newStartTime = newLeft / PIXELS_PER_SECOND;
-        clip.startTime = newStartTime;
-        clip.duration = newWidth / PIXELS_PER_SECOND;
         clipEl.style.left = `${newLeft}px`;
         clipEl.style.width = `${newWidth}px`;
+        clip.startTime = newStartTime;
+        clip.duration = newWidth / PIXELS_PER_SECOND;
     } else {
         // Resize from right (change width only)
         const newWidth = Math.max(20, originalWidth + deltaX);
-        clip.duration = newWidth / PIXELS_PER_SECOND;
         clipEl.style.width = `${newWidth}px`;
+        clip.duration = newWidth / PIXELS_PER_SECOND;
     }
 }
 

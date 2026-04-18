@@ -165,7 +165,8 @@ export class Track {
         // UI related
         this.waveformCanvasCtx = null;
         this.instrumentWaveformCanvasCtx = null;
-        this.automation = ((initialData) && (initialData).automation) ? JSON.parse(JSON.stringify(initialData.automation)) : { volume: [] };
+        this.automation = ((initialData) && (initialData).automation) ? JSON.parse(JSON.stringify(initialData.automation)) : { volume: [], mute: [], solo: [] };
+        this.automationArmed = ((initialData) && (initialData).automationArmed) || false;
         this.inspectorControls = {};
 
         // Audio Track specific
@@ -853,6 +854,62 @@ export class Track {
         this.applyMuteState(); 
     }
 
+    /**
+     * Schedules automation events for playback. Call this during Tone.Transport.scheduleRepeat.
+     * @param {number} time - The Tone.Transport time in seconds
+     */
+    applyAutomationAtTime(time) {
+        if (!this.automation || this.gainNode && !this.gainNode.disposed) {
+            // Apply volume automation
+            if (this.automation && this.automation.volume && this.automation.volume.length > 0) {
+                for (const event of this.automation.volume) {
+                    if (event && typeof event.time === 'number') {
+                        const eventTime = event.time;
+                        const lookAhead = Tone.Transport.seconds - Tone.now();
+                        if (eventTime >= time - lookAhead && eventTime <= time + lookAhead) {
+                            try {
+                                this.gainNode.gain.setValueAtTime(event.value, eventTime);
+                            } catch (e) { console.warn(`[Track ${this.id}] applyAutomationAtTime volume error:`, e.message); }
+                        }
+                    }
+                }
+            }
+            // Apply mute automation
+            if (this.automation && this.automation.mute && this.automation.mute.length > 0) {
+                for (const event of this.automation.mute) {
+                    if (event && typeof event.time === 'number') {
+                        const eventTime = event.time;
+                        const lookAhead = Tone.Transport.seconds - Tone.now();
+                        if (eventTime >= time - lookAhead && eventTime <= time + lookAhead) {
+                            try {
+                                this.isMuted = event.value;
+                                this.applyMuteState();
+                            } catch (e) { console.warn(`[Track ${this.id}] applyAutomationAtTime mute error:`, e.message); }
+                        }
+                    }
+                }
+            }
+            // Apply solo automation
+            if (this.automation && this.automation.solo && this.automation.solo.length > 0) {
+                for (const event of this.automation.solo) {
+                    if (event && typeof event.time === 'number') {
+                        const eventTime = event.time;
+                        const lookAhead = Tone.Transport.seconds - Tone.now();
+                        if (eventTime >= time - lookAhead && eventTime <= time + lookAhead) {
+                            try {
+                                if (event.value && this.appServices.setSoloedTrackId) {
+                                    this.appServices.setSoloedTrackId(this.id);
+                                } else if (!event.value && this.appServices.setSoloedTrackId) {
+                                    this.appServices.setSoloedTrackId(null);
+                                }
+                            } catch (e) { console.warn(`[Track ${this.id}] applyAutomationAtTime solo error:`, e.message); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     setSynthParam(paramPath, value) {
         if (this.type !== 'Synth') return;
         if (!this.instrument || this.instrument.disposed) {
@@ -1219,11 +1276,12 @@ export class Track {
                         for (let delta = 1; delta < quantizeTo && !placed; delta++) {
                             const down = snappedCol - delta;
                             const up = snappedCol + delta;
-                            if (down >= 0 && !newRow[down]) {
+                            if (down >= 0 && newRow[down]) {
                                 newRow[down] = { ...stepData };
                                 placed = true;
                                 quantizedCount++;
-                            } else if (up < totalSteps && !newRow[up]) {
+                            }
+                            if (up < totalSteps && !newRow[up]) {
                                 newRow[up] = { ...stepData };
                                 placed = true;
                                 quantizedCount++;
@@ -1662,7 +1720,7 @@ export class Track {
             return null;
         }
 
-        const sourceSequence = this.sequences.find(s => s.id === sourceSequenceId);
+        const sourceSequence = this.sequences ? this.sequences.find(s => s.id === sourceSequenceId) : null;
         if (!sourceSequence) {
             console.warn(`[Track ${this.id}] Source sequence with ID ${sourceSequenceId} not found.`);
             if (this.appServices.showNotification) this.appServices.showNotification("Source sequence not found.", 3000);
@@ -1752,13 +1810,13 @@ export class Track {
                                 if (destNode) player.connect(destNode); else player.toDestination();
                                 player.start(effectivePlayStart, offsetIntoSource, playDurationInWindow);
                             };
-                            player.onerror = (err) => { console.error(`[Track ${this.id}] Player error for clip ${clip.id}:`, err); URL.revokeObjectURL(url); if(this.clipPlayers.has(clip.id)){try{if(!player.disposed)player.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}};
+                            player.onerror = (err) => { console.error(`[Track ${this.id}] Player error for clip ${clip.id}:`, err); URL.revokeObjectURL(url); if(this.clipPlayers.has(clip.id)){try{if(!player.disposed)player.dispose()}catch(e){}this.clipPlayers.delete(clip.id);}};
                             await player.load(url);
                         } else {
                             console.warn(`[Track ${this.id}] Blob not found for audio clip ${clip.id} (source ${clip.sourceId})`);
                             if(!player.disposed) player.dispose(); this.clipPlayers.delete(clip.id);
                         }
-                    } catch (err) { console.error(`[Track ${this.id}] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}}
+                    } catch (err) { console.error(`[Track ${this.id}] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){}this.clipPlayers.delete(clip.id);}}
                 } else if (clip.type === 'sequence') {
                     const sourceSequence = this.sequences ? this.sequences.find(s => s.id === clip.sourceSequenceId) : null;
                     if (((sourceSequence) && (sourceSequence).data)?.length > 0 && sourceSequence.length > 0) {
