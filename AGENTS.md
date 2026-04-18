@@ -260,3 +260,9 @@ Need to create `.github/workflows/deploy.yml` that:
   - Downloads the recording as a `.webm` file named after the project with timestamp
   - Error handling with user-friendly notifications for all failure cases
 - **Note**: Git push fails (host key verification), but zo.pub sync works as fallback. GitHub Actions CI/CD still deploys to snugos.github.io/app via push to origin/LWB-with-Bugs.
+### 2026-04-18 — Day 44
+- **Mixer Channel Strip with Inserts** (`js/ui.js`, `js/constants.js`): Enhanced the mixer channel strip with two key improvements:
+  1. **FX effect count badge**: The FX button in each mixer channel strip now shows a small badge (red/orange dot) with the number of active effects on that track. Title tooltip also updated to "Effects Rack (N effects)". When count is 0, no badge is shown.
+  2. **Monitoring toggle for audio tracks**: Added a "Mon" button to audio track mixer strips (only shown for Audio-type tracks, not Synth/Sampler/etc.). Clicking it toggles input monitoring — when enabled the button turns green and shows "bg-green-600 text-white" styling. Clicking calls `localAppServices.setTrackMonitoring(track.id, track.isMonitoringEnabled)` to wire into the existing audio.js monitoring infrastructure. Useful for hearing your microphone through the track while recording.
+- Version bumped to 0.5.5.
+- **Note**: Git push fails (host key verification), but zo.pub sync works as fallback. GitHub Actions CI/CD still deploys to snugos.github.io/app via push to origin/LWB-with-Bugs.
