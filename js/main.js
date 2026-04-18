@@ -192,7 +192,7 @@ import {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -211,8 +211,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -228,7 +228,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex);
@@ -330,6 +330,28 @@ import {
     cancelScheduledRecording,
     cleanupRecordingScheduling,
     exportToWav: exportToWavInternal,
+
+    // MIDI CC Learn / Mapping services
+    applyMidiCCToKnob: (targetId, value) => {
+        // Find the knob by its registered targetId and set its value
+        // Knobs register themselves with a unique targetId when created
+        if (typeof window._midiCCKnobRegistry === 'undefined') return;
+        const entry = window._midiCCKnobRegistry[targetId];
+        if (!entry) return;
+        try {
+            entry.knob.setValue(value, true, false);
+        } catch (e) { console.warn(`[applyMidiCCToKnob] Failed to set value for ${targetId}:`, e); }
+    },
+    registerKnobForMidiCC: (targetId, knob, ownerType, ownerId, paramPath) => {
+        if (typeof window._midiCCKnobRegistry === 'undefined') window._midiCCKnobRegistry = {};
+        window._midiCCKnobRegistry[targetId] = { knob, ownerType, ownerId, paramPath };
+        console.log(`[MIDI CC] Registered knob: ${targetId} (${ownerType}:${ownerId}, param: ${paramPath})`);
+    },
+    unregisterKnobForMidiCC: (targetId) => {
+        if (typeof window._midiCCKnobRegistry !== 'undefined') {
+            delete window._midiCCKnobRegistry[targetId];
+        }
+    },
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

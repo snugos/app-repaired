@@ -8,7 +8,10 @@ import * as Constants from './constants.js';
 // but direct calls might still exist or be transitioned.
 import {
     handleTrackMute, handleTrackSolo, handleTrackArm, handleRemoveTrack,
-    handleOpenTrackInspector, handleOpenEffectsRack, handleOpenSequencer
+    handleOpenTrackInspector, handleOpenEffectsRack, handleOpenSequencer,
+    getMidiCCMappings, getMidiCCLearnActive,
+    clearMidiCCMappings, removeMidiCCMapping, setMidiCCMapping, getMidiCCMapping,
+    startMidiCCLearn, cancelMidiCCLearn
 } from './eventHandlers.js';
 import { getTracksState } from './state.js';
 
@@ -56,9 +59,17 @@ export function initializeUIModule(appServicesFromMain) {
 }
 
 // --- Knob UI ---
+// Global registry for MIDI CC learn to find knobs
+let _knobTargetIdCounter = 0;
+
 export function createKnob(options) {
     const container = document.createElement('div');
     container.className = 'knob-container';
+    container.dataset.targetType = 'knob';
+
+    // Generate unique targetId for MIDI CC mapping
+    const targetId = options.targetId || (`knob_${++_knobTargetIdCounter}_${Date.now()}`);
+    container.dataset.midiTargetId = targetId;
 
     const labelEl = document.createElement('div');
     labelEl.className = 'knob-label';
@@ -86,6 +97,9 @@ export function createKnob(options) {
     const BASE_PIXELS_PER_FULL_RANGE_MOUSE = 300;
     const BASE_PIXELS_PER_FULL_RANGE_TOUCH = 450;
     let initialValueBeforeInteraction = currentValue;
+
+    // MIDI CC learn state for this knob
+    let isLearning = false;
 
     function updateKnobVisual() {
         const percentage = range === 0 ? 0 : (currentValue - min) / range;
@@ -151,10 +165,100 @@ export function createKnob(options) {
         document.addEventListener(isTouch ? 'touchmove' : 'mousemove', onMove, { passive: !isTouch });
         document.addEventListener(isTouch ? 'touchend' : 'mouseup', onEnd);
     }
+
     knobEl.addEventListener('mousedown', (e) => handleInteraction(e, false));
     knobEl.addEventListener('touchstart', (e) => handleInteraction(e, true), { passive: false });
+
+    // Right-click context menu for MIDI CC Learn
+    knobEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showKnobContextMenu(e, container, targetId);
+    });
+
+    // Register this knob with appServices if available
+    function registerKnob() {
+        if (localAppServices && localAppServices.registerKnobForMidiCC) {
+            const ownerType = options.trackRef ? 'track' : (options.ownerType || 'master');
+            const ownerId = options.trackRef ? options.trackRef.id : (options.ownerId || 'master');
+            const paramPath = options.paramPath || options.label || 'unknown';
+            localAppServices.registerKnobForMidiCC(targetId, { setValue, getValue: () => currentValue, element: container }, ownerType, ownerId, paramPath);
+        }
+    }
+
+    // Unregister on cleanup (returned object's cleanup method)
+    function unregisterKnob() {
+        if (localAppServices && localAppServices.unregisterKnobForMidiCC) {
+            localAppServices.unregisterKnobForMidiCC(targetId);
+        }
+    }
+
     setValue(currentValue, false); // Initialize visual
-    return { element: container, setValue, getValue: () => currentValue, type: 'knob', refreshVisuals: updateKnobVisual };
+
+    // Register knob once localAppServices is available (via initializeUIModule)
+    if (localAppServices && localAppServices.registerKnobForMidiCC) {
+        registerKnob();
+    } else {
+        // Defer registration until localAppServices is ready
+        const checkAndRegister = setInterval(() => {
+            if (localAppServices && localAppServices.registerKnobForMidiCC) {
+                registerKnob();
+                clearInterval(checkAndRegister);
+            }
+        }, 100);
+        // Clean up interval when knob is destroyed (via returned cleanup function)
+        setTimeout(() => clearInterval(checkAndRegister), 5000);
+    }
+
+    return {
+        element: container,
+        setValue,
+        getValue: () => currentValue,
+        type: 'knob',
+        refreshVisuals: updateKnobVisual,
+        targetId,
+        unregister: unregisterKnob,
+        // Method to trigger MIDI learn visual state
+        setLearningMode: (learning) => {
+            isLearning = learning;
+            container.classList.toggle('midi-cc-learn-active', learning);
+        },
+        isLearning: () => isLearning
+    };
+}
+
+// Context menu for knob MIDI CC learn
+function showKnobContextMenu(event, knobContainer, targetId) {
+    // Remove any existing context menu
+    const existing = document.querySelector('#knob-midi-cc-menu');
+    if (existing) existing.remove();
+
+    const mapping = (typeof getMidiCCMapping === 'function') ? getMidiCCMapping(targetId) : null;
+
+    const menuItems = [
+        { label: `MIDI Learn`, separator: true },
+        { label: mapping ? `CC ${mapping.cc} (ch ${mapping.channel + 1}) — Click to re-learn` : 'Assign MIDI CC...', action: () => {
+            if (typeof startMidiCCLearn === 'function') {
+                const ownerType = knobContainer.dataset.ownerType || 'unknown';
+                const ownerId = knobContainer.dataset.ownerId || 'unknown';
+                const paramPath = knobContainer.dataset.paramPath || knobContainer.querySelector('.knob-label')?.textContent || 'unknown';
+                startMidiCCLearn(targetId, paramPath, ownerId, 0, 1);
+                knobContainer.classList.add('midi-cc-learn-pending');
+            }
+        }},
+        mapping ? { label: 'Clear CC Mapping', action: () => {
+            if (typeof removeMidiCCMapping === 'function') {
+                removeMidiCCMapping(targetId);
+                showNotification(`MIDI CC mapping cleared for this knob.`, 2000);
+            }
+        }} : null,
+        { separator: true },
+        { label: 'Value', disabled: true }
+    ].filter(Boolean);
+
+    if (typeof createContextMenu === 'function') {
+        createContextMenu(event, menuItems, localAppServices);
+    }
 }
 
 // --- Specific Inspector DOM Builders ---
@@ -1095,7 +1199,7 @@ export function openSoundBrowserWindow(savedState = null) {
         const currentLibNameFromState = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : null;
         if (currentLibNameFromState && localAppServices.updateSoundBrowserDisplayForLibrary) {
             console.log(`[UI SoundBrowser Re-Open/Restore] Updating display for already selected library: ${currentLibNameFromState}`);
-            localAppServices.updateSoundBrowserDisplayForLibrary(currentLibNameFromState);
+            localAppServices.updateSoundBrowserDisplayForLibrary(currentLibNameNameFromState);
         }
         return openWindows.get(windowId);
     }
@@ -2737,7 +2841,7 @@ export function updatePlayheadPosition(progress = undefined) {
             const secondsPerBeat = 60 / Tone.Transport.bpm.value;
             const secondsPerBar = secondsPerBeat * 4;
             const currentSeconds = (bars * secondsPerBar) + (beats * secondsPerBeat) + (sixteenths * secondsPerBeat / 4);
-            progress = currentSeconds / (16 * secondsPerBar); // Normalize to 16 bars
+            progress = currentSeconds / (16 * secondsPerBeat); // Normalize to 16 bars
         } catch (e) {
             progress = 0;
         }
