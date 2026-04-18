@@ -2053,6 +2053,19 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             });
         }
 
+        // Handle view toggle button (step view <-> piano roll view)
+        const viewToggleBtn = sequencerWindow.element.querySelector(`#seqViewToggle-${track.id}`);
+        if (viewToggleBtn) {
+            viewToggleBtn.addEventListener('click', () => {
+                sequencerViewMode = sequencerViewMode === 'step' ? 'piano' : 'step';
+                // Update button label to show the mode we're switching TO
+                viewToggleBtn.textContent = sequencerViewMode === 'step' ? 'Piano' : 'Step';
+                showNotification(`View: ${sequencerViewMode === 'step' ? 'Step Grid' : 'Piano Roll'}`, 1500);
+                // Rebuild the window content with the other view
+                openTrackSequencerWindow(trackId, true);
+            });
+        }
+
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
             if (targetCell) {
@@ -2243,15 +2256,21 @@ export function drawInstrumentWaveform(track) {
 // Updates a single sequencer cell's visual state (active class and velocity brightness)
 export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity) {
     if (!windowElement) return;
-    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${j}"]`);
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
     if (!cell) return;
-    
+
     // Remove all velocity classes
     cell.classList.remove('vel-100', 'vel-90', 'vel-80', 'vel-70', 'vel-60', 'vel-50', 'vel-40', 'vel-30', 'vel-20', 'vel-10');
-    
-    // Update active class
+    cell.classList.remove('active', 'active-synth', 'active-sampler', 'active-drum-sampler', 'active-instrument-sampler');
+
     if (isActive) {
-        cell.classList.add('active');
+        let activeClass = 'active';
+        if (trackType === 'Synth') activeClass = 'active-synth';
+        else if (trackType === 'Sampler') activeClass = 'active-sampler';
+        else if (trackType === 'DrumSampler') activeClass = 'active-drum-sampler';
+        else if (trackType === 'InstrumentSampler') activeClass = 'active-instrument-sampler';
+        cell.classList.add(activeClass);
+
         // Apply velocity-based brightness class
         const vel = (velocity !== undefined) ? velocity : (Constants.defaultVelocity || 0.7);
         const velPercent = vel * 100;
@@ -2267,8 +2286,6 @@ export function updateSequencerCellUI(windowElement, trackType, row, col, isActi
         else if (velPercent >= 20) velClass = 'vel-20';
         else velClass = 'vel-10';
         cell.classList.add(velClass);
-    } else {
-        cell.classList.remove('active');
     }
 }
 
