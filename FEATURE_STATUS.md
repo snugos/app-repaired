@@ -37,7 +37,7 @@
 - [x] Implement sidechain compressor detection (`setupSidechainRouting()`)
 - [x] Add `triggerSidechainForTrack()` for real-time ducking
 - [x] Add `removeSidechainRouting()` and `clearAllSidechainForTrack()` for cleanup
-- [ ] Create UI for routing source to destination (future enhancement)
+- [x] Create UI for routing source to destination
 
 ### Feature 4: Auto-Save Recovery - ✅ COMPLETED
 **File:** `js/state.js`, `js/db.js`
@@ -80,7 +80,7 @@
 - [x] Add `setPan()` method to Track class
 - [x] Add pan knob to mixer UI for each track
 - [x] Dispose panNode in `dispose()` method
-- [ ] Implement send/return routing UI (future enhancement)
+- [x] Implement send/return routing UI
 
 ### Feature 10: Sampler and DrumSampler Pad UI - ✅ COMPLETED
 **File:** `js/ui.js`, `js/Track.js`
