@@ -551,13 +551,7 @@ function initializeCommonInspectorControls(track, winEl) {
 
     winEl.querySelector(`#removeTrackBtn-${track.id}`)?.addEventListener('click', () => handleRemoveTrack(track.id));
     winEl.querySelector(`#openEffectsBtn-${track.id}`)?.addEventListener('click', () => handleOpenEffectsRack(track.id));
-
-    const sequencerBtn = winEl.querySelector(`#openSequencerBtn-${track.id}`);
-    if (sequencerBtn) {
-        sequencerBtn.addEventListener('click', () => handleOpenSequencer(track.id));
-    }
-
-
+    winEl.querySelector(`#openSequencerBtn-${track.id}`)?.addEventListener('click', () => handleOpenSequencer(track.id));
     const volumeKnobPlaceholder = winEl.querySelector(`#volumeKnob-${track.id}-placeholder`);
     if (volumeKnobPlaceholder) {
         const volumeKnob = createKnob({ label: 'Volume', min: 0, max: 1.2, step: 0.01, initialValue: track.previousVolumeBeforeMute, decimals: 2, trackRef: track, onValueChange: (val, o, fromInteraction) => track.setVolume(val, fromInteraction) });
@@ -655,19 +649,32 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
     } else {
         effectDef.params.forEach(paramDef => {
             const controlWrapper = document.createElement('div');
-            let initialValue; const pathKeys = paramDef.key.split('.'); let tempVal = effectWrapper.params;
-            for (const key of pathKeys) { if (tempVal && typeof tempVal === 'object' && key in tempVal) tempVal = tempVal[key]; else { tempVal = undefined; break; } }
+            let initialValue;
+            const pathKeys = paramDef.key.split('.');
+            let tempVal = effectWrapper.params;
+            for (const key of pathKeys) {
+                if (tempVal && typeof tempVal === 'object' && key in tempVal) {
+                    tempVal = tempVal[key];
+                } else {
+                    tempVal = undefined;
+                    break;
+                }
+            }
             initialValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
 
             if (paramDef.type === 'knob') {
                 const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: initialValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
                 controlWrapper.appendChild(knob.element);
             } else if (paramDef.type === 'select') {
-                const label = document.createElement('label'); label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300'; label.textContent = paramDef.label + ':';
-                const select = document.createElement('select'); select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
+                const label = document.createElement('label');
+                label.className = 'block text-xs font-medium mb-0.5 dark:text-slate-300';
+                label.textContent = paramDef.label + ':';
+                const select = document.createElement('select');
+                select.className = 'w-full p-1 border rounded text-xs bg-gray-50 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600';
                 paramDef.options.forEach(opt => {
                     const option = document.createElement('option');
-                    option.value = typeof opt === 'object' ? opt.value : opt; option.textContent = typeof opt === 'object' ? opt.text : opt;
+                    option.value = typeof opt === 'object' ? opt.value : opt;
+                    option.textContent = typeof opt === 'object' ? opt.text : opt;
                     select.appendChild(option);
                 });
                 select.value = initialValue;
@@ -675,9 +682,11 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                     const newValue = e.target.value;
                     const finalValue = (typeof paramDef.defaultValue === 'number' && !isNaN(parseFloat(newValue))) ? parseFloat(newValue) : newValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
-                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, finalValue); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, finalValue);
+                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, finalValue);
+                    else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, finalValue);
                 });
-                controlWrapper.appendChild(label); controlWrapper.appendChild(select);
+                controlWrapper.appendChild(label);
+                controlWrapper.appendChild(select);
             } else if (paramDef.type === 'toggle') {
                 const button = document.createElement('button');
                 button.className = `w-full p-1 border rounded text-xs dark:border-slate-500 dark:text-slate-300 ${initialValue ? 'bg-purple-400 text-white dark:bg-purple-500' : 'bg-gray-200 dark:bg-slate-600'}`;
@@ -685,7 +694,8 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
                 button.addEventListener('click', () => {
                     const newValue = !initialValue;
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle ${paramDef.label} for ${effectWrapper.type} on ${ownerType === 'track' ? owner.name : 'Master'}`);
-                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, newValue); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, newValue);
+                    if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, newValue);
+                    else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, newValue);
                 });
                 controlWrapper.appendChild(button);
             }
@@ -1185,48 +1195,65 @@ export function renderMixer(container) {
 function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const stepsPerBar = Constants.STEPS_PER_BAR;
     const totalSteps = Number.isFinite(numBars) && numBars > 0 ? numBars * stepsPerBar : Constants.defaultStepsPerBar;
+    const rowHeight = 18;
+    const colWidth = 24;
+    const labelWidth = 50;
 
-    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div> <label for="seqLengthInput-${track.id}">Bars: </label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> </div> </div>`;
-    html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 50px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
-    for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; html += `<div class="sequencer-header-cell sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
-
-    const activeSequence = track.getActiveSequence();
-    const sequenceData = activeSequence ? activeSequence.data : [];
-
-    // Build row labels (piano keys)
-    const rowLabelsHTML = `<div class="flex flex-col" style="width: 70px; flex-shrink: 0;">`;
-    for (let r = 0; r < numRows; r++) {
-        const pitchName = synthPitches[r] || `Row ${r + 1}`;
+    let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300" style="display: flex; flex-direction: column;">`;
+    html += `<div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div> <label for="seqLengthInput-${track.id}">Bars: </label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> </div> </div>`;
+    
+    // Piano roll wrapper with row labels + grid side by side
+    html += `<div class="piano-roll-wrapper" style="display: flex; flex: 1; overflow: auto;">`;
+    
+    // Row labels column (piano keys)
+    html += `<div class="piano-keys" style="width: ${labelWidth}px; flex-shrink: 0; position: sticky; left: 0; z-index: 15; background: inherit;">`;
+    html += `<div style="height: 24px; background: #ddd; border-bottom: 1px solid #555;"></div>`; // Header spacer
+    for (let r = 0; r < rows; r++) {
+        const pitchName = rowLabels[r] || `Row ${r + 1}`;
         const isBlack = pitchName.includes('#');
-        rowLabelsHTML += `<div class="sequencer-row-label ${isBlack ? 'bg-gray-800 text-gray-300' : 'bg-gray-300 text-gray-800'}" data-row="${r}" style="height: ${rowHeight}px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 500; border-bottom: 1px solid #555; user-select: none;">${pitchName}</div>`;
+        const keyColor = isBlack ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-800';
+        html += `<div class="piano-key-label ${keyColor}" data-row="${r}" style="height: ${rowHeight}px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 500; border-bottom: 1px solid #444; user-select: none; cursor: pointer;">${pitchName}</div>`;
     }
-    rowLabelsHTML += `</div>`;
-
-    // Build grid
-    const gridCols = Math.min(Constants.STEPS_PER_BAR, 16);
-    const gridRows = numRows;
-    let gridHTML = `<div id="sequencer-grid-${track.id}" class="sequencer-grid overflow-auto" style="flex: 1; display: flex; flex-direction: column;">`;
-    for (let r = 0; r < gridRows; r++) {
-        const isBlack = synthPitches[r] && synthPitches[r].includes('#');
-        gridHTML += `<div class="flex" style="flex-shrink: 0;">`;
-        for (let c = 0; c < activeSequence.length; c++) {
-            const col = c;
-            const stepData = activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][col] : null;
+    html += `</div>`;
+    
+    // Grid area with step header
+    html += `<div class="sequencer-grid-area" style="flex: 1; overflow-x: auto;">`;
+    
+    // Step numbers header
+    html += `<div class="step-headers" style="display: flex; height: 24px; background: #ddd; border-bottom: 1px solid #555; position: sticky; top: 0; z-index: 10;">`;
+    for (let c = 0; c < totalSteps; c++) {
+        const isBarLine = (c % stepsPerBar) === 0;
+        const isBeatLine = (c % 4) === 0 && !isBarLine;
+        const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #ccc;');
+        html += `<div class="step-header" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} display: flex; align-items: center; justify-content: center; font-size: 8px; color: #666;">${isBarLine ? Math.floor(c / stepsPerBar) + 1 : ''}</div>`;
+    }
+    html += `</div>`;
+    
+    // Sequencer grid rows
+    const activeSequence = track.getActiveSequence();
+    html += `<div id="sequencer-grid-${track.id}" class="sequencer-grid" style="display: flex; flex-direction: column;">`;
+    for (let r = 0; r < rows; r++) {
+        const pitchName = rowLabels[r] || '';
+        const isBlack = pitchName.includes('#');
+        html += `<div class="sequencer-row" data-row="${r}" style="display: flex; height: ${rowHeight}px; ${isBlack ? 'background: #1a1a1a;' : 'background: #2a2a2a;'}">`;
+        for (let c = 0; c < totalSteps; c++) {
+            const stepData = activeSequence && activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][c] : null;
             const isActive = stepData && stepData.active;
             const velocity = stepData?.velocity || Constants.defaultVelocity;
-            const bar = Math.floor(col / Constants.STEPS_PER_BAR);
-            const beat = Math.floor((col % Constants.STEPS_PER_BAR) / 4);
-            const isBarLine = (col % Constants.STEPS_PER_BAR) === 0;
-            const isBeatLine = (col % 4) === 0 && !isBarLine;
-            const bgClass = isActive
-                ? (isBlack ? 'bg-violet-600' : 'bg-violet-500')
-                : (isBlack ? 'bg-gray-800' : 'bg-gray-400');
-            gridHTML += `<div class="sequencer-step-cell ${bgClass} ${isBarLine ? 'border-l-2 border-blue-400' : ''} ${isBeatLine ? 'border-l border-gray-600' : ''}" data-row="${r}" data-col="${col}" data-velocity="${velocity}" style="width: ${colWidth}px; height: ${rowHeight}px; border-bottom: 1px solid #444; cursor: pointer; transition: background-color 0.1s;" title="Row ${r + 1}, Step ${col + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ''}"></div>`;
+            const isBarLine = (c % stepsPerBar) === 0;
+            const isBeatLine = (c % 4) === 0 && !isBarLine;
+            const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #333;');
+            const noteColor = isActive ? (isBlack ? 'bg-violet-600' : 'bg-violet-500') : (isBlack ? 'bg-gray-800' : 'bg-gray-600');
+            const velOpacity = isActive ? 0.5 + (velocity * 0.5) : 1;
+            html += `<div class="sequencer-step-cell ${noteColor}" data-row="${r}" data-col="${c}" data-velocity="${velocity}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; transition: background-color 0.1s; opacity: ${isActive ? velOpacity : 1};" title="Row ${r + 1}, Step ${c + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ''}"></div>`;
         }
-        gridHTML += `</div>`;
+        html += `</div>`;
     }
-    gridHTML += `</div>`;
-
+    html += `</div>`;
+    html += `</div>`; // End grid area
+    html += `</div>`; // End piano roll wrapper
+    html += `</div>`; // End container
+    
     return html;
 }
 
@@ -1356,7 +1383,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : {};
             const menuItems = [
                 { label: `Copy "${currentActiveSeq.name}"`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence "${currentActiveSeq.name}" copied.`, 2000); } } },
-                { label: `Paste into "${currentActiveSeq.name}"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }, disabled: (!clipboard || clipboard.type !== 'sequence' || !clipboard.data || (clipboard.sourceTrackType && currentTrackForMenu && clipboard.sourceTrackType !== currentTrackForMenu.type)) },
+                { label: `Paste into "${currentActiveSeq.name}"`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty or no sequence data.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch. Can't paste ${clipboard.sourceTrackType} sequence into ${currentTrackForMenu.type} track.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }); } },
                 { separator: true },
                 { label: `Erase "${currentActiveSeq.name}"`, action: () => { showConfirmationDialog(`Erase Sequence "${currentActiveSeq.name}" for ${currentTrackForMenu.name}?`, "This will clear all notes. This can be undone.", () => { if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Erase Sequence ${currentActiveSeq.name} for ${currentTrackForMenu.name}`); let numRowsErase = currentActiveSeq.data.length; currentActiveSeq.data = Array(numRowsErase).fill(null).map(() => Array(currentActiveSeq.length).fill(null)); currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence "${currentActiveSeq.name}" erased.`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); }); } },
                 { label: `Double Length of "${currentActiveSeq.name}"`, action: () => { const currentNumBars = currentActiveSeq.length / Constants.STEPS_PER_BAR; if (currentNumBars * 2 > (Constants.MAX_BARS || 16)) { showNotification(`Exceeds max of ${Constants.MAX_BARS || 16} bars.`, 3000); return; } currentTrackForMenu.doubleSequence(); showNotification(`Sequence length doubled for "${currentActiveSeq.name}".`, 2000); } }
@@ -1532,7 +1559,28 @@ export function renderDrumSamplerPads(container, pads, onPadClick) {
     console.warn('[UI] renderDrumSamplerPads not implemented');
 }
 export function updateSequencerCellUI(sequencerElement, trackType, row, col, isActive) {
-    console.warn('[UI] updateSequencerCellUI not implemented');
+    if (!sequencerElement) return;
+    const cell = sequencerElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) return;
+    
+    const velocity = parseFloat(cell.dataset.velocity) || Constants.defaultVelocity;
+    const rowLabel = sequencerElement.querySelector(`.piano-key-label[data-row="${row}"]`);
+    const pitchName = rowLabel ? rowLabel.textContent : '';
+    const isBlack = pitchName.includes('#');
+    
+    if (isActive) {
+        const noteColor = isBlack ? 'bg-violet-600' : 'bg-violet-500';
+        cell.className = `sequencer-step-cell ${noteColor}`;
+        cell.style.opacity = 0.5 + (velocity * 0.5);
+    } else {
+        const emptyColor = isBlack ? 'bg-gray-800' : 'bg-gray-600';
+        cell.className = `sequencer-step-cell ${emptyColor}`;
+        cell.style.opacity = 1;
+    }
+    
+    // Update cell title with note info
+    const stepData = isActive ? { active: true, velocity } : null;
+    cell.title = `${pitchName} - Step ${col + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ' (empty)'}`;
 }
 
 // --- Timeline Functions (Stubs) ---
