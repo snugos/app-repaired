@@ -26,3 +26,9 @@ Added `renderTimelineRuler()` that draws bar numbers (1-16) and beat subdivision
 
 _Last scan: 2026-04-19 12:20 UTC — no new bugs detected._
 
+## FX Effect Count Badge on Mixer Channel Strips (`js/ui.js`)
+
+Added a red badge showing the number of active effects on each mixer track's FX button. The badge appears as a small red circle with a white count number in the top-right corner of the FX button. The FX button tooltip also now shows "Effects Rack (N effects)" when effects are present, or just "Effects Rack" when none are on the track.
+
+The `effectCount` variable was already being computed but unused. The fix wires it into a styled badge and updates the button's title attribute dynamically.
+
