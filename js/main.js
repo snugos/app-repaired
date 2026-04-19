@@ -28,6 +28,7 @@ import {
     getClipboardDataState, getArmedTrackIdState, getSoloedTrackIdState, isTrackRecordingState,
     getRecordingTrackIdState,
     getActiveSequencerTrackIdState, getUndoStackState, getRedoStackState, getPlaybackModeState,
+    getTrackEffectsPresetsState, saveTrackEffectPreset, deleteTrackEffectPreset, getTrackEffectPreset, getTrackEffectPresetNames,
     // State Setters
     addWindowToStoreState, removeWindowFromStoreState, setHighestZState, incrementHighestZState,
     setMasterEffectsState, setMasterGainValueState,
@@ -259,6 +260,13 @@ const appServices = {
     getActiveSequencerTrackId: getActiveSequencerTrackIdState,
     getUndoStack: getUndoStackState, getRedoStack: getRedoStackState,
     getPlaybackMode: getPlaybackModeState,
+    // Track Effects Presets
+    getTrackEffectsPresets: getTrackEffectsPresetsState,
+    saveTrackEffectPreset,
+    deleteTrackEffectPreset,
+    getTrackEffectPreset,
+    getTrackEffectPresetNames,
+    getTrackEffectsPresetsState, saveTrackEffectPreset, deleteTrackEffectPreset, getTrackEffectPreset, getTrackEffectPresetNames,
 
     // State Module Setters & Core Actions
     addWindowToStore: addWindowToStoreState, removeWindowFromStore: removeWindowFromStoreState,

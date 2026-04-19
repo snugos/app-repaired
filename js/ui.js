@@ -572,11 +572,26 @@ function initializeTypeSpecificInspectorControls(track, winEl) {
 function buildModularEffectsRackDOM(owner, ownerType = 'track') {
     const ownerId = (ownerType === 'track' && owner) ? owner.id : 'master';
     const ownerName = (ownerType === 'track' && owner) ? owner.name : 'Master Bus';
+    let presetSectionHTML = '';
+    if (ownerType === 'track' && owner) {
+        presetSectionHTML = `
+        <div class="mt-2 pt-2 border-t dark:border-slate-600">
+            <h4 class="text-xs font-semibold dark:text-slate-200 mb-1">Effect Presets</h4>
+            <div class="flex gap-1 mb-1">
+                <button id="saveEffectPresetBtn-${owner.id}" class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">Save Preset</button>
+                <button id="loadEffectPresetBtn-${owner.id}" class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">Load Preset</button>
+            </div>
+            <div id="presetList-${owner.id}" class="text-xs max-h-24 overflow-y-auto border rounded p-1 bg-gray-50 dark:bg-slate-700 dark:border-slate-600">
+                <p class="text-gray-500 dark:text-slate-400 italic">No presets saved</p>
+            </div>
+        </div>`;
+    }
     return `<div id="effectsRackContent-${ownerId}" class="p-2 space-y-2 overflow-y-auto h-full">
         <h3 class="text-sm font-semibold dark:text-slate-200">Effects Rack: ${ownerName}</h3>
         <div id="effectsList-${ownerId}" class="space-y-1 min-h-[50px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600"></div>
         <button id="addEffectBtn-${ownerId}" class="text-xs px-2 py-1 bg-purple-400 text-white rounded hover:bg-purple-500 dark:bg-purple-500 dark:hover:bg-purple-600">Add Effect</button>
         <div id="effectControlsContainer-${ownerId}" class="mt-2 space-y-2"></div>
+        ${presetSectionHTML}
     </div>`;
 }
 
@@ -744,14 +759,92 @@ export function openTrackEffectsRackWindow(trackId, savedState = null) {
     if (openWindows.has(windowId) && !savedState) { openWindows.get(windowId).restore(); return openWindows.get(windowId); }
 
     const contentDOM = buildModularEffectsRackDOM(track, 'track');
-    const rackOptions = { width: 350, height: 400, minWidth: 300, minHeight: 250, initialContentKey: windowId };
+    const rackOptions = { width: 350, height: 450, minWidth: 300, minHeight: 300, initialContentKey: windowId };
     if (savedState) Object.assign(rackOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const rackWindow = localAppServices.createWindow(windowId, `Effects: ${track.name}`, contentDOM, rackOptions);
     if (rackWindow?.element) {
         renderEffectsList(track, 'track', rackWindow.element.querySelector(`#effectsList-${track.id}`), rackWindow.element.querySelector(`#effectControlsContainer-${track.id}`));
         rackWindow.element.querySelector(`#addEffectBtn-${track.id}`)?.addEventListener('click', () => showAddEffectModal(track, 'track'));
+        
+        // Effects preset buttons
+        const savePresetBtn = rackWindow.element.querySelector(`#saveEffectPresetBtn-${track.id}`);
+        if (savePresetBtn) {
+            savePresetBtn.addEventListener('click', () => {
+                const presetName = prompt('Enter a name for this effect preset:');
+                if (presetName && presetName.trim()) {
+                    if (typeof track.saveEffectPreset === 'function') {
+                        track.saveEffectPreset(presetName.trim());
+                        updateEffectsPresetList(track, rackWindow.element);
+                    }
+                }
+            });
+        }
+        
+        const loadPresetBtn = rackWindow.element.querySelector(`#loadEffectPresetBtn-${track.id}`);
+        if (loadPresetBtn) {
+            loadPresetBtn.addEventListener('click', () => {
+                const presets = typeof track.getAvailableEffectPresets === 'function' ? track.getAvailableEffectPresets() : [];
+                if (presets.length === 0) {
+                    showNotification('No presets saved for this track.', 2000);
+                    return;
+                }
+                const presetOptions = presets.map(p => p.name).join('\n');
+                const selectedPreset = prompt(`Available presets:\n${presetOptions}\n\nEnter preset name to load:`);
+                if (selectedPreset && selectedPreset.trim()) {
+                    if (typeof track.loadEffectPreset === 'function') {
+                        const success = track.loadEffectPreset(selectedPreset.trim());
+                        if (success) {
+                            updateEffectsPresetList(track, rackWindow.element);
+                            renderEffectsList(track, 'track', rackWindow.element.querySelector(`#effectsList-${track.id}`), rackWindow.element.querySelector(`#effectControlsContainer-${track.id}`));
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize preset list
+        updateEffectsPresetList(track, rackWindow.element);
     }
     return rackWindow;
+}
+
+function updateEffectsPresetList(track, winEl) {
+    const presetListEl = winEl.querySelector(`#presetList-${track.id}`);
+    if (!presetListEl) return;
+    
+    const presets = typeof track.getAvailableEffectPresets === 'function' ? track.getAvailableEffectPresets() : [];
+    
+    if (presets.length === 0) {
+        presetListEl.innerHTML = '<p class="text-gray-500 dark:text-slate-400 italic">No presets saved</p>';
+        return;
+    }
+    
+    let html = '<div class="space-y-1">';
+    presets.forEach(preset => {
+        const date = new Date(preset.createdAt);
+        const dateStr = date.toLocaleDateString();
+        html += `<div class="flex justify-between items-center p-1 bg-gray-50 dark:bg-slate-600 rounded text-xs">
+            <span class="flex-grow">${preset.name} (${preset.effectsCount} fx)</span>
+            <span class="text-gray-400 dark:text-slate-400 mr-1">${dateStr}</span>
+            <button class="delete-preset-btn text-red-500 hover:text-red-700 dark:text-red-400" data-preset-name="${preset.name}" title="Delete preset">×</button>
+        </div>`;
+    });
+    html += '</div>';
+    
+    presetListEl.innerHTML = html;
+    
+    presetListEl.querySelectorAll('.delete-preset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const presetName = btn.dataset.presetName;
+            if (presetName && confirm(`Delete preset "${presetName}"?`)) {
+                if (typeof track.deleteEffectPreset === 'function') {
+                    track.deleteEffectPreset(presetName);
+                    updateEffectsPresetList(track, winEl);
+                }
+            }
+        });
+    });
 }
 
 export function openMasterEffectsRackWindow(savedState = null) {

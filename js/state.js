@@ -57,6 +57,9 @@ let globalPlaybackMode = 'sequencer'; // 'sequencer' or 'timeline'
 let undoStack = [];
 let redoStack = [];
 
+// Track Effects Presets - stored per trackId as { presetName: { effectType, params } }
+let trackEffectsPresets = {};
+
 // --- AppServices Placeholder (will be populated by main.js) ---
 let appServices = {}; // Populated by initializeStateModule
 
@@ -119,6 +122,38 @@ export function getActiveSequencerTrackIdState() { return activeSequencerTrackId
 export function getUndoStackState() { return undoStack; }
 export function getRedoStackState() { return redoStack; }
 export function getPlaybackModeState() { return globalPlaybackMode; }
+
+// --- Track Effects Presets ---
+export function getTrackEffectsPresetsState() { return trackEffectsPresets; }
+
+export function saveTrackEffectPreset(trackId, presetName, effectsData) {
+    if (!trackEffectsPresets[trackId]) {
+        trackEffectsPresets[trackId] = {};
+    }
+    trackEffectsPresets[trackId][presetName] = JSON.parse(JSON.stringify(effectsData));
+    console.log(`[State] Saved effect preset "${presetName}" for track ${trackId}`);
+}
+
+export function deleteTrackEffectPreset(trackId, presetName) {
+    if (trackEffectsPresets[trackId] && trackEffectsPresets[trackId][presetName]) {
+        delete trackEffectsPresets[trackId][presetName];
+        console.log(`[State] Deleted effect preset "${presetName}" for track ${trackId}`);
+    }
+}
+
+export function getTrackEffectPreset(trackId, presetName) {
+    if (trackEffectsPresets[trackId] && trackEffectsPresets[trackId][presetName]) {
+        return JSON.parse(JSON.stringify(trackEffectsPresets[trackId][presetName]));
+    }
+    return null;
+}
+
+export function getTrackEffectPresetNames(trackId) {
+    if (trackEffectsPresets[trackId]) {
+        return Object.keys(trackEffectsPresets[trackId]);
+    }
+    return [];
+}
 
 
 // --- Setters for Centralized State (called internally or via appServices) ---

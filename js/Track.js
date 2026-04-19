@@ -4,6 +4,25 @@ import * as Constants from './constants.js';
 import { createEffectInstance, getEffectDefaultParams as getEffectDefaultParamsFromRegistry, AVAILABLE_EFFECTS } from './effectsRegistry.js';
 import { storeAudio, getAudio } from './db.js';
 
+// Predefined color palette for tracks
+const TRACK_COLORS = [
+    '#ef4444', // red
+    '#f97316', // orange
+    '#eab308', // yellow
+    '#22c55e', // green
+    '#14b8a6', // teal
+    '#3b82f6', // blue
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#6366f1', // indigo
+    '#84cc16', // lime
+    '#06b6d4', // cyan
+    '#a855f7', // purple
+];
+
+function getRandomTrackColor() {
+    return TRACK_COLORS[Math.floor(Math.random() * TRACK_COLORS.length)];
+}
 
 export class Track {
     constructor(id, type, initialData = null, appServices = {}) {
@@ -20,6 +39,9 @@ export class Track {
             this.name = initialData?.name || `Audio ${this.id}`;
         }
         console.log(`[Track ${this.id} Constructor] Initializing track "${this.name}" of type "${this.type}". InitialData present: ${!!initialData}`);
+
+        // Track color for visual grouping
+        this.color = initialData?.color || getRandomTrackColor();
 
         this.isMuted = initialData?.isMuted || false;
         this.isMonitoringEnabled = initialData?.isMonitoringEnabled !== undefined ? initialData.isMonitoringEnabled : (this.type === 'Audio'); 
@@ -860,6 +882,353 @@ export class Track {
             const panDisplay = this.pan === 0 ? 'Center' : (this.pan < 0 ? `Left ${Math.abs(this.pan * 100).toFixed(0)}%` : `Right ${(this.pan * 100).toFixed(0)}%`);
             this.appServices.captureStateForUndo(`Set ${this.name} pan to ${panDisplay}`);
         }
+    }
+
+    /**
+     * Set the track color for visual grouping.
+     * @param {string} color - Hex color string (e.g., '#ef4444')
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setColor(color, fromInteraction = false) {
+        // Validate color format
+        const isValidHex = /^#[0-9A-Fa-f]{6}$/.test(color);
+        if (!isValidHex) {
+            console.warn(`[Track ${this.id}] Invalid color format: ${color}. Using default.`);
+            color = '#3b82f6'; // Default blue
+        }
+        
+        this.color = color;
+        console.log(`[Track ${this.id}] Set color to ${color}`);
+        
+        // Capture undo state if from user interaction
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Set ${this.name} color`);
+        }
+        
+        // Update UI if available
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'colorChanged');
+        }
+    }
+
+    // --- Effect Presets ---
+    /**
+     * Save the current effect chain as a preset.
+     * @param {string} presetName - Name for the preset
+     * @returns {Object} The saved preset object
+     */
+    saveEffectPreset(presetName) {
+        if (!presetName || typeof presetName !== 'string') {
+            console.warn(`[Track ${this.id}] Invalid preset name.`);
+            return null;
+        }
+        
+        const preset = {
+            name: presetName,
+            trackId: this.id,
+            trackType: this.type,
+            effects: this.activeEffects.map(e => ({
+                type: e.type,
+                params: JSON.parse(JSON.stringify(e.params || {}))
+            })),
+            createdAt: Date.now()
+        };
+        
+        // Store in localStorage under a unique key
+        const presetKey = `snugos_effect_preset_${this.id}_${presetName.replace(/\s+/g, '_')}`;
+        try {
+            localStorage.setItem(presetKey, JSON.stringify(preset));
+            console.log(`[Track ${this.id}] Saved effect preset "${presetName}"`);
+            
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Saved effect preset "${presetName}"`, 2000);
+            }
+            
+            return preset;
+        } catch (e) {
+            console.error(`[Track ${this.id}] Error saving effect preset:`, e);
+            return null;
+        }
+    }
+
+    /**
+     * Load an effect preset by name.
+     * @param {string} presetName - Name of the preset to load
+     * @returns {boolean} Success status
+     */
+    loadEffectPreset(presetName) {
+        if (!presetName || typeof presetName !== 'string') {
+            console.warn(`[Track ${this.id}] Invalid preset name.`);
+            return false;
+        }
+        
+        const presetKey = `snugos_effect_preset_${this.id}_${presetName.replace(/\s+/g, '_')}`;
+        try {
+            const presetJson = localStorage.getItem(presetKey);
+            if (!presetJson) {
+                console.warn(`[Track ${this.id}] Preset "${presetName}" not found.`);
+                return false;
+            }
+            
+            const preset = JSON.parse(presetJson);
+            
+            // Capture undo state before modifying
+            if (this.appServices.captureStateForUndo) {
+                this.appServices.captureStateForUndo(`Load effect preset "${presetName}"`);
+            }
+            
+            // Remove existing effects
+            this.activeEffects.forEach(effect => {
+                if (effect.toneNode && !effect.toneNode.disposed) {
+                    try { effect.toneNode.dispose(); } catch(e) {}
+                }
+            });
+            this.activeEffects = [];
+            
+            // Add effects from preset
+            preset.effects.forEach(effectData => {
+                const toneNode = createEffectInstance(effectData.type, effectData.params);
+                if (toneNode) {
+                    this.activeEffects.push({
+                        id: `effect-${this.id}-${effectData.type}-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
+                        type: effectData.type,
+                        toneNode: toneNode,
+                        params: JSON.parse(JSON.stringify(effectData.params))
+                    });
+                }
+            });
+            
+            // Rebuild the effect chain
+            this.rebuildEffectChain();
+            
+            console.log(`[Track ${this.id}] Loaded effect preset "${presetName}"`);
+            
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Loaded effect preset "${presetName}"`, 2000);
+            }
+            
+            // Update UI
+            if (this.appServices.updateTrackUI) {
+                this.appServices.updateTrackUI(this.id, 'effectsChanged');
+            }
+            
+            return true;
+        } catch (e) {
+            console.error(`[Track ${this.id}] Error loading effect preset:`, e);
+            return false;
+        }
+    }
+
+    /**
+     * Get all available effect presets for this track.
+     * @returns {Array} Array of preset objects with name and createdAt
+     */
+    getAvailableEffectPresets() {
+        const presets = [];
+        const prefix = `snugos_effect_preset_${this.id}_`;
+        
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(prefix)) {
+                    try {
+                        const presetJson = localStorage.getItem(key);
+                        if (presetJson) {
+                            const preset = JSON.parse(presetJson);
+                            presets.push({
+                                name: preset.name,
+                                createdAt: preset.createdAt,
+                                effectsCount: preset.effects ? preset.effects.length : 0
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[Track ${this.id}] Error parsing preset ${key}:`, e);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(`[Track ${this.id}] Error getting presets:`, e);
+        }
+        
+        // Sort by creation date, newest first
+        presets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        
+        return presets;
+    }
+
+    /**
+     * Delete an effect preset by name.
+     * @param {string} presetName - Name of the preset to delete
+     * @returns {boolean} Success status
+     */
+    deleteEffectPreset(presetName) {
+        if (!presetName || typeof presetName !== 'string') {
+            return false;
+        }
+        
+        const presetKey = `snugos_effect_preset_${this.id}_${presetName.replace(/\s+/g, '_')}`;
+        try {
+            localStorage.removeItem(presetKey);
+            console.log(`[Track ${this.id}] Deleted effect preset "${presetName}"`);
+            return true;
+        } catch (e) {
+            console.error(`[Track ${this.id}] Error deleting effect preset:`, e);
+            return false;
+        }
+    }
+
+    // --- Quantize Functions ---
+    /**
+     * Quantize the active sequence to a grid resolution.
+     * @param {string} resolution - Grid resolution ('1/4', '1/8', '1/16', '1/32')
+     * @param {number} strength - Quantization strength 0-1 (1 = full snap)
+     * @returns {number} Number of notes quantized
+     */
+    quantizeSequence(resolution = '1/16', strength = 1) {
+        if (this.type === 'Audio') {
+            console.warn(`[Track ${this.id}] Cannot quantize audio track.`);
+            return 0;
+        }
+
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data || activeSeq.length === 0) {
+            console.log(`[Track ${this.id}] No active sequence to quantize.`);
+            return 0;
+        }
+
+        // Calculate grid size based on resolution
+        const resolutionMap = {
+            '1/4': 4,
+            '1/8': 8,
+            '1/16': 16,
+            '1/32': 32
+        };
+        
+        const gridSize = resolutionMap[resolution] || 16;
+        const stepsPerBeat = gridSize;
+        const stepSize = 1; // Each step in the grid
+
+        let quantizedCount = 0;
+        const originalData = JSON.parse(JSON.stringify(activeSeq.data));
+
+        // Capture undo state before modifying
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Quantize ${this.name} to ${resolution}`);
+        }
+
+        // Quantize each note
+        for (let row = 0; row < activeSeq.data.length; row++) {
+            for (let col = 0; col < activeSeq.data[row].length; col++) {
+                const note = activeSeq.data[row][col];
+                if (note !== null && note !== undefined) {
+                    // Find nearest grid position
+                    const originalPosition = col;
+                    const gridPosition = Math.round(originalPosition / stepSize) * stepSize;
+                    const clampedPosition = Math.max(0, Math.min(gridPosition, activeSeq.data[row].length - 1));
+
+                    if (strength < 1) {
+                        // Partial quantization
+                        const interpolatedPosition = Math.round(originalPosition + (clampedPosition - originalPosition) * strength);
+                        const finalPosition = Math.max(0, Math.min(interpolatedPosition, activeSeq.data[row].length - 1));
+                        
+                        if (finalPosition !== col) {
+                            activeSeq.data[row][finalPosition] = note;
+                            activeSeq.data[row][col] = null;
+                            quantizedCount++;
+                        }
+                    } else {
+                        // Full quantization
+                        if (clampedPosition !== col) {
+                            // Check if target position is free
+                            if (activeSeq.data[row][clampedPosition] === null) {
+                                activeSeq.data[row][clampedPosition] = note;
+                                activeSeq.data[row][col] = null;
+                                quantizedCount++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(`[Track ${this.id}] Quantized ${quantizedCount} notes to ${resolution} grid.`);
+        
+        // Recreate Tone sequence for playback
+        this.recreateToneSequence(true);
+
+        // Update UI
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'sequenceChanged');
+        }
+
+        if (this.appServices.showNotification && quantizedCount > 0) {
+            this.appServices.showNotification(`Quantized ${quantizedCount} notes to ${resolution}`, 2000);
+        }
+
+        return quantizedCount;
+    }
+
+    /**
+     * Quantize selected notes in the active sequence.
+     * @param {Array} selectedPositions - Array of {row, col} positions to quantize
+     * @param {string} resolution - Grid resolution
+     * @param {number} strength - Quantization strength 0-1
+     * @returns {number} Number of notes quantized
+     */
+    quantizeSelectedNotes(selectedPositions, resolution = '1/16', strength = 1) {
+        if (this.type === 'Audio' || !selectedPositions || selectedPositions.length === 0) {
+            return 0;
+        }
+
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) return 0;
+
+        const resolutionMap = {
+            '1/4': 4,
+            '1/8': 8,
+            '1/16': 16,
+            '1/32': 32
+        };
+        
+        const gridSize = resolutionMap[resolution] || 16;
+        const stepSize = 1;
+
+        let quantizedCount = 0;
+
+        // Capture undo state
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Quantize ${selectedPositions.length} selected notes`);
+        }
+
+        selectedPositions.forEach(pos => {
+            const { row, col } = pos;
+            if (row < 0 || row >= activeSeq.data.length || col < 0 || col >= activeSeq.data[row].length) return;
+            
+            const note = activeSeq.data[row][col];
+            if (note === null || note === undefined) return;
+
+            const originalPosition = col;
+            const gridPosition = Math.round(originalPosition / stepSize) * stepSize;
+            const clampedPosition = Math.max(0, Math.min(gridPosition, activeSeq.data[row].length - 1));
+
+            if (clampedPosition !== col) {
+                if (activeSeq.data[row][clampedPosition] === null) {
+                    activeSeq.data[row][clampedPosition] = note;
+                    activeSeq.data[row][col] = null;
+                    quantizedCount++;
+                }
+            }
+        });
+
+        console.log(`[Track ${this.id}] Quantized ${quantizedCount} selected notes.`);
+
+        this.recreateToneSequence(true);
+
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'sequenceChanged');
+        }
+
+        return quantizedCount;
     }
 
     applyMuteState() {
