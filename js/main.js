@@ -1019,6 +1019,8 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
 
 // Restore background on load
 async function restoreDesktopBackground() {
+    const DESKTOP_BG_TYPE_KEY = 'snugos-desktop-bg-type';
+    const DESKTOP_BACKGROUND_KEY = 'snugos-desktop-bg';
     const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
     
     if (bgType === 'video') {
