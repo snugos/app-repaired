@@ -837,6 +837,31 @@ export class Track {
         }
     }
 
+    /**
+     * Set the stereo pan position for this track.
+     * @param {number} pan - Pan value from -1 (full left) to 1 (full right), 0 = center
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setPan(pan, fromInteraction = false) {
+        // Clamp pan value to valid range
+        this.pan = Math.max(-1, Math.min(1, parseFloat(pan) || 0));
+        
+        if (this.panNode && !this.panNode.disposed) {
+            try {
+                this.panNode.pan.setValueAtTime(this.pan, Tone.now());
+                console.log(`[Track ${this.id}] Set pan to ${this.pan.toFixed(2)}`);
+            } catch (e) { 
+                console.error(`[Track ${this.id}] Error setting panNode:`, e); 
+            }
+        }
+        
+        // Capture undo state if from user interaction
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            const panDisplay = this.pan === 0 ? 'Center' : (this.pan < 0 ? `Left ${Math.abs(this.pan * 100).toFixed(0)}%` : `Right ${(this.pan * 100).toFixed(0)}%`);
+            this.appServices.captureStateForUndo(`Set ${this.name} pan to ${panDisplay}`);
+        }
+    }
+
     applyMuteState() {
         if (this.gainNode && !this.gainNode.disposed) {
             const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
@@ -1882,6 +1907,11 @@ export class Track {
             try { this.gainNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing gainNode:`, e.message); }
         }
         this.gainNode = null;
+
+        if (this.panNode && !this.panNode.disposed) {
+            try { this.panNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing panNode:`, e.message); }
+        }
+        this.panNode = null;
 
         if (this.trackMeter && !this.trackMeter.disposed) {
             try { this.trackMeter.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing trackMeter:`, e.message); }
