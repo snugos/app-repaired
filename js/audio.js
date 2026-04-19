@@ -177,11 +177,11 @@ export function rebuildMasterEffectChain() {
                 console.log(`[Audio rebuildMasterEffectChain] Recreated master effect node for ${effectState.type} (ID: ${effectState.id}).`);
             } else {
                 console.error(`[Audio rebuildMasterEffectChain] CRITICAL: Failed to recreate master effect node for ${effectState.type} (ID: ${effectState.id}). Chain will be broken here.`);
-                return; // Skip connecting this effect if it failed to create
+                effectNode = null;
             }
         }
 
-        if (currentAudioPathEnd && !currentAudioPathEnd.disposed) {
+        if (effectNode && currentAudioPathEnd && !currentAudioPathEnd.disposed) {
             try {
                 console.log(`[Audio rebuildMasterEffectChain] Connecting ${currentAudioPathEnd.toString()} to ${effectNode.toString()} (${effectState.type})`);
                 currentAudioPathEnd.connect(effectNode);
@@ -1133,12 +1133,12 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
         // Cleanup on error
         if (mic) {
             if (mic.state === "started") try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
-            mic = null;
         }
+        mic = null;
         if (recorder) {
             if (!recorder.disposed) try { recorder.dispose(); } catch(e) { console.warn("Cleanup error disposing recorder:", e.message); }
-            recorder = null;
         }
+        recorder = null;
         return false;
     }
 }
