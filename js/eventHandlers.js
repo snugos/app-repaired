@@ -163,6 +163,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openMasterEffectsRackWindow?.();
                 } catch(e) { console.error('[Menu] Master Effects error:', e); }
             },
+            menuOpenMidiMappings: () => {
+                console.log('[Menu] MIDI Mappings clicked');
+                try {
+                    services.openMidiMappingsPanel?.();
+                } catch(e) { console.error('[Menu] MIDI Mappings error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
@@ -210,7 +216,7 @@ export function attachGlobalControlEvents(elements) {
         console.error("[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.");
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal } = elements;
 
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
@@ -417,6 +423,37 @@ export function attachGlobalControlEvents(elements) {
             } catch (error) { console.error("[EventHandlers PlaybackModeToggle] Error:", error); }
         });
     } else { console.warn("[EventHandlers] playbackModeToggleBtnGlobal not found."); }
+
+    // MIDI Learn button handler
+    if (midiLearnBtnGlobal) {
+        midiLearnBtnGlobal.addEventListener('click', () => {
+            try {
+                const currentMode = localAppServices.getMidiLearnMode ? localAppServices.getMidiLearnMode() : false;
+                const newMode = !currentMode;
+                
+                if (localAppServices.setMidiLearnMode) {
+                    localAppServices.setMidiLearnMode(newMode);
+                }
+                
+                // Update button visual state
+                if (newMode) {
+                    midiLearnBtnGlobal.classList.add('playing');
+                    midiLearnBtnGlobal.textContent = 'Learning...';
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('MIDI Learn: Move a CC knob to map it', 3000);
+                    }
+                } else {
+                    midiLearnBtnGlobal.classList.remove('playing');
+                    midiLearnBtnGlobal.textContent = 'Learn';
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('MIDI Learn cancelled', 2000);
+                    }
+                }
+            } catch (error) {
+                console.error('[EventHandlers midiLearnBtnGlobal] Error:', error);
+            }
+        });
+    }
 }
 
 export function setupMIDI() {
@@ -518,7 +555,12 @@ export function selectMIDIInput(deviceId, silent = false) {
 
 function handleMIDIMessage(message) {
     try {
-        const [command, note, velocity] = message.data;
+        const [status, data1, data2] = message.data;
+        const command = status & 0xF0; // Extract command (upper 4 bits)
+        const channel = status & 0x0F; // Extract channel (lower 4 bits)
+        const note = data1;
+        const velocity = data2;
+        
         const armedTrackId = getArmedTrackId();
         const armedTrack = armedTrackId !== null ? getTrackById(armedTrackId) : null;
         const midiIndicator = localAppServices.uiElementsCache?.midiIndicatorGlobal;
@@ -528,6 +570,51 @@ function handleMIDIMessage(message) {
             setTimeout(() => midiIndicator.classList.remove('active'), 100);
         }
 
+        // Handle MIDI Learn mode
+        if (localAppServices.getMidiLearnMode && localAppServices.getMidiLearnMode()) {
+            // In learn mode - capture CC messages for mapping
+            if (command === 176) { // CC message
+                const ccNumber = note;
+                const ccValue = velocity;
+                const learnTarget = localAppServices.getMidiLearnTarget ? localAppServices.getMidiLearnTarget() : null;
+                
+                if (learnTarget) {
+                    // Create the mapping
+                    if (localAppServices.addMidiMapping) {
+                        localAppServices.addMidiMapping(ccNumber, channel, learnTarget);
+                    }
+                    
+                    // Exit learn mode
+                    if (localAppServices.setMidiLearnMode) {
+                        localAppServices.setMidiLearnMode(false);
+                    }
+                    
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification(`Mapped CC${ccNumber} to ${learnTarget.paramPath}`, 2000);
+                    }
+                    
+                    console.log(`[MIDI Learn] Mapped CC${ccNumber} ch${channel} to:`, learnTarget);
+                    return;
+                }
+            }
+        }
+
+        // Handle CC messages for mapped parameters
+        if (command === 176) { // CC message (176 = 0xB0)
+            const ccNumber = note;
+            const ccValue = velocity; // 0-127
+            const normalizedValue = ccValue / 127; // 0-1
+            
+            // Check if this CC is mapped to something
+            const mapping = localAppServices.getMidiMappingForCC ? localAppServices.getMidiMappingForCC(ccNumber, channel) : null;
+            
+            if (mapping) {
+                applyMidiMapping(mapping, normalizedValue);
+                return;
+            }
+        }
+
+        // Handle Note On/Off for armed track
         if (!armedTrack) return;
 
         const isNoteOn = command === 144 && velocity > 0;
@@ -575,6 +662,60 @@ function handleMIDIMessage(message) {
         }
     } catch (error) {
         console.error("[EventHandlers handleMIDIMessage] Error:", error, "Message Data:", message.data);
+    }
+}
+
+/**
+ * Applies a MIDI mapping to control a parameter.
+ */
+function applyMidiMapping(mapping, normalizedValue) {
+    const { type, targetId, paramPath, min, max } = mapping;
+    const actualValue = min + (normalizedValue * (max - min));
+    
+    try {
+        if (type === 'master') {
+            // Master parameter
+            if (paramPath === 'volume') {
+                if (localAppServices.setActualMasterVolume) {
+                    localAppServices.setActualMasterVolume(actualValue);
+                }
+            } else if (paramPath.startsWith('effects.')) {
+                // Master effect parameter: effects.0.wet
+                const parts = paramPath.split('.');
+                const effectIndex = parseInt(parts[1], 10);
+                const paramName = parts[2];
+                const masterEffects = localAppServices.getMasterEffects ? localAppServices.getMasterEffects() : [];
+                if (masterEffects[effectIndex]) {
+                    if (localAppServices.updateMasterEffectParam) {
+                        localAppServices.updateMasterEffectParam(masterEffects[effectIndex].id, paramName, actualValue);
+                    }
+                }
+            }
+        } else if (type === 'track' && targetId !== null) {
+            // Track parameter
+            const track = getTrackById(targetId);
+            if (!track) return;
+            
+            if (paramPath === 'volume') {
+                track.setVolume(actualValue, false);
+            } else if (paramPath === 'pan') {
+                track.setPan(actualValue, false);
+            } else if (paramPath.startsWith('effects.')) {
+                // Track effect parameter: effects.0.wet
+                const parts = paramPath.split('.');
+                const effectIndex = parseInt(parts[1], 10);
+                const paramName = parts[2];
+                const trackEffects = track.effects || [];
+                if (trackEffects[effectIndex] && trackEffects[effectIndex].params) {
+                    trackEffects[effectIndex].params[paramName] = actualValue;
+                    if (trackEffects[effectIndex].toneNode && trackEffects[effectIndex].toneNode[paramName]) {
+                        trackEffects[effectIndex].toneNode[paramName].value = actualValue;
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('[MIDI Mapping] Error applying mapping:', error);
     }
 }
 

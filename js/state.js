@@ -60,6 +60,11 @@ let redoStack = [];
 // Track Effects Presets - stored per trackId as { presetName: { effectType, params } }
 let trackEffectsPresets = {};
 
+// --- MIDI Learn / Mapping ---
+let midiLearnMode = false; // Whether we're currently in learn mode
+let midiLearnTarget = null; // { type: 'track'|'master', targetId: number|null, paramPath: string }
+let midiMappings = {}; // { 'ccX_channelY': { type: 'track'|'master', targetId: number|null, paramPath: string, min: number, max: number } }
+
 // --- AppServices Placeholder (will be populated by main.js) ---
 let appServices = {}; // Populated by initializeStateModule
 
@@ -114,7 +119,7 @@ export function getPreviewPlayerState() { return previewPlayerGlobal; }
 export function getClipboardDataState() { return clipboardDataGlobal; }
 
 export function getArmedTrackIdState() { return armedTrackId; }
-export function getSoloedTrackIdState() { return soloedTrackId; }
+export function setSoloedTrackIdState(id) { soloedTrackId = id; }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
 export function getRecordingStartTimeState() { return recordingStartTime; }
@@ -153,6 +158,56 @@ export function getTrackEffectPresetNames(trackId) {
         return Object.keys(trackEffectsPresets[trackId]);
     }
     return [];
+}
+
+// --- MIDI Learn / Mapping ---
+export function getMidiLearnModeState() { return midiLearnMode; }
+export function getMidiLearnTargetState() { return midiLearnTarget; }
+export function getMidiMappingsState() { return midiMappings; }
+
+export function setMidiLearnModeState(enabled) {
+    midiLearnMode = enabled;
+    if (!enabled) {
+        midiLearnTarget = null;
+    }
+    console.log(`[State] MIDI Learn Mode: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+}
+
+export function setMidiLearnTargetState(target) {
+    midiLearnTarget = target;
+    console.log(`[State] MIDI Learn Target set:`, target);
+}
+
+export function addMidiMapping(ccNumber, channel, mapping) {
+    const key = `cc${ccNumber}_ch${channel}`;
+    midiMappings[key] = {
+        type: mapping.type, // 'track' or 'master'
+        targetId: mapping.targetId, // track ID or null for master
+        paramPath: mapping.paramPath, // e.g., 'volume', 'pan', 'effects.0.wet'
+        min: mapping.min ?? 0,
+        max: mapping.max ?? 1
+    };
+    console.log(`[State] Added MIDI mapping: CC${ccNumber} ch${channel} -> ${mapping.paramPath}`);
+}
+
+export function removeMidiMapping(ccNumber, channel) {
+    const key = `cc${ccNumber}_ch${channel}`;
+    if (midiMappings[key]) {
+        delete midiMappings[key];
+        console.log(`[State] Removed MIDI mapping: CC${ccNumber} ch${channel}`);
+        return true;
+    }
+    return false;
+}
+
+export function clearAllMidiMappings() {
+    midiMappings = {};
+    console.log(`[State] Cleared all MIDI mappings`);
+}
+
+export function getMidiMappingForCC(ccNumber, channel) {
+    const key = `cc${ccNumber}_ch${channel}`;
+    return midiMappings[key] || null;
 }
 
 
@@ -209,12 +264,6 @@ export function setPreviewPlayerState(player) { previewPlayerGlobal = player; }
 export function setClipboardDataState(data) { clipboardDataGlobal = typeof data === 'object' && data !== null ? data : { type: null, data: null }; }
 
 export function setArmedTrackIdState(id) { armedTrackId = id; }
-export function setSoloedTrackIdState(id) { soloedTrackId = id; }
-export function setIsRecordingState(status) { isRecordingGlobal = !!status; }
-export function setRecordingTrackIdState(id) { recordingTrackIdGlobal = id; }
-export function setRecordingStartTimeState(time) { recordingStartTime = Number.isFinite(time) ? time : 0; }
-export function setActiveSequencerTrackIdState(id) { activeSequencerTrackId = id; }
-
 export function setPlaybackModeStateInternal(mode) {
     const displayMode = typeof mode === 'string' ? mode.charAt(0).toUpperCase() + mode.slice(1) : 'Unknown';
     console.log(`[State setPlaybackModeStateInternal] Attempting to set mode to: ${mode} (Display: ${displayMode}). Current mode: ${globalPlaybackMode}`);

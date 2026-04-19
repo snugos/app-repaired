@@ -29,6 +29,10 @@ import {
     getRecordingTrackIdState,
     getActiveSequencerTrackIdState, getUndoStackState, getRedoStackState, getPlaybackModeState,
     getTrackEffectsPresetsState, saveTrackEffectPreset, deleteTrackEffectPreset, getTrackEffectPreset, getTrackEffectPresetNames,
+    // MIDI Learn / Mapping
+    getMidiLearnModeState, getMidiLearnTargetState, getMidiMappingsState,
+    setMidiLearnModeState, setMidiLearnTargetState,
+    addMidiMapping, removeMidiMapping, clearAllMidiMappings, getMidiMappingForCC,
     // State Setters
     addWindowToStoreState, removeWindowFromStoreState, setHighestZState, incrementHighestZState,
     setMasterEffectsState, setMasterGainValueState,
@@ -83,7 +87,9 @@ import {
     updatePlayheadPosition,
     openTimelineWindow,
     openUndoHistoryPanel,
-    updateUndoHistoryPanel
+    updateUndoHistoryPanel,
+    openMidiMappingsPanel,
+    updateMidiMappingsPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -98,11 +104,11 @@ const uiElementsCache = {
     menuOpenSoundBrowser: null, menuOpenTimeline: null,
     menuUndo: null, menuRedo: null,
     menuSaveProject: null, menuLoadProject: null, menuExportWav: null, menuOpenGlobalControls: null,
-    menuOpenMixer: null, menuOpenMasterEffects: null,
+    menuOpenMixer: null, menuOpenMasterEffects: null, menuOpenMidiMappings: null,
     menuToggleFullScreen: null, playBtnGlobal: null, recordBtnGlobal: null, stopBtnGlobal: null,
     tempoGlobalInput: null, midiInputSelectGlobal: null, masterMeterContainerGlobal: null,
     masterMeterBarGlobal: null, midiIndicatorGlobal: null, keyboardIndicatorGlobal: null,
-    playbackModeToggleBtnGlobal: null,
+    playbackModeToggleBtnGlobal: null, midiLearnBtnGlobal: null,
 };
 
 const DESKTOP_BACKGROUND_KEY = 'snugosDesktopBackground';
@@ -229,6 +235,7 @@ const appServices = {
     createKnob, updateSequencerCellUI,
     renderTimeline, openTimelineWindow,
     openUndoHistoryPanel, updateUndoHistoryPanel,
+    openMidiMappingsPanel, updateMidiMappingsPanel,
     showNotification: showSafeNotification, 
     createContextMenu, 
 
@@ -264,6 +271,16 @@ const appServices = {
     getActiveSequencerTrackId: getActiveSequencerTrackIdState,
     getUndoStack: getUndoStackState, getRedoStack: getRedoStackState,
     getPlaybackMode: getPlaybackModeState,
+    // MIDI Learn / Mapping
+    getMidiLearnMode: getMidiLearnModeState,
+    getMidiLearnTarget: getMidiLearnTargetState,
+    getMidiMappings: getMidiMappingsState,
+    setMidiLearnMode: setMidiLearnModeState,
+    setMidiLearnTarget: setMidiLearnTargetState,
+    addMidiMapping,
+    removeMidiMapping,
+    clearAllMidiMappings,
+    getMidiMappingForCC,
     // Track Effects Presets
     getTrackEffectsPresets: getTrackEffectsPresetsState,
     saveTrackEffectPreset,
@@ -383,7 +400,7 @@ const appServices = {
                     }
                 }
                 
-                if (track && track.type === 'Sampler' && !track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
+                if (track && track.type === 'Sampler' && track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
                     if (track.slicerMonoPlayer.state === 'started' && !track.slicerMonoPlayer.disposed) {
                         try { track.slicerMonoPlayer.stop(Tone.now()); } catch(e) { console.warn("Error stopping mono slicer player during panic", e); }
                     }
@@ -458,8 +475,8 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -479,7 +496,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -519,8 +536,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -740,7 +757,8 @@ async function initializeSnugOS() {
             masterMeterBarGlobal: document.getElementById('masterMeterBarGlobal'),
             midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
-            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal')
+            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
+            midiLearnBtnGlobal: document.getElementById('midiLearnBtnGlobal')
         };
         
         // Add to cache

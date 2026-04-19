@@ -99,14 +99,21 @@
 
 ## 🟢 Low Priority - Nice-to-Have
 
-### Feature 7: MIDI Learn / Mapping
-**File:** `js/eventHandlers.js`
-**Status:** ⚠️ Not Implemented
-**What's Missing:** No way to map MIDI CC to parameters
+### Feature 7: MIDI Learn / Mapping - ✅ COMPLETED
+**File:** `js/eventHandlers.js`, `js/state.js`, `js/ui.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~No way to map MIDI CC to parameters~~
 **Implementation Plan:**
-- [ ] Add MIDI learn mode
-- [ ] Store CC mappings in track state
-- [ ] Implement CC to parameter routing
+- [x] Add MIDI learn mode state management (`midiLearnMode`, `midiLearnTarget`, `midiMappings`)
+- [x] Add `setMidiLearnMode()`, `setMidiLearnTarget()`, `addMidiMapping()`, `removeMidiMapping()`, `clearAllMidiMappings()`, `getMidiMappingForCC()` functions
+- [x] Add `applyMidiMapping()` function to apply CC values to track/master parameters
+- [x] Add MIDI Learn button (`midiLearnBtnGlobal`) to global controls bar
+- [x] Add visual feedback when in learn mode (button changes state)
+- [x] Add MIDI Mappings panel (`openMidiMappingsPanel()`, `updateMidiMappingsPanel()`)
+- [x] Add menu item `menuOpenMidiMappings` in Start Menu
+- [x] Wire up learn button click handler to toggle learn mode
+- [x] Support mapping CC to track volume, pan, and effect parameters
+- [x] Support mapping CC to master volume and effect parameters
 
 ### Feature 8: Stem Export - ✅ COMPLETED
 **File:** `js/state.js`
@@ -147,24 +154,21 @@
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Implemented Undo/Redo Visual Stack Panel** - Full functionality including:
-  - `openUndoHistoryPanel(savedState)` - Opens the history panel window
-  - `renderUndoHistoryContent()` - Renders undo/redo stack with clickable items
-  - `updateUndoHistoryPanel()` - Updates panel when undo/redo occurs
-  - `undoToIndex(targetIndex)` - Undo to specific state in stack
-  - `redoToIndex(targetIndex)` - Redo to specific state in stack
-  - `clearAllHistory()` - Clear all undo/redo history with confirmation
-  - Menu item in Start Menu for quick access
-  - Current state indicator with undo/redo sections
-  - Click any item to jump to that state
+- ✅ **Implemented MIDI Learn / Mapping UI** - Full functionality including:
+  - MIDI Learn button in global controls bar
+  - Visual feedback when in learn mode
+  - MIDI Mappings panel (`openMidiMappingsPanel()`)
+  - Menu item in Start Menu for viewing mappings
+  - Support for mapping CC to track/master parameters
+  - `applyMidiMapping()` function for real-time parameter control
 
 ### In Progress
 - (none)
 
 ### Next to Tackle
 1. Implement Mixer send/return routing UI
-2. Add MIDI Learn / Mapping
-3. Implement Waveform Visualization on audio clips (timeline)
+2. Implement Waveform Visualization on audio clips (timeline)
+3. Create UI for sidechain routing source to destination
 
 ---
 
@@ -180,10 +184,20 @@
 8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts ✅ COMPLETED
 9. **Waveform Visualization** - Draw waveform on audio clips
 10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED (exists in Track.js)
+11. **MIDI Learn / Mapping** - Map MIDI CC to parameters ✅ COMPLETED
 
 ---
 
 ## Technical Details
+
+### MIDI Learn Implementation
+- **State Management:** `midiLearnMode`, `midiLearnTarget`, `midiMappings` in state.js
+- **Learn Button:** Located in global controls bar, toggles learn mode
+- **Visual Feedback:** Button shows "Learning..." when active
+- **Mappings Panel:** `openMidiMappingsPanel()` shows all current mappings
+- **Mapping Storage:** `{ 'ccX_channelY': { type, targetId, paramPath, min, max } }`
+- **Supported Parameters:** Volume, pan, effect parameters (track and master)
+- **CC to Parameter Routing:** `applyMidiMapping()` handles value scaling and application
 
 ### Stem Export Implementation
 - **Method:** Individual track recording via Tone.Recorder

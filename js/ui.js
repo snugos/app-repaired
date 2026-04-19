@@ -2448,6 +2448,168 @@ export function updateUndoHistoryPanel() {
     renderUndoHistoryContent();
 }
 
+/**
+ * Opens the MIDI Mappings panel showing all current CC mappings.
+ */
+export function openMidiMappingsPanel(savedState) {
+    const windowId = 'midiMappings';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateMidiMappingsPanel();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'midiMappingsContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 400, 
+        height: 350, 
+        minWidth: 300, 
+        minHeight: 200,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'MIDI Mappings', contentContainer, options);
+    
+    if (win?.element) {
+        renderMidiMappingsContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the MIDI mappings content.
+ */
+function renderMidiMappingsContent() {
+    const container = document.getElementById('midiMappingsContent');
+    if (!container) return;
+
+    const mappings = localAppServices.getMidiMappings ? localAppServices.getMidiMappings() : {};
+    const mappingKeys = Object.keys(mappings);
+    
+    let html = `
+        <div class="mb-3 flex justify-between items-center">
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+                ${mappingKeys.length} mapping${mappingKeys.length !== 1 ? 's' : ''}
+            </span>
+            <button id="clearAllMidiMappingsBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 ${mappingKeys.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${mappingKeys.length === 0 ? 'disabled' : ''}>
+                Clear All
+            </button>
+        </div>
+    `;
+    
+    if (mappingKeys.length === 0) {
+        html += `
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No MIDI mappings configured.</p>
+                <p class="text-xs mt-2">Click the "Learn" button in the global controls, then move a CC knob while a parameter is selected.</p>
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-2">`;
+        
+        mappingKeys.forEach(key => {
+            const mapping = mappings[key];
+            const ccMatch = key.match(/cc(\d+)_ch(\d+)/);
+            const ccNumber = ccMatch ? ccMatch[1] : '?';
+            const channel = ccMatch ? ccMatch[2] : '?';
+            
+            // Get display name for target
+            let targetName = mapping.paramPath;
+            if (mapping.type === 'master') {
+                targetName = `Master: ${mapping.paramPath}`;
+            } else if (mapping.type === 'track' && mapping.targetId !== null) {
+                const track = localAppServices.getTrackById ? localAppServices.getTrackById(mapping.targetId) : null;
+                const trackName = track ? track.name : `Track ${mapping.targetId}`;
+                targetName = `${trackName}: ${mapping.paramPath}`;
+            }
+            
+            html += `
+                <div class="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                    <div>
+                        <span class="font-mono text-xs text-purple-600 dark:text-purple-400">CC${ccNumber}</span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">ch${channel}</span>
+                        <span class="mx-2 text-gray-300 dark:text-gray-600">→</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-200">${targetName}</span>
+                    </div>
+                    <button class="remove-midi-mapping-btn px-2 py-1 text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400" data-mapping-key="${key}">
+                        ✕
+                    </button>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Add event listeners
+    const clearBtn = container.querySelector('#clearAllMidiMappingsBtn');
+    if (clearBtn && !clearBtn.disabled) {
+        clearBtn.addEventListener('click', async () => {
+            if (localAppServices.showConfirmationDialog) {
+                const confirmed = await localAppServices.showConfirmationDialog('Clear All MIDI Mappings', 'Are you sure you want to remove all MIDI mappings?');
+                if (confirmed) {
+                    if (localAppServices.clearAllMidiMappings) {
+                        localAppServices.clearAllMidiMappings();
+                    }
+                    renderMidiMappingsContent();
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('All MIDI mappings cleared.', 2000);
+                    }
+                }
+            } else {
+                if (localAppServices.clearAllMidiMappings) {
+                    localAppServices.clearAllMidiMappings();
+                }
+                renderMidiMappingsContent();
+            }
+        });
+    }
+    
+    container.querySelectorAll('.remove-midi-mapping-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.mappingKey;
+            const ccMatch = key.match(/cc(\d+)_ch(\d+)/);
+            if (ccMatch && localAppServices.removeMidiMapping) {
+                localAppServices.removeMidiMapping(parseInt(ccMatch[1], 10), parseInt(ccMatch[2], 10));
+                renderMidiMappingsContent();
+            }
+        });
+    });
+}
+
+/**
+ * Updates the MIDI Mappings panel if it's open.
+ */
+export function updateMidiMappingsPanel() {
+    const win = localAppServices.getWindowById ? localAppServices.getWindowById('midiMappings') : null;
+    if (!win?.element || win.isMinimized) return;
+    renderMidiMappingsContent();
+}
+
 export function renderUndoHistoryContent() {
     const container = document.getElementById('undoHistoryContent');
     if (!container) return;
