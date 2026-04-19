@@ -1,6 +1,7 @@
 // js/eventHandlers.js - Global Event Listeners and Input Handling Module
 import * as Constants from './constants.js';
 import { showNotification, showConfirmationDialog, createContextMenu } from './utils.js';
+import { parseMidiFile, midiNotesToSequenceData, encodeSequenceToMidi, midiToNoteName, noteNameToMidi } from './midiUtils.js';
 import {
     getTracksState as getTracks,
     getTrackByIdState as getTrackById,
@@ -14,7 +15,7 @@ import {
     isTrackRecordingState as isTrackRecording,
     setRecordingTrackIdState as setRecordingTrackId,
     getRecordingTrackIdState as getRecordingTrackId,
-    setRecordingStartTimeState as setRecordingStartTime,
+    getRecordingStartTimeState as getRecordingStartTime,
     removeTrackFromStateInternal as coreRemoveTrackFromState,
     getPlaybackModeState,
     setPlaybackModeState,
@@ -914,4 +915,203 @@ export async function handleTimelineLaneDrop(event, targetTrackId, startTime, ap
         console.error("[EventHandlers handleTimelineLaneDrop] Error processing dropped data:", e);
         services.showNotification("Error processing dropped item.", 3000);
     }
+}
+
+// --- MIDI File Import/Export Functions ---
+
+export function handleMIDIDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) {
+        console.log('[MIDI Drop] No files in drop event');
+        return;
+    }
+
+    const file = files[0];
+    const fileName = file.name.toLowerCase();
+
+    // Check if it's a MIDI file
+    if (!fileName.endsWith('.mid') && !fileName.endsWith('.midi') && file.type !== 'audio/midi' && file.type !== 'audio/x-midi') {
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Please drop a .mid MIDI file.', 3000);
+        }
+        return;
+    }
+
+    console.log('[MIDI Drop] Processing MIDI file:', file.name);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const arrayBuffer = e.target.result;
+            const midiData = parseMidiFile(arrayBuffer);
+
+            if (!midiData || !midiData.notes || midiData.notes.length === 0) {
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification('No notes found in MIDI file.', 3000);
+                }
+                return;
+            }
+
+            // Get first non-Audio track or create one
+            let targetTrack = null;
+            const tracks = getTracks();
+            for (const t of tracks) {
+                if (t.type !== 'Audio') {
+                    targetTrack = t;
+                    break;
+                }
+            }
+
+            // If no track found, create a synth track
+            if (!targetTrack && localAppServices.addTrack) {
+                targetTrack = await localAppServices.addTrack('Synth', { _isUserActionPlaceholder: true });
+            }
+
+            if (!targetTrack) {
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification('No suitable track found for MIDI import.', 3000);
+                }
+                return;
+            }
+
+            // Capture state for undo
+            captureStateForUndo(`Import MIDI to ${targetTrack.name}`);
+
+            // Get the active sequence
+            const activeSeq = targetTrack.getActiveSequence();
+            if (!activeSeq) {
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification('Track has no sequence to import to.', 3000);
+                }
+                return;
+            }
+
+            // Convert MIDI notes to sequence data
+            const targetSteps = activeSeq.length || Constants.defaultStepsPerBar;
+            const sequenceData = midiNotesToSequenceData(midiData, targetSteps);
+
+            // Apply to the track's sequence
+            if (sequenceData && sequenceData.length > 0) {
+                // Merge with existing sequence data
+                const existingData = activeSeq.data || [];
+                for (let row = 0; row < Math.min(sequenceData.length, existingData.length); row++) {
+                    for (let step = 0; step < targetSteps; step++) {
+                        if (sequenceData[row][step] && sequenceData[row][step].active) {
+                            existingData[row][step] = sequenceData[row][step];
+                        }
+                    }
+                }
+                activeSeq.data = existingData;
+
+                // Recreate the Tone.Sequence
+                if (typeof targetTrack.recreateToneSequence === 'function') {
+                    targetTrack.recreateToneSequence(true);
+                }
+
+                // Update UI
+                if (localAppServices.updateTrackUI) {
+                    localAppServices.updateTrackUI(targetTrack.id, 'sequencerContentChanged');
+                }
+
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification(`Imported ${midiData.notes.length} notes to ${targetTrack.name}.`, 3000);
+                }
+            }
+        } catch (error) {
+            console.error('[MIDI Drop] Error parsing MIDI file:', error);
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification('Error parsing MIDI file: ' + error.message, 4000);
+            }
+        }
+    };
+
+    reader.onerror = (e) => {
+        console.error('[MIDI Drop] FileReader error:', e);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Error reading MIDI file.', 3000);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+export function handleMIDIDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+}
+
+export function exportTrackToMIDI(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Track not found.', 2000);
+        }
+        return null;
+    }
+
+    if (track.type === 'Audio') {
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Audio tracks cannot be exported to MIDI.', 3000);
+        }
+        return null;
+    }
+
+    const activeSeq = track.getActiveSequence();
+    if (!activeSeq || !activeSeq.data) {
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('No sequence data to export.', 3000);
+        }
+        return null;
+    }
+
+    try {
+        const tempoBPM = Tone.Transport.bpm.value || 120;
+        const midiBytes = encodeSequenceToMidi(activeSeq.data, activeSeq.length, {
+            tempoBPM: tempoBPM,
+            trackName: track.name,
+            channel: 0
+        });
+
+        // Create blob and download
+        const blob = new Blob([midiBytes], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${track.name.replace(/[^a-zA-Z0-9]/g, '_')}.mid`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(`Exported ${track.name} to MIDI.`, 3000);
+        }
+
+        console.log('[MIDI Export] Exported track', track.name, 'with', activeSeq.length, 'steps');
+        return true;
+    } catch (error) {
+        console.error('[MIDI Export] Error exporting track:', error);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Error exporting to MIDI: ' + error.message, 4000);
+        }
+        return false;
+    }
+}
+
+// Initialize MIDI drop zone on desktop
+export function initializeMIDIDropZone(desktopElement) {
+    if (!desktopElement) {
+        console.warn('[MIDI DropZone] Desktop element not provided');
+        return;
+    }
+
+    // Add MIDI drop listeners
+    desktopElement.addEventListener('dragover', handleMIDIDragOver);
+    desktopElement.addEventListener('drop', handleMIDIDrop);
+
+    console.log('[MIDI DropZone] MIDI drop zone initialized on desktop');
 }

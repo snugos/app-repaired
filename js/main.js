@@ -448,7 +448,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -728,6 +728,11 @@ async function initializeSnugOS() {
         }
         
         if (typeof setupMIDI === 'function') setupMIDI(); else console.error("setupMIDI is not a function");
+
+        // Initialize MIDI drop zone on desktop for .mid file import
+        if (typeof initializeMIDIDropZone === 'function' && uiElementsCache.desktop) {
+            initializeMIDIDropZone(uiElementsCache.desktop);
+        }
 
         if (Constants.soundLibraries && typeof fetchSoundLibrary === 'function') {
             Object.entries(Constants.soundLibraries).forEach(([name, url]) => fetchSoundLibrary(name, url, true)); 
