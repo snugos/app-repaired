@@ -196,29 +196,21 @@
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Mixer Send/Return Routing UI** - Full functionality including:
-  - Send level knobs (Reverb, Delay) for each track in mixer
-  - Return channel strips with return level and wet controls
-  - `SEND_BUSES` infrastructure in audio.js (Reverb, Delay)
-  - `setSendLevel`, `getSendLevel` methods on Track class
-  - `sendGainNodes` per track for send routing
-  - Wired all functions in main.js appServices
-
-- ✅ **Sidechain Routing UI** - Full functionality including:
-  - Sidechain configuration modal with source/destination selectors
-  - Visual SC indicator badge on tracks with sidechain routing
-  - `setupSidechainRouting`, `removeSidechainRouting`, `clearAllSidechainForTrack` in audio.js
-  - `triggerSidechainForTrack()` for real-time gain ducking
-  - `getTrackSidechainInfo()` for UI state
-  - Sidechain properties (`sidechainSource`, `sidechainDestination`) on Track class
-  - Wired all functions in main.js appServices
+- ✅ **Quantize Selection Feature** - Full functionality including:
+  - Quantize button now quantizes all active notes in the sequence
+  - Quantize Selection button quantizes only selected notes (Alt+Shift+click to select)
+  - Selection tracking via `sequencerSelectedCells` Map
+  - `updateQuantizeSelectionButtonState()` function enables/disables button based on selection
+  - Selection cleared after quantize operation
+  - Re-render sequencer after quantize
 
 ### In Progress
 - None - All features completed
 
 ### Next to Tackle
 - All medium priority features have been completed
-- Consider low priority optimizations and nice-to-have features
+- All low priority features have been completed
+- Consider additional optimizations and enhancements
 
 ---
 
@@ -229,16 +221,25 @@
 3. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet ✅ COMPLETED
 4. **MIDI File Import/Export** - Drag & drop .mid files ✅ COMPLETED
 5. **Track Effects Presets** - Save/load effect chain presets per track ✅ COMPLETED
-6. **Quantize Selection** - Quantize selected notes to grid ✅ COMPLETED (exists in Track.js)
+6. **Quantize Selection** - Quantize selected notes to grid ✅ COMPLETED
 7. **Undo/Redo Visual Stack** - Show undo history in a panel ✅ COMPLETED
 8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts ✅ COMPLETED
-9. **Waveform Visualization** - Draw waveform on audio clips
-10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED (exists in Track.js)
+9. **Waveform Visualization** - Draw waveform on audio clips ✅ COMPLETED
+10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED
 11. **MIDI Learn / Mapping** - Map MIDI CC to parameters ✅ COMPLETED
 
 ---
 
 ## Technical Details
+
+### Quantize Selection Implementation
+- **State Management:** `sequencerSelectedCells` Map in ui.js (tracks selected cells per track)
+- **Selection Method:** Alt+Shift+click to toggle cell selection
+- **Quantize Button:** Quantizes all active notes in current sequence
+- **Quantize Selection Button:** Only quantizes selected cells (enabled when selection exists)
+- **Resolution:** Uses the sequencer resolution dropdown (1/4, 1/8, 1/16, 1/32)
+- **Integration:** Calls `track.quantizeSelectedNotes()` method in Track.js
+- **UI Update:** Button state updated via `updateQuantizeSelectionButtonState()`
 
 ### MIDI Learn Implementation
 - **State Management:** `midiLearnMode`, `midiLearnTarget`, `midiMappings` in state.js

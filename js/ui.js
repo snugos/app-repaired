@@ -17,6 +17,9 @@ import { getTracksState } from './state.js';
 let localAppServices = {};
 let selectedSoundForPreviewData = null; // Holds data for the sound selected for preview
 
+// --- Sequencer Selection State ---
+let sequencerSelectedCells = new Map(); // Map<trackId, Set<{row, col}>>
+
 export function initializeUIModule(appServicesFromMain) {
     localAppServices = { ...localAppServices, ...appServicesFromMain };
 
@@ -1909,16 +1912,116 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             });
         }
 
-        // Handle cell click for toggle and shift+click for velocity
+        // Handle Quantize button click - quantize all active notes
+        const quantizeBtn = sequencerWindow.element.querySelector(`#quantizeBtn-${track.id}`);
+        const quantizeSelectionBtn = sequencerWindow.element.querySelector(`#quantizeSelectionBtn-${track.id}`);
+        const resolutionSelect = sequencerWindow.element.querySelector(`#seqResolutionSelect-${track.id}`);
+        
+        if (quantizeBtn) {
+            quantizeBtn.addEventListener('click', () => {
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data) return;
+                
+                const resolution = resolutionSelect?.value || '1/16';
+                
+                // Collect all active note positions
+                const activePositions = [];
+                currentActiveSeq.data.forEach((row, rowIdx) => {
+                    if (row) {
+                        row.forEach((cell, colIdx) => {
+                            if (cell?.active) {
+                                activePositions.push({ row: rowIdx, col: colIdx });
+                            }
+                        });
+                    }
+                });
+                
+                if (activePositions.length === 0) {
+                    if (localAppServices.showNotification) localAppServices.showNotification('No notes to quantize.', 1500);
+                    return;
+                }
+                
+                const quantizedCount = track.quantizeSelectedNotes(activePositions, resolution);
+                
+                if (quantizedCount > 0 && localAppServices.showNotification) {
+                    localAppServices.showNotification(`Quantized ${quantizedCount} notes to ${resolution}.`, 1500);
+                }
+                
+                // Re-render sequencer
+                openTrackSequencerWindow(trackId, true);
+            });
+        }
+        
+        // Handle Quantize Selection button click
+        if (quantizeSelectionBtn) {
+            quantizeSelectionBtn.addEventListener('click', () => {
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data) return;
+                
+                // Get selected cells for this track
+                const trackSelections = sequencerSelectedCells.get(trackId);
+                if (!trackSelections || trackSelections.size === 0) {
+                    if (localAppServices.showNotification) localAppServices.showNotification('No cells selected. Shift+click to select.', 1500);
+                    return;
+                }
+                
+                const resolution = resolutionSelect?.value || '1/16';
+                const selectedPositions = Array.from(trackSelections);
+                
+                const quantizedCount = track.quantizeSelectedNotes(selectedPositions, resolution);
+                
+                if (quantizedCount > 0 && localAppServices.showNotification) {
+                    localAppServices.showNotification(`Quantized ${quantizedCount} selected notes.`, 1500);
+                }
+                
+                // Clear selection after quantize
+                sequencerSelectedCells.delete(trackId);
+                updateQuantizeSelectionButtonState(sequencerWindow.element, trackId);
+                
+                // Re-render sequencer
+                openTrackSequencerWindow(trackId, true);
+            });
+        }
+
+        // Handle cell click for toggle and shift+click for velocity/selection
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
             if (targetCell) {
-                const row = parseInt(targetCell.dataset.row, 10); const col = parseInt(targetCell.dataset.col, 10);
+                const row = parseInt(targetCell.dataset.row, 10); 
+                const col = parseInt(targetCell.dataset.col, 10);
                 const currentActiveSeq = track.getActiveSequence();
                 if (!currentActiveSeq || !currentActiveSeq.data) return;
 
                 if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
                 const currentStepData = currentActiveSeq.data[row][col];
+
+                // Alt+Shift+click: Add to selection
+                if (e.altKey && e.shiftKey) {
+                    e.preventDefault();
+                    if (!sequencerSelectedCells.has(trackId)) {
+                        sequencerSelectedCells.set(trackId, new Set());
+                    }
+                    const trackSelections = sequencerSelectedCells.get(trackId);
+                    const cellKey = `${row}-${col}`;
+                    const cellKeyObj = { row, col };
+                    
+                    // Toggle selection
+                    let isSelected = false;
+                    for (const sel of trackSelections) {
+                        if (sel.row === row && sel.col === col) {
+                            isSelected = true;
+                            trackSelections.delete(sel);
+                            break;
+                        }
+                    }
+                    if (!isSelected) {
+                        trackSelections.add(cellKeyObj);
+                    }
+                    
+                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, currentStepData?.active || false);
+                    updateQuantizeSelectionButtonState(sequencerWindow.element, trackId);
+                    return;
+                }
 
                 if (e.shiftKey && currentStepData?.active) {
                     // Shift+click: change velocity
@@ -2000,6 +2103,31 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
 
     }
     return sequencerWindow;
+}
+
+/**
+ * Updates the Quantize Selection button state based on selection.
+ */
+function updateQuantizeSelectionButtonState(winEl, trackId) {
+    const btn = winEl.querySelector(`#quantizeSelectionBtn-${trackId}`);
+    if (!btn) return;
+    
+    const trackSelections = sequencerSelectedCells.get(trackId);
+    const hasSelection = trackSelections && trackSelections.size > 0;
+    
+    btn.disabled = !hasSelection;
+    if (hasSelection) {
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+/**
+ * Export function to clear sequencer cell selection for a track.
+ */
+export function clearSequencerSelection(trackId) {
+    sequencerSelectedCells.delete(trackId);
 }
 
 // --- UI Update & Drawing Functions ---
