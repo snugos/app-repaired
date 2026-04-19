@@ -41,3 +41,11 @@
 - No automated test suite — code coverage unknown
 - Error log (ERROR_LOG.md) still needs review for runtime-only issues
 - No linting / formatting enforcement (no ESLint/Prettier config)
+
+---
+
+## Scanning for new issues...
+
+✅ **Monitoring mode active.** Last scan: 2026-04-19 02:55 UTC. No new bugs detected.
+
+Each run checks `git log` and `git diff HEAD~1` for regressions (new `undefined` refs, early returns in loops, async/await misuse, duplicate functions, ReferenceError patterns, state read-after-write).
