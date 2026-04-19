@@ -2210,7 +2210,9 @@ export function openTimelineWindow(savedState = null) {
                     <button id="timeline-zoom-in" class="transport-btn" style="padding: 2px 6px; font-size: 10px;" title="Zoom in (+)">+</button>
                     <button id="timeline-zoom-reset" class="transport-btn" style="padding: 2px 6px; font-size: 9px;" title="Reset zoom">1:1</button>
                 </div>
-                <div id="timeline-ruler-container" style="flex: 1; overflow: hidden;"></div>
+                <div id="timeline-ruler-container" style="flex: 1; overflow: hidden; position: relative;">
+                    <div id="timeline-ruler" style="height: 24px; background: #1a1a1a; border-bottom: 1px solid #3a3a3a; position: relative; width: 4000px; cursor: pointer;"></div>
+                </div>
             </div>
             <div id="timeline-tracks-container">
                 <div id="timeline-loop-start-marker" class="timeline-region-marker loop-start-marker"></div>
@@ -2267,8 +2269,8 @@ function setupTimelineZoomControls(timelineElement) {
         const zoomPercent = Math.round(timelineZoomLevel * 100);
         if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${zoomPercent}%`;
         
-        // Update ruler background size
-        ruler.style.backgroundSize = `${120 * timelineZoomLevel}px 100%, ${30 * timelineZoomLevel}px 100%`;
+        // Re-render ruler with new zoom
+        renderTimelineRuler();
         
         // Update tracks area width
         tracksArea.style.width = `${4000 * timelineZoomLevel}px`;
@@ -2303,13 +2305,77 @@ function setupTimelineZoomControls(timelineElement) {
         timelineScrollX = tracksContainer.scrollLeft;
         // Update region markers on scroll to keep them aligned
         updateTimelineRegionMarkers();
+        // Re-render ruler on scroll to keep bar labels aligned
+        renderTimelineRuler();
     });
+    
+    // Setup ruler click-to-seek
+    setupTimelineRulerSeek(ruler);
+    
+    // Initial ruler render
+    renderTimelineRuler();
     
     // Initial zoom display
     applyZoom(timelineZoomLevel);
     
     // Initial region marker update
     updateTimelineRegionMarkers();
+}
+
+// Ruler rendering function — draws bar numbers + subdivision markers on the timeline ruler
+function renderTimelineRuler() {
+    const ruler = document.getElementById('timeline-ruler');
+    if (!ruler) return;
+    
+    const bpm = Tone.Transport.bpm.value || 120;
+    const secondsPerBeat = 60 / bpm;
+    const secondsPerBar = secondsPerBeat * 4;
+    const totalBars = 16;
+    const totalSeconds = totalBars * secondsPerBar;
+    
+    const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+    const TRACK_NAME_WIDTH = 120;
+    const totalWidth = TRACK_NAME_WIDTH + (totalSeconds * PIXELS_PER_SECOND);
+    
+    let rulerHTML = '';
+    
+    for (let bar = 0; bar <= totalBars; bar++) {
+        const barX = TRACK_NAME_WIDTH + (bar * secondsPerBar * PIXELS_PER_SECOND);
+        const barLabel = bar + 1;
+        rulerHTML += `<span style="position:absolute;left:${barX}px;top:2px;font-size:10px;color:#aaa;font-family:monospace;">${barLabel}</span>`;
+        
+        for (let beat = 1; beat < 4; beat++) {
+            const beatX = barX + (beat * secondsPerBeat * PIXELS_PER_SECOND);
+            rulerHTML += `<span style="position:absolute;left:${beatX}px;top:0;width:1px;height:6px;background:#444;"></span>`;
+        }
+    }
+    
+    ruler.innerHTML = rulerHTML;
+    ruler.style.width = `${totalWidth}px`;
+}
+
+// --- Timeline Ruler Click-to-Seek ---
+function setupTimelineRulerSeek(ruler) {
+    ruler.addEventListener('click', (e) => {
+        const bpm = Tone.Transport.bpm.value || 120;
+        const secondsPerBeat = 60 / bpm;
+        const secondsPerBar = secondsPerBeat * 4;
+        const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
+        const TRACK_NAME_WIDTH = 120;
+        
+        const rect = ruler.getBoundingClientRect();
+        const scrollLeft = ruler.parentElement ? ruler.parentElement.scrollLeft : 0;
+        const clickX = e.clientX - rect.left + scrollLeft;
+        const seconds = (clickX - TRACK_NAME_WIDTH) / PIXELS_PER_SECOND;
+        const bars = seconds / secondsPerBar;
+        
+        if (bars >= 0) {
+            const beats = Math.floor((bars % 1) * 4);
+            const sixteenths = 0;
+            Tone.Transport.position = `${Math.floor(bars)}:${beats}:${sixteenths}`;
+            showNotification(`Seek to bar ${Math.floor(bars + 1)}`, 800);
+        }
+    });
 }
 
 export function renderTimeline() {
