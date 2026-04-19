@@ -1617,10 +1617,14 @@ export class Track {
 
         if (this.patternPlayerSequence && !this.patternPlayerSequence.disposed) {
             try {
-                this.patternPlayerSequence.stop();
+                if (this.patternPlayerSequence.state === 'started') {
+                    this.patternPlayerSequence.stop();
+                }
                 this.patternPlayerSequence.clear();
                 this.patternPlayerSequence.dispose();
-            } catch(e) { console.warn(`[Track ${this.id}] Error disposing old Tone.Sequence:`, e.message); }
+                console.log(`[Track ${this.id}] Stopped, cleared, and disposed patternPlayerSequence.`);
+            }
+            catch (e) { console.warn(`[Track ${this.id}] Error stopping/disposing patternPlayerSequence:`, e.message); }
         }
         this.patternPlayerSequence = null; 
 
@@ -1658,7 +1662,9 @@ export class Track {
             this.patternPlayerSequence = new Tone.Sequence((time, col) => {
                 const playbackModeCheck = this.appServices.getPlaybackMode ? this.appServices.getPlaybackMode() : 'sequencer';
                 if (playbackModeCheck !== 'sequencer') {
-                    if (this.patternPlayerSequence && this.patternPlayerSequence.state === 'started') this.patternPlayerSequence.stop();
+                    if (this.patternPlayerSequence && this.patternPlayerSequence.state === 'started') {
+                        try { this.patternPlayerSequence.stop(); } catch(e) { console.warn("Err stopping seq player during schedule", e); }
+                    }
                     return;
                 }
 
@@ -2104,9 +2110,11 @@ export class Track {
 
         if (this.patternPlayerSequence && !this.patternPlayerSequence.disposed) {
             try {
-                this.patternPlayerSequence.stop(); 
-                this.patternPlayerSequence.clear(); 
-                this.patternPlayerSequence.dispose(); 
+                if (this.patternPlayerSequence.state === 'started') {
+                    this.patternPlayerSequence.stop();
+                }
+                this.patternPlayerSequence.clear();
+                this.patternPlayerSequence.dispose();
                 console.log(`[Track ${this.id}] Stopped, cleared, and disposed patternPlayerSequence.`);
             }
             catch (e) { console.warn(`[Track ${this.id}] Error stopping/disposing patternPlayerSequence:`, e.message); }
@@ -2232,7 +2240,15 @@ export class Track {
         try { this.stopPlayback(); } catch (e) { console.warn(`[Track Dispose ${this.id}] Error in stopPlayback during dispose:`, e.message); }
 
         if (this.patternPlayerSequence && !this.patternPlayerSequence.disposed) {
-            try { this.patternPlayerSequence.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing patternPlayerSequence:`, e.message); }
+            try {
+                if (this.patternPlayerSequence.state === 'started') {
+                    this.patternPlayerSequence.stop();
+                }
+                this.patternPlayerSequence.clear();
+                this.patternPlayerSequence.dispose();
+                console.log(`[Track ${this.id}] Stopped, cleared, and disposed patternPlayerSequence.`);
+            }
+            catch (e) { console.warn(`[Track ${this.id}] Error stopping/disposing patternPlayerSequence:`, e.message); }
         }
         this.patternPlayerSequence = null;
 

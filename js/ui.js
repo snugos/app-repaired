@@ -751,7 +751,7 @@ export function openSoundBrowserWindow(savedState = null) {
         const currentLibNameFromState = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : null;
         if (currentLibNameFromState && localAppServices.updateSoundBrowserDisplayForLibrary) {
             console.log(`[UI SoundBrowser Re-Open/Restore] Updating display for already selected library: ${currentLibNameFromState}`);
-            localAppServices.updateSoundBrowserDisplayForLibrary(currentLibNameNameFromState);
+            localAppServices.updateSoundBrowserDisplayForLibrary(currentLibNameFromState);
         }
         return openWindows.get(windowId);
     }
@@ -1337,8 +1337,32 @@ export function openMixerWindow(savedState = null) {
     const contentContainer = document.createElement('div'); contentContainer.id = 'mixerContentContainer';
     contentContainer.className = 'p-2 overflow-x-auto whitespace-nowrap h-full bg-gray-100 dark:bg-slate-800';
     const desktopEl = ((localAppServices.uiElementsCache) && (localAppServices.uiElementsCache).desktop) || document.getElementById('desktop');
-    const mixerOptions = { width: Math.min(800, (((desktopEl) && (desktopEl).offsetWidth) || 800) - 40), height: 300, minWidth: 300, minHeight: 200, initialContentKey: windowId };
-    if (savedState) Object.assign(mixerOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    const safeDesktopWidth = (desktopEl && typeof desktopEl.offsetWidth === 'number' && desktopEl.offsetWidth > 0)
+                           ? desktopEl.offsetWidth
+                           : 1024; // More robust fallback
+    console.log(`[UI openMixerWindow] Desktop element: ${desktopEl ? 'found' : 'NOT found'}, offsetWidth: ${((desktopEl) && (desktopEl).offsetWidth)}, safeDesktopWidth: ${safeDesktopWidth}`);
+
+    const calculatedWidth = Math.max(400, Math.min(900, safeDesktopWidth - 40));
+    const calculatedHeight = 400;
+
+    const mixerOptions = {
+        width: calculatedWidth,
+        height: calculatedHeight,
+        minWidth: 400,
+        minHeight: 250,
+        initialContentKey: windowId,
+        onCloseCallback: () => { if (localAppServices.getActiveSequencerTrackId && localAppServices.getActiveSequencerTrackId() === trackId && localAppServices.setActiveSequencerTrackId) localAppServices.setActiveSequencerTrackId(null); }
+    };
+    if (savedState) {
+        if (Number.isFinite(parseInt(savedState.left,10))) mixerOptions.x = parseInt(savedState.left,10);
+        if (Number.isFinite(parseInt(savedState.top,10))) mixerOptions.y = parseInt(savedState.top,10);
+        if (Number.isFinite(parseInt(savedState.width,10)) && parseInt(savedState.width,10) >= mixerOptions.minWidth) mixerOptions.width = parseInt(savedState.width,10);
+        if (Number.isFinite(parseInt(savedState.height,10)) && parseInt(savedState.height,10) >= mixerOptions.minHeight) mixerOptions.height = parseInt(savedState.height,10);
+        if (Number.isFinite(parseInt(savedState.zIndex))) mixerOptions.zIndex = parseInt(savedState.zIndex);
+        mixerOptions.isMinimized = savedState.isMinimized;
+    }
+
+    console.log(`[UI openMixerWindow] Creating mixer window with options:`, JSON.stringify(mixerOptions));
     const mixerWindow = localAppServices.createWindow(windowId, 'Mixer', contentContainer, mixerOptions);
     if (((mixerWindow) && (mixerWindow).element) || mixerWindow.isMinimized) updateMixerWindow();
     return mixerWindow;
@@ -1507,7 +1531,7 @@ function buildPianoRollContentDOM(track, rows, rowLabels, numBars) {
                 const velClass = velPercent >= 80 ? 'vel-100' : (velPercent >= 60 ? 'vel-80' : (velPercent >= 40 ? 'vel-60' : 'vel-40'));
                 const noteWidth = noteLen * 20 - 1;
                 const noteTitle = `${noteLabel} | Vel: ${velPercent}% | Len: ${noteLen} step${noteLen > 1 ? 's' : ''} | Right-click for length`;
-                html += `<div class="sequencer-step-cell ${velClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" data-length="${noteLen}" style="display:flex;align-items:center;padding:0;overflow:visible;" title="${noteTitle}">
+                html += `<div class="sequencer-step-cell ${velClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" style="display:flex;align-items:center;padding:0;overflow:visible;" title="${noteTitle}">
                     <div class="piano-note-bar ${dotClassPrefix}" style="width:${noteWidth}px;height:14px;border-radius:2px;"></div>
                 </div>`;
             } else {
@@ -1731,7 +1755,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const clipboard = localAppServices.getClipboardData ? localAppServices.getClipboardData() : {};
             const menuItems = [
                 { label: `Copy Full Sequence`, action: () => { if (localAppServices.setClipboardData) { localAppServices.setClipboardData({ type: 'sequence', sourceTrackType: currentTrackForMenu.type, data: JSON.parse(JSON.stringify(currentActiveSeq.data || [])), sequenceLength: currentActiveSeq.length }); showNotification(`Sequence "${currentActiveSeq.name}" copied.`, 2000); } } },
-                { label: `Copy Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } if (localAppServices.setClipboardData) { const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); const selData = []; for (let r = r1; r <= r2; r++) { const row = []; for (let c = c1; c <= c2; c++) { row.push(currentActiveSeq.data && currentActiveSeq.data[r] ? (currentActiveSeq.data[r][c] || null) : null); } selData.push(row); } localAppServices.setClipboardData({ type: 'selection', sourceTrackType: currentTrackForMenu.type, data: selData, selectionRows: r2 - r1 + 1, selectionCols: c2 - c1 + 1, originalRow: r1, originalCol: c1 }); showNotification(`Selection (${r2-r1+1}x${c2-c1+1}) copied.`, 2000); } },
+                { label: `Copy Selection`, action: () => { if (!selectionStartCell || !selectionEndCell) { showNotification("Drag to select a region first.", 2000); return; } if (localAppServices.setClipboardData) { const r1 = Math.min(selectionStartCell.row, selectionEndCell.row); const c1 = Math.min(selectionStartCell.col, selectionEndCell.col); const r2 = Math.max(selectionStartCell.row, selectionEndCell.row); const c2 = Math.max(selectionStartCell.col, selectionEndCell.col); const selData = []; for (let r = r1; r <= r2; r++) { const row = []; for (let c = c1; c <= c2; c++) { row.push(currentActiveSeq.data && currentActiveSeq.data[r] ? (currentActiveSeq.data[r][c] || null) : null); } selData.push(row); } localAppServices.setClipboardData({ type: 'selection', sourceTrackType: currentTrackForMenu.type, data: selData, selectionRows: r2 - r1 + 1, selectionCols: c2 - c1 + 1, originalRow: r1, originalCol: c1 }); showNotification(`Selection (${r2-r1+1}x${c2-c1+1}) copied.`, 2000); } },
                 { label: `Paste Selection`, action: () => { const cb = clipboard; if (!cb || cb.type !== 'selection' || !cb.data) { showNotification("Use Copy Selection first.", 2000); return; } if (cb.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch.`, 3000); return; } const r1 = selectionStartCell ? Math.min(selectionStartCell.row, selectionEndCell.row) : 0; const c1 = selectionStartCell ? Math.min(selectionStartCell.col, selectionEndCell.col) : 0; if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Selection on ${currentTrackForMenu.name}`); const rows = cb.data.length; const cols = cb.data[0] ? cb.data[0].length : 0; for (let r = 0; r < rows; r++) { if (!currentActiveSeq.data[r + r1]) currentActiveSeq.data[r + r1] = Array(currentActiveSeq.length).fill(null); for (let c = 0; c < cols; c++) { if (cb.data[r] && cb.data[r][c]) { currentActiveSeq.data[r + r1][c + c1] = JSON.parse(JSON.stringify(cb.data[r][c])); } } } currentTrackForMenu.recreateToneSequence(true); showNotification(`Selection pasted at (${r1+1}, ${c1+1}).`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { label: `Paste Full Sequence`, action: () => { if (!clipboard || clipboard.type !== 'sequence' || !clipboard.data) { showNotification("Clipboard empty.", 2000); return; } if (clipboard.sourceTrackType !== currentTrackForMenu.type) { showNotification(`Track types mismatch.`, 3000); return; } if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Paste Sequence into ${currentActiveSeq.name} on ${currentTrackForMenu.name}`); currentActiveSeq.data = JSON.parse(JSON.stringify(clipboard.data)); currentActiveSeq.length = clipboard.sequenceLength; currentTrackForMenu.recreateToneSequence(true); showNotification(`Sequence pasted into "${currentActiveSeq.name}".`, 2000); if(localAppServices.updateTrackUI) localAppServices.updateTrackUI(track.id, 'sequencerContentChanged'); } },
                 { separator: true },
@@ -1976,7 +2000,7 @@ export function drawWaveform(track) {
     const step = Math.ceil(data.length / canvas.width); const amp = canvas.height / 2;
     ctx.fillStyle = ctx.canvas.classList.contains('dark') ? '#101010' : '#f0f0f0';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 1; ctx.strokeStyle = ctx.canvas.classList.contains('dark') ? '#957DAD' : '#957DAD';
+    ctx.lineWidth = 1; ctx.strokeStyle = ctx.canvas.classList.contains('dark') ? '#D291BC' : '#D291BC';
     ctx.beginPath(); ctx.moveTo(0, amp);
     for (let i = 0; i < canvas.width; i++) {
         let min = 1.0; let max = -1.0;
@@ -2004,7 +2028,7 @@ export function drawInstrumentWaveform(track) {
             track.instrumentWaveformCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             track.instrumentWaveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#101010' : '#e0e0e0';
             track.instrumentWaveformCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            track.instrumentWaveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#D291BC' : '#a0a0a0';
+            track.instrumentWaveformCanvasCtx.fillStyle = canvas.classList.contains('dark') ? '#D291BC' : '#D291BC';
             track.instrumentWaveformCanvasCtx.textAlign = 'center';
             track.instrumentWaveformCanvasCtx.fillText('No audio loaded or processed', canvas.width / 2, canvas.height / 2);
         }
@@ -2537,7 +2561,7 @@ export function renderDrumSamplerPads(track) {
     
     // Add click handlers for pad selection
     container.querySelectorAll('.drum-pad').forEach(pad => {
-        pad.addEventListener('click', (e) => {
+        pad.addEventListener('mousedown', (e) => {
             const padIndex = parseInt(e.currentTarget.dataset.padIndex, 10);
             const trackId = e.currentTarget.dataset.trackId;
             if (localAppServices.selectDrumPad) {
@@ -2569,9 +2593,9 @@ export function renderSamplePads(track) {
     }
     container.innerHTML = html;
     
-    // Add click handlers - select slice for editing and play preview
+    // Add click handlers - select slice for editing and play preview (mousedown for instant mobile response)
     container.querySelectorAll('.pad-button').forEach((pad, index) => {
-        pad.addEventListener('click', async (e) => {
+        pad.addEventListener('mousedown', async (e) => {
             e.stopPropagation();
             const padIndex = index;
             const trackId = track.id;

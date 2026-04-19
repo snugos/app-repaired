@@ -368,6 +368,7 @@ export async function addTrackToStateInternal(type, initialData = null, isUserAc
             setSoloedTrackId: setSoloedTrackIdState,
             getMutedTrackIds: getMutedTrackIdsState,
             setMutedTrackIds: setMutedTrackIdsState,
+            getArmedTrackId: getArmedTrackIdState,
             captureStateForUndo: captureStateForUndoInternal,
             updateTrackUI: appServices.updateTrackUI, // These come from main.js
             highlightPlayingStep: appServices.highlightPlayingStep,
