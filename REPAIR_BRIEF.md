@@ -32,3 +32,15 @@ Added a red badge showing the number of active effects on each mixer track's FX 
 
 The `effectCount` variable was already being computed but unused. The fix wires it into a styled badge and updates the button's title attribute dynamically.
 
+---
+
+## Dynamic Timeline Ruler Bar Count and 1/8 Note Subdivision (`js/ui.js`)
+
+The timeline ruler now dynamically adjusts its bar count based on the loop region's end bar. Previously it was hardcoded to 16 bars, which caused misalignment when the loop region extended beyond 16 bars — the extra bars wouldn't have tick marks or labels. Now:
+
+1. **Dynamic bar count**: `totalBars` is computed by reading `localAppServices.getLoopEndBars()`, falling back to 16 with a +4 padding for lookahead.
+2. **1/8 note subdivision ticks**: Instead of only quarter-note beat marks (1/4), the ruler now shows 1/8 note ticks for finer visual guidance. Quarter-note positions (every 2 eighths) render taller (8px) ticks at `top:0`, while 1/8 note positions render shorter (4px) ticks at `top:4`. This creates a hierarchical beat indicator without cluttering the display.
+3. **Consistent seek logic**: `setupTimelineRulerSeek()` now uses the same dynamic `totalBars` calculation as `renderTimelineRuler()` so click-to-seek positioning is consistent with the rendered bar labels.
+
+_Last scan: 2026-04-19 08:25 UTC — no bugs detected. Added dynamic ruler feature._
+
