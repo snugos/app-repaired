@@ -183,7 +183,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
@@ -203,7 +203,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -241,7 +241,7 @@ const appServices = {
     getSidechainBus: () => getSidechainBusInput(),
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex);
@@ -1006,6 +1006,139 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
         }
     } catch (e) {
         console.error("Error applying desktop background style:", e);
+    }
+}
+
+// --- IndexedDB helper for video backgrounds ---
+const bgDb = {
+    db: null,
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('snugos-desktop-bg', 1);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => { this.db = request.result; resolve(); };
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('backgrounds')) {
+                    db.createObjectStore('backgrounds');
+                }
+            };
+        });
+    },
+    async get(key) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('backgrounds', 'readonly');
+            const store = tx.objectStore('backgrounds');
+            const request = store.get(key);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    async set(key, value) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('backgrounds', 'readwrite');
+            const store = tx.objectStore('backgrounds');
+            const request = store.put(value, key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    },
+    async remove(key) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('backgrounds', 'readwrite');
+            const store = tx.objectStore('backgrounds');
+            const request = store.delete(key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+};
+
+// --- Custom Background Upload Handler ---
+async function handleCustomBackgroundUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const desktop = uiElementsCache.desktop;
+    const videoBg = document.getElementById('desktopVideoBg');
+    const DESKTOP_BG_TYPE_KEY = 'snugos-desktop-bg-type';
+    const DESKTOP_BACKGROUND_KEY = 'snugos-desktop-bg';
+    
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    
+    if (!isVideo && !isImage) {
+        showSafeNotification('Please select an image or video file.', 3000);
+        return;
+    }
+    
+    try {
+        const objectUrl = URL.createObjectURL(file);
+        
+        if (isVideo) {
+            // Store video in IndexedDB (too large for localStorage)
+            await bgDb.set('desktopVideo', file);
+            localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'video');
+            localStorage.removeItem(DESKTOP_BACKGROUND_KEY);
+            applyDesktopBackground(objectUrl, 'video');
+            showSafeNotification('Video background applied!', 2000);
+        } else {
+            // For images, convert to data URL for persistence
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'image');
+                localStorage.setItem(DESKTOP_BACKGROUND_KEY, dataUrl);
+                bgDb.remove('desktopVideo').catch(() => {}); // Clean up any stored video
+                applyDesktopBackground(dataUrl, 'image');
+                showSafeNotification('Image background applied!', 2000);
+            };
+            reader.readAsDataURL(file);
+        }
+    } catch (err) {
+        console.error('Failed to set custom background:', err);
+        showSafeNotification('Failed to apply background.', 3000);
+    }
+    
+    // Reset the input so the same file can be selected again
+    event.target.value = '';
+}
+
+// --- Remove Custom Desktop Background ---
+function removeCustomDesktopBackground() {
+    const desktop = uiElementsCache.desktop;
+    const videoBg = document.getElementById('desktopVideoBg');
+    const DESKTOP_BG_TYPE_KEY = 'snugos-desktop-bg-type';
+    const DESKTOP_BACKGROUND_KEY = 'snugos-desktop-bg';
+    
+    try {
+        // Clear image background
+        if (desktop) {
+            desktop.style.backgroundImage = '';
+        }
+        
+        // Clear video background
+        if (videoBg) {
+            videoBg.style.display = 'none';
+            videoBg.pause();
+            videoBg.src = '';
+        }
+        
+        // Clear stored data
+        localStorage.removeItem(DESKTOP_BG_TYPE_KEY);
+        localStorage.removeItem(DESKTOP_BACKGROUND_KEY);
+        bgDb.remove('desktopVideo').catch(() => {});
+        
+        // Apply default background
+        applyDesktopBackground(null, 'default');
+        
+        showSafeNotification('Custom background removed.', 2000);
+    } catch (err) {
+        console.error('Failed to remove custom background:', err);
+        showSafeNotification('Failed to remove background.', 3000);
     }
 }
 
