@@ -187,6 +187,7 @@ export function rebuildMasterEffectChain() {
             } else {
                 console.error(`[Audio rebuildMasterEffectChain] Failed to recreate master effect node for ${effectState.type} (ID: ${effectState.id}). Skipping but continuing to next effect.`);
                 // Don't return — continue so subsequent effects still get connected through the chain
+                activeMasterEffectNodes.delete(effectState.id);
                 currentAudioPathEnd = null; // Mark chain as needing bypass
             }
         }
@@ -1526,8 +1527,7 @@ export async function exportMixdownToWav(durationSeconds) {
 
     try {
         // Use Tone.Recorder to capture output via live transport playback
-        // This approach is more reliable than Tone.Offline which requires a
-        // reconstructTransportSchedule() function that doesn't exist
+        // This approach is more reliable than Tone.Offline which doesn't exist
         const recorder = new Tone.Recorder();
         const masterGain = getActualMasterGainNode();
 

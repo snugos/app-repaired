@@ -1341,12 +1341,6 @@ export function toggleFavorite(sound) {
 }
 
 export function addToRecentlyPlayed(sound) {
-    try {
-        const stored = localStorage.getItem(RECENTLY_PLAYED_KEY);
-        recentlyPlayedGlobal = stored ? JSON.parse(stored) : [];
-    } catch (e) {
-        recentlyPlayedGlobal = [];
-    }
     const key = makeSoundKey(sound);
     // Remove if already exists (to move to top)
     recentlyPlayedGlobal = recentlyPlayedGlobal.filter(f => makeSoundKey(f) !== key);
