@@ -47,12 +47,13 @@ import {
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal, exportStemsInternal,
     // Auto-save
-    startAutoSave, stopAutoSave, autoSaveToLocalStorage, recoverAutoSavedProject, hasAutoSavedProject, getAutoSavedProjectTimestamp, clearAutoSavedProject,
-    // Auto-save
-    autoSaveNow,
-    clearAutoSave: clearAutoSavedProject,
-    hasAutoSavedProject: hasAutoSavedProject,
-    getAutoSavedTimestamp: getAutoSavedProjectTimestamp,
+    startAutoSave, stopAutoSave,
+    // Auto-save (aliased for appServices surface)
+    autoSaveToLocalStorage as autoSaveNow,
+    recoverAutoSavedProject,
+    hasAutoSavedProject as hasAutoSavedProject_check,
+    getAutoSavedProjectTimestamp as getAutoSavedTimestamp,
+    clearAutoSavedProject as clearAutoSave,
     // Sound Browser Favorites & Recent
     getFavoriteSounds,
     isFavorite,
@@ -65,80 +66,71 @@ import {
     getProjectNameState, setProjectNameState,
     // Synth Presets
     getSynthPresets, saveSynthPreset, deleteSynthPreset,
-    // MODIFICATION: Refined Panic Stop Service
-    panicStopAllAudio: () => {
-        console.log("[AppServices] Panic Stop All Audio requested.");
-        
-        if (typeof Tone !== 'undefined') {
-            Tone.Transport.stop();
-            Tone.Transport.cancel(0); 
-        }
+} from './state.js';
 
-        // Reset play button state
-        const playBtn = uiElementsCache.playBtnGlobal;
-        if (playBtn) {
-            playBtn.textContent = 'Play';
-            playBtn.classList.remove('playing');
-        }
+function panicStopAllAudio() {
+    console.log("[AppServices] Panic Stop All Audio requested.");
 
-        const tracks = getTracksState();
-        if (tracks) {
-            tracks.forEach(track => {
-                if (track && typeof track.stopPlayback === 'function') {
+    if (typeof Tone !== 'undefined') {
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+
+    const playBtn = uiElementsCache.playBtnGlobal;
+    if (playBtn) {
+        playBtn.textContent = 'Play';
+        playBtn.classList.remove('playing');
+    }
+
+    const tracks = getTracksState();
+    if (tracks) {
+        tracks.forEach(track => {
+            if (track && typeof track.stopPlayback === 'function') {
+                try { track.stopPlayback(); } catch (e) { console.warn(`Error in track.stopPlayback() for track ${track.id}:`, e); }
+            }
+
+            if (track && track.instrument && !track.instrument.disposed) {
+                if (typeof track.instrument.releaseAll === 'function') {
+                    try { track.instrument.releaseAll(Tone.now()); } catch (e) { console.warn(`Error during instrument.releaseAll() for track ${track.id}:`, e); }
+                }
+                if ((track.type === 'Synth' || track.type === 'InstrumentSampler') &&
+                    track.gainNode && track.gainNode.gain &&
+                    typeof track.gainNode.gain.cancelScheduledValues === 'function' &&
+                    typeof track.gainNode.gain.linearRampToValueAtTime === 'function' &&
+                    !track.gainNode.disposed) {
                     try {
-                        track.stopPlayback(); 
-                    } catch (e) {
-                        console.warn(`Error in track.stopPlayback() for track ${track.id}:`, e);
-                    }
+                        track.gainNode.gain.cancelScheduledValues(Tone.now());
+                        track.gainNode.gain.linearRampToValueAtTime(0, Tone.now() + 0.02);
+                    } catch (e) { console.warn(`Error ramping down gain for track ${track.id}:`, e); }
                 }
+            }
 
-                if (track && track.instrument && !track.instrument.disposed) {
-                    if (typeof track.instrument.releaseAll === 'function') {
-                        try {
-                            track.instrument.releaseAll(Tone.now()); 
-                        } catch (e) {
-                            console.warn(`Error during instrument.releaseAll() for track ${track.id}:`, e);
-                        }
-                    }
-                    // Aggressive gain ramp-down for synth types
-                    if ((track.type === 'Synth' || track.type === 'InstrumentSampler') && 
-                        track.gainNode && track.gainNode.gain && 
-                        typeof track.gainNode.gain.cancelScheduledValues === 'function' &&
-                        typeof track.gainNode.gain.linearRampToValueAtTime === 'function' &&
-                        !track.gainNode.disposed) {
-                        console.log(`[AppServices Panic] Ramping down gain for synth track ${track.id}`);
-                        try {
-                            track.gainNode.gain.cancelScheduledValues(Tone.now());
-                            track.gainNode.gain.linearRampToValueAtTime(0, Tone.now() + 0.02); 
-                        } catch (e) {
-                            console.warn(`Error ramping down gain for track ${track.id}:`, e);
-                        }
-                    }
+            if (track && track.type === 'Sampler' && !track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
+                if (track.slicerMonoPlayer.state === 'started' && !track.slicerMonoPlayer.disposed) {
+                    try { track.slicerMonoPlayer.stop(Tone.now()); } catch(e) {}
                 }
-                
-                if (track && track.type === 'Sampler' && !track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
-                    if (track.slicerMonoPlayer.state === 'started' && !track.slicerMonoPlayer.disposed) {
-                        try { track.slicerMonoPlayer.stop(Tone.now()); } catch(e) { console.warn("Error stopping mono slicer player during panic", e); }
-                    }
-                    if (!track.slicerMonoEnvelope.disposed) {
-                        try { track.slicerMonoEnvelope.triggerRelease(Tone.now()); } catch(e) { console.warn("Error releasing mono slicer envelope during panic", e); }
-                    }
+                if (!track.slicerMonoEnvelope.disposed) {
+                    try { track.slicerMonoEnvelope.triggerRelease(Tone.now()); } catch(e) {}
                 }
-                if (track && track.type === 'DrumSampler' && track.drumPadPlayers) {
-                    track.drumPadPlayers.forEach(player => {
-                        if (player && player.state === 'started' && !player.disposed) {
-                            try { player.stop(Tone.now()); } catch(e) { console.warn("Error stopping drum pad player during panic", e); }
-                        }
-                    });
-                }
-            });
-        }
+            }
+            if (track && track.type === 'DrumSampler' && track.drumPadPlayers) {
+                track.drumPadPlayers.forEach(player => {
+                    if (player && player.state === 'started' && !player.disposed) {
+                        try { player.stop(Tone.now()); } catch(e) {}
+                    }
+                });
+            }
+        });
+    }
 
-        console.log("All audio and transport stopped via panic.");
-        showSafeNotification("All audio stopped.", 1500);
-    },
-    // END MODIFICATION
+    console.log("All audio and transport stopped via panic.");
+    showSafeNotification("All audio stopped.", 1500);
+}
 
+// MODIFICATION: Refined Panic Stop Service
+// panicStopAllAudio is now defined above
+
+const appServices = {
     updateTaskbarTempoDisplay: (tempo) => {
         if (uiElementsCache.taskbarTempoDisplay) {
             uiElementsCache.taskbarTempoDisplay.textContent = `${parseFloat(tempo).toFixed(1)} BPM`;
@@ -191,7 +183,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructutingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
@@ -211,7 +203,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructutingDAW ? appServices.getIsReconstructutingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -249,7 +241,7 @@ import {
     getSidechainBus: () => getSidechainBusInput(),
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructutingDAW ? appServices.getIsReconstructutingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex);
@@ -294,8 +286,8 @@ import {
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
     updateTrackMeterUI: (trackId, level, isClipping) => {
         try {
-            const inspectorWindow = getWindowByIdState(`trackInspector-${trackId}`);
-            const mixerWindow = getWindowByIdState('mixer');
+            const inspectorWindow = getWindowByIdState ? getWindowByIdState(`trackInspector-${trackId}`) : null;
+            const mixerWindow = getWindowByIdState ? getWindowByIdState('mixer') : null;
             if (((inspectorWindow) && (inspectorWindow).element) && !inspectorWindow.isMinimized) {
                 const meterBar = inspectorWindow.element.querySelector(`#trackMeterBar-${trackId}`);
                 if (meterBar) {
@@ -314,7 +306,7 @@ import {
     },
     updateMasterEffectsRackUI: () => {
         try {
-            const masterRackWindow = getWindowByIdState('masterEffectsRack');
+            const masterRackWindow = getWindowByIdState ? getWindowByIdState('masterEffectsRack') : null;
             if (((masterRackWindow) && (masterRackWindow).element) && !masterRackWindow.isMinimized && typeof renderEffectsList === 'function') {
                 const listDiv = masterRackWindow.element.querySelector('#effectsList-master');
                 const controlsContainer = masterRackWindow.element.querySelector('#effectControlsContainer-master');
@@ -447,7 +439,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                 break;
             case 'sequencerContentChanged':
                 if (sequencerElement && typeof openTrackSequencerWindow === 'function') {
-                    const seqWinInstance = getWindowByIdState(`sequencerWin-${trackId}`);
+                    const seqWinInstance = getWindowByIdState ? getWindowByIdState(`sequencerWin-${trackId}`) : null;
                     if(seqWinInstance) openTrackSequencerWindow(trackId, true, seqWinInstance.options);
                 }
                 if (appServices.renderTimeline && typeof appServices.renderTimeline === 'function') appServices.renderTimeline();
@@ -1019,11 +1011,20 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
 
 // Restore background on load
 async function restoreDesktopBackground() {
-    const DESKTOP_BG_TYPE_KEY = 'snugos-desktop-bg-type';
-    const DESKTOP_BACKGROUND_KEY = 'snugos-desktop-bg';
     const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
     
-    if (bgType === 'image' || !bgType) {
+    if (bgType === 'video') {
+        try {
+            const videoBlob = await bgDb.get('desktopVideo');
+            if (videoBlob) {
+                const objectUrl = URL.createObjectURL(videoBlob);
+                applyDesktopBackground(objectUrl, 'video');
+                console.log("[Main] Restored video background from IndexedDB");
+            }
+        } catch (e) {
+            console.warn("Could not restore video background:", e);
+        }
+    } else if (bgType === 'image' || !bgType) {
         const imageUrl = localStorage.getItem(DESKTOP_BACKGROUND_KEY);
         if (imageUrl) {
             applyDesktopBackground(imageUrl, 'image');
