@@ -2331,7 +2331,14 @@ function renderTimelineRuler() {
     const bpm = Tone.Transport.bpm.value || 120;
     const secondsPerBeat = 60 / bpm;
     const secondsPerBar = secondsPerBeat * 4;
-    const totalBars = 16;
+    
+    // Dynamically determine total bars from loop region or default 16
+    let totalBars = 16;
+    try {
+        const loopEnd = localAppServices?.getLoopEndBars?.();
+        if (loopEnd && loopEnd > 0) totalBars = Math.max(16, loopEnd + 4);
+    } catch(e) {}
+    
     const totalSeconds = totalBars * secondsPerBar;
     
     const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
@@ -2345,9 +2352,11 @@ function renderTimelineRuler() {
         const barLabel = bar + 1;
         rulerHTML += `<span style="position:absolute;left:${barX}px;top:2px;font-size:10px;color:#aaa;font-family:monospace;">${barLabel}</span>`;
         
-        for (let beat = 1; beat < 4; beat++) {
-            const beatX = barX + (beat * secondsPerBeat * PIXELS_PER_SECOND);
-            rulerHTML += `<span style="position:absolute;left:${beatX}px;top:0;width:1px;height:6px;background:#444;"></span>`;
+        // Add 1/8 note tick marks (every half beat) for better visual guidance
+        for (let beat = 1; beat < 8; beat++) {
+            const beatX = barX + (beat * (secondsPerBar / 8) * PIXELS_PER_SECOND);
+            const isQuarter = beat % 2 === 0;
+            rulerHTML += `<span style="position:absolute;left:${beatX}px;top:${isQuarter ? 0 : 4}px;width:1px;height:${isQuarter ? 8 : 4}px;background:#444;"></span>`;
         }
     }
     
@@ -2363,6 +2372,13 @@ function setupTimelineRulerSeek(ruler) {
         const secondsPerBar = secondsPerBeat * 4;
         const PIXELS_PER_SECOND = 50 * timelineZoomLevel;
         const TRACK_NAME_WIDTH = 120;
+        
+        // Use same dynamic totalBars as renderTimelineRuler for consistency
+        let totalBars = 16;
+        try {
+            const loopEnd = localAppServices?.getLoopEndBars?.();
+            if (loopEnd && loopEnd > 0) totalBars = Math.max(16, loopEnd + 4);
+        } catch(e) {}
         
         const rect = ruler.getBoundingClientRect();
         const scrollLeft = ruler.parentElement ? ruler.parentElement.scrollLeft : 0;
