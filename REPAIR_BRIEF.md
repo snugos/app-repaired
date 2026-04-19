@@ -44,7 +44,7 @@
 
 ---
 
-✅ **Monitoring mode active.** Last scan: 2026-04-19 05:35 UTC.
+✅ **Monitoring mode active.** Last scan: 2026-04-19 06:30 UTC.
 
 ## Scanning for new issues...
 
@@ -54,4 +54,8 @@ Every scheduled run:
 3. If JS files changed, audit for new bugs (undefined vars, early returns in loops, async issues)
 4. If new bugs found, fix and push
 5. Update REPAIR_BRIEF.md scan timestamp
+
+### 2026-04-19 06:30 UTC
+- **Bug found**: Extra closing braces `} } }` in synth preset default object literals in `loadSynthPresetsFromStorage()` — each preset entry had `} } },` instead of `} },`, causing the object to parse with zero keys on fresh load (users with no saved presets would see empty preset list). Fixed by removing the extra brace on all 4 default presets (Init Saw, Init Square, Init Sine, Init Triangle).
+- Commit: `3e4382d`
 
