@@ -33,6 +33,9 @@ let timelineScrollX = 0; // Horizontal scroll offset for timeline
 // Sequencer view mode: 'step' (default) or 'piano' (piano roll)
 let sequencerViewMode = 'step';
 
+// Piano Roll keyboard playing state
+let pianoRollActiveNotes = new Map(); // noteLabel -> {row, col} for currently pressed notes
+
 export function toggleSequencerViewMode() {
     sequencerViewMode = sequencerViewMode === 'step' ? 'piano' : 'step';
     console.log(`[UI] Sequencer view mode switched to: ${sequencerViewMode}`);
@@ -1418,6 +1421,7 @@ export function renderMixer(container) {
             {label: "Record Mute Automation", action: () => { if (track.toggleMuteAutomationNow) track.toggleMuteAutomationNow(); else showNotification('Arm automation first', 1500); }},
             {label: "Record Solo Automation", action: () => { if (track.toggleSoloAutomationNow) track.toggleSoloAutomationNow(); else showNotification('Arm automation first', 1500); }},
             {separator: true},
+            {label: "Duplicate Track", action: () => { if (localAppServices.duplicateTrack) localAppServices.duplicateTrack(track.id); else showNotification('Duplicate not available', 1500); }},
             {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)}
         ], localAppServices); });
         container.appendChild(trackDiv);
@@ -1852,6 +1856,81 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 openTrackSequencerWindow(trackId, true);
             });
         }
+
+        // --- Piano Roll keyboard click/play handlers ---
+        // Handle mouse down on piano key label cells (left column) to play notes
+        const pianoKeyCells = sequencerWindow.element.querySelectorAll('.piano-key-cell');
+        pianoKeyCells.forEach((keyCell) => {
+            keyCell.addEventListener('mousedown', (e) => {
+                if (sequencerViewMode !== 'piano') return;
+                const noteLabel = keyCell.querySelector('span')?.textContent;
+                if (!noteLabel) return;
+                // Find the track and row for this note
+                const rowIdx = parseInt(keyCell.closest('.sequencer-step-cell')?.dataset?.row || keyCell.closest('[data-row]')?.dataset?.row || Array.from(keyCell.parentElement.children).indexOf(keyCell) - 1, 10);
+                // Get the actual row from index in piano roll (piano-key-cell is at index 0, cells start at index 1)
+                const allCells = sequencerWindow.element.querySelectorAll('.piano-step-cell, .sequencer-step-cell');
+                const noteIdx = Array.from(sequencerWindow.element.querySelectorAll('.piano-key-cell')).indexOf(keyCell);
+                if (noteIdx < 0 || track.type !== 'Synth' && track.type !== 'InstrumentSampler') return;
+                
+                // Play the note immediately
+                const armedTrack = track;
+                if (armedTrack && armedTrack.instrument && !armedTrack.instrument.disposed) {
+                    const freq = Tone.Frequency(noteLabel, 'note').toFrequency();
+                    if (typeof armedTrack.instrument.triggerAttack === 'function') {
+                        armedTrack.instrument.triggerAttack(freq, Tone.now(), 0.7);
+                    }
+                    // Highlight the key
+                    keyCell.classList.add('piano-active-highlight');
+                    // Track this note
+                    pianoRollActiveNotes.set(noteLabel, { trackId: track.id, keyCell });
+                }
+            });
+            
+            keyCell.addEventListener('mouseup', (e) => {
+                if (sequencerViewMode !== 'piano') return;
+                const noteLabel = keyCell.querySelector('span')?.textContent;
+                if (!noteLabel) return;
+                const noteInfo = pianoRollActiveNotes.get(noteLabel);
+                if (noteInfo && noteInfo.trackId === track.id) {
+                    const armedTrack = track;
+                    if (armedTrack && armedTrack.instrument && !armedTrack.instrument.disposed) {
+                        const freq = Tone.Frequency(noteLabel, 'note').toFrequency();
+                        if (typeof armedTrack.instrument.triggerRelease === 'function') {
+                            armedTrack.instrument.triggerRelease(freq, Tone.now() + 0.05);
+                        }
+                    }
+                    // Remove highlight
+                    keyCell.classList.remove('piano-active-highlight');
+                    pianoRollActiveNotes.delete(noteLabel);
+                }
+            });
+            
+            keyCell.addEventListener('mouseleave', (e) => {
+                const noteLabel = keyCell.querySelector('span')?.textContent;
+                if (!noteLabel) return;
+                const noteInfo = pianoRollActiveNotes.get(noteLabel);
+                if (noteInfo && noteInfo.trackId === track.id) {
+                    const armedTrack = track;
+                    if (armedTrack && armedTrack.instrument && !armedTrack.instrument.disposed) {
+                        const freq = Tone.Frequency(noteLabel, 'note').toFrequency();
+                        if (typeof armedTrack.instrument.triggerRelease === 'function') {
+                            armedTrack.instrument.triggerRelease(freq, Tone.now() + 0.05);
+                        }
+                    }
+                    keyCell.classList.remove('piano-active-highlight');
+                    pianoRollActiveNotes.delete(noteLabel);
+                }
+            });
+        });
+
+        // Also add click-to-toggle for piano roll cells (add/edit notes with click)
+        const pianoCells = sequencerWindow.element.querySelectorAll('.sequencer-step-cell');
+        pianoCells.forEach((cell) => {
+            cell.addEventListener('mousedown', (e) => {
+                if (sequencerViewMode !== 'piano') return;
+                // Only process clicks on cells (not the piano-key-cell column itself)
+            });
+        });
 
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
