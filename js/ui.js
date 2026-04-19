@@ -1768,7 +1768,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             popup.style.top = `${e.clientY}px`;
             popup.innerHTML = `
                 <div class="text-xs font-semibold mb-1 dark:text-slate-200">Velocity</div>
-                <input type="range" min="0.05" max="1.0" step="0.05" value="${velocity}" class="w-32" id="velSlider">
+                <input type="range" min="0.05" max="1" step="0.05" value="${velocity}" class="w-32" id="velSlider">
                 <div class="text-xs text-center mt-1 dark:text-slate-300" id="velLabel">${Math.round(velocity * 100)}%</div>
                 <div class="text-xs text-center mt-1 text-gray-500">Right-click to close</div>
             `;
@@ -2182,6 +2182,9 @@ export function renderTimeline() {
     
     // Setup timeline event listeners
     setupTimelineEventListeners(content, tracks);
+    
+    // Render waveforms for audio clips (async)
+    renderTimelineClipWaveforms(content);
 }
 
 function renderTimeRuler(duration, pixelsPerSecond) {
@@ -2221,13 +2224,20 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
         const isSelected = timelineState.selectedClipId === clip.id;
         const selectedClass = isSelected ? 'ring-2 ring-white ring-offset-1' : '';
 
+        // For audio clips, include a canvas for waveform visualization
+        let waveformHtml = '';
+        if (clip.type === 'audio' && clip.dbKey) {
+            waveformHtml = `<canvas class="clip-waveform absolute inset-0 w-full h-full pointer-events-none" data-clip-id="${clip.id}" data-db-key="${clip.dbKey}"></canvas>`;
+        }
+
         html += `
-            <div class="timeline-clip absolute rounded cursor-move ${bgColor} ${selectedClass} hover:opacity-90 transition-opacity"
+            <div class="timeline-clip absolute rounded cursor-move ${bgColor} ${selectedClass} hover:opacity-90 transition-opacity overflow-hidden"
                  data-clip-id="${clip.id}"
                  data-track-id="${track.id}"
                  style="left: ${x}px; top: ${clipY}px; width: ${width}px; height: ${clipHeight}px;"
                  draggable="true">
-                <div class="clip-content h-full flex items-center px-1 overflow-hidden">
+                ${waveformHtml}
+                <div class="clip-content h-full flex items-center px-1 overflow-hidden relative z-10">
                     <span class="text-xs text-white truncate">${clip.name || clip.type}</span>
                 </div>
             </div>
@@ -2235,6 +2245,48 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
     });
 
     return html;
+}
+
+/**
+ * Renders waveforms for all audio clips in the timeline.
+ * Called after renderTimeline() completes.
+ */
+async function renderTimelineClipWaveforms(content) {
+    const canvases = content.querySelectorAll('.clip-waveform');
+    
+    for (const canvas of canvases) {
+        const clipId = canvas.dataset.clipId;
+        const dbKey = canvas.dataset.dbKey;
+        
+        if (!dbKey) continue;
+        
+        // Get canvas dimensions
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(rect.width, 20);
+        const height = Math.max(rect.height, 10);
+        
+        // Set canvas size
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Get audio buffer
+        const audioBuffer = await localAppServices.getTimelineClipAudioBuffer?.(clipId, dbKey);
+        
+        if (audioBuffer) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw waveform using the audio module
+            if (localAppServices.drawWaveformOnContext) {
+                localAppServices.drawWaveformOnContext(ctx, audioBuffer, width, height, 'rgba(255,255,255,0.8)');
+            }
+        } else {
+            // Draw placeholder pattern
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(0, 0, width, height);
+        }
+    }
 }
 
 function setupTimelineEventListeners(content, tracks) {

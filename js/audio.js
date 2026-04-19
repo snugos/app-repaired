@@ -1635,3 +1635,201 @@ export function stopWaveformPlayheadAnimation() {
         drawWaveform(waveformPreviewAudioBuffer, waveformPreviewCanvas);
     }
 }
+
+// --- Timeline Clip Waveform Visualization ---
+
+/**
+ * Cache for audio buffers used by timeline clips.
+ * Maps clipId -> { audioBuffer, lastAccessed }
+ */
+const timelineClipAudioBufferCache = new Map();
+
+/**
+ * Gets or caches an audio buffer for a timeline clip.
+ * @param {string} clipId - The clip ID
+ * @param {string} dbKey - The IndexedDB key for the audio data
+ * @returns {Promise<AudioBuffer|null>}
+ */
+export async function getTimelineClipAudioBuffer(clipId, dbKey) {
+    // Check cache first
+    const cached = timelineClipAudioBufferCache.get(clipId);
+    if (cached && cached.audioBuffer) {
+        cached.lastAccessed = Date.now();
+        return cached.audioBuffer;
+    }
+    
+    // Try to load from IndexedDB
+    try {
+        const audioBlob = await getAudio(dbKey);
+        if (!audioBlob) {
+            console.warn(`[Audio getTimelineClipAudioBuffer] No audio found for key: ${dbKey}`);
+            return null;
+        }
+        
+        const audioBuffer = await decodeAudioBlob(audioBlob);
+        if (audioBuffer) {
+            // Cache the buffer
+            timelineClipAudioBufferCache.set(clipId, {
+                audioBuffer,
+                lastAccessed: Date.now()
+            });
+            
+            // Clean up old cache entries (keep last 50)
+            if (timelineClipAudioBufferCache.size > 50) {
+                const entries = Array.from(timelineClipAudioBufferCache.entries());
+                entries.sort((a, b) => b[1].lastAccessed - a[1].lastAccessed);
+                entries.slice(50).forEach(([id]) => {
+                    timelineClipAudioBufferCache.delete(id);
+                });
+            }
+        }
+        
+        return audioBuffer;
+    } catch (error) {
+        console.error(`[Audio getTimelineClipAudioBuffer] Error loading audio for clip ${clipId}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Clears the timeline clip audio buffer cache.
+ */
+export function clearTimelineClipCache() {
+    timelineClipAudioBufferCache.clear();
+}
+
+/**
+ * Creates a canvas element sized for a timeline clip and draws the waveform.
+ * @param {AudioBuffer} audioBuffer - The decoded audio buffer
+ * @param {number} width - Canvas width in pixels
+ * @param {number} height - Canvas height in pixels
+ * @param {string} color - Waveform color (default: 'rgba(255,255,255,0.8)')
+ * @returns {HTMLCanvasElement} The canvas with waveform drawn
+ */
+export function createTimelineClipWaveformCanvas(audioBuffer, width, height, color = 'rgba(255,255,255,0.8)') {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(width, 20);
+    canvas.height = Math.max(height, 10);
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Background is transparent (clip background handles this)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!audioBuffer) {
+        // Draw placeholder - diagonal lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 8) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + canvas.height, canvas.height);
+            ctx.stroke();
+        }
+        return canvas;
+    }
+    
+    // Draw waveform
+    const channelData = audioBuffer.getChannelData(0);
+    const numChannels = audioBuffer.numberOfChannels;
+    
+    // Calculate number of bars we can fit
+    const barWidth = 1;
+    const numBars = Math.floor(canvas.width / barWidth);
+    const samplesPerBar = Math.floor(channelData.length / numBars);
+    
+    ctx.fillStyle = color;
+    const centerY = canvas.height / 2;
+    
+    for (let i = 0; i < numBars; i++) {
+        // Get max amplitude for this bar's sample range
+        let maxAmplitude = 0;
+        const startSample = i * samplesPerBar;
+        const endSample = Math.min(startSample + samplesPerBar, channelData.length);
+        
+        for (let j = startSample; j < endSample; j++) {
+            const amplitude = Math.abs(channelData[j]);
+            if (amplitude > maxAmplitude) {
+                maxAmplitude = amplitude;
+            }
+        }
+        
+        // Average across channels for multi-channel audio
+        if (numChannels > 1) {
+            for (let ch = 1; ch < numChannels; ch++) {
+                const chData = audioBuffer.getChannelData(ch);
+                let chMax = 0;
+                for (let j = startSample; j < endSample && j < chData.length; j++) {
+                    const amplitude = Math.abs(chData[j]);
+                    if (amplitude > chMax) chMax = amplitude;
+                }
+                maxAmplitude = (maxAmplitude + chMax) / 2;
+            }
+        }
+        
+        // Draw bar (mirrored from center)
+        const barHeight = maxAmplitude * (canvas.height - 2);
+        const x = i * barWidth;
+        
+        ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);
+    }
+    
+    return canvas;
+}
+
+/**
+ * Draws a waveform directly onto an existing canvas context.
+ * @param {CanvasRenderingContext2D} ctx - The canvas 2D context
+ * @param {AudioBuffer} audioBuffer - The decoded audio buffer
+ * @param {number} width - Width in pixels
+ * @param {number} height - Height in pixels
+ * @param {string} color - Waveform color
+ */
+export function drawWaveformOnContext(ctx, audioBuffer, width, height, color = 'rgba(255,255,255,0.8)') {
+    if (!audioBuffer) {
+        // Draw placeholder
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(0, 0, width, height);
+        return;
+    }
+    
+    const channelData = audioBuffer.getChannelData(0);
+    const numChannels = audioBuffer.numberOfChannels;
+    
+    const barWidth = 1;
+    const numBars = Math.floor(width / barWidth);
+    const samplesPerBar = Math.max(1, Math.floor(channelData.length / numBars));
+    
+    ctx.fillStyle = color;
+    const centerY = height / 2;
+    
+    for (let i = 0; i < numBars; i++) {
+        let maxAmplitude = 0;
+        const startSample = i * samplesPerBar;
+        const endSample = Math.min(startSample + samplesPerBar, channelData.length);
+        
+        for (let j = startSample; j < endSample; j++) {
+            const amplitude = Math.abs(channelData[j]);
+            if (amplitude > maxAmplitude) {
+                maxAmplitude = amplitude;
+            }
+        }
+        
+        if (numChannels > 1) {
+            for (let ch = 1; ch < numChannels; ch++) {
+                const chData = audioBuffer.getChannelData(ch);
+                let chMax = 0;
+                for (let j = startSample; j < endSample && j < chData.length; j++) {
+                    const amplitude = Math.abs(chData[j]);
+                    if (amplitude > chMax) chMax = amplitude;
+                }
+                maxAmplitude = (maxAmplitude + chMax) / 2;
+            }
+        }
+        
+        const barHeight = maxAmplitude * (height - 2);
+        const x = i * barWidth;
+        
+        ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);
+    }
+}

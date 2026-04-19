@@ -73,7 +73,12 @@ import {
     getWaveformPreviewBuffer,
     setWaveformPreviewBuffer,
     startWaveformPlayheadAnimation,
-    stopWaveformPlayheadAnimation
+    stopWaveformPlayheadAnimation,
+    // Timeline clip waveform functions
+    getTimelineClipAudioBuffer,
+    clearTimelineClipCache,
+    createTimelineClipWaveformCanvas,
+    drawWaveformOnContext
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -255,6 +260,12 @@ const appServices = {
     setWaveformPreviewBuffer,
     startWaveformPlayheadAnimation,
     stopWaveformPlayheadAnimation,
+    
+    // Timeline Clip Waveform Functions
+    getTimelineClipAudioBuffer,
+    clearTimelineClipCache,
+    createTimelineClipWaveformCanvas,
+    drawWaveformOnContext,
 
     // State Module Getters
     getTracks: getTracksState, getTrackById: getTrackByIdState,
@@ -496,7 +507,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -513,7 +524,7 @@ const appServices = {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();

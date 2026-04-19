@@ -95,6 +95,39 @@
 - [x] Add `playDrumPad(padIndex)` method to Track class for preview playback
 - [x] Wire up pad selection to update UI controls
 
+### Feature 12: Waveform Visualization on Timeline Audio Clips - ✅ COMPLETED
+**File:** `js/ui.js`, `js/audio.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~Audio clips on timeline don't show waveform visualization~~
+**Implementation Plan:**
+- [x] Add canvas element for each audio clip in timeline
+- [x] Implement `drawTimelineClipWaveform()` function
+- [x] Cache audio buffer references for waveform drawing
+- [x] Handle waveform zoom and scroll
+- [x] Update on clip resize/move
+- [x] Wire up functions in main.js appServices
+
+### Feature 13: Mixer Send/Return Routing UI - 🔄 IN PROGRESS
+**File:** `js/ui.js`, `js/Track.js`, `js/audio.js`
+**Status:** 🔄 IN PROGRESS
+**What's Missing:** No UI to configure send/return routing for effects
+**Implementation Plan:**
+- [ ] Add send level knobs to mixer track strips
+- [ ] Create send buses (reverb, delay, etc.)
+- [ ] Add return channels in mixer
+- [ ] Wire sends to return channels
+- [ ] Support pre/post-fader sends
+
+### Feature 14: Sidechain Routing UI - 🔄 IN PROGRESS
+**File:** `js/ui.js`, `js/audio.js`
+**Status:** 🔄 IN PROGRESS
+**What's Missing:** Sidechain functionality exists in audio.js but no UI to configure routing
+**Implementation Plan:**
+- [ ] Add sidechain source selector dropdown
+- [ ] Add sidechain enable button per track
+- [ ] Add sidechain threshold/ratio controls
+- [ ] Visual indicator for sidechain routing
+
 ---
 
 ## 🟢 Low Priority - Nice-to-Have
@@ -154,21 +187,22 @@
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Implemented MIDI Learn / Mapping UI** - Full functionality including:
-  - MIDI Learn button in global controls bar
-  - Visual feedback when in learn mode
-  - MIDI Mappings panel (`openMidiMappingsPanel()`)
-  - Menu item in Start Menu for viewing mappings
-  - Support for mapping CC to track/master parameters
-  - `applyMidiMapping()` function for real-time parameter control
+- ✅ **Waveform Visualization on Timeline Audio Clips** - Full functionality including:
+  - Canvas element for each audio clip in timeline
+  - `renderTimelineClipWaveforms()` function to draw waveforms
+  - `getTimelineClipAudioBuffer()` for caching audio buffers
+  - `drawWaveformOnContext()` for drawing waveforms on canvas contexts
+  - `createTimelineClipWaveformCanvas()` for creating waveform canvases
+  - `clearTimelineClipCache()` for cache management
+  - Wired up all functions in main.js appServices
 
 ### In Progress
-- (none)
+- 🔄 **Mixer Send/Return Routing UI**
+- 🔄 **Sidechain Routing UI**
 
 ### Next to Tackle
-1. Implement Mixer send/return routing UI
-2. Implement Waveform Visualization on audio clips (timeline)
-3. Create UI for sidechain routing source to destination
+1. Complete Mixer Send/Return Routing UI
+2. Complete Sidechain Routing UI
 
 ---
 
