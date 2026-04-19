@@ -44,15 +44,14 @@
 
 ---
 
+✅ **Monitoring mode active.** Last scan: 2026-04-19 05:15 UTC. No new bugs detected.
+
 ## Scanning for new issues...
 
-✅ **Monitoring mode active.** Last scan: 2026-04-19 04:25 UTC. No new bugs detected:
-
-✅ **Monitoring mode active.** Last scan: 2026-04-19 04:30 UTC. No new bugs detected:
-
-✅ **Monitoring mode active.** Last scan: 2026-04-19 04:40 UTC. No new bugs detected.
-
-✅ **Monitoring mode active.** Last scan: 2026-04-19 04:50 UTC. No new bugs detected.
-
-✅ **Monitoring mode active.** Last scan: 2026-04-19 05:04 UTC. No new bugs detected.
+Every scheduled run:
+1. `git pull origin LWB-with-Bugs` — sync latest changes
+2. `git diff HEAD~1` — check what changed
+3. If JS files changed, audit for new bugs (undefined vars, early returns in loops, async issues)
+4. If new bugs found, fix and push
+5. Update REPAIR_BRIEF.md scan timestamp
 
