@@ -291,4 +291,11 @@ Need to create `.github/workflows/deploy.yml` that:
   6. **setNoteLen()**: New function in the context menu handler that sets `currentActiveSeq.data[r][c].length` with undo capture and redraws the window.
 - **Bug Fix: Duplicate Function Cleanup** (`js/eventHandlers.js`): Removed massive duplication in eventHandlers.js where core handler functions were duplicated 10x each (from past merge conflicts). Cleaned up: `showKeyboardShortcutsModal` (10→1), `handleOpenSequencer` (5→1), `handleTrackMute` (10→1), `handleTrackSolo` (10→1), `handleTrackArm` (10→1), `handleRemoveTrack` (10→1), `handleOpenTrackInspector` (10→1), `handleOpenEffectsRack` (10→1). Removed 1296 lines of dead duplicate code. File reduced from 13882 to 12587 lines. This was a known issue in AGENTS.md.
 - **Note**: Git push works! zo.pub sync also works as fallback. Pushed to origin/LWB-with-Bugs successfully.
+### 2026-04-18 — Day 48
+- **Fixed top 3 high-severity bugs from error log**:
+  1. `updateSequencerCellUI` in ui.js: undefined variable `j` → `col` — all external cell UI updates were silently failing
+  2. `main.js`: `getIsReconstructingingDAW` (triple "g") typo fixed → `getIsReconstructingDAW` (6 replacements) — master effects couldn't be added/removed during DAW reconstruction
+  3. `audio.js` `rebuildMasterEffectChain`: early `return` in forEach now replaced with chain continuation — one bad effect no longer breaks all subsequent effects
+- Version bumped to 0.5.6
+- Git push works, zo.pub sync works
 
