@@ -1023,18 +1023,7 @@ async function restoreDesktopBackground() {
     const DESKTOP_BACKGROUND_KEY = 'snugos-desktop-bg';
     const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
     
-    if (bgType === 'video') {
-        try {
-            const videoBlob = await bgDb.get('desktopVideo');
-            if (videoBlob) {
-                const objectUrl = URL.createObjectURL(videoBlob);
-                applyDesktopBackground(objectUrl, 'video');
-                console.log("[Main] Restored video background from IndexedDB");
-            }
-        } catch (e) {
-            console.warn("Could not restore video background:", e);
-        }
-    } else if (bgType === 'image' || !bgType) {
+    if (bgType === 'image' || !bgType) {
         const imageUrl = localStorage.getItem(DESKTOP_BACKGROUND_KEY);
         if (imageUrl) {
             applyDesktopBackground(imageUrl, 'image');
