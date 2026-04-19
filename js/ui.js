@@ -1433,6 +1433,7 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             });
         }
 
+        // Handle cell click for toggle and shift+click for velocity
         if (grid) grid.addEventListener('click', (e) => {
             const targetCell = e.target.closest('.sequencer-step-cell');
             if (targetCell) {
@@ -1440,15 +1441,85 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 const currentActiveSeq = track.getActiveSequence();
                 if (!currentActiveSeq || !currentActiveSeq.data) return;
 
-                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                    if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
-                    const currentStepData = currentActiveSeq.data[row][col];
+                if (!currentActiveSeq.data[row]) currentActiveSeq.data[row] = Array(currentActiveSeq.length).fill(null);
+                const currentStepData = currentActiveSeq.data[row][col];
+
+                if (e.shiftKey && currentStepData?.active) {
+                    // Shift+click: change velocity
+                    const newVel = currentStepData.velocity - 0.1;
+                    const finalVel = newVel < 0.05 ? 1.0 : newVel;
+                    currentActiveSeq.data[row][col] = { ...currentStepData, velocity: finalVel };
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Change velocity for step (${row + 1},${col + 1}) on ${track.name}`);
+                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true);
+                } else if (e.ctrlKey || e.metaKey) {
+                    // Ctrl/Cmd+click: cycle velocity preset
+                    const velocities = [0.3, 0.5, 0.7, 0.9, 1.0];
+                    const currentVel = currentStepData?.velocity || Constants.defaultVelocity;
+                    const idx = velocities.findIndex(v => Math.abs(v - currentVel) < 0.05);
+                    const nextVel = idx >= 0 ? velocities[(idx + 1) % velocities.length] : 0.7;
+                    const newActive = currentStepData?.active !== undefined ? currentStepData : { active: true };
+                    currentActiveSeq.data[row][col] = { ...newActive, velocity: nextVel };
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set velocity to ${Math.round(nextVel * 100)}% for step (${row + 1},${col + 1}) on ${track.name}`);
+                    updateSequencerCellUI(sequencerWindow.element, track.type, row, col, currentActiveSeq.data[row][col].active);
+                } else {
+                    // Normal click: toggle step
                     const isActive = !(currentStepData?.active);
                     if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle Step (${row + 1},${col + 1}) on ${track.name} (${currentActiveSeq.name})`);
                     currentActiveSeq.data[row][col] = isActive ? { active: true, velocity: Constants.defaultVelocity } : null;
                     updateSequencerCellUI(sequencerWindow.element, track.type, row, col, isActive);
                 }
             }
+        });
+
+        // Handle right-click for velocity slider popup
+        if (grid) grid.addEventListener('contextmenu', (e) => {
+            const targetCell = e.target.closest('.sequencer-step-cell');
+            if (!targetCell) return;
+            const row = parseInt(targetCell.dataset.row, 10);
+            const col = parseInt(targetCell.dataset.col, 10);
+            const currentActiveSeq = track.getActiveSequence();
+            if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+
+            const stepData = currentActiveSeq.data[row][col];
+            if (!stepData?.active) return; // Not an active step, don't intercept
+
+            // Only prevent default when showing popup
+            e.preventDefault();
+
+            const velocity = stepData.velocity || Constants.defaultVelocity;
+            const popup = document.createElement('div');
+            popup.className = 'velocity-popup fixed bg-gray-100 dark:bg-slate-800 border border-slate-400 dark:border-slate-600 rounded shadow-lg p-2 z-[9999]';
+            popup.style.left = `${e.clientX}px`;
+            popup.style.top = `${e.clientY}px`;
+            popup.innerHTML = `
+                <div class="text-xs font-semibold mb-1 dark:text-slate-200">Velocity</div>
+                <input type="range" min="0.05" max="1.0" step="0.05" value="${velocity}" class="w-32" id="velSlider">
+                <div class="text-xs text-center mt-1 dark:text-slate-300" id="velLabel">${Math.round(velocity * 100)}%</div>
+                <div class="text-xs text-center mt-1 text-gray-500">Right-click to close</div>
+            `;
+            document.body.appendChild(popup);
+
+            const slider = popup.querySelector('#velSlider');
+            const label = popup.querySelector('#velLabel');
+            slider.addEventListener('input', () => {
+                const v = parseFloat(slider.value);
+                label.textContent = `${Math.round(v * 100)}%`;
+                currentActiveSeq.data[row][col] = { ...stepData, velocity: v };
+                updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true);
+            });
+
+            slider.addEventListener('change', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set velocity for step (${row + 1},${col + 1}) on ${track.name}`);
+                popup.remove();
+            });
+
+            const closePopup = (ev) => {
+                if (!popup.contains(ev.target)) {
+                    popup.remove();
+                    document.removeEventListener('click', closePopup);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closePopup), 10);
         });
 
     }
@@ -1813,8 +1884,10 @@ function setupTimelineEventListeners(content, tracks) {
                 }
             }
         });
+    });
 
-        // Click on empty lane area to deselect
+    // Click on empty lane area to deselect
+    content.querySelectorAll('.track-clips-lane').forEach(lane => {
         lane.addEventListener('click', (e) => {
             if (e.target === lane) {
                 timelineState.selectedClipId = null;
