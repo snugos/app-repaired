@@ -107,26 +107,35 @@
 - [x] Update on clip resize/move
 - [x] Wire up functions in main.js appServices
 
-### Feature 13: Mixer Send/Return Routing UI - 🔄 IN PROGRESS
-**File:** `js/ui.js`, `js/Track.js`, `js/audio.js`
-**Status:** 🔄 IN PROGRESS
-**What's Missing:** No UI to configure send/return routing for effects
+### Feature 13: Mixer Send/Return Routing UI - ✅ COMPLETED
+**File:** `js/ui.js`, `js/Track.js`, `js/audio.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~No UI to configure send/return routing for effects~~
 **Implementation Plan:**
-- [ ] Add send level knobs to mixer track strips
-- [ ] Create send buses (reverb, delay, etc.)
-- [ ] Add return channels in mixer
-- [ ] Wire sends to return channels
-- [ ] Support pre/post-fader sends
+- [x] Add send level knobs to mixer track strips
+- [x] Create send buses (reverb, delay) in audio.js
+- [x] Add return channels in mixer
+- [x] Wire sends to return channels
+- [x] Support pre/post-fader sends (sendGainNodes per track)
+- [x] Add return level and wet knobs for each bus
+- [x] Add `setSendLevel`, `getSendLevel` methods to Track class
+- [x] Add `getSendBusesInfo`, `setTrackSendLevel`, `getTrackSendLevel`, `setSendBusReturnLevel`, `getSendBusReturnLevel`, `setSendBusWet` to audio.js
+- [x] Wire all functions in main.js appServices
 
-### Feature 14: Sidechain Routing UI - 🔄 IN PROGRESS
-**File:** `js/ui.js`, `js/audio.js`
-**Status:** 🔄 IN PROGRESS
-**What's Missing:** Sidechain functionality exists in audio.js but no UI to configure routing
+### Feature 14: Sidechain Routing UI - ✅ COMPLETED
+**File:** `js/ui.js`, `js/audio.js`, `js/Track.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~Sidechain functionality exists in audio.js but no UI to configure routing~~
 **Implementation Plan:**
-- [ ] Add sidechain source selector dropdown
-- [ ] Add sidechain enable button per track
-- [ ] Add sidechain threshold/ratio controls
-- [ ] Visual indicator for sidechain routing
+- [x] Add sidechain source selector in mixer
+- [x] Add sidechain enable button per track
+- [x] Add sidechain threshold/ratio controls
+- [x] Visual indicator for sidechain routing (SC badge)
+- [x] Add `showSidechainConfigModal()` for configuring routing
+- [x] Add `setupSidechainRouting`, `removeSidechainRouting`, `clearAllSidechainForTrack` to audio.js
+- [x] Add `getTrackSidechainInfo`, `triggerSidechainForTrack` to audio.js
+- [x] Add sidechain properties and methods to Track class
+- [x] Wire all functions in main.js appServices
 
 ---
 
@@ -187,22 +196,29 @@
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Waveform Visualization on Timeline Audio Clips** - Full functionality including:
-  - Canvas element for each audio clip in timeline
-  - `renderTimelineClipWaveforms()` function to draw waveforms
-  - `getTimelineClipAudioBuffer()` for caching audio buffers
-  - `drawWaveformOnContext()` for drawing waveforms on canvas contexts
-  - `createTimelineClipWaveformCanvas()` for creating waveform canvases
-  - `clearTimelineClipCache()` for cache management
-  - Wired up all functions in main.js appServices
+- ✅ **Mixer Send/Return Routing UI** - Full functionality including:
+  - Send level knobs (Reverb, Delay) for each track in mixer
+  - Return channel strips with return level and wet controls
+  - `SEND_BUSES` infrastructure in audio.js (Reverb, Delay)
+  - `setSendLevel`, `getSendLevel` methods on Track class
+  - `sendGainNodes` per track for send routing
+  - Wired all functions in main.js appServices
+
+- ✅ **Sidechain Routing UI** - Full functionality including:
+  - Sidechain configuration modal with source/destination selectors
+  - Visual SC indicator badge on tracks with sidechain routing
+  - `setupSidechainRouting`, `removeSidechainRouting`, `clearAllSidechainForTrack` in audio.js
+  - `triggerSidechainForTrack()` for real-time gain ducking
+  - `getTrackSidechainInfo()` for UI state
+  - Sidechain properties (`sidechainSource`, `sidechainDestination`) on Track class
+  - Wired all functions in main.js appServices
 
 ### In Progress
-- 🔄 **Mixer Send/Return Routing UI**
-- 🔄 **Sidechain Routing UI**
+- None - All features completed
 
 ### Next to Tackle
-1. Complete Mixer Send/Return Routing UI
-2. Complete Sidechain Routing UI
+- All medium priority features have been completed
+- Consider low priority optimizations and nice-to-have features
 
 ---
 

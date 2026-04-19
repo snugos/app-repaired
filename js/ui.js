@@ -1401,6 +1401,14 @@ export function updateMixerWindow() {
 export function renderMixer(container) {
     const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
     container.innerHTML = '';
+    
+    // Get send buses info
+    const sendBuses = localAppServices.getSendBusesInfo ? localAppServices.getSendBusesInfo() : [
+        { id: 'reverb', name: 'Reverb', hasEffect: true },
+        { id: 'delay', name: 'Delay', hasEffect: true }
+    ];
+    
+    // Master track strip
     const masterTrackDiv = document.createElement('div');
     masterTrackDiv.className = 'mixer-track master-track inline-block align-top p-1.5 border rounded bg-gray-200 dark:bg-slate-700 dark:border-slate-600 shadow w-24 mr-2 text-xs';
     masterTrackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="Master">Master</div> <div id="masterVolumeKnob-mixer-placeholder" class="h-16 mx-auto mb-1"></div> <div id="mixerMasterMeterContainer" class="h-3 w-full bg-gray-300 dark:bg-slate-600 rounded border border-gray-400 dark:border-slate-500 overflow-hidden mt-1"> <div id="mixerMasterMeterBar" class="h-full bg-purple-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
@@ -1417,10 +1425,32 @@ export function renderMixer(container) {
         masterVolKnobPlaceholder.innerHTML = ''; masterVolKnobPlaceholder.appendChild(masterVolKnob.element);
     }
 
+    // Track strips
     tracks.forEach(track => {
         const trackDiv = document.createElement('div');
         trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-28 mr-2 text-xs';
-        trackDiv.innerHTML = `<div class="track-name font-semibold truncate mb-1 dark:text-slate-200" title="${track.name}">${track.name}</div> <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-14 mx-auto mb-1"></div> <div id="panKnob-mixer-${track.id}-placeholder" class="h-10 mx-auto mb-1"></div> <div class="grid grid-cols-2 gap-0.5 my-1"> <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted' : ''}">${track.isMuted ? 'U' : 'M'}</button> <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'U' : 'S'}</button> </div> <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
+        
+        // Get sidechain info
+        const sidechainInfo = track.getSidechainInfo ? track.getSidechainInfo() : { isSource: false, isDestination: false, sources: [], destinations: [] };
+        const sidechainIndicator = sidechainInfo.isSource || sidechainInfo.isDestination ? 
+            `<div class="sidechain-indicator text-[10px] px-1 rounded ${sidechainInfo.isSource ? 'bg-orange-200 text-orange-700 dark:bg-orange-800 dark:text-orange-200' : 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-200'}" title="Sidechain: ${sidechainInfo.isSource ? 'Source' : 'Destination'}">SC</div>` : '';
+        
+        trackDiv.innerHTML = `
+            <div class="track-name font-semibold truncate mb-0.5 dark:text-slate-200" title="${track.name}">${track.name}</div>
+            ${sidechainIndicator}
+            <div id="volumeKnob-mixer-${track.id}-placeholder" class="h-14 mx-auto mb-0.5"></div>
+            <div id="panKnob-mixer-${track.id}-placeholder" class="h-10 mx-auto mb-0.5"></div>
+            <div class="sends-section border-t dark:border-slate-600 pt-0.5 mt-0.5">
+                <div class="text-[9px] text-gray-500 dark:text-slate-400 mb-0.5">Sends</div>
+                <div id="sendReverbKnob-mixer-${track.id}-placeholder" class="h-8 mx-auto"></div>
+                <div id="sendDelayKnob-mixer-${track.id}-placeholder" class="h-8 mx-auto"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-0.5 my-1"> 
+                <button id="mixerMuteBtn-${track.id}" title="Mute" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isMuted ? 'muted bg-red-100 dark:bg-red-900' : ''}">${track.isMuted ? 'U' : 'M'}</button> 
+                <button id="mixerSoloBtn-${track.id}" title="Solo" class="px-1 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed bg-yellow-100 dark:bg-yellow-900' : ''}">${track.isSoloed ? 'U' : 'S'}</button>
+            </div>
+            <button id="mixerSidechainBtn-${track.id}" title="Sidechain" class="w-full px-1 py-0.5 text-[10px] border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600 ${sidechainInfo.isSource || sidechainInfo.isDestination ? 'bg-orange-100 dark:bg-orange-900' : ''}">SC: ${sidechainInfo.isSource ? '→' : sidechainInfo.isDestination ? '←' : 'Off'}</button>
+            <div id="mixerTrackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden mt-0.5"> <div id="mixerTrackMeterBar-${track.id}" class="h-full bg-pink-400 transition-all duration-50 ease-linear" style="width: 0%;"></div> </div>`;
         trackDiv.addEventListener('contextmenu', (e) => { e.preventDefault(); createContextMenu(e, [ {label: "Open Inspector", action: () => localAppServices.handleOpenTrackInspector(track.id)}, {label: "Open Effects Rack", action: () => localAppServices.handleOpenEffectsRack(track.id)}, {label: "Open Sequencer", action: () => localAppServices.handleOpenSequencer(track.id)}, {separator: true}, {label: track.isMuted ? "Unmute" : "Mute", action: () => localAppServices.handleTrackMute(track.id)}, {label: track.isSoloed ? "Unsolo" : "Solo", action: () => localAppServices.handleTrackSolo(track.id)}, {label: (localAppServices.getArmedTrackId && localAppServices.getArmedTrackId() === track.id) ? "Disarm Input" : "Arm for Input", action: () => localAppServices.handleTrackArm(track.id)}, {separator: true}, {label: "Remove Track", action: () => localAppServices.handleRemoveTrack(track.id)} ], localAppServices); });
         container.appendChild(trackDiv);
         
@@ -1446,9 +1476,180 @@ export function renderMixer(container) {
             panKnobPlaceholder.appendChild(panKnob.element); 
         }
         
+        // Send knobs
+        const reverbSendPlaceholder = trackDiv.querySelector(`#sendReverbKnob-mixer-${track.id}-placeholder`);
+        if (reverbSendPlaceholder) {
+            const reverbSend = track.getSendLevel ? track.getSendLevel('reverb') : 0;
+            const reverbKnob = createKnob({
+                label: `Reverb`,
+                min: 0,
+                max: 1,
+                step: 0.01,
+                initialValue: reverbSend,
+                decimals: 2,
+                trackRef: track,
+                onValueChange: (val, o, fromInteraction) => track.setSendLevel('reverb', val, fromInteraction)
+            });
+            reverbSendPlaceholder.innerHTML = '';
+            reverbSendPlaceholder.appendChild(reverbKnob.element);
+        }
+        
+        const delaySendPlaceholder = trackDiv.querySelector(`#sendDelayKnob-mixer-${track.id}-placeholder`);
+        if (delaySendPlaceholder) {
+            const delaySend = track.getSendLevel ? track.getSendLevel('delay') : 0;
+            const delayKnob = createKnob({
+                label: `Delay`,
+                min: 0,
+                max: 1,
+                step: 0.01,
+                initialValue: delaySend,
+                decimals: 2,
+                trackRef: track,
+                onValueChange: (val, o, fromInteraction) => track.setSendLevel('delay', val, fromInteraction)
+            });
+            delaySendPlaceholder.innerHTML = '';
+            delaySendPlaceholder.appendChild(delayKnob.element);
+        }
+        
+        // Sidechain button
+        const sidechainBtn = trackDiv.querySelector(`#mixerSidechainBtn-${track.id}`);
+        if (sidechainBtn) {
+            sidechainBtn.addEventListener('click', () => showSidechainConfigModal(track));
+        }
+        
         trackDiv.querySelector(`#mixerMuteBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackMute(track.id));
         trackDiv.querySelector(`#mixerSoloBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackSolo(track.id));
     });
+    
+    // Return channel strips
+    sendBuses.forEach(bus => {
+        const returnDiv = document.createElement('div');
+        returnDiv.className = 'mixer-track return-track inline-block align-top p-1.5 border rounded bg-purple-100 dark:bg-purple-900 dark:border-purple-700 shadow w-24 mr-2 text-xs';
+        
+        const returnLevel = localAppServices.getSendBusReturnLevel ? localAppServices.getSendBusReturnLevel(bus.id) : 0.5;
+        
+        returnDiv.innerHTML = `
+            <div class="track-name font-semibold truncate mb-1 dark:text-purple-200" title="${bus.name} Return">${bus.name}</div>
+            <div id="returnKnob-${bus.id}-placeholder" class="h-14 mx-auto mb-1"></div>
+            <div id="wetKnob-${bus.id}-placeholder" class="h-10 mx-auto mb-0.5"></div>
+            <div class="text-[9px] text-gray-500 dark:text-purple-300">Return</div>`;
+        container.appendChild(returnDiv);
+        
+        // Return level knob
+        const returnKnobPlaceholder = returnDiv.querySelector(`#returnKnob-${bus.id}-placeholder`);
+        if (returnKnobPlaceholder) {
+            const returnKnob = createKnob({
+                label: `Return`,
+                min: 0,
+                max: 1,
+                step: 0.01,
+                initialValue: returnLevel,
+                decimals: 2,
+                onValueChange: (val, o, fromInteraction) => {
+                    if (localAppServices.setSendBusReturnLevel) localAppServices.setSendBusReturnLevel(bus.id, val);
+                }
+            });
+            returnKnobPlaceholder.innerHTML = '';
+            returnKnobPlaceholder.appendChild(returnKnob.element);
+        }
+        
+        // Wet level knob
+        const wetKnobPlaceholder = returnDiv.querySelector(`#wetKnob-${bus.id}-placeholder`);
+        if (wetKnobPlaceholder) {
+            const wetKnob = createKnob({
+                label: `Wet`,
+                min: 0,
+                max: 1,
+                step: 0.01,
+                initialValue: 0.5,
+                decimals: 2,
+                onValueChange: (val, o, fromInteraction) => {
+                    if (localAppServices.setSendBusWet) localAppServices.setSendBusWet(bus.id, val);
+                }
+            });
+            wetKnobPlaceholder.innerHTML = '';
+            wetKnobPlaceholder.appendChild(wetKnob.element);
+        }
+    });
+}
+
+/**
+ * Shows a modal for configuring sidechain routing.
+ * @param {Track} track - The track to configure
+ */
+function showSidechainConfigModal(track) {
+    const allTracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const sidechainInfo = track.getSidechainInfo ? track.getSidechainInfo() : { isSource: false, isDestination: false, sources: [], destinations: [] };
+    
+    // Build track options
+    const trackOptions = allTracks
+        .filter(t => t.id !== track.id)
+        .map(t => `<option value="${t.id}" ${sidechainInfo.destinations.includes(t.id) || sidechainInfo.sources.includes(t.id) ? 'selected' : ''}>${t.name}</option>`)
+        .join('');
+    
+    const contentHTML = `
+        <div class="p-2 text-xs space-y-2">
+            <h4 class="font-semibold dark:text-slate-200">Sidechain Routing for ${track.name}</h4>
+            <div class="space-y-1">
+                <label class="block dark:text-slate-300">This track ducks when:</label>
+                <select id="sidechainSource-${track.id}" class="w-full p-1 border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                    <option value="">None</option>
+                    ${trackOptions}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block dark:text-slate-300">This track triggers ducking on:</label>
+                <select id="sidechainDest-${track.id}" class="w-full p-1 border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                    <option value="">None</option>
+                    ${trackOptions}
+                </select>
+            </div>
+            <div class="pt-1 border-t dark:border-slate-600">
+                <button id="clearSidechain-${track.id}" class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">Clear Sidechain</button>
+            </div>
+        </div>
+    `;
+    
+    const modal = showCustomModal(`Sidechain: ${track.name}`, contentHTML, [], 'sidechain-config-modal');
+    
+    if (modal?.contentDiv) {
+        const sourceSelect = modal.contentDiv.querySelector(`#sidechainSource-${track.id}`);
+        const destSelect = modal.contentDiv.querySelector(`#sidechainDest-${track.id}`);
+        const clearBtn = modal.contentDiv.querySelector(`#clearSidechain-${track.id}`);
+        
+        if (sourceSelect) {
+            sourceSelect.value = sidechainInfo.sources[0] || '';
+            sourceSelect.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    track.setSidechainSource(parseInt(e.target.value), true);
+                } else if (sidechainInfo.sources[0]) {
+                    track.clearSidechainRouting();
+                }
+            });
+        }
+        
+        if (destSelect) {
+            destSelect.value = sidechainInfo.destinations[0] || '';
+            destSelect.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    track.setSidechainDestination(parseInt(e.target.value), true);
+                } else if (sidechainInfo.destinations[0]) {
+                    track.clearSidechainRouting();
+                }
+            });
+        }
+        
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                track.clearSidechainRouting();
+                if (sourceSelect) sourceSelect.value = '';
+                if (destSelect) destSelect.value = '';
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification(`Cleared sidechain routing for ${track.name}`, 2000);
+                }
+            });
+        }
+    }
 }
 
 // --- Sequencer Window ---

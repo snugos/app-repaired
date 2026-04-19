@@ -143,6 +143,16 @@ export class Track {
         this.gainNode = null; this.trackMeter = null; this.outputNode = null;
         this.panNode = null; // Stereo panner
         this.pan = initialData?.pan !== undefined ? initialData.pan : 0; // -1 (left) to 1 (right)
+        
+        // --- Send Levels ---
+        // Stores send levels for each bus: { 'reverb': 0, 'delay': 0 }
+        this.sendLevels = initialData?.sendLevels || { reverb: 0, delay: 0 };
+        this.sendGainNodes = {}; // Tone.Gain nodes for each send bus
+        
+        // --- Sidechain ---
+        this.sidechainSource = initialData?.sidechainSource || null; // Track ID that this track triggers
+        this.sidechainDestination = initialData?.sidechainDestination || null; // Track ID that ducks this track
+        
         this.instrument = null; 
 
         this.sequences = [];
@@ -911,6 +921,180 @@ export class Track {
         }
     }
 
+    // --- Send Level Methods ---
+    /**
+     * Set the send level for a specific bus.
+     * @param {string} busId - The bus ID ('reverb' or 'delay')
+     * @param {number} level - Send level (0-1)
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setSendLevel(busId, level, fromInteraction = false) {
+        // Clamp level
+        level = Math.max(0, Math.min(1, parseFloat(level) || 0));
+        
+        // Store the level
+        this.sendLevels[busId] = level;
+        
+        // Update the gain node if it exists
+        if (this.sendGainNodes[busId] && !this.sendGainNodes[busId].disposed) {
+            this.sendGainNodes[busId].gain.value = level;
+        }
+        
+        // Also update in audio module
+        if (this.appServices.setTrackSendLevel) {
+            this.appServices.setTrackSendLevel(this.id, busId, level);
+        }
+        
+        console.log(`[Track ${this.id}] Set ${busId} send level to ${level.toFixed(2)}`);
+        
+        // Capture undo state if from user interaction
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Set ${this.name} ${busId} send to ${(level * 100).toFixed(0)}%`);
+        }
+    }
+
+    /**
+     * Get the send level for a specific bus.
+     * @param {string} busId - The bus ID
+     * @returns {number} Send level (0-1)
+     */
+    getSendLevel(busId) {
+        return this.sendLevels[busId] || 0;
+    }
+
+    /**
+     * Connect track output to a send bus.
+     * @param {string} busId - The bus ID
+     */
+    connectToSendBus(busId) {
+        if (!this.trackMeter || this.trackMeter.disposed) return;
+        
+        const busInput = this.appServices.getSendBusInputNode ? this.appServices.getSendBusInputNode(busId) : null;
+        if (!busInput) {
+            console.warn(`[Track ${this.id}] Send bus ${busId} input not available.`);
+            return;
+        }
+        
+        // Create gain node for this send if not exists
+        if (!this.sendGainNodes[busId] || this.sendGainNodes[busId].disposed) {
+            this.sendGainNodes[busId] = new Tone.Gain(this.sendLevels[busId] || 0);
+        }
+        
+        // Connect: trackMeter -> sendGainNode -> busInput
+        try {
+            this.trackMeter.connect(this.sendGainNodes[busId]);
+            this.sendGainNodes[busId].connect(busInput);
+            console.log(`[Track ${this.id}] Connected to send bus ${busId}`);
+        } catch (e) {
+            console.error(`[Track ${this.id}] Error connecting to send bus ${busId}:`, e);
+        }
+    }
+
+    /**
+     * Disconnect from a send bus.
+     * @param {string} busId - The bus ID
+     */
+    disconnectFromSendBus(busId) {
+        if (this.sendGainNodes[busId] && !this.sendGainNodes[busId].disposed) {
+            try {
+                this.sendGainNodes[busId].disconnect();
+                if (this.trackMeter && !this.trackMeter.disposed) {
+                    this.trackMeter.disconnect(this.sendGainNodes[busId]);
+                }
+                console.log(`[Track ${this.id}] Disconnected from send bus ${busId}`);
+            } catch (e) {
+                console.error(`[Track ${this.id}] Error disconnecting from send bus ${busId}:`, e);
+            }
+        }
+    }
+
+    // --- Sidechain Methods ---
+    /**
+     * Set this track as a sidechain source.
+     * @param {number} destinationTrackId - The track ID that will be ducked
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setSidechainDestination(destinationTrackId, fromInteraction = false) {
+        // Clear existing destination if different
+        if (this.sidechainSource && this.sidechainSource !== destinationTrackId) {
+            this.clearSidechainRouting();
+        }
+        
+        this.sidechainSource = destinationTrackId;
+        
+        // Setup routing in audio module
+        if (this.appServices.setupSidechainRouting) {
+            this.appServices.setupSidechainRouting(this.id, destinationTrackId);
+        }
+        
+        console.log(`[Track ${this.id}] Set sidechain destination to track ${destinationTrackId}`);
+        
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            const destTrack = this.appServices.getTrackById ? this.appServices.getTrackById(destinationTrackId) : null;
+            this.appServices.captureStateForUndo(`Route ${this.name} sidechain to ${destTrack?.name || 'Track ' + destinationTrackId}`);
+        }
+    }
+
+    /**
+     * Set this track to be ducked by a source track.
+     * @param {number} sourceTrackId - The track ID that will trigger ducking
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setSidechainSource(sourceTrackId, fromInteraction = false) {
+        this.sidechainDestination = sourceTrackId;
+        
+        // Setup routing in audio module
+        if (this.appServices.setupSidechainRouting) {
+            this.appServices.setupSidechainRouting(sourceTrackId, this.id);
+        }
+        
+        console.log(`[Track ${this.id}] Set sidechain source to track ${sourceTrackId}`);
+        
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            const srcTrack = this.appServices.getTrackById ? this.appServices.getTrackById(sourceTrackId) : null;
+            this.appServices.captureStateForUndo(`Set ${srcTrack?.name || 'Track ' + sourceTrackId} to duck ${this.name}`);
+        }
+    }
+
+    /**
+     * Clear all sidechain routing for this track.
+     */
+    clearSidechainRouting() {
+        // Clear as source
+        if (this.sidechainSource) {
+            if (this.appServices.removeSidechainRouting) {
+                this.appServices.removeSidechainRouting(this.id, this.sidechainSource);
+            }
+            this.sidechainSource = null;
+        }
+        
+        // Clear as destination
+        if (this.sidechainDestination) {
+            if (this.appServices.removeSidechainRouting) {
+                this.appServices.removeSidechainRouting(this.sidechainDestination, this.id);
+            }
+            this.sidechainDestination = null;
+        }
+        
+        console.log(`[Track ${this.id}] Cleared sidechain routing`);
+    }
+
+    /**
+     * Get sidechain info for this track.
+     * @returns {Object} { isSource, isDestination, sources, destinations }
+     */
+    getSidechainInfo() {
+        if (this.appServices.getTrackSidechainInfo) {
+            return this.appServices.getTrackSidechainInfo(this.id);
+        }
+        return {
+            isSource: !!this.sidechainSource,
+            isDestination: !!this.sidechainDestination,
+            sources: this.sidechainDestination ? [this.sidechainDestination] : [],
+            destinations: this.sidechainSource ? [this.sidechainSource] : []
+        };
+    }
+
     // --- Effect Presets ---
     /**
      * Save the current effect chain as a preset.
@@ -1282,7 +1466,7 @@ export class Track {
                 } else {
                     target[finalKey] = value;
                 }
-            } else if (target && typeof target.set === 'function') {
+            } else if (target && typeof target.set === 'function' && keys.length > 0) {
                 const setObj = {};
                 let currentLevel = setObj;
                 keys.forEach((k, idx) => {
@@ -1666,7 +1850,7 @@ export class Track {
                                     try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                     try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
                                     try { if(tempGain && !tempGain.disposed) tempGain.dispose(); } catch(e){}
-                                }, time + playDuration + (sliceData.envelope?.release || 0.1) + 0.3);
+                                }, time + playDuration + (sliceData.envelope?.release || 0.3));
                             } else if (this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed && this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed && this.slicerMonoGain && !this.slicerMonoGain.disposed) {
                                 if (this.slicerMonoPlayer.state === 'started') this.slicerMonoPlayer.stop(time);
                                 this.slicerMonoEnvelope.triggerRelease(time);
@@ -1984,7 +2168,7 @@ export class Track {
                                             try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                             try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
                                             try { if(tempGain && !tempGain.disposed) tempGain.dispose(); } catch(e){}
-                                        }, time + playDurationPart + (sliceData.envelope?.release || 0.1) + 0.3);
+                                        }, time + playDurationPart + (sliceData.envelope?.release || 0.3));
                                     } else if (this.slicerMonoPlayer && !this.slicerMonoPlayer.disposed && this.slicerMonoEnvelope && !this.slicerMonoEnvelope.disposed && this.slicerMonoGain && !this.slicerMonoGain.disposed) {
                                         if (this.slicerMonoPlayer.state === 'started') this.slicerMonoPlayer.stop(time);
                                         this.slicerMonoEnvelope.triggerRelease(time); 

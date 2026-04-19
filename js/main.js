@@ -78,7 +78,25 @@ import {
     getTimelineClipAudioBuffer,
     clearTimelineClipCache,
     createTimelineClipWaveformCanvas,
-    drawWaveformOnContext
+    drawWaveformOnContext,
+    // Send/Return Bus functions
+    getSendBusInputNode,
+    getSendBusesInfo,
+    setTrackSendLevel,
+    getTrackSendLevel,
+    setSendBusReturnLevel,
+    getSendBusReturnLevel,
+    setSendBusWet,
+    // Sidechain functions
+    getSidechainBusNode,
+    setupSidechainRouting,
+    removeSidechainRouting,
+    clearAllSidechainForTrack,
+    getSidechainDestinations,
+    getTrackSidechainInfo,
+    triggerSidechainForTrack,
+    updateSidechainSettings,
+    getSidechainSettings
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -266,6 +284,26 @@ const appServices = {
     clearTimelineClipCache,
     createTimelineClipWaveformCanvas,
     drawWaveformOnContext,
+
+    // Send/Return Bus Functions
+    getSendBusInputNode,
+    getSendBusesInfo,
+    setTrackSendLevel,
+    getTrackSendLevel,
+    setSendBusReturnLevel,
+    getSendBusReturnLevel,
+    setSendBusWet,
+    
+    // Sidechain Functions
+    getSidechainBusNode,
+    setupSidechainRouting,
+    removeSidechainRouting,
+    clearAllSidechainForTrack,
+    getSidechainDestinations,
+    getTrackSidechainInfo,
+    triggerSidechainForTrack,
+    updateSidechainSettings,
+    getSidechainSettings,
 
     // State Module Getters
     getTracks: getTracksState, getTrackById: getTrackByIdState,
@@ -487,7 +525,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -507,7 +545,7 @@ const appServices = {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -524,7 +562,7 @@ const appServices = {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();

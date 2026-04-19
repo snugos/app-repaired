@@ -20,6 +20,359 @@ let localAppServices = {};
 let mic = null;
 let recorder = null;
 
+// --- Send/Return Bus Infrastructure ---
+const SEND_BUSES = {
+    reverb: { id: 'reverb', name: 'Reverb', node: null, returnGain: null, wetGain: null, dryGain: null },
+    delay: { id: 'delay', name: 'Delay', node: null, returnGain: null, wetGain: null, dryGain: null }
+};
+
+// Track send levels: Map<trackId, Map<busId, sendLevel>>
+const trackSendLevels = new Map();
+
+// --- Sidechain Infrastructure ---
+let sidechainBusNode = null; // The bus that receives sidechain trigger signals
+let sidechainCompressorNode = null; // The compressor that ducks the destination
+const sidechainRouting = new Map(); // Map<sourceTrackId, Set<destinationTrackIds>>
+const sidechainSettings = {
+    threshold: -30, // dB
+    ratio: 4,
+    attack: 0.01, // seconds
+    release: 0.25 // seconds
+};
+
+/**
+ * Sets up send buses (Reverb, Delay) with return channels.
+ * Should be called after master bus setup.
+ */
+function setupSendBuses() {
+    console.log('[Audio setupSendBuses] Setting up send buses...');
+    
+    // Setup Reverb bus
+    if (!SEND_BUSES.reverb.node || SEND_BUSES.reverb.node.disposed) {
+        try {
+            SEND_BUSES.reverb.node = new Tone.Reverb({ decay: 2.5, wet: 0.5 });
+            SEND_BUSES.reverb.returnGain = new Tone.Gain(0.7);
+            SEND_BUSES.reverb.wetGain = new Tone.Gain(0.5);
+            SEND_BUSES.reverb.dryGain = new Tone.Gain(1);
+            
+            // Connect: wet signal through reverb to return gain
+            SEND_BUSES.reverb.wetGain.connect(SEND_BUSES.reverb.node);
+            SEND_BUSES.reverb.node.connect(SEND_BUSES.reverb.returnGain);
+            SEND_BUSES.reverb.returnGain.connect(masterGainNodeActual || Tone.Destination);
+            
+            console.log('[Audio setupSendBuses] Reverb bus created.');
+        } catch (e) {
+            console.error('[Audio setupSendBuses] Error creating Reverb bus:', e);
+        }
+    }
+    
+    // Setup Delay bus
+    if (!SEND_BUSES.delay.node || SEND_BUSES.delay.node.disposed) {
+        try {
+            SEND_BUSES.delay.node = new Tone.FeedbackDelay({ delayTime: '8n', feedback: 0.3, wet: 0.5 });
+            SEND_BUSES.delay.returnGain = new Tone.Gain(0.6);
+            SEND_BUSES.delay.wetGain = new Tone.Gain(0.5);
+            SEND_BUSES.delay.dryGain = new Tone.Gain(1);
+            
+            // Connect: wet signal through delay to return gain
+            SEND_BUSES.delay.wetGain.connect(SEND_BUSES.delay.node);
+            SEND_BUSES.delay.node.connect(SEND_BUSES.delay.returnGain);
+            SEND_BUSES.delay.returnGain.connect(masterGainNodeActual || Tone.Destination);
+            
+            console.log('[Audio setupSendBuses] Delay bus created.');
+        } catch (e) {
+            console.error('[Audio setupSendBuses] Error creating Delay bus:', e);
+        }
+    }
+}
+
+/**
+ * Gets the input node for a send bus (where tracks connect their sends).
+ * @param {string} busId - The bus ID ('reverb' or 'delay')
+ * @returns {Tone.Gain|null}
+ */
+export function getSendBusInputNode(busId) {
+    const bus = SEND_BUSES[busId];
+    if (!bus) {
+        console.warn(`[Audio getSendBusInputNode] Unknown bus ID: ${busId}`);
+        return null;
+    }
+    if (!bus.wetGain || bus.wetGain.disposed) {
+        setupSendBuses();
+    }
+    return bus.wetGain;
+}
+
+/**
+ * Gets the return gain node for a send bus.
+ * @param {string} busId - The bus ID
+ * @returns {Tone.Gain|null}
+ */
+export function getSendBusReturnGain(busId) {
+    const bus = SEND_BUSES[busId];
+    return bus?.returnGain || null;
+}
+
+/**
+ * Gets all available send bus IDs.
+ * @returns {string[]}
+ */
+export function getAvailableSendBuses() {
+    return Object.keys(SEND_BUSES);
+}
+
+/**
+ * Gets the send bus info for UI display.
+ * @returns {Array<{id: string, name: string, hasEffect: boolean}>}
+ */
+export function getSendBusesInfo() {
+    return Object.values(SEND_BUSES).map(bus => ({
+        id: bus.id,
+        name: bus.name,
+        hasEffect: !!(bus.node && !bus.node.disposed)
+    }));
+}
+
+/**
+ * Sets the send level for a track to a specific bus.
+ * @param {number} trackId - The track ID
+ * @param {string} busId - The bus ID
+ * @param {number} level - Send level (0-1)
+ */
+export function setTrackSendLevel(trackId, busId, level) {
+    if (!trackSendLevels.has(trackId)) {
+        trackSendLevels.set(trackId, new Map());
+    }
+    trackSendLevels.get(trackId).set(busId, Math.max(0, Math.min(1, level)));
+    console.log(`[Audio setTrackSendLevel] Track ${trackId} -> ${busId}: ${level}`);
+}
+
+/**
+ * Gets the send level for a track to a specific bus.
+ * @param {number} trackId - The track ID
+ * @param {string} busId - The bus ID
+ * @returns {number} Send level (0-1), default 0
+ */
+export function getTrackSendLevel(trackId, busId) {
+    const trackSends = trackSendLevels.get(trackId);
+    return trackSends?.get(busId) || 0;
+}
+
+/**
+ * Sets the return level for a send bus.
+ * @param {string} busId - The bus ID
+ * @param {number} level - Return level (0-1)
+ */
+export function setSendBusReturnLevel(busId, level) {
+    const bus = SEND_BUSES[busId];
+    if (bus?.returnGain && !bus.returnGain.disposed) {
+        bus.returnGain.gain.value = Math.max(0, Math.min(1, level));
+        console.log(`[Audio setSendBusReturnLevel] ${busId} return: ${level}`);
+    }
+}
+
+/**
+ * Gets the return level for a send bus.
+ * @param {string} busId - The bus ID
+ * @returns {number} Return level (0-1)
+ */
+export function getSendBusReturnLevel(busId) {
+    const bus = SEND_BUSES[busId];
+    return bus?.returnGain?.gain?.value || 0.5;
+}
+
+/**
+ * Sets the wet/dry mix for a send bus effect.
+ * @param {string} busId - The bus ID
+ * @param {number} wet - Wet level (0-1)
+ */
+export function setSendBusWet(busId, wet) {
+    const bus = SEND_BUSES[busId];
+    if (bus?.node && !bus.node.disposed && bus.node.wet) {
+        bus.node.wet.value = Math.max(0, Math.min(1, wet));
+    }
+    if (bus?.wetGain && !bus.wetGain.disposed) {
+        bus.wetGain.gain.value = Math.max(0, Math.min(1, wet));
+    }
+}
+
+// --- Sidechain Functions ---
+
+/**
+ * Gets the sidechain bus node (for receiving trigger signals).
+ * @returns {Tone.Gain|null}
+ */
+export function getSidechainBusNode() {
+    if (!sidechainBusNode || sidechainBusNode.disposed) {
+        setupSidechainInfrastructure();
+    }
+    return sidechainBusNode;
+}
+
+/**
+ * Sets up the sidechain infrastructure.
+ */
+function setupSidechainInfrastructure() {
+    console.log('[Audio setupSidechainInfrastructure] Setting up sidechain...');
+    
+    if (!sidechainBusNode || sidechainBusNode.disposed) {
+        sidechainBusNode = new Tone.Gain(1);
+        console.log('[Audio setupSidechainInfrastructure] Sidechain bus node created.');
+    }
+    
+    if (!sidechainCompressorNode || sidechainCompressorNode.disposed) {
+        sidechainCompressorNode = new Tone.Compressor({
+            threshold: sidechainSettings.threshold,
+            ratio: sidechainSettings.ratio,
+            attack: sidechainSettings.attack,
+            release: sidechainSettings.release
+        });
+        console.log('[Audio setupSidechainInfrastructure] Sidechain compressor created.');
+    }
+}
+
+/**
+ * Sets up sidechain routing from a source track to a destination track.
+ * @param {number} sourceTrackId - The track that triggers sidechain
+ * @param {number} destinationTrackId - The track that gets ducked
+ * @returns {boolean} Success
+ */
+export function setupSidechainRouting(sourceTrackId, destinationTrackId) {
+    setupSidechainInfrastructure();
+    
+    if (!sidechainRouting.has(sourceTrackId)) {
+        sidechainRouting.set(sourceTrackId, new Set());
+    }
+    sidechainRouting.get(sourceTrackId).add(destinationTrackId);
+    
+    console.log(`[Audio setupSidechainRouting] Sidechain routing: Track ${sourceTrackId} -> Track ${destinationTrackId}`);
+    return true;
+}
+
+/**
+ * Removes sidechain routing from source to destination.
+ * @param {number} sourceTrackId
+ * @param {number} destinationTrackId
+ */
+export function removeSidechainRouting(sourceTrackId, destinationTrackId) {
+    const destinations = sidechainRouting.get(sourceTrackId);
+    if (destinations) {
+        destinations.delete(destinationTrackId);
+        if (destinations.size === 0) {
+            sidechainRouting.delete(sourceTrackId);
+        }
+    }
+    console.log(`[Audio removeSidechainRouting] Removed sidechain: Track ${sourceTrackId} -> Track ${destinationTrackId}`);
+}
+
+/**
+ * Clears all sidechain routing for a track.
+ * @param {number} trackId - Can be source or destination
+ */
+export function clearAllSidechainForTrack(trackId) {
+    // Remove as source
+    sidechainRouting.delete(trackId);
+    
+    // Remove as destination
+    for (const [sourceId, destinations] of sidechainRouting) {
+        destinations.delete(trackId);
+        if (destinations.size === 0) {
+            sidechainRouting.delete(sourceId);
+        }
+    }
+    console.log(`[Audio clearAllSidechainForTrack] Cleared all sidechain routing for track ${trackId}`);
+}
+
+/**
+ * Gets all sidechain destinations for a source track.
+ * @param {number} sourceTrackId
+ * @returns {number[]} Array of destination track IDs
+ */
+export function getSidechainDestinations(sourceTrackId) {
+    const destinations = sidechainRouting.get(sourceTrackId);
+    return destinations ? Array.from(destinations) : [];
+}
+
+/**
+ * Checks if a track has sidechain routing (as source or destination).
+ * @param {number} trackId
+ * @returns {{isSource: boolean, isDestination: boolean, sources: number[], destinations: number[]}}
+ */
+export function getTrackSidechainInfo(trackId) {
+    const destinations = sidechainRouting.get(trackId) || new Set();
+    const sources = [];
+    
+    for (const [sourceId, destSet] of sidechainRouting) {
+        if (destSet.has(trackId)) {
+            sources.push(sourceId);
+        }
+    }
+    
+    return {
+        isSource: destinations.size > 0,
+        isDestination: sources.length > 0,
+        sources,
+        destinations: Array.from(destinations)
+    };
+}
+
+/**
+ * Triggers sidechain ducking for tracks routed from the given source.
+ * Called when the source track plays a note.
+ * @param {number} sourceTrackId - The source track ID
+ * @param {number} duration - Duration of the duck in seconds (default: 0.25)
+ */
+export function triggerSidechainForTrack(sourceTrackId, duration = 0.25) {
+    const destinations = sidechainRouting.get(sourceTrackId);
+    if (!destinations || destinations.size === 0) return;
+    
+    const now = Tone.now();
+    const duckAmount = 0.3; // Duck to 30% volume
+    const releaseTime = duration;
+    
+    for (const destTrackId of destinations) {
+        const track = localAppServices.getTrackById ? localAppServices.getTrackById(destTrackId) : null;
+        if (track?.gainNode && !track.gainNode.disposed) {
+            const currentGain = track.gainNode.gain.value;
+            
+            // Duck down
+            track.gainNode.gain.cancelScheduledValues(now);
+            track.gainNode.gain.setValueAtTime(currentGain, now);
+            track.gainNode.gain.linearRampToValueAtTime(currentGain * duckAmount, now + 0.01);
+            
+            // Return to normal
+            track.gainNode.gain.linearRampToValueAtTime(currentGain, now + releaseTime);
+        }
+    }
+}
+
+/**
+ * Updates sidechain compressor settings.
+ * @param {Object} settings - { threshold, ratio, attack, release }
+ */
+export function updateSidechainSettings(settings) {
+    if (settings.threshold !== undefined) sidechainSettings.threshold = settings.threshold;
+    if (settings.ratio !== undefined) sidechainSettings.ratio = settings.ratio;
+    if (settings.attack !== undefined) sidechainSettings.attack = settings.attack;
+    if (settings.release !== undefined) sidechainSettings.release = settings.release;
+    
+    if (sidechainCompressorNode && !sidechainCompressorNode.disposed) {
+        if (settings.threshold !== undefined) sidechainCompressorNode.threshold.value = settings.threshold;
+        if (settings.ratio !== undefined) sidechainCompressorNode.ratio.value = settings.ratio;
+        if (settings.attack !== undefined) sidechainCompressorNode.attack.value = settings.attack;
+        if (settings.release !== undefined) sidechainCompressorNode.release.value = settings.release;
+    }
+    
+    console.log('[Audio updateSidechainSettings] Updated:', sidechainSettings);
+}
+
+/**
+ * Gets current sidechain settings.
+ * @returns {Object}
+ */
+export function getSidechainSettings() {
+    return { ...sidechainSettings };
+}
 
 export function initializeAudioModule(appServicesFromMain) {
     localAppServices = appServicesFromMain;
@@ -135,6 +488,7 @@ function setupMasterBus() {
         console.log('[Audio setupMasterBus] Master meter node created.');
     }
     rebuildMasterEffectChain(); // This will handle connections
+    setupSendBuses(); // Setup send/return buses
     console.log('[Audio setupMasterBus] Master bus setup process complete.');
 }
 
@@ -603,7 +957,7 @@ async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHin
     } catch (error) {
         console.error(`[Audio commonLoadSampleLogic] Error loading sample "${sourceName}" for track ${track.id} (${trackTypeHint}):`, error);
         if (localAppServices.showNotification) {
-            localAppServices.showNotification(`Error loading sample "${sourceName.substring(0,30)}": ${error.message || 'Unknown error.'}`, 4000);
+            localAppServices.showNotification(`Error loading sample "${sourceName.substring(0,30)}": ${error.message}`, 4000);
         }
         // Update status in track data to 'error'
         if (trackTypeHint === 'Sampler') if(track.samplerAudioData) track.samplerAudioData.status = 'error';
@@ -1132,7 +1486,9 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
 
         // Cleanup on error
         if (mic) {
-            if (mic.state === "started") try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
+            if (mic.state === "started") {
+                try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
+            }
         }
         mic = null;
         if (recorder) {
