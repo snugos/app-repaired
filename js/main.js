@@ -5,7 +5,7 @@ import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners, showConfirmationDialog } from './utils.js';
-import { getActualMasterGainNode, getMasterEffectsBusInputNode, writeMasterVolumeAutomation, getMasterVolumeAutomation, setMasterVolumeAutomation, startContextSuspensionMonitoring } from './audio.js';
+import { getActualMasterGainNode, getMasterEffectsBusInputNode, writeMasterVolumeAutomation, getMasterVolumeAutomation, setMasterVolumeAutomation, startContextSuspensionMonitoring, getSidechainBusInput, enableSidechainFromMic, disableSidechainFromMic, enableSidechainFromTrackIn, disableSidechainBus, isMicOpenForSidechain, handleSidechainParamChangeForEffect } from './audio.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -191,7 +191,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!((appServices.effectsRegistryAccess) && (appServices.effectsRegistryAccess).getEffectDefaultParams)) {
@@ -211,7 +211,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -226,6 +226,27 @@ import {
         updateMasterEffectParamInState(effectId, paramPath, value);
         updateMasterEffectParamInAudio(effectId, paramPath, value);
     },
+    enableSidechainFromMicForEffect: (effectId) => {
+        if (!activeMasterEffectNodes || !activeMasterEffectNodes.has(effectId)) {
+            console.warn(`[Main enableSidechainFromMicForEffect] Master effect ${effectId} not found in active nodes.`);
+            return;
+        }
+        const compressorNode = activeMasterEffectNodes.get(effectId);
+        enableSidechainFromMic(compressorNode);
+    },
+    enableSidechainFromTrackForEffect: (effectId, trackId) => {
+        if (!activeMasterEffectNodes || !activeMasterEffectNodes.has(effectId)) {
+            console.warn(`[Main enableSidechainFromTrackForEffect] Master effect ${effectId} not found in active nodes.`);
+            return;
+        }
+        const compressorNode = activeMasterEffectNodes.get(effectId);
+        enableSidechainFromTrackIn(trackId, compressorNode);
+    },
+    disableSidechainForEffect: (effectId) => {
+        disableSidechainFromMic();
+    },
+    isMicOpenForSidechain: () => isMicOpenForSidechain(),
+    getSidechainBus: () => getSidechainBusInput(),
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
@@ -266,7 +287,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingingDAW: () => appServices._isReconstructingDAW_flag === true,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true,
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -889,7 +910,7 @@ async function initializeSnugOS() {
                             if (savedProject) {
                                 appServices._isReconstructingDAW_flag = true;
                                 await reconstructDAWInternal(savedProject, false);
-                                appServices._isReconstructingingDAW_flag = false;
+                                appServices._isReconstructingDAW_flag = false;
                                 showSafeNotification("Project recovered from auto-save!", 3000);
                                 console.log("[Main] Auto-saved project recovered successfully");
                             } else {

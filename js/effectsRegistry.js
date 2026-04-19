@@ -103,6 +103,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'ratio', label: 'Ratio', type: 'knob', min: 1, max: 20, step: 0.1, defaultValue: 4, decimals: 1, isSignal: false },
             { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.003, decimals: 3, displaySuffix: 's', isSignal: false },
             { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.25, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'sidechain', label: 'Sidechain', type: 'select', options: ['off', 'mic', 'track-in'], defaultValue: 'off', isSignal: false },
         ]
     },
     Distortion: {

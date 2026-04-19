@@ -18,6 +18,11 @@ let resumeAttemptScheduled = false;
 
 let localAppServices = {};
 
+// Variables for sidechain compression
+let sidechainBus = null; // Tone.Gain node that receives mic input for sidechain
+let micForSidechain = null; // Reference to the mic when used for sidechain
+let sidechainTrackAssignments = new Map(); // effectId -> { trackId, trackName } for track-in mode
+
 // Variables for audio recording
 let mic = null;
 let recorder = null;
@@ -180,8 +185,9 @@ export function rebuildMasterEffectChain() {
                 activeMasterEffectNodes.set(effectState.id, effectNode);
                 console.log(`[Audio rebuildMasterEffectChain] Recreated master effect node for ${effectState.type} (ID: ${effectState.id}).`);
             } else {
-                console.error(`[Audio rebuildMasterEffectChain] CRITICAL: Failed to recreate master effect node for ${effectState.type} (ID: ${effectState.id}). Chain will be broken here.`);
-                return; // Skip connecting this effect if it failed to create
+                console.error(`[Audio rebuildMasterEffectChain] Failed to recreate master effect node for ${effectState.type} (ID: ${effectState.id}). Skipping but continuing to next effect.`);
+                // Don't return — continue so subsequent effects still get connected through the chain
+                currentAudioPathEnd = null; // Mark chain as needing bypass
             }
         }
 
@@ -296,9 +302,46 @@ export function updateMasterEffectParamInAudio(effectId, paramPath, value) {
         } else {
             console.warn(`[Audio updateMasterEffectParamInAudio] Parameter ${finalParamKey} not found on target object for effect ID ${effectId}. Target:`, targetObject);
         }
+
+        // Handle sidechain param changes for Compressor
+        if (paramPath === 'sidechain' && effectNode.toneName === 'Compressor') {
+            handleSidechainParamChangeForEffect(effectId, effectNode, value);
+        }
     } catch (err) {
         console.error(`[Audio updateMasterEffectParamInAudio] Error updating param "${paramPath}" for master effect ID ${effectId}:`, err);
     }
+}
+
+export function handleSidechainParamChangeForEffect(effectId, effectNode, sidechainValue) {
+    console.log(`[Audio handleSidechainParamChangeForEffect] Effect ${effectId}, sidechain setting: ${sidechainValue}`);
+    if (sidechainValue === 'off') {
+        disableSidechainFromMic();
+        sidechainTrackAssignments.delete(effectId);
+    } else if (sidechainValue === 'mic') {
+        enableSidechainFromMic(effectNode);
+    } else if (sidechainValue === 'track-in') {
+        const assignment = sidechainTrackAssignments.get(effectId);
+        if (assignment && assignment.trackId) {
+            enableSidechainFromTrackIn(assignment.trackId, effectNode);
+        } else {
+            console.log(`[Audio handleSidechainParamChangeForEffect] track-in selected but no track assigned for effect ${effectId}. Will connect when track is chosen via enableSidechainFromTrackForEffect.`);
+        }
+    }
+}
+
+export function enableSidechainFromTrackForEffect(effectId, trackId) {
+    const compressorNode = activeMasterEffectNodes.get(effectId);
+    if (!compressorNode || compressorNode.disposed) {
+        console.warn(`[Audio enableSidechainFromTrackForEffect] Compressor for effect ${effectId} not found or disposed.`);
+        return false;
+    }
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) {
+        console.warn(`[Audio enableSidechainFromTrackForEffect] Track ${trackId} not found.`);
+        return false;
+    }
+    sidechainTrackAssignments.set(effectId, { trackId, trackName: track.name });
+    return enableSidechainFromTrackIn(trackId, compressorNode);
 }
 
 export function reorderMasterEffectInAudio(effectIdIgnored, newIndexIgnored) {
@@ -879,58 +922,8 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
             throw new Error(`HTTP error ${response.status} fetching ZIP for ${libraryName} from ${zipUrl}`);
         }
         const zipData = await response.arrayBuffer();
-        console.log(`[Audio fetchSoundLibrary ZIP_DATA_RECEIVED] Received arrayBuffer for ${libraryName}, length: ${zipData.byteLength}`);
-
-        if (typeof JSZip === 'undefined') {
-            console.error("[Audio fetchSoundLibrary JSZIP_ERROR] JSZip library not found. Cannot process library.");
-            throw new Error("JSZip library not available for processing sound libraries.");
-        }
-
-        const jszip = new JSZip();
-        console.log(`[Audio fetchSoundLibrary JSZIP_LOAD_ASYNC_START] Starting jszip.loadAsync for ${libraryName}`);
-        const loadedZipInstance = await jszip.loadAsync(zipData);
-        console.log(`[Audio fetchSoundLibrary JSZIP_LOAD_ASYNC_SUCCESS] JSZip successfully loaded ${libraryName}. Num files in zip: ${Object.keys(loadedZipInstance.files).length}`);
-
-        // Get the latest state again before updating
-        const latestLoadedZipsAfterLoad = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
-        latestLoadedZipsAfterLoad[libraryName] = loadedZipInstance; // Store the JSZip instance
-
-        console.log(`[Audio Fetch DEBUG] About to set state for ${libraryName} (loadedZips).`);
-        console.log(`[Audio Fetch DEBUG] localAppServices.setLoadedZipFilesState exists:`, !!localAppServices.setLoadedZipFilesState);
-        if (localAppServices.setLoadedZipFilesState) {
-            console.log(`[Audio Fetch DEBUG] Calling setLoadedZipFilesState for ${libraryName} (loadedZips) with keys:`, Object.keys(latestLoadedZipsAfterLoad));
-            localAppServices.setLoadedZipFilesState(latestLoadedZipsAfterLoad);
-        } else {
-            console.error(`[Audio Fetch ERROR] localAppServices.setLoadedZipFilesState is UNDEFINED from ${libraryName} (loadedZips)`);
-        }
-
-
-        const fileTree = {};
-        let audioFileCount = 0;
         console.log(`[Audio fetchSoundLibrary PARSE_ZIP_START] Parsing files for ${libraryName}`);
-        loadedZipInstance.forEach((relativePath, zipEntry) => {
-            if (zipEntry.dir || relativePath.startsWith("__MACOSX") || relativePath.includes("/.") || relativePath.startsWith(".")) {
-                return; // Skip directories and hidden/system files
-            }
-            const pathParts = relativePath.split('/').filter(p => p); // Filter out empty parts
-            if (pathParts.length === 0) return;
-
-            let currentLevel = fileTree;
-            for (let i = 0; i < pathParts.length; i++) {
-                const part = pathParts[i];
-                if (i === pathParts.length - 1) { // File
-                    if (part.match(/\.(wav|mp3|ogg|flac|aac|m4a)$/i)) { // Check for audio extensions
-                        currentLevel[part] = { type: 'file', entry: zipEntry, fullPath: relativePath };
-                        audioFileCount++;
-                    }
-                } else { // Directory
-                    if (!currentLevel[part] || currentLevel[part].type !== 'folder') {
-                        currentLevel[part] = { type: 'folder', children: {} };
-                    }
-                    currentLevel = currentLevel[part].children;
-                }
-            }
-        });
+        const loadedZipInstance = await new JSZip().loadAsync(zipData);
         console.log(`[Audio fetchSoundLibrary PARSE_ZIP_COMPLETE] Parsed ${audioFileCount} audio files for ${libraryName}. FileTree keys:`, Object.keys(fileTree));
 
         const latestSoundTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
@@ -1033,306 +1026,6 @@ export function clearAllMasterEffectNodes() {
     rebuildMasterEffectChain(); // Rebuild with an empty chain (input -> gain -> destination)
 }
 
-
-// --- Audio Recording Functions ---
-export function setTrackMonitoring(trackId, enabled) {
-    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
-    if (!track || track.type !== 'Audio') {
-        console.warn("[Audio setTrackMonitoring] Invalid track for monitoring toggle:", trackId);
-        return;
-    }
-    if (!mic) {
-        console.warn("[Audio setTrackMonitoring] No mic instance available.");
-        return;
-    }
-    if (mic.state !== 'started') {
-        console.warn("[Audio setTrackMonitoring] Mic is not open, cannot toggle monitoring.");
-        return;
-    }
-    if (!track.inputChannel || track.inputChannel.disposed) {
-        console.warn("[Audio setTrackMonitoring] Track inputChannel is invalid.");
-        return;
-    }
-    try {
-        if (enabled) {
-            mic.connect(track.inputChannel);
-            console.log(`[Audio setTrackMonitoring] Monitoring ENABLED for track ${track.name}`);
-        } else {
-            mic.disconnect(track.inputChannel);
-            console.log(`[Audio setTrackMonitoring] Monitoring DISABLED for track ${track.name}`);
-        }
-    } catch(e) {
-        console.error("[Audio setTrackMonitoring] Error toggling monitoring:", e);
-    }
-}
-
-export async function startAudioRecording(track, isMonitoringEnabled) {
-    console.log("[Audio startAudioRecording] Called for track:", ((track) && (track).name), "Monitoring:", isMonitoringEnabled);
-
-    // Ensure previous instances are robustly closed and disposed
-    if (mic) {
-        console.log("[Audio startAudioRecording] Existing mic instance found. State:", mic.state);
-        if (mic.state === "started") {
-            try { mic.close(); console.log("[Audio startAudioRecording] Existing mic closed."); }
-            catch (e) { console.warn("[Audio startAudioRecording] Error closing existing mic:", e.message); }
-        }
-        // Tone.UserMedia objects don't have a standard dispose method in the same way other Tone nodes do
-        mic = null;
-        console.log("[Audio startAudioRecording] Previous mic instance nullified.");
-    }
-
-    if (recorder) {
-        console.log("[Audio startAudioRecording] Existing recorder instance found. State:", recorder.state, "Disposed:", recorder.disposed);
-        if (recorder.state === "started") {
-            try { await recorder.stop(); console.log("[Audio startAudioRecording] Existing recorder stopped."); }
-            catch (e) { console.warn("[Audio startAudioRecording] Error stopping existing recorder:", e.message); }
-        }
-        if (!recorder.disposed) {
-            try { recorder.dispose(); console.log("[Audio startAudioRecording] Existing recorder disposed."); }
-            catch (e) { console.warn("[Audio startAudioRecording] Error disposing existing recorder:", e.message); }
-        }
-        recorder = null;
-        console.log("[Audio startAudioRecording] Previous recorder instance nullified.");
-    }
-
-    // Create new instances for a fresh start.
-    mic = new Tone.UserMedia({
-        audio: { // Ideal constraints
-            echoCancellation: false, autoGainControl: false, noiseSuppression: false, latency: 0.01 // small latency hint
-        }
-    });
-    console.log("[Audio startAudioRecording] New Tone.UserMedia instance created.");
-    recorder = new Tone.Recorder();
-    console.log("[Audio startAudioRecording] New Tone.Recorder instance created.");
-
-    if (!track || track.type !== 'Audio' || !track.inputChannel || track.inputChannel.disposed) {
-        const errorMsg = `Recording failed: Track (ID: ${((track) && (track).id)}) is not a valid audio track or its input channel is missing/disposed. Type: ${((track) && (track).type)}. Input channel valid: ${!!(((track) && (track).inputChannel) && !track.inputChannel.disposed)}`;
-        console.error(`[Audio startAudioRecording] ${errorMsg}`);
-        if (localAppServices.showNotification) localAppServices.showNotification(errorMsg, 4000);
-        return false;
-    }
-    console.log(`[Audio startAudioRecording] Attempting to record on track: ${track.name} (ID: ${track.id})`);
-
-    try {
-        if (Tone.UserMedia.enumerateDevices && typeof Tone.UserMedia.enumerateDevices === 'function') {
-            try {
-                const devices = await Tone.UserMedia.enumerateDevices();
-                const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
-                console.log("[Audio startAudioRecording] Available audio input devices:", audioInputDevices.map(d => ({ label: d.label, deviceId: d.deviceId, groupId: d.groupId })));
-                if (audioInputDevices.length === 0) console.warn("[Audio startAudioRecording] No audio input devices found by enumerateDevices.");
-            } catch (enumError) {
-                console.error("[Audio startAudioRecording] Error enumerating devices:", enumError);
-            }
-        } else {
-            console.warn("[Audio startAudioRecording] Tone.UserMedia.enumerateDevices is not available or not a function.");
-        }
-
-        console.log("[Audio startAudioRecording] Opening microphone (mic.open())...");
-        await mic.open();
-        console.log("[Audio startAudioRecording] Microphone opened successfully. State:", mic.state, "Selected device label (mic.label):", mic.label || "N/A");
-
-        // Disconnect mic from everything first to be safe
-        try { mic.disconnect(); } catch (e) { /* ignore if not connected */ }
-
-        if (isMonitoringEnabled) {
-            console.log("[Audio startAudioRecording] Monitoring is ON. Connecting mic to track inputChannel.");
-            mic.connect(track.inputChannel);
-        } else {
-            console.log("[Audio startAudioRecording] Monitoring is OFF.");
-            // Ensure mic is not connected to the inputChannel if monitoring is off.
-            // This might be redundant if disconnect above worked, but explicit check is safer.
-        }
-        mic.connect(recorder);
-        console.log("[Audio startAudioRecording] Mic connected to recorder.");
-
-        console.log("[Audio startAudioRecording] Starting recorder...");
-        await recorder.start();
-        console.log("[Audio startAudioRecording] Recorder started. State:", recorder.state);
-        return true;
-
-    } catch (error) {
-        console.error("[Audio startAudioRecording] Error starting microphone/recorder:", error);
-        let userMessage = "Could not start recording. Check microphone permissions and ensure a microphone is connected.";
-        if (error.name === "NotAllowedError" || error.message.toLowerCase().includes("permission denied")) {
-            userMessage = "Microphone permission denied. Please allow microphone access in browser/system settings.";
-        } else if (error.name === "NotFoundError" || error.message.toLowerCase().includes("no device") || error.message.toLowerCase().includes("device not found")) {
-            userMessage = "No microphone found. Please connect a microphone and ensure it's selected by the browser/OS.";
-        } else if (error.name === "AbortError" || error.message.toLowerCase().includes("starting audio input failed")) {
-            userMessage = "Failed to start audio input. The microphone might be in use by another application or a hardware issue.";
-        }
-        if (localAppServices.showNotification) localAppServices.showNotification(userMessage, 6000);
-
-        // Cleanup on error
-        if (mic && mic.state === "started") {
-            try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
-        }
-        mic = null;
-        if (recorder && !recorder.disposed) {
-            try { recorder.dispose(); } catch(e) { console.warn("Cleanup error disposing recorder:", e.message); }
-        }
-        recorder = null;
-        return false;
-    }
-}
-
-export async function stopAudioRecording() {
-    console.log("[Audio stopAudioRecording] Called.");
-    let blob = null;
-    
-    // FIX Bug #7: Ensure cleanup happens even on error - use try/finally pattern
-    // Also fix start time: use getRecordingStartTimeState() which now correctly returns the recording start position
-    const recordingStartPosition = getRecordingStartTimeState();
-    const recordingDurationSeconds = Tone.Transport.seconds - recordingStartPosition;
-    
-    // FIX Bug #8: Add maximum recording duration warning (5 minutes max)
-    const MAX_RECORDING_DURATION = 300; // 5 minutes in seconds
-    if (recordingDurationSeconds > MAX_RECORDING_DURATION) {
-        console.warn(`[Audio stopAudioRecording] Recording exceeded maximum duration (${MAX_RECORDING_DURATION}s). Duration: ${recordingDurationSeconds.toFixed(1)}s`);
-        if (localAppServices.showNotification) {
-            localAppServices.showNotification(`Recording truncated - maximum duration (${MAX_RECORDING_DURATION / 60} min) exceeded.`, 4000);
-        }
-    }
-
-    try {
-        if (!recorder) {
-            console.warn("[Audio stopAudioRecording] Recorder not initialized. Cannot stop recording.");
-            if (mic && mic.state === "started") {
-                console.log("[Audio stopAudioRecording] Mic was started, closing it (recorder was null).");
-                try { mic.close(); } catch(e) { console.warn("[Audio stopAudioRecording] Error closing mic (recorder null):", e.message); }
-            }
-            mic = null;
-            return; // Nothing to process if recorder wasn't there
-        }
-
-        if (recorder.state === "started") {
-            try {
-                console.log("[Audio stopAudioRecording] Stopping recorder...");
-                blob = await recorder.stop(); // This resolves with the Blob
-                console.log("[Audio stopAudioRecording] Recorder stopped. Blob received, size:", ((blob) && (blob).size), "type:", ((blob) && (blob).type));
-            } catch (e) {
-                console.error("[Audio stopAudioRecording] Error stopping recorder:", e);
-                if (localAppServices.showNotification) localAppServices.showNotification("Error stopping recorder. Recording may be lost.", 3000);
-                // Blob will be null if stop() failed
-            }
-        } else {
-            console.warn("[Audio stopAudioRecording] Recorder was not in 'started' state. Current state:", recorder.state);
-        }
-    } finally {
-        // FIX Bug #7: Cleanup code moved to finally block to ensure it always runs
-        // Cleanup mic
-        if (mic) {
-            try {
-                if (mic.state === "started") {
-                    console.log("[Audio stopAudioRecording] Closing microphone.");
-                    try {
-                        mic.disconnect(recorder); // Disconnect from recorder first
-                    } catch(e) { /* ignore */ }
-                    
-                    if (localAppServices.getRecordingTrackId) { // Disconnect from track input if monitoring was on
-                        const recTrack = localAppServices.getTrackById(localAppServices.getRecordingTrackId());
-                        if (recTrack && recTrack.inputChannel && !recTrack.inputChannel.disposed) {
-                           try { mic.disconnect(recTrack.inputChannel); } catch(e) { /* ignore */ }
-                        }
-                    }
-                    mic.close();
-                    console.log("[Audio stopAudioRecording] Microphone closed and disconnected.");
-                }
-            } catch (e) {
-                console.warn("[Audio stopAudioRecording] Error closing/disconnecting mic:", e.message);
-            }
-            mic = null; // Nullify the global reference
-            console.log("[Audio stopAudioRecording] Mic instance nullified.");
-        }
-
-        // Cleanup recorder
-        if (recorder) {
-            try {
-                if (!recorder.disposed) {
-                    console.log("[Audio stopAudioRecording] Disposing recorder instance.");
-                    recorder.dispose();
-                }
-            } catch(e) {
-                console.warn("[Audio stopAudioRecording] Error disposing recorder:", e.message);
-            }
-        }
-        recorder = null;
-        console.log("[Audio stopAudioRecording] Recorder disposed and nullified.");
-    }
-
-    // Process the recorded blob
-    if (blob && blob.size > 0) {
-        const recordingTrackId = localAppServices.getRecordingTrackId ? localAppServices.getRecordingTrackId() : null;
-        
-        // FIX Bug #1 & #2: Use the recording start position, not the end time
-        // recordingStartPosition is now correctly calculated in state.js getter
-        const clipStartTime = recordingStartPosition;
-        
-        const track = recordingTrackId !== null && localAppServices.getTrackById ? localAppServices.getTrackById(recordingTrackId) : null;
-
-        if (track) {
-            console.log(`[Audio stopAudioRecording] Processing recorded blob for track ${track.name} (ID: ${track.id}), start position: ${clipStartTime}, duration: ${recordingDurationSeconds.toFixed(2)}s`);
-            if (typeof track.addAudioClip === 'function') {
-                await track.addAudioClip(blob, clipStartTime);
-            } else {
-                console.error("[Audio stopAudioRecording] Track object does not have addAudioClip method.");
-                if (localAppServices.showNotification) localAppServices.showNotification("Error: Could not process recorded audio (internal error).", 3000);
-            }
-        } else {
-            // FIX Bug #11: Handle case where track was deleted during recording
-            console.error(`[Audio stopAudioRecording] Recorded track (ID: ${recordingTrackId}) not found after stopping recorder.`);
-            if (localAppServices.showNotification) localAppServices.showNotification("Error: Recorded track not found. Audio might be lost.", 3000);
-            
-            // FIX: Save the recording anyway to a fallback location (IndexedDB) so it's not completely lost
-            try {
-                const fallbackDbKey = `lost_recording_${Date.now()}.wav`;
-                await storeAudio(fallbackDbKey, blob);
-                console.log(`[Audio stopAudioRecording] Saved orphaned recording to ${fallbackDbKey}`);
-            } catch (saveError) {
-                console.error("[Audio stopAudioRecording] Failed to save orphaned recording:", saveError);
-            }
-        }
-    } else if (blob && blob.size === 0) {
-        console.warn("[Audio stopAudioRecording] Recording was empty.");
-        if (localAppServices.showNotification) localAppServices.showNotification("Recording was empty. No clip created.", 2000);
-    } else if (!blob) {
-        console.warn("[Audio stopAudioRecording] No recording blob was captured.");
-    }
-}
-
-export async function getAudioBlobFromSoundBrowserItem(soundData) {
-    const { fullPath, libraryName, fileName } = soundData;
-    
-    if (!fullPath || !libraryName) {
-        console.error("[Audio getAudioBlobFromSoundBrowserItem] Invalid sound data:", soundData);
-        return null;
-    }
-    
-    try {
-        const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
-        if (!loadedZips[libraryName] || loadedZips[libraryName] === "loading") {
-            console.warn(`[Audio getAudioBlobFromSoundBrowserItem] Library "${libraryName}" not loaded or is still loading.`);
-            return null;
-        }
-        const zipFile = loadedZips[libraryName];
-        const zipEntry = zipFile.file(fullPath);
-        if (!zipEntry) {
-            console.error(`[Audio getAudioBlobFromSoundBrowserItem] File "${fullPath}" not found in library "${libraryName}".`);
-            return null;
-        }
-
-        const fileBlobFromZip = await zipEntry.async("blob");
-        const inferredMimeType = getMimeTypeFromFilename(fileName);
-        const finalMimeType = fileBlobFromZip.type && fileBlobFromZip.type !== "application/octet-stream" ? fileBlobFromZip.type : inferredMimeType;
-        const blob = new File([fileBlobFromZip], fileName, { type: finalMimeType });
-        
-        console.log(`[Audio getAudioBlobFromSoundBrowserItem] Successfully extracted blob for "${fileName}", size: ${blob.size}`);
-        return blob;
-        
-    } catch (error) {
-        console.error(`[Audio getAudioBlobFromSoundBrowserItem] Error extracting audio blob:`, error);
-        return null;
-    }
-}
 
 // ============================================================
 // METRONOME MODULE
@@ -1447,7 +1140,9 @@ export function startCountIn(onCountInComplete, startPosition = 0) {
     }
     if (!Tone.context || Tone.context.state !== 'running') {
         console.warn('[CountIn] Cannot start: audio context not running.');
-        if (onCountInComplete) onCountInComplete();
+        if (onCountInComplete) {
+            Tone.getTransport().schedule((t) => { onCountInComplete(); }, startPosition);
+        }
         return;
     }
 
@@ -1826,7 +1521,7 @@ export async function exportMixdownToWav(durationSeconds) {
     const wasPlaying = Tone.Transport.state === 'started';
     if (wasPlaying) {
         Tone.Transport.pause();
-        console.log('[Audio exportMixdownToWav] Transport paused before export.');
+        console.log('[Audio exportMixdownToWav] Transport paused.');
     }
 
     try {
@@ -1890,7 +1585,7 @@ export async function exportMixdownToWav(durationSeconds) {
             throw new Error('No audio recorded. Add some notes or audio first.');
         }
 
-        console.log('[Audio exportMixdownToWav] Export complete, size:', recording.size);
+        console.log('[Audio exportMixdownToWav] Export complete.');
         return recording;
     } catch (err) {
         console.error('[Audio exportMixdownToWav] Error during export:', err);
@@ -2008,3 +1703,99 @@ export async function exportMixdownToWav(durationSeconds) {
 //         view.setUint8(offset + i, string.charCodeAt(i));
 //     }
 // }
+
+// ============================================================
+// SIDECHAIN COMPRESSION
+// ============================================================
+
+export function getSidechainBusInput() {
+    if (!sidechainBus || sidechainBus.disposed) {
+        if (sidechainBus && !sidechainBus.disposed) {
+            try { sidechainBus.dispose(); } catch(e) {}
+        }
+        sidechainBus = new Tone.Gain(1);
+        console.log('[Audio getSidechainBusInput] Created sidechain bus input node.');
+    }
+    return sidechainBus;
+}
+
+export async function enableSidechainFromMic(compressorNode) {
+    if (!compressorNode || compressorNode.disposed) {
+        console.warn('[Audio enableSidechainFromMic] Invalid compressor node provided.');
+        return false;
+    }
+    if (micForSidechain && micForSidechain.state === 'started') {
+        console.log('[Audio enableSidechainFromMic] Mic already open for sidechain, connecting to compressor.');
+        const bus = getSidechainBusInput();
+        try { micForSidechain.connect(bus); } catch(e) {}
+        try { bus.connect(compressorNode); } catch(e) {}
+        return true;
+    }
+    try {
+        await Tone.start();
+        micForSidechain = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micStream = new Tone.UserMedia();
+        await micStream.open();
+        micForSidechain = micStream;
+        const bus = getSidechainBusInput();
+        try { micStream.connect(bus); } catch(e) {}
+        try { bus.connect(compressorNode); } catch(e) {}
+        console.log('[Audio enableSidechainFromMic] Mic opened and routed to compressor for sidechain.');
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Sidechain: Mic connected to compressor.', 2000);
+        }
+        return true;
+    } catch (e) {
+        console.error('[Audio enableSidechainFromMic] Failed to open mic for sidechain:', e);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Sidechain: Could not access microphone.', 3000);
+        }
+        return false;
+    }
+}
+
+export function disableSidechainFromMic() {
+    if (micForSidechain) {
+        try { micForSidechain.disconnect(); } catch(e) {}
+        try { micForSidechain.close(); } catch(e) {}
+        micForSidechain = null;
+        console.log('[Audio disableSidechainFromMic] Mic disconnected from sidechain bus.');
+    }
+    if (sidechainBus) {
+        try { sidechainBus.disconnect(); } catch(e) {}
+    }
+}
+
+export async function enableSidechainFromTrackIn(trackId, compressorNode) {
+    if (!compressorNode || compressorNode.disposed) {
+        console.warn('[Audio enableSidechainFromTrackIn] Invalid compressor node provided.');
+        return false;
+    }
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) {
+        console.warn('[Audio enableSidechainFromTrackIn] Track not found:', trackId);
+        return false;
+    }
+    if (!track.inputChannel || track.inputChannel.disposed) {
+        console.warn('[Audio enableSidechainFromTrackIn] Track inputChannel not available.');
+        return false;
+    }
+    const bus = getSidechainBusInput();
+    try { track.inputChannel.connect(bus); } catch(e) {}
+    try { bus.connect(compressorNode); } catch(e) {}
+    console.log(`[Audio enableSidechainFromTrackIn] Track ${track.name} input routed to compressor for sidechain.`);
+    return true;
+}
+
+export function disableSidechainBus() {
+    disableSidechainFromMic();
+    if (sidechainBus) {
+        try { sidechainBus.dispose(); } catch(e) {}
+        sidechainBus = null;
+    }
+    console.log('[Audio disableSidechainBus] Sidechain bus disposed.');
+}
+
+export function isMicOpenForSidechain() {
+    return micForSidechain && micForSidechain.state === 'started';
+}

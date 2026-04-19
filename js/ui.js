@@ -2659,7 +2659,7 @@ export function drawInstrumentWaveform(track) {
 // Updates a single sequencer cell's visual state (active class and velocity brightness)
 export function updateSequencerCellUI(windowElement, trackType, row, col, isActive, velocity = 0.7) {
     if (!windowElement) return;
-    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${j}"]`);
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
     if (!cell) return;
 
     // Remove all velocity classes
