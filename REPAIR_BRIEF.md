@@ -1,13 +1,22 @@
 # Snaw (snugos/snaw) — Comprehensive Bug & Issue Catalog
 **Branch:** LWB-with-Bugs | **Last updated:** 2026-04-19
 
-## Status: ALL FIXED ✓
+## Status: AUTOMATION ACTIVE 🤖
 
-| Priority | Bug | File | Status |
-|----------|-----|------|--------|
-| 🔴 Critical | `getIsReconstructingingDAW` triple-g typo → always false | js/main.js | ✅ Fixed (triple-g → double-g) |
-| 🔴 Critical | `rebuildMasterEffectChain` no null guard on `effectNode` | js/audio.js | ✅ Fixed (added null guard) |
-| 🟠 High | Duplicate function definitions (dead code ~44KB) | js/ui.js | ✅ Fixed (removed dead block) |
+The Snaw Repair & Enhancement Agent runs every 15 minutes:
+1. Checks for bugs (syntax + runtime)
+2. Fixes any bugs found
+3. If no bugs → adds a new feature or upgrade
+4. Commits, pushes, verifies deployment
+
+## Recently Fixed
+
+| Commit | Fix |
+|--------|-----|
+| `dcd82bb` | Add missing closing braces in synthPresetsGlobal preset definitions (state.js:75) |
+| `f30a86c` | Add missing DESKTOP_BG_TYPE_KEY and DESKTOP_BACKGROUND_KEY constants |
+| `cfda329` | Prevent null effectNode crash in rebuildMasterEffectChain |
+| `74df3dc` | Correct getIsReconstructingDAW typo (triple-g → double-g) |
 
 ---
 
