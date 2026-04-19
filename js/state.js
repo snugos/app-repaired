@@ -464,6 +464,98 @@ export function removeTrackFromStateInternal(trackId) {
 }
 
 
+// --- Duplicate Track ---
+export async function duplicateTrackInStateInternal(sourceTrackId, isUserAction = true) {
+    try {
+        const sourceTrack = getTrackByIdState(sourceTrackId);
+        if (!sourceTrack) {
+            console.warn(`[State duplicateTrackInStateInternal] Source track ID ${sourceTrackId} not found.`);
+            return null;
+        }
+
+        if (isUserAction) {
+            captureStateForUndoInternal(`Duplicate Track "${sourceTrack.name}"`);
+        }
+
+        // Serialize just this track's data (same way gatherProjectDataInternal does for tracks)
+        const trackData = {
+            id: sourceTrack.id, type: sourceTrack.type, name: sourceTrack.name,
+            isMuted: sourceTrack.isMuted,
+            volume: sourceTrack.previousVolumeBeforeMute,
+            trackColor: sourceTrack.trackColor,
+            activeEffects: (sourceTrack.activeEffects || []).map(effect => ({
+                id: effect.id, type: effect.type,
+                params: effect.params ? JSON.parse(JSON.stringify(effect.params)) : {}
+            })),
+            automation: sourceTrack.automation ? JSON.parse(JSON.stringify(sourceTrack.automation)) : { volume: [] },
+            sequences: sourceTrack.type !== 'Audio' && sourceTrack.sequences ? JSON.parse(JSON.stringify(sourceTrack.sequences)) : [],
+            activeSequenceId: sourceTrack.type !== 'Audio' ? sourceTrack.activeSequenceId : null,
+            timelineClips: sourceTrack.timelineClips ? JSON.parse(JSON.stringify(sourceTrack.timelineClips)) : [],
+        };
+
+        // Type-specific parameters (same as gatherProjectDataInternal)
+        if (sourceTrack.type === 'Synth') {
+            trackData.synthEngineType = sourceTrack.synthEngineType || 'MonoSynth';
+            trackData.synthParams = sourceTrack.synthParams ? JSON.parse(JSON.stringify(sourceTrack.synthParams)) : {};
+        } else if (sourceTrack.type === 'Sampler') {
+            trackData.samplerAudioData = {
+                fileName: ((sourceTrack.samplerAudioData) && (sourceTrack.samplerAudioData).fileName),
+                dbKey: ((sourceTrack.samplerAudioData) && (sourceTrack.samplerAudioData).dbKey),
+                status: ((sourceTrack.samplerAudioData) && (sourceTrack.samplerAudioData).dbKey) ? 'persisted' : (((sourceTrack.samplerAudioData) && (sourceTrack.samplerAudioData).fileName) ? 'volatile' : 'empty')
+            };
+            trackData.slices = sourceTrack.slices ? JSON.parse(JSON.stringify(sourceTrack.slices)) : [];
+            trackData.selectedSliceForEdit = sourceTrack.selectedSliceForEdit;
+            trackData.slicerIsPolyphonic = sourceTrack.slicerIsPolyphonic;
+        } else if (sourceTrack.type === 'DrumSampler') {
+            trackData.drumSamplerPads = (sourceTrack.drumSamplerPads || []).map(p => ({
+                originalFileName: p.originalFileName, dbKey: p.dbKey,
+                volume: p.volume, pitchShift: p.pitchShift,
+                envelope: p.envelope ? JSON.parse(JSON.stringify(p.envelope)) : {},
+                status: p.dbKey ? 'persisted' : (p.originalFileName ? 'volatile' : 'empty')
+            }));
+            trackData.selectedDrumPadForEdit = sourceTrack.selectedDrumPadForEdit;
+        } else if (sourceTrack.type === 'InstrumentSampler') {
+            trackData.instrumentSamplerSettings = {
+                originalFileName: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).originalFileName),
+                dbKey: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).dbKey),
+                rootNote: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).rootNote),
+                loop: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).loop),
+                loopStart: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).loopStart),
+                loopEnd: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).loopEnd),
+                envelope: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).envelope) ? JSON.parse(JSON.stringify(sourceTrack.instrumentSamplerSettings.envelope)) : {},
+                status: ((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).dbKey) ? 'persisted' : (((sourceTrack.instrumentSamplerSettings) && (sourceTrack.instrumentSamplerSettings).originalFileName) ? 'volatile' : 'empty')
+            };
+            trackData.instrumentSamplerIsPolyphonic = sourceTrack.instrumentSamplerIsPolyphonic;
+        } else if (sourceTrack.type === 'Audio') {
+            trackData.isMonitoringEnabled = sourceTrack.isMonitoringEnabled;
+        }
+
+        // Rename to indicate it's a duplicate
+        trackData.name = `${sourceTrack.name} (copy)`;
+
+        // The _isUserActionPlaceholder flag tells addTrackToStateInternal this is NOT a brand-new user action
+        // (we already captured undo above), but it still has initialData so won't be treated as brand-new
+        const newTrack = await addTrackToStateInternal(sourceTrack.type, trackData, isUserAction);
+
+        if (newTrack) {
+            if (appServices.showNotification) {
+                appServices.showNotification(`Duplicated "${sourceTrack.name}" → "${newTrack.name}"`, 2000);
+            }
+            if (appServices.updateMixerWindow) appServices.updateMixerWindow();
+            if (appServices.renderTimeline) appServices.renderTimeline();
+        }
+
+        return newTrack;
+    } catch (error) {
+        console.error(`[State duplicateTrackInStateInternal] Error duplicating track ${sourceTrackId}:`, error);
+        if (appServices.showNotification) {
+            appServices.showNotification(`Failed to duplicate track: ${error.message}`, 4000);
+        }
+        return null;
+    }
+}
+
+
 // --- Master Effects Chain Management ---
 export function addMasterEffectToState(effectType, initialParams) {
     const effectId = `mastereffect_${effectType}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;

@@ -12053,6 +12053,18 @@ export function handleRemoveTrack(trackId) {
     } catch (error) { console.error(`[EventHandlers handleRemoveTrack] Error for track ${trackId}:`, error); }
 }
 
+export function handleDuplicateTrack(trackId) {
+    try {
+        if (localAppServices.duplicateTrack) {
+            localAppServices.duplicateTrack(trackId);
+        } else if (localAppServices.handleDuplicateTrack) {
+            localAppServices.handleDuplicateTrack(trackId);
+        } else {
+            console.warn('[EventHandlers] duplicateTrack service not available.');
+        }
+    } catch (error) { console.error(`[EventHandlers handleDuplicateTrack] Error for track ${trackId}:`, error); }
+}
+
 export function handleOpenTrackInspector(trackId) {
     if (localAppServices.openTrackInspectorWindow) {
         localAppServices.openTrackInspectorWindow(trackId);
