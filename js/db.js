@@ -2,7 +2,8 @@
 
 const DB_NAME = 'SnugOSAudioDB';
 const STORE_NAME = 'audioFiles';
-const DB_VERSION = 1;
+const PROJECT_STORE_NAME = 'projectState'; // NEW: Store for auto-save project state
+const DB_VERSION = 2; // Incremented for new object store
 
 let dbPromise = null;
 
@@ -36,6 +37,11 @@ function getDB() {
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME);
                     console.log(`[DB] Object store "${STORE_NAME}" created.`);
+                }
+                // NEW: Create project state store for auto-save
+                if (!db.objectStoreNames.contains(PROJECT_STORE_NAME)) {
+                    db.createObjectStore(PROJECT_STORE_NAME);
+                    console.log(`[DB] Object store "${PROJECT_STORE_NAME}" created.`);
                 }
             };
         });
@@ -230,6 +236,132 @@ export async function clearAllAudio() {
         } catch (e) {
             console.error('[DB clearAllAudio] Synchronous error during transaction creation:', e);
             reject(new Error('Failed to initiate clear audio store transaction: ' + e.message));
+        }
+    });
+}
+
+/**
+ * Stores project state for auto-save/crash recovery.
+ * @param {string} key - The key to store the project state under (usually 'autosave' or 'crash_recovery').
+ * @param {Object} projectState - The project state object to store.
+ * @returns {Promise<IDBValidKey>} A promise that resolves with the key under which the state was stored.
+ */
+export async function storeProjectState(key, projectState) {
+    let db;
+    try {
+        db = await getDB();
+    } catch (dbError) {
+        console.error(`[DB storeProjectState] Failed to get DB instance for key "${key}":`, dbError);
+        throw dbError;
+    }
+
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            console.error(`[DB storeProjectState] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for storing project state.'));
+        }
+        try {
+            const transaction = db.transaction(PROJECT_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(PROJECT_STORE_NAME);
+            const stateWithTimestamp = {
+                ...projectState,
+                _autosaveTimestamp: Date.now()
+            };
+            const request = store.put(stateWithTimestamp, key);
+
+            request.onsuccess = () => {
+                console.log(`[DB] Project state stored successfully with key: ${key}`);
+                resolve(request.result);
+            };
+            request.onerror = (event) => {
+                console.error(`[DB storeProjectState] Error storing project state with key "${key}":`, event.target.error);
+                reject(new Error('Error storing project state: ' + (event.target.error?.message || 'Unknown DB put error')));
+            };
+        } catch (e) {
+            console.error(`[DB storeProjectState] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate project state storage transaction: ' + e.message));
+        }
+    });
+}
+
+/**
+ * Retrieves project state from IndexedDB by its key.
+ * @param {string} key - The key of the project state to retrieve.
+ * @returns {Promise<Object|null>} A promise that resolves with the project state object, or null if not found.
+ */
+export async function getProjectState(key) {
+    let db;
+    try {
+        db = await getDB();
+    } catch (dbError) {
+        console.error(`[DB getProjectState] Failed to get DB instance for key "${key}":`, dbError);
+        throw dbError;
+    }
+
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            console.error(`[DB getProjectState] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for retrieving project state.'));
+        }
+        try {
+            const transaction = db.transaction(PROJECT_STORE_NAME, 'readonly');
+            const store = transaction.objectStore(PROJECT_STORE_NAME);
+            const request = store.get(key);
+
+            request.onsuccess = () => {
+                if (request.result) {
+                    console.log(`[DB] Project state retrieved successfully for key: ${key}`);
+                    resolve(request.result);
+                } else {
+                    console.log(`[DB] No project state found for key: ${key}`);
+                    resolve(null);
+                }
+            };
+            request.onerror = (event) => {
+                console.error(`[DB getProjectState] Error retrieving project state for key "${key}":`, event.target.error);
+                reject(new Error('Error retrieving project state: ' + (event.target.error?.message || 'Unknown DB get error')));
+            };
+        } catch (e) {
+            console.error(`[DB getProjectState] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate project state retrieval transaction: ' + e.message));
+        }
+    });
+}
+
+/**
+ * Deletes project state from IndexedDB by its key.
+ * @param {string} key - The key of the project state to delete.
+ * @returns {Promise<void>} A promise that resolves when the state is deleted.
+ */
+export async function deleteProjectState(key) {
+    let db;
+    try {
+        db = await getDB();
+    } catch (dbError) {
+        console.error(`[DB deleteProjectState] Failed to get DB instance for key "${key}":`, dbError);
+        throw dbError;
+    }
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            console.error(`[DB deleteProjectState] DB instance is null for key "${key}" after getDB() call.`);
+            return reject(new Error('Database instance not available for deleting project state.'));
+        }
+        try {
+            const transaction = db.transaction(PROJECT_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(PROJECT_STORE_NAME);
+            const request = store.delete(key);
+
+            request.onsuccess = () => {
+                console.log(`[DB] Project state deleted successfully for key: ${key}`);
+                resolve();
+            };
+            request.onerror = (event) => {
+                console.error(`[DB deleteProjectState] Error deleting project state for key "${key}":`, event.target.error);
+                reject(new Error('Error deleting project state: ' + (event.target.error?.message || 'Unknown DB delete error')));
+            };
+        } catch (e) {
+            console.error(`[DB deleteProjectState] Synchronous error during transaction creation for key "${key}":`, e);
+            reject(new Error('Failed to initiate project state deletion transaction: ' + e.message));
         }
     });
 }

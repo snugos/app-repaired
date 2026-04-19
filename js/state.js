@@ -8,6 +8,8 @@ import {
     initAudioContextAndMasterMeter as audioInitAudioContextAndMasterMeter
 } from './audio.js';
 // import { getAudio, storeAudio } from './db.js'; // Not directly used in this file after refactor to Track class
+import { storeProjectState, getProjectState, deleteProjectState } from './db.js'; // For auto-save/crash recovery
+
 
 // --- Centralized State Variables ---
 let tracks = [];
@@ -1021,4 +1023,263 @@ function writeString(view, offset, string) {
     for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
     }
+}
+
+
+// ============================================
+// AUTO-SAVE AND CRASH RECOVERY SYSTEM
+// ============================================
+
+// Auto-save configuration
+const AUTOSAVE_INTERVAL_MS = 30000; // 30 seconds
+const AUTOSAVE_KEY = 'autosave';
+const CRASH_RECOVERY_KEY = 'crash_recovery';
+const RECOVERY_AGE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+let autoSaveIntervalId = null;
+let lastAutoSaveTime = 0;
+let isAutoSaving = false;
+
+/**
+ * Starts the auto-save timer. Called during app initialization.
+ */
+export function startAutoSave() {
+    if (autoSaveIntervalId !== null) {
+        console.log('[AutoSave] Already running.');
+        return;
+    }
+    
+    console.log('[AutoSave] Starting auto-save system...');
+    
+    // Save immediately on start to mark session
+    autoSaveProjectState();
+    
+    // Set up periodic auto-save
+    autoSaveIntervalId = setInterval(() => {
+        autoSaveProjectState();
+    }, AUTOSAVE_INTERVAL_MS);
+    
+    // Save before page unload (crash detection)
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+    
+    console.log('[AutoSave] Auto-save system started. Interval:', AUTOSAVE_INTERVAL_MS / 1000, 'seconds');
+}
+
+/**
+ * Stops the auto-save timer. Called during clean shutdown.
+ */
+export function stopAutoSave() {
+    if (autoSaveIntervalId !== null) {
+        clearInterval(autoSaveIntervalId);
+        autoSaveIntervalId = null;
+        console.log('[AutoSave] Auto-save system stopped.');
+    }
+    
+    // Remove event listeners
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('pagehide', handlePageHide);
+}
+
+/**
+ * Handles beforeunload event - saves state for crash recovery.
+ */
+function handleBeforeUnload(event) {
+    try {
+        const projectData = gatherProjectDataInternal();
+        if (projectData) {
+            sessionStorage.setItem('snugos_session_end', JSON.stringify({
+                timestamp: Date.now(),
+                hasUnsavedChanges: true
+            }));
+        }
+    } catch (e) {
+        console.warn('[AutoSave] Error during beforeunload save:', e);
+    }
+}
+
+/**
+ * Handles pagehide event - backup for mobile/safari.
+ */
+function handlePageHide(event) {
+    handleBeforeUnload(event);
+}
+
+/**
+ * Performs the actual auto-save operation.
+ */
+async function autoSaveProjectState() {
+    if (isAutoSaving) {
+        console.log('[AutoSave] Already saving, skipping...');
+        return;
+    }
+    
+    isAutoSaving = true;
+    try {
+        const projectData = gatherProjectDataInternal();
+        if (!projectData) {
+            console.warn('[AutoSave] No project data to save.');
+            return;
+        }
+        
+        await storeProjectState(AUTOSAVE_KEY, projectData);
+        lastAutoSaveTime = Date.now();
+        console.log('[AutoSave] Project state saved successfully at', new Date(lastAutoSaveTime).toISOString());
+        
+    } catch (error) {
+        console.error('[AutoSave] Failed to auto-save project:', error);
+    } finally {
+        isAutoSaving = false;
+    }
+}
+
+/**
+ * Manually trigger an auto-save (for after important changes).
+ */
+export async function triggerAutoSave() {
+    await autoSaveProjectState();
+}
+
+/**
+ * Checks for crash recovery on app startup.
+ * Returns recovery data if a crash recovery is available, null otherwise.
+ */
+export async function checkCrashRecovery() {
+    try {
+        const sessionEnd = sessionStorage.getItem('snugos_session_end');
+        let wasUnexpectedExit = false;
+        
+        if (sessionEnd) {
+            const sessionData = JSON.parse(sessionEnd);
+            const age = Date.now() - sessionData.timestamp;
+            if (age < 5 * 60 * 1000) {
+                wasUnexpectedExit = true;
+            }
+            sessionStorage.removeItem('snugos_session_end');
+        }
+        
+        const savedState = await getProjectState(AUTOSAVE_KEY);
+        
+        if (!savedState) {
+            console.log('[CrashRecovery] No auto-saved state found.');
+            return null;
+        }
+        
+        const stateAge = Date.now() - (savedState._autosaveTimestamp || 0);
+        
+        if (stateAge > RECOVERY_AGE_LIMIT_MS) {
+            console.log('[CrashRecovery] Auto-saved state too old, discarding.');
+            await deleteProjectState(AUTOSAVE_KEY);
+            return null;
+        }
+        
+        console.log('[CrashRecovery] Found recovery state from', new Date(savedState._autosaveTimestamp).toISOString());
+        
+        return {
+            projectData: savedState,
+            timestamp: savedState._autosaveTimestamp,
+            age: stateAge,
+            wasUnexpectedExit
+        };
+        
+    } catch (error) {
+        console.error('[CrashRecovery] Error checking for crash recovery:', error);
+        return null;
+    }
+}
+
+/**
+ * Clears the crash recovery state (after successful recovery or user declines).
+ */
+export async function clearCrashRecovery() {
+    try {
+        await deleteProjectState(AUTOSAVE_KEY);
+        sessionStorage.removeItem('snugos_session_end');
+        console.log('[CrashRecovery] Recovery state cleared.');
+    } catch (error) {
+        console.error('[CrashRecovery] Error clearing recovery state:', error);
+    }
+}
+
+/**
+ * Creates a recovery dialog UI element.
+ * Returns the dialog element for the caller to append to the DOM.
+ */
+export function createRecoveryDialog(recoveryInfo, onRecover, onDiscard) {
+    const dialog = document.createElement('div');
+    dialog.id = 'crash-recovery-dialog';
+    dialog.style.cssText = \`
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    \`;
+    
+    const ageMinutes = Math.round(recoveryInfo.age / 60000);
+    const ageText = ageMinutes < 1 ? 'less than a minute ago' : 
+                    ageMinutes < 60 ? \`\${ageMinutes} minute(s) ago\` :
+                    \`\${Math.round(ageMinutes / 60)} hour(s) ago\`;
+    
+    dialog.innerHTML = \`
+        <div style="background: #1a1a1a; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                <h2 style="color: #fff; margin: 0 0 8px 0; font-size: 24px;">Session Recovery</h2>
+                <p style="color: #aaa; margin: 0; font-size: 14px;">
+                    SnugOS detected an unsaved session from \${ageText}.<br>
+                    Would you like to recover your work?
+                </p>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="recover-btn" style="flex: 1; padding: 14px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 500;">
+                    Recover Session
+                </button>
+                <button id="discard-btn" style="flex: 1; padding: 14px 24px; background: #374151; color: #9ca3af; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 500;">
+                    Start Fresh
+                </button>
+            </div>
+            <p style="color: #666; font-size: 12px; text-align: center; margin: 16px 0 0 0;">
+                Track count: \${recoveryInfo.projectData?.tracks?.length || 0} | 
+                Saved: \${new Date(recoveryInfo.timestamp).toLocaleTimeString()}
+            </p>
+        </div>
+    \`;
+    
+    dialog.querySelector('#recover-btn').addEventListener('click', () => {
+        dialog.remove();
+        onRecover();
+    });
+    
+    dialog.querySelector('#discard-btn').addEventListener('click', () => {
+        dialog.remove();
+        onDiscard();
+    });
+    
+    return dialog;
+}
+
+/**
+ * Gets the last auto-save time for display purposes.
+ */
+export function getLastAutoSaveTime() {
+    return lastAutoSaveTime;
+}
+
+/**
+ * Gets auto-save status info.
+ */
+export function getAutoSaveStatus() {
+    return {
+        isEnabled: autoSaveIntervalId !== null,
+        intervalMs: AUTOSAVE_INTERVAL_MS,
+        lastSaveTime: lastAutoSaveTime,
+        isSaving: isAutoSaving
+    };
 }
