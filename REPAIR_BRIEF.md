@@ -20,7 +20,9 @@ The Snaw Repair & Enhancement Agent runs every 15 minutes:
 
 ---
 
-## Scanning for new issues...
+## Timeline Ruler with Bar Numbers and Click-to-Seek (`js/ui.js`)
 
-_Scanning active — no new bugs detected. Last scan: 2026-04-19 09:10 UTC._
+Added `renderTimelineRuler()` that draws bar numbers (1-16) and beat subdivision tick marks on the timeline ruler. Added `setupTimelineRulerSeek()` for click-to-seek — clicking anywhere on the ruler jumps the transport position to that bar. Also fixed the missing `#timeline-ruler` DOM element that was being queried but never existed in the template.
+
+_Last scan: 2026-04-19 12:20 UTC — no new bugs detected._
 
