@@ -20,11 +20,7 @@ body {
 .window {
     position: absolute; 
     border: 1px solid #383838; /* Dark border, slightly lighter than deepest blacks */
-    box-shadow: 
-        0 2px 4px rgba(0,0,0,0.3),
-        0 8px 16px rgba(0,0,0,0.3),
-        0 20px 40px rgba(0,0,0,0.4),
-        0 0 0 1px rgba(255,255,255,0.03) inset;
+    box-shadow: 0px 0px 15px rgba(0,0,0,0.5); /* Softer, more modern shadow */
     background-color: #1e1e1e; /* Main window background - very dark grey */
     display: flex; 
     flex-direction: column; 
@@ -329,23 +325,6 @@ body {
     text-align: center;
 }
 
-/* Knob learn indicator: pulsing border when MIDI learn is pending for this knob */
-.knob-container.midi-cc-learn-pending {
-    animation: midi-learn-pulse 0.8s ease-in-out infinite;
-    border: 2px solid #eab308;
-    border-radius: 4px;
-}
-.knob-container.midi-cc-learn-active {
-    box-shadow: 0 0 8px 2px #22c55e, 0 0 12px 4px rgba(34, 197, 94, 0.4);
-    border: 2px solid #22c55e;
-    border-radius: 4px;
-}
-
-@keyframes midi-learn-pulse {
-    0%, 100% { border-color: #eab308; box-shadow: 0 0 4px 1px #eab308; }
-    50% { border-color: #f97316; box-shadow: 0 0 8px 3px rgba(249, 115, 22, 0.6); }
-}
-
 /* --- General Button Active States (Unified Dark Theme) --- */
 button.muted { 
     background-color: #991b1b !important; 
@@ -456,30 +435,10 @@ button.active { /* Generic active state for other toggles if needed */
     border-color: #E0BBE4 !important; /* Slightly lighter teal for border */
 } 
 
-/* Velocity-based brightness: default velocity (0.7) uses base purple */
-.sequencer-step-cell.vel-100 { background-color: #6d28d9 !important; }
-.sequencer-step-cell.vel-90  { background-color: #7c3aed !important; }
-.sequencer-step-cell.vel-80  { background-color: #8b5cf6 !important; }
-.sequencer-step-cell.vel-70  { background-color: #9f67ff !important; }
-.sequencer-step-cell.vel-60  { background-color: #b392ff !important; }
-.sequencer-step-cell.vel-50  { background-color: #c4b5fd !important; }
-.sequencer-step-cell.vel-40  { background-color: #d8b4fe !important; }
-.sequencer-step-cell.vel-30  { background-color: #e9d5ff !important; }
-.sequencer-step-cell.vel-20  { background-color: #f3e8ff !important; color: #333 !important; border-color: #c4b5fd !important; }
-.sequencer-step-cell.vel-10  { background-color: #faf5ff !important; color: #444 !important; border-color: #d8b4fe !important; }
-
 .sequencer-step-cell.playing {
     outline: 2px solid #ffcccc; /* Cyan outline for playing step */
     outline-offset: -2px;
     z-index: 5; 
-}
-
-/* Selection highlight for sequencer cells (drag-select) */
-.sequencer-step-cell.selected {
-    outline: 1px dashed #ffaa00 !important;
-    outline-offset: -1px;
-    z-index: 1;
-    position: relative;
 }
 
 /* --- Notification Area --- */
@@ -533,10 +492,7 @@ button.active { /* Generic active state for other toggles if needed */
 .modal-dialog {
     background-color: #1e1e1e; /* Very dark dialog */
     border: 1px solid #3a3a3a; 
-    box-shadow: 
-        0 4px 6px rgba(0,0,0,0.3),
-        0 10px 20px rgba(0,0,0,0.4),
-        0 0 0 1px rgba(255,255,255,0.03) inset;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.7);
     min-width: 300px; max-width: 90%; max-height: 90vh;
     display: flex; flex-direction: column;
     color: #e0e0e0; /* Light text in modal */
@@ -683,13 +639,12 @@ input::placeholder,
     cursor: pointer;
     font-size: 0.85rem;
     white-space: nowrap;
-    transition: background-color 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
 }
 
 .context-menu-item:not(.disabled):hover {
-    background-color: #7c3aed; /* Brighter purple hover */
+    background-color: #7c3aed; /* Brighter blue hover */
     color: white;
-    padding-left: 18px; /* Slide right slightly on hover */
 }
 
 .context-menu-item.disabled {
@@ -793,45 +748,6 @@ input::placeholder,
     pointer-events: none;
 }
 
-/* Timeline region markers (loop/punch) */
-.timeline-region-marker {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.7;
-    width: 2px;
-}
-
-.loop-start-marker {
-    background-color: #22c55e;
-    box-shadow: 0 0 6px #22c55e;
-}
-
-.loop-end-marker {
-    background-color: #22c55e;
-    box-shadow: 0 0 6px #22c55e;
-}
-
-.punch-start-marker {
-    background-color: #f97316;
-    box-shadow: 0 0 6px #f97316;
-}
-
-.punch-end-marker {
-    background-color: #f97316;
-    box-shadow: 0 0 6px #f97316;
-}
-
-.loop-marker {
-    background-color: #22c55e;
-}
-
-.punch-marker {
-    background-color: #f97316;
-}
-
 .audio-clip {
     position: absolute;
     height: 80%;
@@ -848,66 +764,6 @@ input::placeholder,
     text-overflow: ellipsis;
     cursor: grab;
 }
-
-/* Sequence clip styling (different from audio clip) */
-.sequence-clip {
-    position: absolute;
-    height: 80%;
-    top: 10%;
-    background-color: #06b6d4;
-    border: 1px solid #67e8f9;
-    border-radius: 3px;
-    box-sizing: border-box;
-    overflow: hidden;
-    color: white;
-    font-size: 11px;
-    padding: 2px 4px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-}
-
-/* Clip resize handles */
-.clip-resize-handle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    cursor: ew-resize;
-    z-index: 5;
-}
-
-.clip-resize-handle-left {
-    left: 0;
-}
-
-.clip-resize-handle-right {
-    right: 0;
-}
-
-.clip-resize-handle:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-.audio-clip .clip-resize-handle:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-.sequence-clip .clip-resize-handle:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Clip label styling */
-.clip-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    pointer-events: none;
-}
-
 /* In style.css */
 :root {
     --timeline-track-name-width: 120px; /* Or your desired width */
@@ -942,238 +798,4 @@ input::placeholder,
     transform: scale(1.05);
     box-shadow: 0 0 10px rgba(149, 125, 173, 0.5);
     z-index: 10;
-}
-
-.keyboard-shortcuts-modal .modal-dialog {
-    min-width: 400px;
-    max-width: 500px;
-}
-.keyboard-shortcuts-modal .modal-title-bar {
-    text-align: center;
-}
-
-/* Track color indicator dot */
-.track-color-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 4px;
-    flex-shrink: 0;
-}
-.track-color-picker {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 4px;
-    background: #f9f9f9;
-    border-radius: 4px;
-    max-width: 120px;
-}
-.dark .track-color-picker {
-    background: #374151;
-}
-.track-color-swatch {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: transform 0.1s;
-}
-.track-color-swatch:hover {
-    transform: scale(1.2);
-}
-.track-color-swatch.selected {
-    border-color: #333;
-    box-shadow: 0 0 0 2px #fff;
-}
-
-/* Velocity step classes */
-.vel-100 { background-color: #6d28d9; color: #fff; }
-.vel-90 { background-color: #7c3aed; color: #fff; }
-.vel-80 { background-color: #8b5cf6; color: #fff; }
-.vel-70 { background-color: #a78bfa; color: #fff; }
-.vel-60 { background-color: #c4b5fd; color: #1e1b4b; }
-.vel-50 { background-color: #ddd6fe; color: #1e1b4b; }
-.vel-40 { background-color: #ede9fe; color: #1e1b4b; }
-.vel-30 { background-color: #f5f3ff; color: #1e1b4b; }
-.vel-20 { background-color: #faf5ff; color: #1e1b4b; }
-.vel-10 { background-color: #faf5ff; color: #1e1b4b; }
-.sequencer-step-cell.selected { outline: 2px solid #facc15; outline-offset: -1px; background-color: rgba(250, 204, 21, 0.15); }
-
-/* Snap point indicators in sequencer header */
-.sequencer-header-cell.snap-point { background-color: rgba(99, 102, 241, 0.15); }
-.sequencer-header-cell.non-snap-point { background-color: transparent; }
-
-/* Automation arm button active state */
-button.automation-armed { background-color: #dc2626; color: #fff; border-color: #dc2626; }
-button.automation-armed:hover { background-color: #b91c1c; }
-
-/* Sequencer snap-point indicator in header cells */
-.sequencer-grid-layout .sequencer-header-cell.snap-point {
-    color: #6366f1;
-    font-weight: 600;
-}
-.sequencer-grid-layout .sequencer-header-cell.non-snap-point {
-    color: #94a3b8;
-}
-/* Piano keyboard octave display in piano roll row labels */
-.piano-key-cell {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 4px;
-    transition: background-color 0.15s ease;
-}
-.piano-key-cell .key-indicator {
-    width: 10px;
-    height: 14px;
-    border-radius: 2px;
-    margin-left: 3px;
-    border: 1px solid rgba(0,0,0,0.3);
-    box-shadow: inset 0 -2px 3px rgba(0,0,0,0.2);
-}
-.piano-key-cell.piano-white-key .key-indicator {
-    background: linear-gradient(to bottom, #fafafa 0%, #d8d8d8 100%);
-    height: 18px;
-    width: 14px;
-}
-.piano-key-cell.piano-black-key .key-indicator {
-    background: linear-gradient(to bottom, #3a3a3a 0%, #1a1a1a 100%);
-    height: 14px;
-    width: 10px;
-}
-
-/* Active note highlight in piano roll: override velocity with track-type color */
-.piano-key-cell.piano-active-highlight .key-indicator {
-    box-shadow: 0 0 6px 2px currentColor;
-    border-color: currentColor;
-}
-.piano-key-cell.piano-white-key.piano-active-highlight .key-indicator {
-    background: linear-gradient(to bottom, #a855f7 0%, #7c3aed 100%);
-}
-.piano-key-cell.piano-black-key.piano-active-highlight .key-indicator {
-    background: linear-gradient(to bottom, #7c3aed 0%, #5b21b6 100%);
-}
-
-/* Piano roll note dots on the grid */
-.piano-note-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    margin: auto;
-}
-
-/* Synth track notes: violet/purple gradient based on octave */
-.piano-note-synth .piano-note-dot {
-    background: linear-gradient(135deg, #a855f7, #7c3aed);
-    box-shadow: 0 1px 3px rgba(139, 92, 246, 0.5);
-}
-/* Sampler track notes: teal */
-.piano-note-sampler .piano-note-dot {
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
-    box-shadow: 0 1px 3px rgba(20, 184, 166, 0.5);
-}
-/* DrumSampler track notes: orange/amber */
-.piano-note-drum .piano-note-dot {
-    background: linear-gradient(135deg, #f97316, #ea580c);
-    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.5);
-}
-/* InstrumentSampler track notes: blue */
-.piano-note-instrument .piano-note-dot {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.5);
-}
-
-/* Piano roll note bars (variable-length notes) */
-.piano-note-bar {
-    border-radius: 2px;
-    margin: auto;
-    flex-shrink: 0;
-}
-.piano-note-synth .piano-note-bar {
-    background: linear-gradient(135deg, #a855f7, #7c3aed);
-    box-shadow: 0 1px 3px rgba(139, 92, 246, 0.5);
-}
-.piano-note-sampler .piano-note-bar {
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
-    box-shadow: 0 1px 3px rgba(20, 184, 166, 0.5);
-}
-.piano-note-drum .piano-note-bar {
-    background: linear-gradient(135deg, #f97316, #ea580c);
-    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.5);
-}
-.piano-note-instrument .piano-note-bar {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.5);
-}
-.sequencer-note-body {
-    background: transparent !important;
-    position: relative;
-}
-.sequencer-note-body::before {
-    content: '';
-    position: absolute;
-    top: 3px;
-    bottom: 3px;
-    left: 1px;
-    right: 1px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 1px;
-}
-
-/* MIDI Learn / CC Mapping active indicator */
-.midi-cc-learn-active .knob {
-    box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.6), 0 1px 3px rgba(0,0,0,0.4);
-}
-
-/* MIDI Learn pulse animation for pending learn */
-@keyframes midi-learn-pulse {
-    0%, 100% { box-shadow: 0 0 4px 1px rgba(250, 204, 21, 0.4), 0 1px 3px rgba(0,0,0,0.4); }
-    50% { box-shadow: 0 0 12px 3px rgba(250, 204, 21, 0.7), 0 1px 3px rgba(0,0,0,0.4); }
-}
-.midi-learn-pending .knob {
-    animation: midi-learn-pulse 1s ease-in-out infinite;
-}
-
-/* Note name tooltip for piano roll cells */
-.piano-note-tooltip {
-    position: absolute;
-    background: rgba(20, 20, 20, 0.95);
-    color: #e0e0e0;
-    padding: 3px 7px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 1000;
-    border: 1px solid #404040;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-}
-
-/* Mixer FX Slots - effect tags shown on each channel strip */
-.mixer-fx-slots {
-    min-height: 18px;
-}
-.mixer-fx-slot-btn {
-    font-size: 9px;
-    padding: 1px 3px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    background-color: var(--bg-secondary, #1e293b);
-    border-width: 1px;
-    border-style: solid;
-    max-width: 50px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.mixer-fx-slot-btn:hover {
-    filter: brightness(1.2);
-    transform: scale(1.05);
-}
-.mixer-fx-slot-btn:active {
-    transform: scale(0.95);
 }

@@ -140,7 +140,7 @@ export function createDropZoneHTML(trackId, inputId, trackTypeHintForLoad, padOr
     let currentFileText = 'Drag & Drop Audio File or <br>';
     let relinkButtonHTML = '';
     let statusClass = '';
-    const fileName = ((existingAudioData) && (existingAudioData).originalFileName) || 'Unknown File';
+    const fileName = existingAudioData?.originalFileName || 'Unknown File';
     const truncatedFileName = fileName.substring(0, 25) + (fileName.length > 25 ? '...' : '');
 
     if (existingAudioData) {

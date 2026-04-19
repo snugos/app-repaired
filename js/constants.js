@@ -1,15 +1,13 @@
 // js/constants.js - Shared constants for SnugOS
 
-; // Mixer channel strip enhancements: FX effect count badges, monitoring toggle for audio tracks
-; // Perf: lazy-load Sound Browser items (50/batch with "Load More" button)
-export const APP_VERSION = "0.5.6"
+export const APP_VERSION = "0.1.0"; // Added application version
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
 export const MAX_BARS = 512; // Maximum number of bars a sequence can have
+
 export const MIN_TEMPO = 0; // Minimum tempo in BPM
 export const MAX_TEMPO = 999; // Maximum tempo in BPM
-export const defaultVelocity = 0.7; // Default velocity for sequencer steps
 
 // Note: Reversed for typical top-to-bottom piano roll display in a UI
 export const synthPitches = [
@@ -33,21 +31,8 @@ export const numSlices = 8; // Default number of slices for a new Sampler track
 export const numDrumSamplerPads = 8; // Number of pads for the DrumSampler
 export const samplerMIDINoteStart = 36; // C2, used for mapping MIDI notes to sampler slices/pads
 
-// Preset track color palette (12 distinct colors for track color coding)
-export const TRACK_COLORS = [
-    '#6366f1', // indigo
-    '#8b5cf6', // violet
-    '#ec4899', // pink
-    '#f43f5e', // rose
-    '#ef4444', // red
-    '#f97316', // orange
-    '#eab308', // yellow
-    '#22c55e', // green
-    '#14b8a6', // teal
-    '#06b6d4', // cyan
-    '#3b82f6', // blue
-    '#a855f7', // purple
-];
+export const defaultVelocity = 0.7; // Default velocity for new notes
+
 export const defaultDesktopBg = '#101010'; // Matches style.css body background
 
 export const MAX_HISTORY_STATES = 50; // Increased from 30 for more undo/redo capacity
@@ -105,12 +90,3 @@ export const computerKeySamplerMap = {
     'Digit8': samplerMIDINoteStart + 7
     // Can extend to 'Digit9', 'Digit0' or other keys if more pads/slices are common
 };
-
-// MIDI CC Learn / Mapping system
-// Stores CC mappings: targetId -> { cc: number, channel: number, min: float, max: float }
-export const midiCCMappings = {};
-
-// Currently active CC learn session: { targetId, paramPath, trackId } or null
-export let midiCCLearnActive = null;
-export const MIDI_CC_MIN = 0;
-export const MIDI_CC_MAX = 127;

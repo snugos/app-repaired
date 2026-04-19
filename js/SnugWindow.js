@@ -18,7 +18,7 @@ export class SnugWindow {
 
         console.log(`[SnugWindow ${this.id} Constructor] Initializing window "${title}". Options:`, JSON.parse(JSON.stringify(options)));
 
-        const desktopEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).desktop) || document.getElementById('desktop');
+        const desktopEl = this.appServices.uiElementsCache?.desktop || document.getElementById('desktop');
         if (!desktopEl) {
             console.error(`[SnugWindow CRITICAL ${this.id}] Desktop element not found. Cannot create window "${title}".`);
             this.element = null; // Mark as invalid
@@ -26,8 +26,8 @@ export class SnugWindow {
         }
 
         // Robust dimension/position calculation
-        const taskbarEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).taskbar) || document.getElementById('taskbar');
-        const taskbarHeightVal = ((taskbarEl) && (taskbarEl).offsetHeight) > 0 ? taskbarEl.offsetHeight : 30; // Default if taskbar not found or no height
+        const taskbarEl = this.appServices.uiElementsCache?.taskbar || document.getElementById('taskbar');
+        const taskbarHeightVal = taskbarEl?.offsetHeight > 0 ? taskbarEl.offsetHeight : 30; // Default if taskbar not found or no height
 
         const safeDesktopWidth = (desktopEl.offsetWidth > 0) ? desktopEl.offsetWidth : 1024; // Robust fallback
         const safeDesktopHeight = (desktopEl.offsetHeight > 0) ? desktopEl.offsetHeight : 768; // Robust fallback
@@ -221,7 +221,7 @@ export class SnugWindow {
         const onMouseMove = (e) => {
             if (!this._isDragging || !this.element) return;
 
-            const desktopEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).desktop) || document.getElementById('desktop');
+            const desktopEl = this.appServices.uiElementsCache?.desktop || document.getElementById('desktop');
             if (!desktopEl) {
                 console.warn(`[SnugWindow ${this.id} Drag] Desktop element not found during drag.`);
                 this._isDragging = false; return;
@@ -231,14 +231,14 @@ export class SnugWindow {
             let newY = e.clientY - offsetY;
 
             const desktopRect = desktopEl.getBoundingClientRect();
-            const taskbarEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).taskbar) || document.getElementById('taskbar');
-            const taskbarHeightVal = ((taskbarEl) && (taskbarEl).offsetHeight) > 0 ? taskbarEl.offsetHeight : 30;
+            const taskbarEl = this.appServices.uiElementsCache?.taskbar || document.getElementById('taskbar');
+            const taskbarHeightVal = taskbarEl?.offsetHeight > 0 ? taskbarEl.offsetHeight : 30;
 
 
             // Clamp position within desktop bounds
             newX = Math.max(0, Math.min(newX, desktopRect.width - this.element.offsetWidth));
             // Ensure window title bar is always visible and not under taskbar
-            const titleBarHeight = ((this.titleBar) && (this.titleBar).offsetHeight) || 28;
+            const titleBarHeight = this.titleBar?.offsetHeight || 28;
             newY = Math.max(0, Math.min(newY, desktopRect.height - titleBarHeight - taskbarHeightVal)); // Prevent title bar from going under taskbar
             newY = Math.max(0, Math.min(newY, desktopRect.height - this.element.offsetHeight)); // Prevent bottom from going off-screen
 
@@ -322,14 +322,14 @@ export class SnugWindow {
 
     toggleMaximize() {
         if (!this.element) return;
-        const desktopEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).desktop) || document.getElementById('desktop');
-        const taskbarEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).taskbar) || document.getElementById('taskbar');
+        const desktopEl = this.appServices.uiElementsCache?.desktop || document.getElementById('desktop');
+        const taskbarEl = this.appServices.uiElementsCache?.taskbar || document.getElementById('taskbar');
         if (!desktopEl || !taskbarEl) {
             console.warn(`[SnugWindow ${this.id}] Cannot toggle maximize: desktop or taskbar element not found.`);
             return;
         }
 
-        const maximizeButton = ((this.titleBar) && (this.titleBar).querySelector)('.window-maximize-btn');
+        const maximizeButton = this.titleBar?.querySelector('.window-maximize-btn');
         const wasMaximized = this.isMaximized;
 
         if (this.isMaximized) {
@@ -345,8 +345,8 @@ export class SnugWindow {
                 width: this.element.style.width, height: this.element.style.height,
             };
             const taskbarHeight = taskbarEl.offsetHeight > 0 ? taskbarEl.offsetHeight : 30;
-            const globalControlsEl = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).globalControlsBar) || document.getElementById('globalControlsBar');
-            const controlsHeight = ((globalControlsEl) && (globalControlsEl).offsetHeight) > 0 ? globalControlsEl.offsetHeight : 0;
+            const globalControlsEl = this.appServices.uiElementsCache?.globalControlsBar || document.getElementById('globalControlsBar');
+            const controlsHeight = globalControlsEl?.offsetHeight > 0 ? globalControlsEl.offsetHeight : 0;
             const availableWidth = desktopEl.clientWidth;
             const availableHeight = Math.max(0, desktopEl.clientHeight - taskbarHeight - controlsHeight);
             this.element.style.left = '0px';
@@ -361,7 +361,7 @@ export class SnugWindow {
     }
 
     createTaskbarButton() {
-        const taskbarButtonsContainer = ((this.appServices.uiElementsCache) && (this.appServices.uiElementsCache).taskbarButtonsContainer) || document.getElementById('taskbarButtons');
+        const taskbarButtonsContainer = this.appServices.uiElementsCache?.taskbarButtonsContainer || document.getElementById('taskbarButtons');
         if (!taskbarButtonsContainer) {
             console.warn(`[SnugWindow ${this.id}] Taskbar buttons container not found.`);
             return;
@@ -438,7 +438,7 @@ export class SnugWindow {
         this.isMinimized = true;
         this.element.classList.add('minimized');
         this.isMaximized = false; // Cannot be maximized and minimized
-        const maximizeButton = ((this.titleBar) && (this.titleBar).querySelector)('.window-maximize-btn');
+        const maximizeButton = this.titleBar?.querySelector('.window-maximize-btn');
         if (maximizeButton) maximizeButton.innerHTML = '□'; // Reset maximize icon
 
         if (!skipUndo) this._captureUndo(`Minimize window "${this.title}"`);
@@ -454,7 +454,7 @@ export class SnugWindow {
             });
             if (windowToFocus) windowToFocus.focus(true);
             else if (this.appServices.getOpenWindows) { // If no other window, just update all taskbar buttons
-                 this.appServices.getOpenWindows().forEach(win => ((win) && (win).updateTaskbarButtonActiveState)?.());
+                 this.appServices.getOpenWindows().forEach(win => win?.updateTaskbarButtonActiveState?.());
             }
         }
         this.updateTaskbarButtonActiveState(); // Update own button state
@@ -540,7 +540,7 @@ export class SnugWindow {
 
     applyState(state) {
         if (!this.element) {
-            console.error(`[SnugWindow ${this.id} applyState] Window element does not exist. Cannot apply state for "${((state) && (state).title)}".`);
+            console.error(`[SnugWindow ${this.id} applyState] Window element does not exist. Cannot apply state for "${state?.title}".`);
             return;
         }
         if (!state) {

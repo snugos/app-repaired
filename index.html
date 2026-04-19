@@ -60,25 +60,6 @@
             color: #ff9999 !important;
             animation: pulse-record 1s infinite;
         }
-        .transport-btn.metronome {
-            background-color: #2c2c2c !important;
-        }
-        .transport-btn.metronome.active {
-            background-color: #1a3a5c !important;
-            color: #7dd3fc !important;
-        }
-        .transport-btn.loop-active {
-            background-color: #1a3a5c !important;
-            color: #7dd3fc !important;
-        }
-        .transport-btn.punch-active {
-            background-color: #5c1a3a !important;
-            color: #ff7dd3 !important;
-        }
-        .transport-btn.snap-active {
-            background-color: #1a3a5c !important;
-            color: #7dd3fc !important;
-        }
         @keyframes pulse-record {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
@@ -104,8 +85,6 @@
         <div class="flex items-center gap-1">
             <label class="text-xs text-gray-400">BPM:</label>
             <input type="number" id="tempoGlobalInput" value="120" min="30" max="300" step="0.1" class="w-14 p-1 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-sm text-center">
-            <button id="tapTempoBtnGlobal" title="Tap Tempo" class="transport-btn text-xs px-2">Tap</button>
-            <button id="snapToggleBtnGlobal" title="Snap Grid (S key cycles: Off / 1/4 / 1/8 / 1/16)" class="transport-btn text-xs px-2 snap-btn">Snap: 1/16</button>
         </div>
         
         <div class="flex items-center gap-1">
@@ -123,41 +102,13 @@
         </div>
         
         <div class="flex items-center gap-1">
-            <button id="metronomeToggleBtnGlobal" title="Toggle Metronome" class="transport-btn metronome">Metronome</button>
-            <select id="countInSelectGlobal" title="Count-in bars (0=off)" class="bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-xs px-1 py-0.5">
-                <option value="0">No Count-in</option>
-                <option value="1" selected>1 Bar</option>
-                <option value="2">2 Bars</option>
-                <option value="4">4 Bars</option>
-            </select>
-        </div>
-
-        <div class="flex items-center gap-1">
-            <button id="loopToggleBtnGlobal" title="Toggle Loop Region" class="transport-btn">Loop</button>
-            <input type="number" id="loopStartInputGlobal" value="0" min="0" max="512" step="1" class="w-10 p-0.5 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-xs text-center" title="Loop Start (bars)">
-            <span class="text-xs text-gray-500">-</span>
-            <input type="number" id="loopEndInputGlobal" value="16" min="1" max="512" step="1" class="w-10 p-0.5 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-xs text-center" title="Loop End (bars)">
-        </div>
-
-        <div class="flex items-center gap-1">
-            <button id="punchToggleBtnGlobal" title="Toggle Punch In/Out" class="transport-btn">Punch</button>
-            <input type="number" id="punchInInputGlobal" value="0" min="0" max="512" step="1" class="w-10 p-0.5 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-xs text-center" title="Punch In (bars)">
-            <span class="text-xs text-gray-500">-</span>
-            <input type="number" id="punchOutInputGlobal" value="16" min="1" max="512" step="1" class="w-10 p-0.5 bg-[#282828] border border-[#4a4a4a] rounded text-[#e0e0e0] text-xs text-center" title="Punch Out (bars)">
-        </div>
-        
-        <div class="flex items-center gap-1">
             <span id="midiIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-[#2c2c2c] text-gray-400 border border-[#3c3c3c]" title="MIDI Activity">MIDI</span>
             <span id="keyboardIndicatorGlobal" class="px-2 py-0.5 rounded text-xs bg-[#2c2c2c] text-gray-400 border border-[#3c3c3c]" title="Keyboard Activity">KBD</span>
-            <button id="shortcutsBtnGlobal" title="Keyboard Shortcuts (?)" class="transport-btn">?</button>
-            <span id="octaveDisplayGlobal" class="px-2 py-0.5 rounded text-xs bg-[#2c2c2c] text-yellow-400 border border-[#3c3c3c] font-mono" title="Current Octave Shift (Z/X to adjust)">Oct: 0</span>
         </div>
         
         <div class="flex-1"></div>
         
         <button id="playbackModeToggleBtnGlobal" title="Toggle Playback Mode" class="transport-btn">Mode: Sequencer</button>
-        <button id="projectNameBtnGlobal" title="Rename Project" class="transport-btn text-ellipsis overflow-hidden max-w-[150px]">Untitled Project</button>
-        <button id="exportBtnGlobal" title="Export Mixdown to WAV" class="transport-btn">Export</button>
     </div>
 
     <div id="desktop" class="pt-14">
@@ -167,7 +118,7 @@
     </div>
 
     <div id="taskbar">
-        <button id="startButton">Start</button>
+        <button id="startButton" onclick="document.getElementById('startMenu').classList.toggle('hidden')">Start</button>
         <div id="taskbarButtons">
             <!-- Window buttons appear here -->
         </div>

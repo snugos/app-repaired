@@ -430,7 +430,7 @@
                     if (piece.shape[y][x] !== 0) {
                         let newX = piece.x + x;
                         let newY = piece.y + y;
-                        if (newX < 0 || newX >= COLS || newY < 0 || newY >= ROWS || (newY >= 0 && grid[newY] && grid[newY][newX] !== null)) {
+                        if (newX < 0 || newX >= COLS || newY >= ROWS || (grid[newY] && grid[newY][newX] !== null)) {
                             return true;
                         }
                     }
@@ -663,21 +663,9 @@
             }
         });
 
-        ui.dasInput.addEventListener('change', (e) => {
-            const val = parseInt(e.target.value, 10);
-            if (isNaN(val) || val < 1) { dasValue = 167; ui.dasInput.value = 167; }
-            else dasValue = val;
-        });
-        ui.arrInput.addEventListener('change', (e) => {
-            const val = parseInt(e.target.value, 10);
-            if (isNaN(val) || val < 1) { arrValue = 33; ui.arrInput.value = 33; }
-            else arrValue = val;
-        });
-        ui.sdfInput.addEventListener('change', (e) => {
-            const val = parseInt(e.target.value, 10);
-            if (isNaN(val) || val < 1) { sdfValue = 6; ui.sdfInput.value = 6; }
-            else sdfValue = val;
-        });
+        ui.dasInput.addEventListener('change', (e) => dasValue = parseInt(e.target.value, 10));
+        ui.arrInput.addEventListener('change', (e) => arrValue = parseInt(e.target.value, 10));
+        ui.sdfInput.addEventListener('change', (e) => sdfValue = parseInt(e.target.value, 10));
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeGame);
