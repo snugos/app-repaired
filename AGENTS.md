@@ -272,3 +272,13 @@ Need to create `.github/workflows/deploy.yml` that:
 ### 2026-04-18 — Day 45
 - **Bug Fix: Missing toggleSequencerViewMode function** (`js/ui.js`, `js/eventHandlers.js`): The V key shortcut in eventHandlers.js called `toggleSequencerViewMode()` to toggle between Piano Roll and Step Grid views, but this function did not exist in ui.js — causing the toggle to fail silently. Added the missing `toggleSequencerViewMode()` function to ui.js which toggles the `sequencerViewMode` module variable and refreshes the active sequencer window (or finds any open sequencer window as fallback). Also added "V - Toggle Piano Roll / Step Grid view" to the keyboard shortcuts overlay under the Sequencer section.
 - **Note**: Git push works! zo.pub sync also works as fallback. Pushed to origin/LWB-with-Bugs successfully.
+### 2026-04-18 — Day 46
+- **Piano Roll Variable-Length Notes** (`js/ui.js`, `style.css`): The piano roll view now renders notes as horizontal bars spanning multiple steps instead of single-cell dots. Key changes:
+  1. **Pre-pass coverage calculation**: Before rendering, a `coveredCells` Set tracks which cells are spanned by longer notes (reading `stepData.length || 1`).
+  2. **Note bar rendering**: Note-start cells render a `.piano-note-bar` div with `width = noteLen * 20 - 1` px, using track-type color gradients. Hover tooltip shows note name, velocity %, and length in steps.
+  3. **Note body cells**: Covered (non-start) cells render as `.sequencer-note-body` with a subtle transparent highlight, making the bar body visible but clearly non-interactive.
+  4. **Right-click context menu**: Now includes a "Note Length (steps)" section with presets (1/2/4/8/16 steps) and +/-1 step adjustments. Also shows current note info in the header line.
+  5. **CSS**: Added `.piano-note-bar` classes (with synth/sampler/drum/instrument variants) and `.sequencer-note-body` with subtle body styling.
+  6. **setNoteLen()**: New function in the context menu handler that sets `currentActiveSeq.data[r][c].length` with undo capture and redraws the window.
+- **Note**: Git push works! zo.pub sync also works as fallback. Pushed to origin/LWB-with-Bugs successfully.
+
