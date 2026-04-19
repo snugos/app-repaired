@@ -165,6 +165,7 @@ export function initializePrimaryEventListeners(appContext) {
             },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
+            menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
             menuSaveProject: () => { console.log('[Menu] Save clicked'); services.saveProject?.(); },
             menuLoadProject: () => { console.log('[Menu] Load clicked'); services.loadProject?.(); },
             menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
@@ -511,7 +512,7 @@ export function selectMIDIInput(deviceId, silent = false) {
         }
     } catch (error) {
         console.error("[EventHandlers selectMIDIInput] Error:", error);
-        if (!silent && localAppServices.showNotification) showNotification("Error selecting MIDI input.", 3000);
+        if (!silent && localAppServices.showNotification) localAppServices.showNotification("Error selecting MIDI input.", 3000);
     }
 }
 

@@ -458,6 +458,14 @@ function updateInternalUndoRedoState() {
             console.error("[State updateInternalUndoRedoState] Error calling appServices.updateUndoRedoButtonsUI:", error);
         }
     }
+    // Also update the undo history panel if it's open
+    if (appServices.updateUndoHistoryPanel && typeof appServices.updateUndoHistoryPanel === 'function') {
+        try {
+            appServices.updateUndoHistoryPanel();
+        } catch (error) {
+            console.error("[State updateInternalUndoRedoState] Error calling appServices.updateUndoHistoryPanel:", error);
+        }
+    }
 }
 
 export function captureStateForUndoInternal(description = "Unknown action") {
@@ -657,18 +665,18 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
     try {
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
-        if (appServices.initAudioContextAndMasterMeter) await appServices.initAudioContextAndMasterMeter(true); // Ensure audio context is running, true for user initiated context
+        if (appServices && typeof appServices.initAudioContextAndMasterMeter !== 'function') await appServices.initAudioContextAndMasterMeter(true); // Ensure audio context is running, true for user initiated context
         (getTracksState() || []).forEach(track => { if (track && typeof track.dispose === 'function') track.dispose(); });
         tracks = [];
         trackIdCounter = 0;
-        if (appServices.clearAllMasterEffectNodes) appServices.clearAllMasterEffectNodes(); else console.warn("clearAllMasterEffectNodes service missing");
+        if (appServices && typeof appServices.clearAllMasterEffectNodes !== 'function') appServices.clearAllMasterEffectNodes(); else console.warn("clearAllMasterEffectNodes service missing");
         masterEffectsChainState = [];
-        if (appServices.closeAllWindows) appServices.closeAllWindows(true); else console.warn("closeAllWindows service missing");
-        if (appServices.clearOpenWindowsMap) appServices.clearOpenWindowsMap(); else console.warn("clearOpenWindowsMap service missing");
+        if (appServices && typeof appServices.closeAllWindows !== 'function') appServices.closeAllWindows(true); else console.warn("closeAllWindows service missing");
+        if (appServices && typeof appServices.clearOpenWindowsMap !== 'function') appServices.clearOpenWindowsMap(); else console.warn("clearOpenWindowsMap service missing");
         highestZ = 100;
         setArmedTrackIdState(null); setSoloedTrackIdState(null); setActiveSequencerTrackIdState(null);
         setIsRecordingState(false); setRecordingTrackIdState(null);
-        if (appServices.updateRecordButtonUI) appServices.updateRecordButtonUI(false);
+        if (appServices && typeof appServices.updateRecordButtonUI !== 'function') appServices.updateRecordButtonUI(false);
     } catch (error) {
         console.error("[State reconstructDAWInternal] Error during global reset phase:", error);
         if (appServices.showNotification) appServices.showNotification("Critical error during project reset.", 5000);
@@ -680,9 +688,9 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
         const gs = projectData.globalSettings || {};
         Tone.Transport.bpm.value = Number.isFinite(gs.tempo) ? gs.tempo : 120;
         setMasterGainValueState(Number.isFinite(gs.masterVolume) ? gs.masterVolume : (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone.dbToGain(0) : 1.0);
-        if (appServices && typeof appServices.setActualMasterVolume === 'function') appServices.setActualMasterVolume(getMasterGainValueState());
+        if (appServices && typeof appServices.setActualMasterVolume !== 'function') appServices.setActualMasterVolume(getMasterGainValueState());
         setPlaybackModeStateInternal(gs.playbackMode === 'timeline' || gs.playbackMode === 'sequencer' ? gs.playbackMode : 'sequencer');
-        if (appServices && typeof appServices.updateTaskbarTempoDisplay === 'function') appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
+        if (appServices && typeof appServices.updateTaskbarTempoDisplay !== 'function') appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
         setHighestZState(Number.isFinite(gs.highestZIndex) ? gs.highestZIndex : 100);
         // Armed and Soloed will be set after tracks are created
     } catch (error) {

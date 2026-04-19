@@ -127,19 +127,36 @@
 - [x] Bind to `?` key press
 - [x] Display shortcuts in a modal dialog
 
+### Feature 11: Undo/Redo Visual Stack Panel - ✅ COMPLETED
+**File:** `js/ui.js`, `js/main.js`, `js/eventHandlers.js`, `js/state.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~No way to visualize undo/redo history~~
+**Implementation Plan:**
+- [x] Add `openUndoHistoryPanel()` function in ui.js
+- [x] Create `renderUndoHistoryContent()` to display undo/redo stacks
+- [x] Add `updateUndoHistoryPanel()` to refresh panel on state changes
+- [x] Add `menuOpenHistory` menu item in index.html
+- [x] Wire up menu handler in eventHandlers.js
+- [x] Add `getUndoStack`/`getRedoStack` services to appServices in main.js
+- [x] Call `updateUndoHistoryPanel()` from `updateInternalUndoRedoState()` in state.js
+- [x] Implement click-to-undo/redo functionality
+- [x] Add "Clear All History" button with confirmation
+
 ---
 
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Implemented Sampler Pad Rendering** - Full functionality including:
-  - `renderSamplePads(track)` - Renders 8 sampler pads with duration info and status
-  - `updateSliceEditorUI(track)` - Updates slice editor controls for selected slice
-  - `renderDrumSamplerPads(track)` - Renders 8 drum pads with sample info
-  - `updateDrumPadControlsUI(track)` - Updates drum pad controls for selected pad
-  - Knob controls for drum pad volume, pitch, and envelope parameters
-  - `playDrumPad(padIndex)` method added to Track class for preview playback
-  - Wire up pad selection to update UI controls
+- ✅ **Implemented Undo/Redo Visual Stack Panel** - Full functionality including:
+  - `openUndoHistoryPanel(savedState)` - Opens the history panel window
+  - `renderUndoHistoryContent()` - Renders undo/redo stack with clickable items
+  - `updateUndoHistoryPanel()` - Updates panel when undo/redo occurs
+  - `undoToIndex(targetIndex)` - Undo to specific state in stack
+  - `redoToIndex(targetIndex)` - Redo to specific state in stack
+  - `clearAllHistory()` - Clear all undo/redo history with confirmation
+  - Menu item in Start Menu for quick access
+  - Current state indicator with undo/redo sections
+  - Click any item to jump to that state
 
 ### In Progress
 - (none)
@@ -147,7 +164,7 @@
 ### Next to Tackle
 1. Implement Mixer send/return routing UI
 2. Add MIDI Learn / Mapping
-3. Implement Undo/Redo Visual Stack panel
+3. Implement Waveform Visualization on audio clips (timeline)
 
 ---
 
@@ -159,7 +176,7 @@
 4. **MIDI File Import/Export** - Drag & drop .mid files ✅ COMPLETED
 5. **Track Effects Presets** - Save/load effect chain presets per track ✅ COMPLETED
 6. **Quantize Selection** - Quantize selected notes to grid ✅ COMPLETED (exists in Track.js)
-7. **Undo/Redo Visual Stack** - Show undo history in a panel
+7. **Undo/Redo Visual Stack** - Show undo history in a panel ✅ COMPLETED
 8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts ✅ COMPLETED
 9. **Waveform Visualization** - Draw waveform on audio clips
 10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED (exists in Track.js)

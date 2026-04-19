@@ -1525,7 +1525,6 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     }
     html += `</div>`;
     html += `</div>`; // End grid area
-    html += `</div>`; // End piano roll wrapper
     html += `</div>`; // End container
     
     return html;
@@ -2393,4 +2392,188 @@ export function openTimelineWindow(savedState = null) {
     setTimeout(() => renderTimeline(), 50);
     
     return win;
+}
+
+// --- Undo/Redo History Panel ---
+export function openUndoHistoryPanel(savedState = null) {
+    const windowId = 'undoHistory';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateUndoHistoryPanel();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'undoHistoryContent';
+    contentContainer.className = 'p-2 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 300, 
+        height: 400, 
+        minWidth: 250, 
+        minHeight: 200,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'History', contentContainer, options);
+    
+    if (win?.element) {
+        renderUndoHistoryContent();
+    }
+    
+    return win;
+}
+
+export function updateUndoHistoryPanel() {
+    const win = localAppServices.getWindowById ? localAppServices.getWindowById('undoHistory') : null;
+    if (!win?.element || win.isMinimized) return;
+    renderUndoHistoryContent();
+}
+
+export function renderUndoHistoryContent() {
+    const container = document.getElementById('undoHistoryContent');
+    if (!container) return;
+    
+    const undoStack = localAppServices.getUndoStack ? localAppServices.getUndoStack() : [];
+    const redoStack = localAppServices.getRedoStack ? localAppServices.getRedoStack() : [];
+    
+    let html = '<div class="text-xs text-slate-500 dark:text-slate-400 mb-2">Click an item to undo/redo to that state</div>';
+    
+    // Current state indicator
+    html += '<div class="border rounded p-2 mb-2 bg-purple-100 dark:bg-purple-900 dark:border-purple-700">';
+    html += '<div class="font-semibold text-purple-700 dark:text-purple-300 text-sm">● Current State</div>';
+    html += '<div class="text-xs text-purple-600 dark:text-purple-400">This is your current project state</div>';
+    html += '</div>';
+    
+    // Undo stack (most recent first, so reverse the display order)
+    if (undoStack.length > 0) {
+        html += '<div class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 mt-2">Undo History (' + undoStack.length + ')</div>';
+        // Display from newest to oldest (which is the natural order of the stack)
+        for (let i = undoStack.length - 1; i >= 0; i--) {
+            const action = undoStack[i];
+            html += `<div class="undo-history-item border rounded p-1.5 mb-1 bg-white dark:bg-slate-700 dark:border-slate-600 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600 text-xs" data-action="undo-to" data-index="${i}">`;
+            html += `<div class="flex items-center gap-1">`;
+            html += `<span class="text-slate-400">↶</span>`;
+            html += `<span class="truncate">${escapeHtml(action.description || 'Unknown action')}</span>`;
+            html += `</div></div>`;
+        }
+    }
+    
+    // Redo stack (most recent first)
+    if (redoStack.length > 0) {
+        html += '<div class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 mt-2">Redo History (' + redoStack.length + ')</div>';
+        for (let i = redoStack.length - 1; i >= 0; i--) {
+            const action = redoStack[i];
+            html += `<div class="redo-history-item border rounded p-1.5 mb-1 bg-gray-200 dark:bg-slate-600 dark:border-slate-500 cursor-pointer hover:bg-green-50 dark:hover:bg-slate-500 text-xs" data-action="redo-to" data-index="${i}">`;
+            html += `<div class="flex items-center gap-1">`;
+            html += `<span class="text-slate-400">↷</span>`;
+            html += `<span class="truncate">${escapeHtml(action.description || 'Unknown action')}</span>`;
+            html += `</div></div>`;
+        }
+    }
+    
+    if (undoStack.length === 0 && redoStack.length === 0) {
+        html += '<div class="text-center text-slate-400 dark:text-slate-500 text-xs mt-4">No history yet.<br>Make changes to build history.</div>';
+    }
+    
+    // Clear history button
+    html += '<div class="mt-3 pt-2 border-t dark:border-slate-600">';
+    html += '<button id="clearHistoryBtn" class="w-full px-2 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800">Clear All History</button>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Add click handlers
+    container.querySelectorAll('.undo-history-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const targetIndex = parseInt(item.dataset.index, 10);
+            undoToIndex(targetIndex);
+        });
+    });
+    
+    container.querySelectorAll('.redo-history-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const targetIndex = parseInt(item.dataset.index, 10);
+            redoToIndex(targetIndex);
+        });
+    });
+    
+    const clearBtn = container.querySelector('#clearHistoryBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (localAppServices.showConfirmationDialog) {
+                localAppServices.showConfirmationDialog('Clear History', 'Are you sure you want to clear all undo/redo history?', () => {
+                    clearAllHistory();
+                });
+            } else {
+                clearAllHistory();
+            }
+        });
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function undoToIndex(targetIndex) {
+    const undoStack = localAppServices.getUndoStack ? localAppServices.getUndoStack() : [];
+    const stepsToUndo = undoStack.length - 1 - targetIndex;
+    
+    if (stepsToUndo <= 0) return;
+    
+    for (let i = 0; i <= stepsToUndo; i++) {
+        if (localAppServices.undoLastAction) {
+            await localAppServices.undoLastAction();
+        }
+    }
+    updateUndoHistoryPanel();
+}
+
+async function redoToIndex(targetIndex) {
+    const redoStack = localAppServices.getRedoStack ? localAppServices.getRedoStack() : [];
+    const stepsToRedo = redoStack.length - 1 - targetIndex;
+    
+    if (stepsToRedo <= 0) return;
+    
+    for (let i = 0; i <= stepsToRedo; i++) {
+        if (localAppServices.redoLastAction) {
+            await localAppServices.redoLastAction();
+        }
+    }
+    updateUndoHistoryPanel();
+}
+
+function clearAllHistory() {
+    const undoStack = localAppServices.getUndoStack ? localAppServices.getUndoStack() : [];
+    const redoStack = localAppServices.getRedoStack ? localAppServices.getRedoStack() : [];
+    
+    undoStack.length = 0;
+    redoStack.length = 0;
+    
+    if (localAppServices.showNotification) {
+        localAppServices.showNotification('History cleared.', 1500);
+    }
+    
+    updateUndoHistoryPanel();
 }

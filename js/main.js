@@ -81,7 +81,9 @@ import {
     openMasterEffectsRackWindow,
     renderTimeline,
     updatePlayheadPosition,
-    openTimelineWindow
+    openTimelineWindow,
+    openUndoHistoryPanel,
+    updateUndoHistoryPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -226,6 +228,7 @@ const appServices = {
     updateDrumPadControlsUI, renderDrumSamplerPads, renderEffectsList, renderEffectControls,
     createKnob, updateSequencerCellUI,
     renderTimeline, openTimelineWindow,
+    openUndoHistoryPanel, updateUndoHistoryPanel,
     showNotification: showSafeNotification, 
     createContextMenu, 
 
@@ -455,7 +458,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -516,7 +519,7 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
