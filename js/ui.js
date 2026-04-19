@@ -376,6 +376,46 @@ function initializeSamplerSpecificControls(track, winEl) {
 function initializeDrumSamplerSpecificControls(track, winEl) {
     renderDrumSamplerPads(track);
     updateDrumPadControlsUI(track);
+    
+    const createAndPlaceKnob = (placeholderId, options) => {
+        const placeholder = winEl.querySelector(`#${placeholderId}`);
+        if (placeholder) {
+            const knob = createKnob(options);
+            placeholder.innerHTML = ''; placeholder.appendChild(knob.element); return knob;
+        }
+        return null;
+    };
+    
+    const pad = track.drumSamplerPads?.[track.selectedDrumPadForEdit] || {
+        volume: 0.7, pitchShift: 0,
+        envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 }
+    };
+    
+    // Initialize knob controls
+    track.inspectorControls.drumPadVolume = createAndPlaceKnob(`drumPadVolumeKnob-${track.id}-placeholder`, { 
+        label: 'Vol', min: 0, max: 1, step: 0.01, initialValue: pad.volume, decimals: 2, 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadVolume(track.selectedDrumPadForEdit, val) 
+    });
+    track.inspectorControls.drumPadPitch = createAndPlaceKnob(`drumPadPitchKnob-${track.id}-placeholder`, { 
+        label: 'Pitch', min: -24, max: 24, step: 1, initialValue: pad.pitchShift, decimals: 0, displaySuffix: 'st', 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadPitch(track.selectedDrumPadForEdit, val) 
+    });
+    track.inspectorControls.drumPadEnvAttack = createAndPlaceKnob(`drumPadEnvAttack-${track.id}-placeholder`, { 
+        label: 'Attack', min: 0.001, max: 1, step: 0.001, initialValue: pad.envelope?.attack ?? 0.005, decimals: 3, 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadEnv(track.selectedDrumPadForEdit, 'attack', val) 
+    });
+    track.inspectorControls.drumPadEnvDecay = createAndPlaceKnob(`drumPadEnvDecay-${track.id}-placeholder`, { 
+        label: 'Decay', min: 0.01, max: 1, step: 0.01, initialValue: pad.envelope?.decay ?? 0.2, decimals: 2, 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadEnv(track.selectedDrumPadForEdit, 'decay', val) 
+    });
+    track.inspectorControls.drumPadEnvSustain = createAndPlaceKnob(`drumPadEnvSustain-${track.id}-placeholder`, { 
+        label: 'Sustain', min: 0, max: 1, step: 0.01, initialValue: pad.envelope?.sustain ?? 0, decimals: 2, 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadEnv(track.selectedDrumPadForEdit, 'sustain', val) 
+    });
+    track.inspectorControls.drumPadEnvRelease = createAndPlaceKnob(`drumPadEnvRelease-${track.id}-placeholder`, { 
+        label: 'Release', min: 0.01, max: 2, step: 0.01, initialValue: pad.envelope?.release ?? 0.1, decimals: 2, 
+        trackRef: track, onValueChange: (val) => track.setDrumSamplerPadEnv(track.selectedDrumPadForEdit, 'release', val) 
+    });
 }
 
 function initializeInstrumentSamplerSpecificControls(track, winEl) {
@@ -668,16 +708,13 @@ export function renderEffectControls(owner, ownerType, effectId, controlsContain
             const controlWrapper = document.createElement('div');
             let initialValue;
             const pathKeys = paramDef.key.split('.');
-            let tempVal = effectWrapper.params;
+            let currentValObj = effectWrapper.params;
             for (const key of pathKeys) {
-                if (tempVal && typeof tempVal === 'object' && key in tempVal) {
-                    tempVal = tempVal[key];
-                } else {
-                    tempVal = undefined;
-                    break;
-                }
+                if (currentValObj && typeof currentValObj === 'object' && key in currentValObj) {
+                    currentValObj = currentValObj[key];
+                } else { currentValObj = undefined; break; }
             }
-            initialValue = (tempVal !== undefined) ? tempVal : paramDef.defaultValue;
+            initialValue = (currentValObj !== undefined) ? currentValObj : paramDef.defaultValue;
 
             if (paramDef.type === 'knob') {
                 const knob = createKnob({ label: paramDef.label, min: paramDef.min, max: paramDef.max, step: paramDef.step, initialValue: initialValue, decimals: paramDef.decimals, displaySuffix: paramDef.displaySuffix, trackRef: (ownerType === 'track' ? owner : null), onValueChange: (val) => { if (ownerType === 'track' && owner) owner.updateEffectParam(effectId, paramDef.key, val); else if (localAppServices.updateMasterEffectParam) localAppServices.updateMasterEffectParam(effectId, paramDef.key, val); } });
@@ -794,7 +831,7 @@ export function openTrackEffectsRackWindow(trackId, savedState = null) {
                     if (typeof track.loadEffectPreset === 'function') {
                         const success = track.loadEffectPreset(selectedPreset.trim());
                         if (success) {
-                            updateEffectsPresetList(track, rackWindow.element);
+                            updateEffectsPresetList(track, winEl);
                             renderEffectsList(track, 'track', rackWindow.element.querySelector(`#effectsList-${track.id}`), rackWindow.element.querySelector(`#effectControlsContainer-${track.id}`));
                         }
                     }
@@ -1169,13 +1206,26 @@ export function updateSoundBrowserDisplayForLibrary(libraryName, isLoading = fal
         performFullUIUpdate = true;
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: Set initial view to '${libraryName}' from 'Select Library...'.`);
     } else if (libraryName && !isLoading && !hasError) {
-        console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: NO CHANGE to visible UI. Update for '${libraryName}' (isLoading: ${isLoading}, hasError: ${hasError}), but current view is '${currentDropdownSelection}'.`);
-        const currentGlobalLib = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : null;
-        if (!currentGlobalLib && localAppServices.setCurrentLibraryName) {
-            localAppServices.setCurrentLibraryName(libraryName);
-             console.log(`[UI updateSoundBrowserDisplayForLibrary] Background load of '${libraryName}' successful. Set as current in global state (as no global lib was active).`);
+        console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] About to check trees. Library: ${libraryName}`);
+        const currentTrees = localAppServices.getSoundLibraryFileTrees ? localAppServices.getSoundLibraryFileTrees() : {};
+        console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Current trees from getSoundLibraryFileTrees. Keys:`, currentTrees ? Object.keys(currentTrees) : 'undefined');
+
+        if (currentTrees && currentTrees[libraryName]) {
+            const treeForLib = currentTrees[libraryName];
+            console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Found tree for "${libraryName}". Keys:`, treeForLib ? Object.keys(treeForLib) : 'Tree is null/undefined');
+            if (treeForLib && Object.keys(treeForLib).length > 0) {
+                 console.log(`[UI updateSoundBrowserDisplayForLibrary DEBUG] Tree for "${libraryName}" is NOT empty.`);
+                 if (localAppServices.setCurrentSoundFileTree) localAppServices.setCurrentSoundFileTree(treeForLib);
+                 if (localAppServices.renderSoundBrowserDirectory) localAppServices.renderSoundBrowserDirectory([], localAppServices.getCurrentSoundFileTree());
+                 console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering directory for library '${libraryName}'.`);
+            } else {
+                console.warn(`[UI updateSoundBrowserDisplayForLibrary WARN] Tree for "${libraryName}" was found but considered empty or invalid. Tree:`, treeForLib);
+                listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" data is empty or corrupt.</p>`;
+            }
+        } else {
+            listDiv.innerHTML = `<p class="text-red-500">Error: Library "${libraryName}" data not found after attempting load.</p>`;
+            console.log(`[UI updateSoundBrowserDisplayForLibrary] Rendering "Error: Library '${libraryName}' data not found." view. (Checked currentTrees['${libraryName}'])`);
         }
-        return;
     } else if ((isLoading || hasError) && libraryName !== currentDropdownSelection) {
         console.log(`[UI updateSoundBrowserDisplayForLibrary] Decision: NO CHANGE to visible UI. Loading/Error for non-selected library '${libraryName}'. Current view: '${currentDropdownSelection}'.`);
         return;
@@ -1810,7 +1860,7 @@ export function drawInstrumentWaveform(track) {
         const loopEndX = (track.instrumentSamplerSettings.loopEnd / buffer.duration) * canvas.width;
         ctx.fillStyle = canvas.classList.contains('dark') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 255, 0, 0.2)';
         ctx.fillRect(loopStartX, 0, loopEndX - loopStartX, canvas.height);
-        ctx.strokeStyle = canvas.classList.contains('dark') ? 'rgba(52, 211, 153, 0.6)' : 'rgba(0,200,0,0.6)';
+        ctx.strokeStyle = canvas.classList.contains('dark') ? 'rgba(96, 165, 250, 0.6)' : 'rgba(0,200,0,0.6)';
         ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(loopStartX, 0); ctx.lineTo(loopStartX, canvas.height); ctx.moveTo(loopEndX, 0); ctx.lineTo(loopEndX, canvas.height); ctx.stroke();
     }
 }
@@ -1843,41 +1893,205 @@ export function highlightPlayingStep(trackId, stepIndex, isPlaying) {
 
 
 // --- Additional UI Stubs ---
-export function renderSamplePads(container, pads, onPadClick) {
-    console.warn('[UI] renderSamplePads not implemented');
-}
-export function updateSliceEditorUI(trackId) {
-    console.warn('[UI] updateSliceEditorUI not implemented');
-}
-export function updateDrumPadControlsUI(trackId) {
-    console.warn('[UI] updateDrumPadControlsUI not implemented');
-}
-export function renderDrumSamplerPads(container, pads, onPadClick) {
-    console.warn('[UI] renderDrumSamplerPads not implemented');
-}
-export function updateSequencerCellUI(sequencerElement, trackType, row, col, isActive) {
-    if (!sequencerElement) return;
-    const cell = sequencerElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
-    if (!cell) return;
+export function renderSamplePads(track) {
+    if (!track || track.type !== 'Sampler') return;
     
-    const velocity = parseFloat(cell.dataset.velocity) || Constants.defaultVelocity;
-    const rowLabel = sequencerElement.querySelector(`.piano-key-label[data-row="${row}"]`);
-    const pitchName = rowLabel ? rowLabel.textContent : '';
-    const isBlack = pitchName.includes('#');
+    const inspectorWin = localAppServices.getWindowById ? localAppServices.getWindowById(`inspector-${track.id}`) : null;
+    if (!inspectorWin || !inspectorWin.element) return;
     
-    if (isActive) {
-        const noteColor = isBlack ? 'bg-violet-600' : 'bg-violet-500';
-        cell.className = `sequencer-step-cell ${noteColor}`;
-        cell.style.opacity = 0.5 + (velocity * 0.5);
-    } else {
-        const emptyColor = isBlack ? 'bg-gray-800' : 'bg-gray-600';
-        cell.className = `sequencer-step-cell ${emptyColor}`;
-        cell.style.opacity = 1;
+    const container = inspectorWin.element.querySelector(`#samplePadsContainer-${track.id}`);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const pads = track.slices || [];
+    const numPads = Math.min(pads.length, Constants.numSlices);
+    
+    for (let i = 0; i < numPads; i++) {
+        const pad = pads[i];
+        const isSelected = i === track.selectedSliceForEdit;
+        const hasContent = pad && (pad.duration > 0 || pad.userDefined);
+        const status = pad?.status || 'empty';
+        
+        const padEl = document.createElement('button');
+        padEl.className = `sample-pad p-2 text-xs rounded border transition-colors ${
+            isSelected ? 'ring-2 ring-pink-500 bg-pink-100 dark:bg-pink-900' : 
+            hasContent ? 'bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700' : 
+            'bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600'
+        } border-gray-300 dark:border-slate-500`;
+        padEl.dataset.sliceIndex = i;
+        padEl.innerHTML = `<div class="font-bold">${i + 1}</div><div class="text-[10px] opacity-75">${
+            hasContent ? `${(pad.duration * 1000).toFixed(0)}ms` : status === 'missing' ? '⚠️' : '—'
+        }</div>`;
+        padEl.title = `Slice ${i + 1}${hasContent ? ` (${(pad.duration * 1000).toFixed(1)}ms)` : ''} - Click to edit`;
+        
+        padEl.addEventListener('click', () => {
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Select Slice ${i + 1} on ${track.name}`);
+            }
+            track.selectedSliceForEdit = i;
+            renderSamplePads(track);
+            updateSliceEditorUI(track);
+        });
+        
+        container.appendChild(padEl);
+    }
+}
+
+export function updateSliceEditorUI(track) {
+    if (!track || track.type !== 'Sampler') return;
+    
+    const inspectorWin = localAppServices.getWindowById ? localAppServices.getWindowById(`inspector-${track.id}`) : null;
+    if (!inspectorWin || !inspectorWin.element) return;
+    
+    const selectedSliceInfo = inspectorWin.element.querySelector(`#selectedSliceInfo-${track.id}`);
+    if (selectedSliceInfo) {
+        selectedSliceInfo.textContent = (track.selectedSliceForEdit + 1).toString();
     }
     
-    // Update cell title with note info
-    const stepData = isActive ? { active: true, velocity } : null;
-    cell.title = `${pitchName} - Step ${col + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ' (empty)'}`;
+    const slice = track.slices?.[track.selectedSliceForEdit] || {
+        volume: 0.7, pitchShift: 0, envelope: { attack: 0.005, decay: 0.1, sustain: 0.9, release: 0.2 }
+    };
+    
+    // Update knob values
+    if (track.inspectorControls) {
+        if (track.inspectorControls.sliceVolume) {
+            track.inspectorControls.sliceVolume.setValue(slice.volume, false);
+        }
+        if (track.inspectorControls.slicePitch) {
+            track.inspectorControls.slicePitch.setValue(slice.pitchShift, false);
+        }
+        if (track.inspectorControls.sliceEnvAttack) {
+            track.inspectorControls.sliceEnvAttack.setValue(slice.envelope?.attack ?? 0.005, false);
+        }
+        if (track.inspectorControls.sliceEnvDecay) {
+            track.inspectorControls.sliceEnvDecay.setValue(slice.envelope?.decay ?? 0.1, false);
+        }
+        if (track.inspectorControls.sliceEnvSustain) {
+            track.inspectorControls.sliceEnvSustain.setValue(slice.envelope?.sustain ?? 0.9, false);
+        }
+        if (track.inspectorControls.sliceEnvRelease) {
+            track.inspectorControls.sliceEnvRelease.setValue(slice.envelope?.release ?? 0.2, false);
+        }
+    }
+    
+    // Update toggle buttons
+    const loopToggleBtn = inspectorWin.element.querySelector(`#sliceLoopToggle-${track.id}`);
+    if (loopToggleBtn) {
+        loopToggleBtn.textContent = slice.loop ? 'Loop: ON' : 'Loop: OFF';
+        loopToggleBtn.classList.toggle('active', slice.loop);
+    }
+    const reverseToggleBtn = inspectorWin.element.querySelector(`#sliceReverseToggle-${track.id}`);
+    if (reverseToggleBtn) {
+        reverseToggleBtn.textContent = slice.reverse ? 'Rev: ON' : 'Rev: OFF';
+        reverseToggleBtn.classList.toggle('active', slice.reverse);
+    }
+}
+
+export function updateDrumPadControlsUI(track) {
+    if (!track || track.type !== 'DrumSampler') return;
+    
+    const inspectorWin = localAppServices.getWindowById ? localAppServices.getWindowById(`inspector-${track.id}`) : null;
+    if (!inspectorWin || !inspectorWin.element) return;
+    
+    const selectedPadInfo = inspectorWin.element.querySelector(`#selectedDrumPadInfo-${track.id}`);
+    if (selectedPadInfo) {
+        selectedPadInfo.textContent = (track.selectedDrumPadForEdit + 1).toString();
+    }
+    
+    const pad = track.drumSamplerPads?.[track.selectedDrumPadForEdit] || {
+        volume: 0.7, pitchShift: 0,
+        envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 }
+    };
+    
+    // Update drop zone for selected pad
+    const dzContainer = inspectorWin.element.querySelector(`#drumPadDropZoneContainer-${track.id}-${track.selectedDrumPadForEdit}`);
+    if (dzContainer) {
+        const existingAudioData = {
+            originalFileName: pad.originalFileName,
+            status: pad.status || (pad.dbKey || pad.audioBufferDataURL ? 'missing' : 'empty')
+        };
+        dzContainer.innerHTML = createDropZoneHTML(track.id, `drumPadFileInput-${track.id}-${track.selectedDrumPadForEdit}`, 'DrumSampler', track.selectedDrumPadForEdit, existingAudioData);
+        
+        const dzEl = dzContainer.querySelector('.drop-zone');
+        const fileInputEl = dzContainer.querySelector(`#drumPadFileInput-${track.id}-${track.selectedDrumPadForEdit}`);
+        if (dzEl) setupGenericDropZoneListeners(dzEl, track.id, 'DrumSampler', track.selectedDrumPadForEdit, localAppServices.loadSoundFromBrowserToTarget, localAppServices.loadSampleFile);
+        if (fileInputEl) fileInputEl.onchange = (e) => { localAppServices.loadSampleFile(e, track.id, 'DrumSampler', track.selectedDrumPadForEdit); };
+    }
+    
+    // Update knob values
+    if (track.inspectorControls) {
+        if (track.inspectorControls.drumPadVolume) {
+            track.inspectorControls.drumPadVolume.setValue(pad.volume, false);
+        }
+        if (track.inspectorControls.drumPadPitch) {
+            track.inspectorControls.drumPadPitch.setValue(pad.pitchShift, false);
+        }
+        if (track.inspectorControls.drumPadEnvAttack) {
+            track.inspectorControls.drumPadEnvAttack.setValue(pad.envelope?.attack ?? 0.005, false);
+        }
+        if (track.inspectorControls.drumPadEnvDecay) {
+            track.inspectorControls.drumPadEnvDecay.setValue(pad.envelope?.decay ?? 0.2, false);
+        }
+        if (track.inspectorControls.drumPadEnvSustain) {
+            track.inspectorControls.drumPadEnvSustain.setValue(pad.envelope?.sustain ?? 0, false);
+        }
+        if (track.inspectorControls.drumPadEnvRelease) {
+            track.inspectorControls.drumPadEnvRelease.setValue(pad.envelope?.release ?? 0.1, false);
+        }
+    }
+}
+
+export function renderDrumSamplerPads(track) {
+    if (!track || track.type !== 'DrumSampler') return;
+    
+    const inspectorWin = localAppServices.getWindowById ? localAppServices.getWindowById(`inspector-${track.id}`) : null;
+    if (!inspectorWin || !inspectorWin.element) return;
+    
+    const container = inspectorWin.element.querySelector(`#drumPadsGridContainer-${track.id}`);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const pads = track.drumSamplerPads || [];
+    const numPads = Math.min(pads.length, Constants.numDrumSamplerPads);
+    
+    for (let i = 0; i < numPads; i++) {
+        const pad = pads[i];
+        const isSelected = i === track.selectedDrumPadForEdit;
+        const hasContent = pad && (pad.audioBuffer || pad.audioBufferDataURL || pad.dbKey);
+        const status = pad?.status || 'empty';
+        
+        const padEl = document.createElement('button');
+        padEl.className = `drum-pad p-3 text-sm rounded border transition-colors ${
+            isSelected ? 'ring-2 ring-amber-500 bg-amber-100 dark:bg-amber-900' : 
+            hasContent ? 'bg-orange-300 dark:bg-orange-700 hover:bg-orange-400 dark:hover:bg-orange-600' : 
+            'bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600'
+        } border-gray-300 dark:border-slate-500`;
+        padEl.dataset.padIndex = i;
+        padEl.innerHTML = `<div class="font-bold text-center">${i + 1}</div><div class="text-[10px] text-center opacity-75">${
+            hasContent ? (pad.originalFileName?.substring(0, 8) || '●') : status === 'missing' ? '⚠️' : '—'
+        }</div>`;
+        padEl.title = `Pad ${i + 1}${hasContent ? ` (${pad.originalFileName || 'sample'})` : ''} - Click to edit`;
+        
+        padEl.addEventListener('click', () => {
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Select Drum Pad ${i + 1} on ${track.name}`);
+            }
+            track.selectedDrumPadForEdit = i;
+            renderDrumSamplerPads(track);
+            updateDrumPadControlsUI(track);
+        });
+        
+        // Double-click to preview/play the pad
+        padEl.addEventListener('dblclick', () => {
+            if (track.playDrumPad && hasContent) {
+                track.playDrumPad(i);
+            }
+        });
+        
+        container.appendChild(padEl);
+    }
 }
 
 // --- Timeline State ---

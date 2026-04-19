@@ -1328,6 +1328,24 @@ export class Track {
         }
     }
 
+    playDrumPad(padIndex) {
+        if (this.type !== 'DrumSampler') return;
+        if (padIndex < 0 || padIndex >= Constants.numDrumSamplerPads) return;
+        
+        const padData = this.drumSamplerPads[padIndex];
+        const player = this.drumPadPlayers[padIndex];
+        
+        if (!padData || !player || player.disposed || !player.loaded) {
+            console.warn(`[Track ${this.id}] Cannot play drum pad ${padIndex}: not loaded`);
+            return;
+        }
+        
+        // Apply pad settings
+        player.volume.value = Tone.gainToDb(padData.volume * 0.7);
+        player.playbackRate = Math.pow(2, (padData.pitchShift || 0) / 12);
+        player.start();
+    }
+
     setInstrumentSamplerRootNote(noteName) {
         if (this.instrumentSamplerSettings) {
             this.instrumentSamplerSettings.rootNote = noteName;
