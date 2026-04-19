@@ -281,4 +281,14 @@ Need to create `.github/workflows/deploy.yml` that:
   5. **CSS**: Added `.piano-note-bar` classes (with synth/sampler/drum/instrument variants) and `.sequencer-note-body` with subtle body styling.
   6. **setNoteLen()**: New function in the context menu handler that sets `currentActiveSeq.data[r][c].length` with undo capture and redraws the window.
 - **Note**: Git push works! zo.pub sync also works as fallback. Pushed to origin/LWB-with-Bugs successfully.
+### 2026-04-18 — Day 47
+- **Piano Roll Variable-Length Notes** (`js/ui.js`, `style.css`): The piano roll view now renders notes as horizontal bars spanning multiple steps instead of single-cell dots. Key changes:
+  1. **Pre-pass coverage calculation**: Before rendering, a `coveredCells` Set tracks which cells are spanned by longer notes (reading `stepData.length || 1`).
+  2. **Note bar rendering**: Note-start cells render a `.piano-note-bar` div with `width = noteLen * 20 - 1` px, using track-type color gradients. Hover tooltip shows note name, velocity %, and length in steps.
+  3. **Note body cells**: Covered (non-start) cells render as `.sequencer-note-body` with a subtle transparent highlight, making the bar body visible but clearly non-interactive.
+  4. **Right-click context menu**: Now includes a "Note Length (steps)" section with presets (1/2/4/8/16 steps) and +/-1 step adjustments. Also shows current note info in the header line.
+  5. **CSS**: Added `.piano-note-bar` classes (with synth/sampler/drum/instrument variants) and `.sequencer-note-body` with subtle body styling.
+  6. **setNoteLen()**: New function in the context menu handler that sets `currentActiveSeq.data[r][c].length` with undo capture and redraws the window.
+- **Bug Fix: Duplicate Function Cleanup** (`js/eventHandlers.js`): Removed massive duplication in eventHandlers.js where core handler functions were duplicated 10x each (from past merge conflicts). Cleaned up: `showKeyboardShortcutsModal` (10→1), `handleOpenSequencer` (5→1), `handleTrackMute` (10→1), `handleTrackSolo` (10→1), `handleTrackArm` (10→1), `handleRemoveTrack` (10→1), `handleOpenTrackInspector` (10→1), `handleOpenEffectsRack` (10→1). Removed 1296 lines of dead duplicate code. File reduced from 13882 to 12587 lines. This was a known issue in AGENTS.md.
+- **Note**: Git push works! zo.pub sync also works as fallback. Pushed to origin/LWB-with-Bugs successfully.
 
