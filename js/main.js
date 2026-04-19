@@ -4,7 +4,7 @@
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
-import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
+import { showNotification as utilShowNotification, createContextMenu, showCustomModal, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -444,7 +444,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -464,7 +464,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -505,8 +505,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -668,6 +668,34 @@ function handleTrackUIUpdate(trackId, reason, detail) {
     } catch (error) {
         console.error(`[Main handleTrackUIUpdate] Error updating UI for track ${trackId}, reason ${reason}:`, error);
     }
+}
+
+// --- Keyboard Shortcuts Modal ---
+function showKeyboardShortcutsModal() {
+    const shortcuts = [
+        { keys: ['Space'], description: 'Play / Pause' },
+        { keys: ['Z'], description: 'Stop' },
+        { keys: ['R'], description: 'Start Recording' },
+        { keys: ['?'], description: 'Show Keyboard Shortcuts' },
+        { keys: ['Escape'], description: 'Close Window / Modal' },
+        { keys: ['Up / Down'], description: 'Transpose Octave (in Piano Roll)' },
+        { keys: ['Ctrl', 'Z'], description: 'Undo' },
+        { keys: ['Ctrl', 'Shift', 'Z'], description: 'Redo' },
+        { keys: ['Ctrl', 'S'], description: 'Save Project' },
+    ];
+    
+    const contentHTML = `<div style="display: grid; gap: 8px; min-width: 320px;">
+        ${shortcuts.map(s => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #333;">
+                <span style="color: #aaa;">${s.description}</span>
+                <span style="font-family: monospace; background: #222; padding: 4px 8px; border-radius: 4px; color: #0ff;">${s.keys.join(' + ')}</span>
+            </div>
+        `).join('')}
+    </div>`;
+    
+    showCustomModal('Keyboard Shortcuts', contentHTML, [
+        { text: 'Close', action: null }
+    ]);
 }
 
 async function initializeSnugOS() {
@@ -862,6 +890,16 @@ async function restoreDesktopBackground() {
 // --- Global Event Listeners ---
 if (typeof window !== 'undefined') {
 window.addEventListener('load', initializeSnugOS);
+window.addEventListener('keydown', (e) => {
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target || document.activeElement;
+        const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        if (!isInput) {
+            e.preventDefault();
+            showKeyboardShortcutsModal();
+        }
+    }
+});
 window.addEventListener('beforeunload', (e) => {
     const tracksExist = getTracksState && getTracksState().length > 0;
     const undoStackExists = getUndoStackState && getUndoStackState().length > 0;

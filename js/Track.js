@@ -119,6 +119,8 @@ export class Track {
 
         // Audio Nodes
         this.gainNode = null; this.trackMeter = null; this.outputNode = null;
+        this.panNode = null; // Stereo panner
+        this.pan = initialData?.pan !== undefined ? initialData.pan : 0; // -1 (left) to 1 (right)
         this.instrument = null; 
 
         this.sequences = [];
@@ -263,6 +265,7 @@ export class Track {
         console.log(`[Track ${this.id} initializeAudioNodes] Initializing audio nodes for "${this.name}".`);
         try {
             if (this.gainNode && !this.gainNode.disposed) try { this.gainNode.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old gainNode:`, e.message)}
+            if (this.panNode && !this.panNode.disposed) try { this.panNode.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old panNode:`, e.message)}
             if (this.trackMeter && !this.trackMeter.disposed) try { this.trackMeter.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old trackMeter:`, e.message)}
             if (this.inputChannel && !this.inputChannel.disposed && this.type === 'Audio') {
                 try { this.inputChannel.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old inputChannel:`, e.message)}
@@ -274,8 +277,9 @@ export class Track {
             }
 
             this.gainNode = new Tone.Gain(this.isMuted ? 0 : this.previousVolumeBeforeMute);
+            this.panNode = new Tone.Panner(this.pan); // Stereo panner
             this.trackMeter = new Tone.Meter({ smoothing: 0.8 });
-            this.outputNode = this.gainNode; 
+            this.outputNode = this.panNode; // Output is now through panNode
 
             if (this.type === 'Audio') {
                 this.inputChannel = new Tone.Channel(); 
@@ -384,12 +388,21 @@ export class Track {
         }
 
         if (this.gainNode && !this.gainNode.disposed && this.trackMeter && !this.trackMeter.disposed) {
-            try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter.`); }
-            catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to trackMeter:`, e); }
+            // Chain: gainNode -> panNode -> trackMeter
+            if (this.panNode && !this.panNode.disposed) {
+                try { 
+                    this.gainNode.connect(this.panNode); 
+                    this.panNode.connect(this.trackMeter); 
+                    console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode -> panNode -> trackMeter.`); 
+                } catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode->panNode->trackMeter:`, e); }
+            } else {
+                try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter.`); }
+                catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to trackMeter:`, e); }
+            }
         }
 
         const masterBusInput = this.appServices.getMasterEffectsBusInputNode ? this.appServices.getMasterEffectsBusInputNode() : null;
-        const finalTrackOutput = (this.trackMeter && !this.trackMeter.disposed) ? this.trackMeter : this.gainNode;
+        const finalTrackOutput = (this.trackMeter && !this.trackMeter.disposed) ? this.trackMeter : (this.panNode && !this.panNode.disposed ? this.panNode : this.gainNode);
 
         if (finalTrackOutput && !finalTrackOutput.disposed && masterBusInput && !masterBusInput.disposed) {
             try { finalTrackOutput.connect(masterBusInput); console.log(`[Track ${this.id} rebuildEffectChain] Connected final track output to masterBusInput.`); }
