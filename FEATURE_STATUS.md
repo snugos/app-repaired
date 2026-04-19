@@ -107,6 +107,12 @@
   - `removeAutomationPoint()` - Remove automation points
   - `clearAutomation()` - Clear all automation for a parameter
   - Connected to Tone.js gainNode for volume automation
+- ✅ **Implemented Piano Roll Editor velocity editing** - Full functionality including:
+  - Right-click velocity popup with slider for precise control
+  - Shift+click to decrement velocity
+  - Ctrl/Cmd+click to cycle through velocity presets (30%, 50%, 70%, 90%, 100%)
+  - Click to toggle step on/off
+  - Context menu preserved for inactive steps
 
 ### In Progress
 - (none)
@@ -115,6 +121,20 @@
 1. Add Sidechain Routing
 2. Implement Auto-Save Recovery
 3. Add Sound Browser waveform preview
+
+---
+
+## Current Feature Queue
+
+1. **Audio Recording** - Record audio from microphone into tracks
+2. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet
+3. **MIDI File Import/Export** - Drag & drop .mid files
+4. **Track Effects Presets** - Save/load effect chain presets per track
+5. **Quantize Selection** - Quantize selected notes to grid
+6. **Undo/Redo Visual Stack** - Show undo history in a panel
+7. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
+8. **Waveform Visualization** - Draw waveform on audio clips
+9. **Track Color Coding** - Assign colors to tracks for visual grouping
 
 ---
 
