@@ -18,7 +18,7 @@ import {
     handleTimelineLaneDrop
 } from './eventHandlers.js';
 import {
-    initializeStateModule,
+    initializeStateModule, 
     // State Getters
     getTracksState, getTrackByIdState, getOpenWindowsState, getWindowByIdState, getHighestZState,
     getMasterEffectsState, getMasterGainValueState,
@@ -58,7 +58,16 @@ import {
     getActualMasterGainNode as getActualMasterGainNodeFromAudio,
     clearAllMasterEffectNodes as clearAllMasterEffectNodesInAudio,
     startAudioRecording,
-    stopAudioRecording
+    stopAudioRecording,
+    // Waveform visualization functions
+    drawWaveform,
+    drawPlayhead,
+    decodeAudioBlob,
+    setWaveformPreviewCanvas,
+    getWaveformPreviewBuffer,
+    setWaveformPreviewBuffer,
+    startWaveformPlayheadAnimation,
+    stopWaveformPlayheadAnimation
 } from './audio.js';
 import {
     initializeUIModule, openTrackEffectsRackWindow, openTrackSequencerWindow, openGlobalControlsWindow,
@@ -226,6 +235,14 @@ const appServices = {
     getActualMasterGainNode: getActualMasterGainNodeFromAudio,
     clearAllMasterEffectNodes: clearAllMasterEffectNodesInAudio,
     startAudioRecording, stopAudioRecording,
+    
+    // Waveform Visualization Functions
+    decodeAudioBlob,
+    setWaveformPreviewCanvas,
+    getWaveformPreviewBuffer,
+    setWaveformPreviewBuffer,
+    startWaveformPlayheadAnimation,
+    stopWaveformPlayheadAnimation,
 
     // State Module Getters
     getTracks: getTracksState, getTrackById: getTrackByIdState,
@@ -427,7 +444,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -447,8 +464,8 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -488,8 +505,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },

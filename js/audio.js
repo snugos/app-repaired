@@ -518,7 +518,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructing) {
+    if (localAppServices.captureStateForUndo && !isReconstructinging) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -1419,4 +1419,219 @@ export function clearAllSidechainForTrack(trackId) {
             removeSidechainRouting(sourceId, trackId);
         }
     });
+}
+
+// --- Sound Browser Waveform Preview ---
+
+/**
+ * Draws a waveform visualization from an audio buffer onto a canvas.
+ * @param {AudioBuffer} audioBuffer - The decoded audio buffer
+ * @param {HTMLCanvasElement} canvas - The canvas element to draw on
+ * @param {Object} options - Drawing options
+ * @param {string} options.waveformColor - Color for the waveform (default: '#a855f7')
+ * @param {string} options.backgroundColor - Background color (default: '#1e293b')
+ * @param {number} options.barWidth - Width of each bar in pixels (default: 2)
+ * @param {number} options.barGap - Gap between bars in pixels (default: 1)
+ */
+export function drawWaveform(audioBuffer, canvas, options = {}) {
+    const {
+        waveformColor = '#a855f7',
+        backgroundColor = '#1e293b',
+        barWidth = 2,
+        barGap = 1
+    } = options;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear canvas
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+    
+    if (!audioBuffer) {
+        // Draw placeholder text
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No audio loaded', width / 2, height / 2);
+        return;
+    }
+    
+    // Get audio data (use first channel for mono visualization, or average of channels)
+    const numChannels = audioBuffer.numberOfChannels;
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Calculate number of bars we can fit
+    const totalBarWidth = barWidth + barGap;
+    const numBars = Math.floor(width / totalBarWidth);
+    
+    // Samples per bar
+    const samplesPerBar = Math.floor(channelData.length / numBars);
+    
+    ctx.fillStyle = waveformColor;
+    
+    const centerY = height / 2;
+    
+    for (let i = 0; i < numBars; i++) {
+        // Get max amplitude for this bar's sample range
+        let maxAmplitude = 0;
+        const startSample = i * samplesPerBar;
+        const endSample = Math.min(startSample + samplesPerBar, channelData.length);
+        
+        for (let j = startSample; j < endSample; j++) {
+            const amplitude = Math.abs(channelData[j]);
+            if (amplitude > maxAmplitude) {
+                maxAmplitude = amplitude;
+            }
+        }
+        
+        // Average across channels for multi-channel audio
+        if (numChannels > 1) {
+            for (let ch = 1; ch < numChannels; ch++) {
+                const chData = audioBuffer.getChannelData(ch);
+                let chMax = 0;
+                for (let j = startSample; j < endSample; j++) {
+                    const amplitude = Math.abs(chData[j]);
+                    if (amplitude > chMax) chMax = amplitude;
+                }
+                maxAmplitude = (maxAmplitude + chMax) / 2;
+            }
+        }
+        
+        // Draw bar (mirrored from center)
+        const barHeight = maxAmplitude * (height - 4); // Leave small margin
+        const x = i * totalBarWidth;
+        
+        ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);
+    }
+}
+
+/**
+ * Draws a playhead position indicator on the waveform canvas.
+ * @param {HTMLCanvasElement} canvas - The canvas element
+ * @param {number} position - Position as a ratio (0-1)
+ * @param {string} color - Color of the playhead line (default: '#ef4444')
+ */
+export function drawPlayhead(canvas, position, color = '#ef4444') {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clamp position
+    const clampedPosition = Math.max(0, Math.min(1, position));
+    const x = clampedPosition * width;
+    
+    // Draw playhead line
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+    
+    // Draw small triangle at top
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x - 4, 0);
+    ctx.lineTo(x + 4, 0);
+    ctx.lineTo(x, 6);
+    ctx.closePath();
+    ctx.fill();
+}
+
+/**
+ * Decodes audio data from a blob and returns the AudioBuffer.
+ * @param {Blob} audioBlob - The audio blob to decode
+ * @returns {Promise<AudioBuffer|null>} The decoded audio buffer or null on error
+ */
+export async function decodeAudioBlob(audioBlob) {
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioContext = Tone.context.rawContext;
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        return audioBuffer;
+    } catch (error) {
+        console.error('[Audio decodeAudioBlob] Error decoding audio:', error);
+        return null;
+    }
+}
+
+// State for waveform preview
+let waveformPreviewAudioBuffer = null;
+let waveformPreviewCanvas = null;
+let waveformPlayheadRAF = null;
+
+/**
+ * Sets the waveform preview canvas reference.
+ * @param {HTMLCanvasElement} canvas - The canvas element for waveform display
+ */
+export function setWaveformPreviewCanvas(canvas) {
+    waveformPreviewCanvas = canvas;
+}
+
+/**
+ * Gets the current waveform preview audio buffer.
+ * @returns {AudioBuffer|null}
+ */
+export function getWaveformPreviewBuffer() {
+    return waveformPreviewAudioBuffer;
+}
+
+/**
+ * Sets the waveform preview audio buffer and redraws.
+ * @param {AudioBuffer|null} buffer
+ */
+export function setWaveformPreviewBuffer(buffer) {
+    waveformPreviewAudioBuffer = buffer;
+    if (waveformPreviewCanvas && buffer) {
+        drawWaveform(buffer, waveformPreviewCanvas);
+    } else if (waveformPreviewCanvas) {
+        drawWaveform(null, waveformPreviewCanvas);
+    }
+}
+
+/**
+ * Starts playhead animation during preview playback.
+ * @param {Tone.Player} player - The Tone.Player instance playing the preview
+ * @param {number} duration - Duration in seconds
+ */
+export function startWaveformPlayheadAnimation(player, duration) {
+    if (!waveformPreviewCanvas || !player) return;
+    
+    let startTime = Tone.now();
+    
+    const animate = () => {
+        if (player.state === 'started') {
+            const elapsed = Tone.now() - startTime;
+            const position = Math.min(elapsed / duration, 1);
+            
+            // Redraw waveform with playhead
+            if (waveformPreviewAudioBuffer) {
+                drawWaveform(waveformPreviewAudioBuffer, waveformPreviewCanvas);
+                drawPlayhead(waveformPreviewCanvas, position);
+            }
+            
+            if (position < 1) {
+                waveformPlayheadRAF = requestAnimationFrame(animate);
+            }
+        }
+    };
+    
+    waveformPlayheadRAF = requestAnimationFrame(animate);
+}
+
+/**
+ * Stops the playhead animation.
+ */
+export function stopWaveformPlayheadAnimation() {
+    if (waveformPlayheadRAF) {
+        cancelAnimationFrame(waveformPlayheadRAF);
+        waveformPlayheadRAF = null;
+    }
+    
+    // Redraw waveform without playhead
+    if (waveformPreviewCanvas && waveformPreviewAudioBuffer) {
+        drawWaveform(waveformPreviewAudioBuffer, waveformPreviewCanvas);
+    }
 }

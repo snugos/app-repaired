@@ -54,14 +54,19 @@
 
 ## 🟡 Medium Priority - UI/UX Improvements
 
-### Feature 5: Sound Browser Preview Controls
-**File:** `js/ui.js` (sound browser sections)
-**Status:** ⚠️ Partially Implemented
-**What's Missing:** Preview button exists but waveform visualization missing
+### Feature 5: Sound Browser Preview Controls - ✅ COMPLETED
+**File:** `js/ui.js` (sound browser sections), `js/audio.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~Preview button exists but waveform visualization missing~~
 **Implementation Plan:**
-- [ ] Add waveform preview display
-- [ ] Implement playhead position indicator
-- [ ] Add preview volume control
+- [x] Add waveform preview display canvas
+- [x] Implement playhead position indicator
+- [x] Add preview volume control slider
+- [x] Add `drawWaveform`, `drawPlayhead` functions in audio.js
+- [x] Add `decodeAudioBlob`, `setWaveformPreviewCanvas`, `setWaveformPreviewBuffer`
+- [x] Add `startWaveformPlayheadAnimation`, `stopWaveformPlayheadAnimation`
+- [x] Update sound file click handler to load waveform
+- [x] Update preview button to use playhead animation and volume control
 
 ### Feature 6: Mixer Window Complete Implementation
 **File:** `js/ui.js` (mixer sections)
@@ -97,6 +102,15 @@
 ## Session Progress
 
 ### Completed This Session
+- ✅ **Implemented Sound Browser Waveform Preview** - Full functionality including:
+  - `drawWaveform()` - Draw audio waveform visualization on canvas
+  - `drawPlayhead()` - Draw playhead position indicator
+  - `decodeAudioBlob()` - Decode audio blob to AudioBuffer
+  - `setWaveformPreviewCanvas()`, `setWaveformPreviewBuffer()` - State management
+  - `startWaveformPlayheadAnimation()`, `stopWaveformPlayheadAnimation()` - Animated playhead
+  - Updated sound browser UI with waveform canvas
+  - Added preview volume slider control (0-100%)
+  - Integrated waveform loading on sound file selection
 - ✅ **Implemented Auto-Save Recovery** - Full functionality including:
   - `storeProjectState()`, `getProjectState()`, `deleteProjectState()` in `js/db.js`
   - New `projectState` IndexedDB object store for project state persistence
@@ -115,9 +129,9 @@
 - (none)
 
 ### Next to Tackle
-1. Add Sound Browser waveform preview
-2. Implement Mixer send/return routing UI
-3. Add MIDI Learn / Mapping
+1. Implement Mixer send/return routing UI
+2. Add MIDI Learn / Mapping
+3. Implement Stem Export
 
 ---
 

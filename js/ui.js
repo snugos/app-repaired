@@ -519,7 +519,9 @@ export function openTrackInspectorWindow(trackId, savedState = null) {
     // Larger window for DrumSampler to show pads
     const baseHeight = track.type === 'DrumSampler' ? 580 : 450;
     const inspectorOptions = { width: 320, height: baseHeight, minWidth: 280, minHeight: 350, initialContentKey: windowId, onCloseCallback: () => { /* main.js can clear track.inspectorWindow if needed */ } };
-    if (savedState) { Object.assign(inspectorOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized }); }
+    if (savedState) {
+        Object.assign(inspectorOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
 
     const inspectorWindow = localAppServices.createWindow(windowId, `Inspector: ${track.name}`, contentDOM, inspectorOptions);
 
@@ -840,8 +842,38 @@ export function openSoundBrowserWindow(savedState = null) {
         return win;
     }
 
-    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300"> <div class="flex space-x-1 mb-1"> <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="">Select Library...</option> </select> <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button> </div> <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div> <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto"> <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p> </div> <div id="soundPreviewControls" class="mt-1 text-center"> <button id="previewSoundBtn" class="px-2 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>Preview</button> </div> </div>`;
-    const browserOptions = { width: 380, height: 450, minWidth: 300, minHeight: 300, initialContentKey: windowId };
+    const contentHTML = `<div id="soundBrowserContent" class="p-2 space-y-2 text-xs overflow-y-auto h-full dark:text-slate-300">
+        <div class="flex space-x-1 mb-1">
+            <select id="librarySelect" class="flex-grow p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                <option value="">Select Library...</option>
+            </select>
+            <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button>
+        </div>
+        <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div>
+        <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto" style="max-height: 200px;">
+            <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p>
+        </div>
+        
+        <!-- Waveform Preview Section -->
+        <div id="waveformPreviewSection" class="mt-2 border rounded dark:border-slate-600 bg-slate-900 p-1">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-gray-400 text-[10px]">WAVEFORM PREVIEW</span>
+                <span id="previewFileName" class="text-gray-500 text-[10px] truncate max-w-[150px]"></span>
+            </div>
+            <canvas id="waveformCanvas" class="w-full rounded" width="340" height="60" style="background: #1e293b;"></canvas>
+        </div>
+        
+        <!-- Preview Controls with Volume -->
+        <div id="soundPreviewControls" class="mt-1 flex items-center justify-between">
+            <button id="previewSoundBtn" class="px-3 py-1 text-xs border rounded bg-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 dark:disabled:bg-slate-500" disabled>▶ Preview</button>
+            <div class="flex items-center space-x-1">
+                <span class="text-[10px] text-gray-500">Vol:</span>
+                <input type="range" id="previewVolumeSlider" min="0" max="100" value="80" class="w-16 h-1 accent-purple-500">
+                <span id="previewVolumeValue" class="text-[10px] text-gray-400 w-6">80%</span>
+            </div>
+        </div>
+    </div>`;
+    const browserOptions = { width: 400, height: 520, minWidth: 350, minHeight: 400, initialContentKey: windowId };
     if (savedState) Object.assign(browserOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
 
     const browserWindow = localAppServices.createWindow(windowId, 'Sound Browser', contentHTML, browserOptions);
@@ -883,8 +915,9 @@ export function openSoundBrowserWindow(savedState = null) {
             if (selectedSound && typeof Tone !== 'undefined') {
                 let previewPlayer = localAppServices.getPreviewPlayer ? localAppServices.getPreviewPlayer() : null;
                 if (previewPlayer && !previewPlayer.disposed) {
-                    console.log('[UI PreviewButton] Disposing existing preview player.');
-                    previewPlayer.stop(); previewPlayer.dispose();
+                    console.log('[UI PreviewButton] Stopping existing preview player.');
+                    previewPlayer.stop();
+                    if (localAppServices.stopWaveformPlayheadAnimation) localAppServices.stopWaveformPlayheadAnimation();
                 }
                 const { fullPath, libraryName } = selectedSound;
                 console.log(`[UI PreviewButton] Attempting to preview: ${fullPath} from ${libraryName}`);
@@ -894,20 +927,38 @@ export function openSoundBrowserWindow(savedState = null) {
                     const zipEntry = loadedZips[libraryName].file(fullPath);
                     if (zipEntry) {
                         console.log(`[UI PreviewButton] Found zipEntry for ${fullPath}. Converting to blob.`);
-                        zipEntry.async("blob").then(blob => {
+                        zipEntry.async("blob").then(async (blob) => {
                             console.log(`[UI PreviewButton] Blob created for ${fullPath}, size: ${blob.size}. Creating Object URL.`);
+                            
+                            // Get volume from slider
+                            const volumeSlider = browserWindow.element.querySelector('#previewVolumeSlider');
+                            const volumeValue = volumeSlider ? parseInt(volumeSlider.value) / 100 : 0.8;
+                            
                             const url = URL.createObjectURL(blob);
                             console.log(`[UI PreviewButton] Object URL: ${url}. Creating Tone.Player.`);
+                            
                             previewPlayer = new Tone.Player(url, () => {
                                 console.log(`[UI PreviewButton] Tone.Player loaded for ${url}. Starting playback.`);
+                                previewPlayer.volume.value = Tone.gainToDb(volumeValue);
                                 previewPlayer.start();
+                                
+                                // Start playhead animation if we have waveform data
+                                if (localAppServices.startWaveformPlayheadAnimation && localAppServices.getWaveformPreviewBuffer) {
+                                    const buffer = localAppServices.getWaveformPreviewBuffer();
+                                    if (buffer) {
+                                        localAppServices.startWaveformPlayheadAnimation(previewPlayer, buffer.duration);
+                                    }
+                                }
+                                
                                 URL.revokeObjectURL(url);
                                 console.log(`[UI PreviewButton] Object URL revoked for ${url}.`);
                             }).toDestination();
+                            
                             previewPlayer.onerror = (err) => {
                                 console.error(`[UI PreviewButton] Tone.Player error for ${url}:`, err);
                                 showNotification("Error playing preview: " + err.message, 3000);
                                 URL.revokeObjectURL(url);
+                                if (localAppServices.stopWaveformPlayheadAnimation) localAppServices.stopWaveformPlayheadAnimation();
                             };
                             if (localAppServices.setPreviewPlayer) localAppServices.setPreviewPlayer(previewPlayer);
                         }).catch(err => {
@@ -928,6 +979,22 @@ export function openSoundBrowserWindow(savedState = null) {
                 console.error('[UI PreviewButton] Tone is undefined!');
             }
         });
+        
+        // Volume slider event listener
+        const volumeSlider = browserWindow.element.querySelector('#previewVolumeSlider');
+        const volumeValueDisplay = browserWindow.element.querySelector('#previewVolumeValue');
+        if (volumeSlider && volumeValueDisplay) {
+            volumeSlider.addEventListener('input', (e) => {
+                const volume = parseInt(e.target.value);
+                volumeValueDisplay.textContent = `${volume}%`;
+                
+                // Update preview player volume if playing
+                const previewPlayer = localAppServices.getPreviewPlayer ? localAppServices.getPreviewPlayer() : null;
+                if (previewPlayer && !previewPlayer.disposed && previewPlayer.state === 'started') {
+                    previewPlayer.volume.value = Tone.gainToDb(volume / 100);
+                }
+            });
+        }
 
         if (!savedState) {
             const currentLibNameFromState = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : null;
@@ -1116,7 +1183,7 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
             });
         }
         else { // File
-            listItem.addEventListener('click', () => {
+            listItem.addEventListener('click', async () => {
                 listDiv.querySelectorAll('.bg-blue-200,.dark\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
                 listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
                 const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
@@ -1129,6 +1196,35 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
                     console.warn('[UI SoundFile Click] setSelectedSoundForPreview service not available.');
                 }
                 if(previewBtn) previewBtn.disabled = false;
+                
+                // Update filename display
+                const fileNameDisplay = browserWindowEl.querySelector('#previewFileName');
+                if (fileNameDisplay) fileNameDisplay.textContent = name;
+                
+                // Load and display waveform
+                const waveformCanvas = browserWindowEl.querySelector('#waveformCanvas');
+                if (waveformCanvas && localAppServices.decodeAudioBlob && localAppServices.setWaveformPreviewCanvas && localAppServices.setWaveformPreviewBuffer) {
+                    const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
+                    if (loadedZips?.[currentLibName] && loadedZips[currentLibName] !== "loading") {
+                        const zipEntry = loadedZips[currentLibName].file(nodeData.fullPath);
+                        if (zipEntry) {
+                            try {
+                                const blob = await zipEntry.async("blob");
+                                const audioBuffer = await localAppServices.decodeAudioBlob(blob);
+                                if (audioBuffer) {
+                                    localAppServices.setWaveformPreviewCanvas(waveformCanvas);
+                                    localAppServices.setWaveformPreviewBuffer(audioBuffer);
+                                } else {
+                                    // Clear waveform on error
+                                    localAppServices.setWaveformPreviewCanvas(waveformCanvas);
+                                    localAppServices.setWaveformPreviewBuffer(null);
+                                }
+                            } catch (err) {
+                                console.error('[UI SoundFile Click] Error loading waveform:', err);
+                            }
+                        }
+                    }
+                }
             });
             listItem.addEventListener('dragstart', (e) => { e.dataTransfer.setData("application/json", JSON.stringify({ fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName, type: 'sound-browser-item' })); e.dataTransfer.effectAllowed = "copy"; });
         }
