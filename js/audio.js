@@ -192,7 +192,7 @@ export function rebuildMasterEffectChain() {
             }
         }
 
-        if (currentAudioPathEnd && !currentAudioPathEnd.disposed) {
+        if (effectNode && currentAudioPathEnd && !currentAudioPathEnd.disposed) {
             try {
                 console.log(`[Audio rebuildMasterEffectChain] Connecting ${currentAudioPathEnd.toString()} to ${effectNode.toString()} (${effectState.type})`);
                 currentAudioPathEnd.connect(effectNode);
@@ -200,11 +200,11 @@ export function rebuildMasterEffectChain() {
             } catch (e) {
                 console.error(`[Audio rebuildMasterEffectChain] Error connecting master effect ${effectState.type}:`, e);
             }
-        } else {
-            // This case means the chain started with this effect or a previous connection failed
+        } else if (effectNode) {
+            // effectNode exists but currentAudioPathEnd was null/disposed — start new chain segment
             currentAudioPathEnd = effectNode;
-             console.warn(`[Audio rebuildMasterEffectChain] currentAudioPathEnd was null or disposed before connecting ${effectState.type}. Starting new chain segment.`);
-        }
+            console.warn(`[Audio rebuildMasterEffectChain] currentAudioPathEnd was null or disposed before connecting ${effectState.type}. Starting new chain segment.`);
+        } // else: effectNode is null (createEffectInstance failed) — skip this effect, currentAudioPathEnd stays as-is
     });
 
     // Connect the end of the effect chain to masterGainNodeActual
