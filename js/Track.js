@@ -1231,7 +1231,7 @@ export class Track {
                                 const tempPlayer = new Tone.Player(this.audioBuffer);
                                 const tempEnv = new Tone.AmplitudeEnvelope(sliceData.envelope);
                                 const tempGain = new Tone.Gain(targetVolumeLinear);
-                                tempPlayer.chain(tempEnv, tempGain, effectsChainStartPoint);
+                                tempPlayer.chain(tempEnv, tempGain);
                                 tempPlayer.playbackRate = playbackRate; tempPlayer.reverse = sliceData.reverse || false; tempPlayer.loop = sliceData.loop || false;
                                 tempPlayer.loopStart = sliceData.offset; tempPlayer.loopEnd = sliceData.offset + sliceData.duration;
                                 tempPlayer.start(time, sliceData.offset, sliceData.loop ? undefined : playDuration);
@@ -1378,7 +1378,7 @@ export class Track {
             return null;
         }
 
-        const sourceSequence = this.sequences.find(s => s.id === sourceSequenceId);
+        const sourceSequence = this.sequences ? this.sequences.find(s => s.id === sourceSequenceId) : null;
         if (!sourceSequence) {
             console.warn(`[Track ${this.id}] Source sequence with ID ${sourceSequenceId} not found.`);
             if (this.appServices.showNotification) this.appServices.showNotification("Source sequence not found.", 3000);
@@ -1464,7 +1464,7 @@ export class Track {
                                 URL.revokeObjectURL(url);
                                 const destNode = (this.activeEffects.length > 0 && this.activeEffects[0].toneNode && !this.activeEffects[0].toneNode.disposed)
                                     ? this.activeEffects[0].toneNode
-                                    : (this.gainNode && !this.gainNode.disposed ? this.gainNode : null);
+                                    : (this.gainNode || null);
                                 if (destNode) player.connect(destNode); else player.toDestination();
                                 player.start(effectivePlayStart, offsetIntoSource, playDurationInWindow);
                             };
@@ -1696,6 +1696,106 @@ export class Track {
             } catch (e) {
                 console.warn(`[Track ${this.id}] Error stopping slicer mono player:`, e.message);
             }
+        }
+    }
+
+    // --- Automation Functions ---
+    /**
+     * Schedule automation events for playback.
+     * @param {number} startTime - Transport start time
+     * @param {number} duration - Duration to schedule for
+     */
+    scheduleAutomation(startTime, duration) {
+        if (!this.automation || !this.gainNode || this.gainNode.disposed) {
+            console.log(`[Track ${this.id}] No automation or gainNode not available for scheduling.`);
+            return;
+        }
+
+        // Schedule volume automation
+        if (this.automation.volume && Array.isArray(this.automation.volume) && this.automation.volume.length > 0) {
+            this.automation.volume.forEach(point => {
+                if (point.time >= startTime && point.time < startTime + duration) {
+                    const rampTime = Tone.Transport.seconds + (point.time - startTime);
+                    if (this.gainNode && !this.gainNode.disposed && this.gainNode.gain) {
+                        try {
+                            // Use exponential ramp for smoother transitions
+                            this.gainNode.gain.setValueAtTime(
+                                Math.max(0.0001, this.gainNode.gain.value),
+                                rampTime - 0.001
+                            );
+                            this.gainNode.gain.exponentialRampToValueAtTime(
+                                Math.max(0.0001, point.value),
+                                rampTime
+                            );
+                            console.log(`[Track ${this.id}] Scheduled volume automation at ${point.time.toFixed(2)}s: ${(point.value * 100).toFixed(0)}%`);
+                        } catch (e) {
+                            console.warn(`[Track ${this.id}] Error scheduling volume automation:`, e.message);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Add an automation point.
+     * @param {string} param - Parameter name (e.g., 'volume')
+     * @param {number} time - Time in seconds
+     * @param {number} value - Value (0-1 for volume)
+     */
+    addAutomationPoint(param, time, value) {
+        if (!this.automation) {
+            this.automation = { volume: [] };
+        }
+        if (!this.automation[param]) {
+            this.automation[param] = [];
+        }
+        
+        // Remove any existing point at the same time
+        this.automation[param] = this.automation[param].filter(p => Math.abs(p.time - time) > 0.01);
+        
+        // Add new point and sort by time
+        this.automation[param].push({ time, value });
+        this.automation[param].sort((a, b) => a.time - b.time);
+        
+        console.log(`[Track ${this.id}] Added automation point for ${param} at ${time.toFixed(2)}s: ${value.toFixed(2)}`);
+        
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Add automation point on ${this.name}`);
+        }
+    }
+
+    /**
+     * Remove an automation point.
+     * @param {string} param - Parameter name
+     * @param {number} time - Time of the point to remove
+     */
+    removeAutomationPoint(param, time) {
+        if (!this.automation || !this.automation[param]) return;
+        
+        const initialLength = this.automation[param].length;
+        this.automation[param] = this.automation[param].filter(p => Math.abs(p.time - time) > 0.01);
+        
+        if (this.automation[param].length < initialLength) {
+            console.log(`[Track ${this.id}] Removed automation point for ${param} at ${time.toFixed(2)}s`);
+            if (this.appServices.captureStateForUndo) {
+                this.appServices.captureStateForUndo(`Remove automation point on ${this.name}`);
+            }
+        }
+    }
+
+    /**
+     * Clear all automation for a parameter.
+     * @param {string} param - Parameter name
+     */
+    clearAutomation(param) {
+        if (!this.automation) return;
+        
+        this.automation[param] = [];
+        console.log(`[Track ${this.id}] Cleared automation for ${param}`);
+        
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Clear ${param} automation on ${this.name}`);
         }
     }
 

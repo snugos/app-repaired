@@ -1583,24 +1583,301 @@ export function updateSequencerCellUI(sequencerElement, trackType, row, col, isA
     cell.title = `${pitchName} - Step ${col + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ' (empty)'}`;
 }
 
+// --- Timeline State ---
+let timelineState = {
+    pixelsPerSecond: 50,
+    scrollX: 0,
+    scrollY: 0,
+    playheadPosition: 0,
+    selectedClipId: null,
+    isDraggingClip: false,
+    dragStartX: 0,
+    dragClipStartX: 0
+};
+
 // --- Timeline Functions (Stubs) ---
 export function renderTimeline() {
-    console.warn('[UI] renderTimeline not implemented');
+    const timelineWindow = localAppServices.getWindowById ? localAppServices.getWindowById('timeline') : null;
+    if (!timelineWindow || !timelineWindow.element || timelineWindow.isMinimized) return;
+    
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    if (!tracks || tracks.length === 0) {
+        const content = timelineWindow.element.querySelector('#timeline-content');
+        if (content) content.innerHTML = '<p class="text-center p-4 text-gray-500">No tracks. Add tracks to see timeline.</p>';
+        return;
+    }
+
+    const content = timelineWindow.element.querySelector('#timeline-content');
+    if (!content) return;
+
+    // Calculate total duration
+    let maxDuration = 0;
+    tracks.forEach(track => {
+        if (track.timelineClips) {
+            track.timelineClips.forEach(clip => {
+                if (clip.startTime !== undefined && clip.duration !== undefined) {
+                    maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                }
+            });
+        }
+    });
+    maxDuration = Math.max(maxDuration, 10); // At least 10 seconds visible
+
+    const timelineWidth = Math.max(content.offsetWidth - 200, maxDuration * timelineState.pixelsPerSecond);
+    const trackLaneHeight = 60;
+    const headerWidth = 150;
+
+    // Build timeline HTML
+    let html = `
+        <div class="timeline-container flex flex-col h-full overflow-hidden">
+            <!-- Timeline header with time ruler -->
+            <div class="timeline-header flex border-b dark:border-slate-600">
+                <div class="track-header-column w-[${headerWidth}px] min-w-[${headerWidth}px] bg-gray-100 dark:bg-slate-700 text-xs font-semibold p-1">
+                    Tracks
+                </div>
+                <div class="timeline-ruler flex-grow relative bg-gray-50 dark:bg-slate-800 h-6" style="min-width: ${timelineWidth}px;">
+                    ${renderTimeRuler(maxDuration, timelineState.pixelsPerSecond)}
+                </div>
+            </div>
+            
+            <!-- Track lanes -->
+            <div class="timeline-tracks flex-grow overflow-auto relative" id="timelineTracksContainer">
+                <div class="playhead-line" id="timelinePlayhead" style="position: absolute; left: ${headerWidth + timelineState.playheadPosition * timelineState.pixelsPerSecond}px; top: 0; bottom: 0; width: 2px; background: #ff4444; z-index: 100; pointer-events: none;"></div>
+                <div class="tracks-scroll-container" style="min-width: ${timelineWidth + headerWidth}px;">
+    `;
+
+    tracks.forEach((track, index) => {
+        const laneColor = index % 2 === 0 ? 'bg-gray-100 dark:bg-slate-700' : 'bg-gray-50 dark:bg-slate-800';
+        html += `
+            <div class="track-lane flex border-b dark:border-slate-600 ${laneColor}" data-track-id="${track.id}" style="height: ${trackLaneHeight}px;">
+                <div class="track-header w-[${headerWidth}px] min-w-[${headerWidth}px] flex items-center px-1 border-r dark:border-slate-600 cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600" data-track-id="${track.id}">
+                    <span class="text-xs truncate flex-grow">${track.name}</span>
+                    <span class="text-xs px-1 rounded ${track.isMuted ? 'bg-red-500 text-white' : ''}">${track.isMuted ? 'M' : ''}</span>
+                    <span class="text-xs px-1 rounded ${track.isSoloed ? 'bg-yellow-500 text-black' : ''}">${track.isSoloed ? 'S' : ''}</span>
+                </div>
+                <div class="track-clips-lane relative flex-grow" data-track-id="${track.id}" style="height: ${trackLaneHeight}px; min-width: ${timelineWidth}px;">
+                    ${renderTrackClips(track, timelineState.pixelsPerSecond, trackLaneHeight)}
+                </div>
+            </div>
+        `;
+    });
+
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+
+    content.innerHTML = html;
+    
+    // Setup timeline event listeners
+    setupTimelineEventListeners(content, tracks);
 }
+
+function renderTimeRuler(duration, pixelsPerSecond) {
+    let html = '';
+    const interval = duration > 60 ? 10 : duration > 30 ? 5 : 1; // Adaptive interval
+    for (let t = 0; t <= duration; t += interval) {
+        const x = t * pixelsPerSecond;
+        html += `<div class="absolute text-xs text-gray-500 dark:text-slate-400" style="left: ${x}px; top: 0;">${formatTime(t)}</div>`;
+        html += `<div class="absolute w-px h-full bg-gray-300 dark:bg-slate-600" style="left: ${x}px;"></div>`;
+    }
+    return html;
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function renderTrackClips(track, pixelsPerSecond, laneHeight) {
+    if (!track.timelineClips || track.timelineClips.length === 0) {
+        return '';
+    }
+
+    let html = '';
+    const clipHeight = laneHeight - 8;
+    const clipY = 4;
+
+    track.timelineClips.forEach(clip => {
+        const x = clip.startTime * pixelsPerSecond;
+        const width = Math.max(clip.duration * pixelsPerSecond, 20);
+        
+        let bgColor = 'bg-blue-500';
+        if (clip.type === 'audio') bgColor = 'bg-green-500';
+        else if (clip.type === 'sequence') bgColor = 'bg-purple-500';
+        
+        const isSelected = timelineState.selectedClipId === clip.id;
+        const selectedClass = isSelected ? 'ring-2 ring-white ring-offset-1' : '';
+
+        html += `
+            <div class="timeline-clip absolute rounded cursor-move ${bgColor} ${selectedClass} hover:opacity-90 transition-opacity"
+                 data-clip-id="${clip.id}"
+                 data-track-id="${track.id}"
+                 style="left: ${x}px; top: ${clipY}px; width: ${width}px; height: ${clipHeight}px;"
+                 draggable="true">
+                <div class="clip-content h-full flex items-center px-1 overflow-hidden">
+                    <span class="text-xs text-white truncate">${clip.name || clip.type}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function setupTimelineEventListeners(content, tracks) {
+    // Track header click to select/open inspector
+    content.querySelectorAll('.track-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            const trackId = parseInt(header.dataset.trackId);
+            if (localAppServices.handleOpenTrackInspector) {
+                localAppServices.handleOpenTrackInspector(trackId);
+            }
+        });
+    });
+
+    // Clip click to select
+    content.querySelectorAll('.timeline-clip').forEach(clip => {
+        clip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            timelineState.selectedClipId = clip.dataset.clipId;
+            renderTimeline(); // Re-render to show selection
+        });
+
+        // Clip double-click to open editor
+        clip.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            const trackId = parseInt(clip.dataset.trackId);
+            const track = tracks.find(t => t.id === trackId);
+            if (track && track.type !== 'Audio' && localAppServices.handleOpenSequencer) {
+                localAppServices.handleOpenSequencer(trackId);
+            }
+        });
+
+        // Clip drag to move
+        clip.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('application/json', JSON.stringify({
+                type: 'timeline-clip-drag',
+                clipId: clip.dataset.clipId,
+                trackId: clip.dataset.trackId
+            }));
+        });
+    });
+
+    // Timeline track lane drop for audio files
+    content.querySelectorAll('.track-clips-lane').forEach(lane => {
+        lane.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+
+        lane.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const trackId = parseInt(lane.dataset.trackId);
+            const rect = lane.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const startTime = x / timelineState.pixelsPerSecond;
+            
+            // Handle timeline clip drag (move)
+            const jsonData = e.dataTransfer.getData('application/json');
+            if (jsonData) {
+                try {
+                    const data = JSON.parse(jsonData);
+                    if (data.type === 'timeline-clip-drag') {
+                        const track = tracks.find(t => t.id === parseInt(data.trackId));
+                        if (track) {
+                            const clip = track.timelineClips?.find(c => c.id === data.clipId);
+                            if (clip && typeof track.updateAudioClipPosition === 'function') {
+                                await track.updateAudioClipPosition(clip.id, startTime);
+                            }
+                        }
+                        return;
+                    }
+                } catch (err) {}
+            }
+
+            // Handle external file drop
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('audio/')) {
+                    const track = tracks.find(t => t.id === trackId);
+                    if (track && track.type === 'Audio' && typeof track.addExternalAudioFileAsClip === 'function') {
+                        await track.addExternalAudioFileAsClip(file, startTime, file.name);
+                        if (localAppServices.captureStateForUndo) {
+                            localAppServices.captureStateForUndo(`Add audio clip to ${track.name}`);
+                        }
+                        renderTimeline();
+                    }
+                }
+            }
+        });
+
+        // Click on empty lane area to deselect
+        lane.addEventListener('click', (e) => {
+            if (e.target === lane) {
+                timelineState.selectedClipId = null;
+                renderTimeline();
+            }
+        });
+    });
+}
+
 export function updatePlayheadPosition() {
-    // No-op
+    if (!localAppServices.getPlaybackMode) return;
+    const playbackMode = localAppServices.getPlaybackMode();
+    if (playbackMode !== 'timeline') return;
+
+    const currentTime = Tone.Transport.seconds;
+    timelineState.playheadPosition = currentTime;
+
+    const playheadEl = document.getElementById('timelinePlayhead');
+    if (!playheadEl) return;
+
+    const headerWidth = 150;
+    playheadEl.style.left = `${headerWidth + currentTime * timelineState.pixelsPerSecond}px`;
 }
+
 export function openTimelineWindow(savedState = null) {
-    console.warn('[UI] openTimelineWindow not implemented');
     const windowId = 'timeline';
     const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
     if (openWindows.has(windowId) && !savedState) {
         const win = openWindows.get(windowId);
         win.restore();
         return win;
     }
-    const contentHTML = '<div id="timeline-content" class="p-2 text-sm text-gray-700 dark:text-slate-300"><p>Timeline view coming soon.</p></div>';
-    const options = { width: 900, height: 300, minWidth: 600, minHeight: 200, closable: true, minimizable: true, resizable: true };
-    if (savedState) Object.assign(options, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
-    return localAppServices.createWindow(windowId, 'Timeline', contentHTML, options);
+
+    const contentHTML = '<div id="timeline-content" class="w-full h-full overflow-hidden bg-gray-200 dark:bg-slate-900"></div>';
+    const options = { 
+        width: 1000, 
+        height: 400, 
+        minWidth: 600, 
+        minHeight: 200, 
+        closable: true, 
+        minimizable: true, 
+        resizable: true,
+        onCloseCallback: () => {
+            timelineState.selectedClipId = null;
+        }
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Timeline', contentHTML, options);
+    
+    // Render timeline after window is created
+    setTimeout(() => renderTimeline(), 50);
+    
+    return win;
 }
