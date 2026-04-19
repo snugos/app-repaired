@@ -1410,7 +1410,21 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const labelWidth = 50;
 
     let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300" style="display: flex; flex-direction: column;">`;
-    html += `<div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <div> <label for="seqLengthInput-${track.id}">Bars: </label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> </div> </div>`;
+    html += `<div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> 
+        <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> 
+        <div class="flex items-center gap-2"> 
+            <select id="quantizeResolution-${track.id}" class="text-xs p-0.5 border rounded dark:bg-slate-700 dark:border-slate-600">
+                <option value="1/4">1/4</option>
+                <option value="1/8" selected>1/8</option>
+                <option value="1/16">1/16</option>
+                <option value="1/32">1/32</option>
+            </select>
+            <button id="quantizeBtn-${track.id}" class="text-xs px-2 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700">Quantize</button>
+            <button id="quantizeSelectionBtn-${track.id}" class="text-xs px-2 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700" disabled>Quantize Selected</button>
+            <label for="seqLengthInput-${track.id}">Bars: </label> 
+            <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> 
+        </div> 
+    </div>`;
     
     // Piano roll wrapper with row labels + grid side by side
     html += `<div class="piano-roll-wrapper" style="display: flex; flex: 1; overflow: auto;">`;

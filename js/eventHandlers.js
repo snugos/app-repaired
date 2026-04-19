@@ -168,6 +168,7 @@ export function initializePrimaryEventListeners(appContext) {
             menuSaveProject: () => { console.log('[Menu] Save clicked'); services.saveProject?.(); },
             menuLoadProject: () => { console.log('[Menu] Load clicked'); services.loadProject?.(); },
             menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
+            menuExportStems: () => { console.log('[Menu] Export Stems clicked'); services.showStemExportDialog?.(); },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };
@@ -501,7 +502,7 @@ export function selectMIDIInput(deviceId, silent = false) {
                 });
             } else {
                 if (localAppServices.setActiveMIDIInput) localAppServices.setActiveMIDIInput(null);
-                if (!silent && localAppServices.showNotification) localAppServices.showNotification("Selected MIDI input not found.", 2000);
+                if (!silent && deviceId !== "" && localAppServices.showNotification) showNotification("Selected MIDI input not found.", 2000);
                 console.warn(`[MIDI] Input with ID ${deviceId} not found.`);
             }
         } else {

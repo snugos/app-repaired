@@ -95,41 +95,39 @@
 - [ ] Store CC mappings in track state
 - [ ] Implement CC to parameter routing
 
-### Feature 8: Stem Export
+### Feature 8: Stem Export - ✅ COMPLETED
 **File:** `js/state.js`
-**Status:** ⚠️ Not Implemented
-**What's Missing:** Can only export full mix, not individual track stems
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~Can only export full mix, not individual track stems~~
 **Implementation Plan:**
-- [ ] Add multi-track recording capability
-- [ ] Create stem export dialog
+- [x] Add `exportStemsInternal()` function for multi-track recording
+- [x] Create `showStemExportDialogInternal()` for track selection UI
+- [x] Add menu item `menuExportStems` in eventHandlers.js
+- [x] Wire up stem export functions in main.js appServices
+
+### Feature 9: Keyboard Shortcuts Panel - ✅ COMPLETED
+**File:** `js/main.js`
+**Status:** ✅ COMPLETED
+**What's Missing:** ~~No way to view all keyboard shortcuts~~
+**Implementation Plan:**
+- [x] Add `showKeyboardShortcutsModal()` function
+- [x] Bind to `?` key press
+- [x] Display shortcuts in a modal dialog
 
 ---
 
 ## Session Progress
 
 ### Completed This Session
-- ✅ **Implemented Sound Browser Waveform Preview** - Full functionality including:
-  - `drawWaveform()` - Draw audio waveform visualization on canvas
-  - `drawPlayhead()` - Draw playhead position indicator
-  - `decodeAudioBlob()` - Decode audio blob to AudioBuffer
-  - `setWaveformPreviewCanvas()`, `setWaveformPreviewBuffer()` - State management
-  - `startWaveformPlayheadAnimation()`, `stopWaveformPlayheadAnimation()` - Animated playhead
-  - Updated sound browser UI with waveform canvas
-  - Added preview volume slider control (0-100%)
-  - Integrated waveform loading on sound file selection
-- ✅ **Implemented Auto-Save Recovery** - Full functionality including:
-  - `storeProjectState()`, `getProjectState()`, `deleteProjectState()` in `js/db.js`
-  - New `projectState` IndexedDB object store for project state persistence
-  - `startAutoSave()` - Periodic auto-save every 30 seconds
-  - `checkCrashRecovery()` - Detects and recovers from crashes
-  - `createRecoveryDialog()` - User-friendly recovery UI
-  - Session end detection via `beforeunload` and `pagehide` events
-- ✅ **Implemented Sidechain Routing** - Full functionality including:
-  - `getSidechainBusNode()` - Sidechain bus for routing
-  - `setupSidechainRouting()` - Configure source/destination routing
-  - `triggerSidechainForTrack()` - Apply ducking during playback
-  - `removeSidechainRouting()`, `clearAllSidechainForTrack()` - Cleanup functions
-  - `getActiveSidechainRoutings()` - Query current routings
+- ✅ **Implemented Stem Export** - Full functionality including:
+  - `exportStemsInternal()` - Export individual tracks as separate WAV files
+  - `showStemExportDialogInternal()` - Track selection dialog with checkboxes
+  - Menu item `menuExportStems` in start menu
+  - Wired up in main.js appServices
+- ✅ **Implemented Keyboard Shortcuts Panel** - Full functionality including:
+  - `showKeyboardShortcutsModal()` - Modal displaying all shortcuts
+  - Bound to `?` key press
+  - Shows Space, Z, R, Escape, Ctrl+Z, Ctrl+Shift+Z, Ctrl+S shortcuts
 
 ### In Progress
 - (none)
@@ -137,7 +135,7 @@
 ### Next to Tackle
 1. Implement Mixer send/return routing UI
 2. Add MIDI Learn / Mapping
-3. Implement Stem Export
+3. Implement Undo/Redo Visual Stack panel
 
 ---
 
@@ -148,15 +146,26 @@
 3. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet ✅ COMPLETED
 4. **MIDI File Import/Export** - Drag & drop .mid files ✅ COMPLETED
 5. **Track Effects Presets** - Save/load effect chain presets per track ✅ COMPLETED
-6. **Quantize Selection** - Quantize selected notes to grid
+6. **Quantize Selection** - Quantize selected notes to grid ✅ COMPLETED (exists in Track.js)
 7. **Undo/Redo Visual Stack** - Show undo history in a panel
-8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
+8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts ✅ COMPLETED
 9. **Waveform Visualization** - Draw waveform on audio clips
-10. **Track Color Coding** - Assign colors to tracks for visual grouping
+10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED (exists in Track.js)
 
 ---
 
 ## Technical Details
+
+### Stem Export Implementation
+- **Method:** Individual track recording via Tone.Recorder
+- **Process:** Mute other tracks, record each track separately
+- **Output:** Individual WAV files per selected track
+- **Dialog:** Modal with track checkboxes for selection
+
+### Keyboard Shortcuts
+- **Trigger:** Press `?` key (when not in input field)
+- **Display:** Modal with grid layout showing description + key combination
+- **Shortcuts:** Space, Z, R, Escape, Up/Down, Ctrl+Z, Ctrl+Shift+Z, Ctrl+S
 
 ### Auto-Save Implementation
 - **Interval:** 30 seconds (configurable via `AUTOSAVE_INTERVAL_MS`)

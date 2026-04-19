@@ -680,9 +680,9 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
         const gs = projectData.globalSettings || {};
         Tone.Transport.bpm.value = Number.isFinite(gs.tempo) ? gs.tempo : 120;
         setMasterGainValueState(Number.isFinite(gs.masterVolume) ? gs.masterVolume : (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone.dbToGain(0) : 1.0);
-        if (appServices.setActualMasterVolume) appServices.setActualMasterVolume(getMasterGainValueState());
+        if (appServices && typeof appServices.setActualMasterVolume === 'function') appServices.setActualMasterVolume(getMasterGainValueState());
         setPlaybackModeStateInternal(gs.playbackMode === 'timeline' || gs.playbackMode === 'sequencer' ? gs.playbackMode : 'sequencer');
-        if (appServices.updateTaskbarTempoDisplay) appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
+        if (appServices && typeof appServices.updateTaskbarTempoDisplay === 'function') appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
         setHighestZState(Number.isFinite(gs.highestZIndex) ? gs.highestZIndex : 100);
         // Armed and Soloed will be set after tracks are created
     } catch (error) {
@@ -767,7 +767,7 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
                     if (!isNaN(trackIdNum) && getTrackByIdState(trackIdNum)) appServices.openTrackEffectsRackWindow(trackIdNum, winState);
                     else console.warn(`[State reconstructDAWInternal] Track for effects rack ${key} not found or ID invalid.`);
                 } else if (key.startsWith('sequencerWin-') && appServices.openTrackSequencerWindow) {
-                    const trackIdNum = parseInt(key.split('-')[1], 10);
+                    const trackIdNum = parseInt(key.split('-')[2], 10);
                     const trackForSeq = getTrackByIdState(trackIdNum);
                     if (!isNaN(trackIdNum) && trackForSeq && trackForSeq.type !== 'Audio') {
                         appServices.openTrackSequencerWindow(trackIdNum, true, winState); // true for forceRedraw
@@ -1001,6 +1001,271 @@ export async function exportToWavInternal() {
     }
 }
 
+// ============================================
+// STEM EXPORT - Export individual tracks
+// ============================================
+
+/**
+ * Exports selected tracks as individual WAV files (stems).
+ * @param {Array<number>} trackIds - Array of track IDs to export. If empty, exports all non-muted tracks.
+ */
+export async function exportStemsInternal(trackIds = []) {
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State exportStemsInternal] Required appServices not available.");
+        alert("Stem export feature is currently unavailable due to an internal error.");
+        return;
+    }
+
+    appServices.showNotification("Preparing stem export...", 2000);
+    
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        const tracks = getTracksState();
+        
+        // Determine which tracks to export
+        let tracksToExport = [];
+        if (trackIds && trackIds.length > 0) {
+            tracksToExport = tracks.filter(t => trackIds.includes(t.id) && !t.isMuted);
+        } else {
+            // Export all non-muted tracks
+            tracksToExport = tracks.filter(t => !t.isMuted);
+        }
+
+        if (tracksToExport.length === 0) {
+            appServices.showNotification("No tracks to export. Unmute tracks or select specific tracks.", 3000);
+            return;
+        }
+
+        // Calculate duration
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+
+        if (currentPlaybackMode === 'timeline') {
+            tracksToExport.forEach(track => {
+                if (track?.timelineClips) {
+                    track.timelineClips.forEach(clip => {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                        }
+                    });
+                }
+            });
+        } else {
+            tracksToExport.forEach(track => {
+                if (track && track.type !== 'Audio') {
+                    const activeSeq = track.getActiveSequence();
+                    if (activeSeq?.length > 0) {
+                        const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                        maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                    }
+                }
+            });
+        }
+
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+            return;
+        }
+        
+        maxDuration = Math.min(maxDuration + 2, 600);
+        console.log(`[State exportStemsInternal] Export duration: ${maxDuration.toFixed(1)}s for ${tracksToExport.length} stems`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        const exportedFiles = [];
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        // Export each track individually
+        for (const track of tracksToExport) {
+            appServices.showNotification(`Rendering stem: ${track.name}...`, 15000);
+            console.log(`[Stem Export] Processing track: ${track.name}`);
+
+            // Create a dedicated recorder for this track
+            const recorder = new Tone.Recorder();
+            
+            // Connect track output to recorder
+            // We need to connect from the track's gainNode
+            if (track.gainNode && !track.gainNode.disposed) {
+                track.gainNode.connect(recorder);
+            } else {
+                console.warn(`[Stem Export] Track ${track.name} has no gainNode, skipping.`);
+                continue;
+            }
+
+            // Reset transport
+            Tone.Transport.position = 0;
+            Tone.Transport.loop = false;
+            
+            // Mute all other tracks temporarily
+            const originalMuteStates = tracks.map(t => ({ id: t.id, isMuted: t.isMuted }));
+            tracks.forEach(t => {
+                if (t.id !== track.id) {
+                    t.isMuted = true;
+                    if (t.gainNode && !t.gainNode.disposed) {
+                        t.gainNode.gain.value = 0;
+                    }
+                }
+            });
+
+            // Unmute current track
+            track.isMuted = false;
+            if (track.gainNode && !track.gainNode.disposed && track.previousVolumeBeforeMute !== undefined) {
+                track.gainNode.gain.value = Tone.dbToGain(track.previousVolumeBeforeMute);
+            }
+
+            // Schedule playback for this track only
+            if (track.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+
+            // Start recording and playback
+            await recorder.start();
+            Tone.Transport.start();
+            console.log(`[Stem Export] Recording started for ${track.name}`);
+
+            // Wait for recording
+            await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+            // Stop recording
+            const recording = await recorder.stop();
+            console.log(`[Stem Export] Recording stopped for ${track.name}, size:`, recording.size);
+
+            // Stop transport
+            Tone.Transport.stop();
+            Tone.Transport.cancel(0);
+            if (track.stopPlayback) track.stopPlayback();
+
+            // Cleanup
+            try { track.gainNode.disconnect(recorder); } catch (e) {}
+            recorder.dispose();
+
+            // Restore mute states
+            originalMuteStates.forEach(({ id, isMuted }) => {
+                const t = tracks.find(tr => tr.id === id);
+                if (t) {
+                    t.isMuted = isMuted;
+                    if (t.gainNode && !t.gainNode.disposed) {
+                        if (isMuted) {
+                            t.gainNode.gain.value = 0;
+                        } else if (t.previousVolumeBeforeMute !== undefined) {
+                            t.gainNode.gain.value = Tone.dbToGain(t.previousVolumeBeforeMute);
+                        }
+                    }
+                }
+            });
+
+            if (recording && recording.size > 1000) {
+                const url = URL.createObjectURL(recording);
+                const a = document.createElement('a');
+                a.href = url;
+                // Sanitize filename
+                const sanitizedName = track.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+                a.download = `stem-${sanitizedName}-${timestamp}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                exportedFiles.push(track.name);
+                console.log(`[Stem Export] Downloaded: ${a.download}`);
+            } else {
+                console.warn(`[Stem Export] Recording too small for ${track.name}:`, recording?.size);
+            }
+        }
+
+        // Final cleanup
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        
+        if (exportedFiles.length > 0) {
+            appServices.showNotification(`Stem export complete! Exported ${exportedFiles.length} track(s).`, 4000);
+            console.log(`[Stem Export] Complete. Exported: ${exportedFiles.join(', ')}`);
+        } else {
+            appServices.showNotification("Stem export failed. No audio was recorded.", 3000);
+        }
+
+    } catch (error) {
+        console.error("[State exportStemsInternal] Error:", error);
+        appServices.showNotification(`Stem export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+/**
+ * Shows a dialog for selecting which tracks to export as stems.
+ */
+export async function showStemExportDialogInternal() {
+    const tracks = getTracksState();
+    
+    if (tracks.length === 0) {
+        if (appServices.showNotification) appServices.showNotification("No tracks to export.", 2000);
+        return;
+    }
+
+    // Build checkbox list for tracks
+    const trackCheckboxes = tracks.map(track => `
+        <label class="flex items-center gap-2 p-2 hover:bg-purple-900/30 rounded cursor-pointer">
+            <input type="checkbox" class="stem-export-checkbox" data-track-id="${track.id}" ${!track.isMuted ? 'checked' : ''}>
+            <span class="flex-1">${track.name} (${track.type})</span>
+            <span class="text-xs text-gray-400">${track.isMuted ? 'Muted' : 'Active'}</span>
+        </label>
+    `).join('');
+
+    const dialogContent = `
+        <div class="stem-export-dialog p-4">
+            <h3 class="text-lg font-bold mb-4 text-purple-300">Export Stems</h3>
+            <p class="text-sm text-gray-400 mb-4">Select tracks to export as individual WAV files:</p>
+            <div class="track-list max-h-64 overflow-y-auto border border-gray-700 rounded p-2 mb-4">
+                ${trackCheckboxes}
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="stem-export-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm">Cancel</button>
+                <button id="stem-export-confirm" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm">Export Selected</button>
+            </div>
+        </div>
+    `;
+
+    // Create modal
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modalOverlay.innerHTML = dialogContent;
+    document.body.appendChild(modalOverlay);
+
+    // Handle cancel
+    modalOverlay.querySelector('#stem-export-cancel').addEventListener('click', () => {
+        modalOverlay.remove();
+    });
+
+    // Handle export
+    modalOverlay.querySelector('#stem-export-confirm').addEventListener('click', async () => {
+        const checkboxes = modalOverlay.querySelectorAll('.stem-export-checkbox:checked');
+        const selectedTrackIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.trackId, 10));
+        
+        modalOverlay.remove();
+        
+        if (selectedTrackIds.length === 0) {
+            if (appServices.showNotification) appServices.showNotification("No tracks selected for export.", 2000);
+            return;
+        }
+        
+        await exportStemsInternal(selectedTrackIds);
+    });
+
+    // Close on overlay click
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            modalOverlay.remove();
+        }
+    });
+}
 
 
 // Helper function to convert AudioBuffer to WAV
