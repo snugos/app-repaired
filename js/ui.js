@@ -6,6 +6,7 @@ import { showNotification, createDropZoneHTML, setupGenericDropZoneListeners, sh
 import * as Constants from './constants.js';
 // Event handlers are now mostly called via appServices from main.js,
 // but direct calls might still exist or be transitioned.
+import { getAudio } from './db.js';
 import {
     handleTrackMute, handleTrackSolo, handleTrackArm, handleRemoveTrack,
     handleOpenTrackInspector, handleOpenEffectsRack, handleOpenSequencer,
@@ -1981,6 +1982,88 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
     return sequencerWindow;
 }
 
+// Draw waveform directly onto an audio clip's DOM element (canvas overlay)
+async function drawAudioClipWaveform(track, clip) {
+    if (!clip || clip.type !== 'audio') return;
+    
+    // Find the clip DOM element
+    const clipEl = document.querySelector(`.audio-clip[data-clip-id="${clip.id}"]`);
+    if (!clipEl) return;
+    
+    // Create or get canvas overlay
+    let canvas = clipEl.querySelector('.clip-waveform-canvas');
+    let canvasCtx = null;
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'clip-waveform-canvas';
+        canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+        clipEl.appendChild(canvas);
+    }
+    canvasCtx = canvas.getContext('2d');
+    
+    // Get clip dimensions
+    const rect = clipEl.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    // Load audio blob from IndexedDB using sourceId
+    let audioBlob = null;
+    try {
+        audioBlob = await getAudio(clip.sourceId);
+    } catch (e) {
+        console.warn(`[UI drawAudioClipWaveform] Could not load audio for clip ${clip.id}:`, e);
+    }
+    
+    if (!audioBlob) {
+        // Draw placeholder
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.fillStyle = 'rgba(30,30,30,0.5)';
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    // Decode audio data
+    let audioBuffer = null;
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const decodedBuffer = await Tone.context.decodeAudioData(arrayBuffer);
+        audioBuffer = decodedBuffer;
+    } catch (e) {
+        console.warn(`[UI drawAudioClipWaveform] Could not decode audio for clip ${clip.id}:`, e);
+        return;
+    }
+    
+    if (!audioBuffer) return;
+    
+    const data = audioBuffer.getChannelData(0);
+    const step = Math.ceil(data.length / canvas.width);
+    const amp = canvas.height / 2;
+    
+    // Clear canvas
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Use clip color or default purple
+    const trackColor = track.trackColor || '#D291BC';
+    canvasCtx.lineWidth = 1;
+    canvasCtx.strokeStyle = trackColor;
+    
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(0, amp);
+    for (let i = 0; i < canvas.width; i++) {
+        let min = 1.0;
+        let max = -1.0;
+        for (let j = 0; j < step; j++) {
+            const datum = data[(i * step) + j];
+            if (datum < min) min = datum;
+            if (datum > max) max = datum;
+        }
+        canvasCtx.lineTo(i, (1 + min) * amp);
+        canvasCtx.lineTo(i, (1 + max) * amp);
+    }
+    canvasCtx.lineTo(canvas.width, amp);
+    canvasCtx.stroke();
+}
+
 // --- UI Update & Drawing Functions ---
 export function drawWaveform(track) {
     if (!((track) && (track).waveformCanvasCtx) || !((track.audioBuffer) && (track.audioBuffer).loaded)) {
@@ -2293,7 +2376,17 @@ export function renderTimeline() {
     
     tracksArea.innerHTML = tracksHTML;
     
-    // Attach click handlers for clip selection
+    // Draw waveforms for audio clips after DOM is updated
+    tracks.forEach(track => {
+        const clips = track.timelineClips || [];
+        clips.forEach(clip => {
+            if (clip.type === 'audio') {
+                drawAudioClipWaveform(track, clip);
+            }
+        });
+    });
+    
+    // Attach clip event handlers
     attachClipEventHandlers();
     
     // Update playhead position
