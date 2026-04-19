@@ -95,6 +95,16 @@ export const AVAILABLE_EFFECTS = {
             { key: 'oversample', label: 'Oversample', type: 'select', options: ['none', '2x', '4x'], defaultValue: 'none', isSignal: false }
         ]
     },
+    // VST Plugin Support - AudioWorklet-based custom effect
+    CustomEffect: {
+        displayName: 'Custom Effect (Worklet)',
+        toneClass: 'CustomEffect',
+        params: [
+            { key: 'frequency', label: 'Frequency', type: 'knob', min: 20, max: 2000, step: 1, defaultValue: 440, decimals: 0, displaySuffix: 'Hz', isSignal: true },
+            { key: 'gain', label: 'Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
     FeedbackDelay: {
         displayName: 'Feedback Delay',
         toneClass: 'FeedbackDelay',
@@ -389,4 +399,89 @@ export function getEffectParamDefinitions(effectType) {
         return [];
     }
     return definition.params || [];
+}
+
+// Custom AudioWorklet-based Effect for VST Plugin Support
+// Architecture for loading WebAudio plugins via AudioWorklet
+// Users can replace the worklet code with actual VST plugin processing code compiled to WASM
+class CustomEffect extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(initialParams.gain || 1);
+        this._workletNode = null;
+        this._isWorkletLoaded = false;
+        this._frequency = initialParams.frequency || 440;
+        this._wet = initialParams.wet || 1;
+        
+        this._workletCode = `
+            class VSTProcessor extends AudioWorkletProcessor {
+                static get parameterDescriptors() {
+                    return [
+                        { name: 'gain', defaultValue: 1, minValue: 0, maxValue: 2 },
+                        { name: 'wet', defaultValue: 1, minValue: 0, maxValue: 1 }
+                    ];
+                }
+                
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    const output = outputs[0];
+                    if (!input || !input[0]) return true;
+                    
+                    const gain = parameters.gain[0] || 1;
+                    const wet = parameters.wet[0] || 1;
+                    
+                    for (let channel = 0; channel < input.length; channel++) {
+                        const inputChannel = input[channel];
+                        const outputChannel = output[channel];
+                        for (let i = 0; i < inputChannel.length; i++) {
+                            const dry = inputChannel[i];
+                            const wetSignal = Math.tanh(dry * gain);
+                            outputChannel[i] = dry * (1 - wet) + wetSignal * wet;
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('vst-processor', VSTProcessor);
+        `;
+        
+        this._initWorklet();
+    }
+    
+    async _initWorklet() {
+        try {
+            const blob = new Blob([this._workletCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await Tone.context.audioWorklet.addModule(url);
+            this._workletNode = new AudioWorkletNode(Tone.context, 'vst-processor');
+            this._isWorkletLoaded = true;
+            // Reconnect: input -> worklet -> output (bypass Tone.Gain chain when worklet active)
+            this.disconnect();
+            this.connect(this._workletNode);
+            this._workletNode.connect(Tone.context.destination);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.warn('[CustomEffect] AudioWorklet not supported, using fallback Gain');
+            this._isWorkletLoaded = false;
+        }
+    }
+    
+    get isWorkletLoaded() { return this._isWorkletLoaded; }
+    
+    dispose() {
+        if (this._workletNode) {
+            this._workletNode.disconnect();
+            this._workletNode = null;
+        }
+        super.dispose();
+    }
+}
+
+// Register CustomEffect on Tone namespace so createEffectInstance can find it
+if (typeof Tone !== 'undefined') {
+    Tone.CustomEffect = CustomEffect;
+}
+
+// Export the CustomEffect class globally
+if (typeof window !== 'undefined') {
+    window.CustomEffect = CustomEffect;
 }
