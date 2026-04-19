@@ -2084,44 +2084,61 @@ function buildPianoRollContentDOM(track, rows, rowLabels, numBars) {
     const snapValue = window.SEQUENCER_SNAP_VALUE || 16;
     const snapLabel = snapValue === 0 ? 'Off' : (snapValue === 4 ? '1/4' : (snapValue === 8 ? '1/8' : '1/16'));
     let html = `<div class="sequencer-container p-1 text-xs overflow-auto h-full dark:bg-slate-900 dark:text-slate-300"> <div class="controls mb-1 flex justify-between items-center sticky top-0 left-0 bg-gray-200 dark:bg-slate-800 p-1 z-30 border-b dark:border-slate-700"> <div class="flex items-center gap-2"> <span class="font-semibold">${track.name} - ${numBars} Bar${numBars > 1 ? 's' : ''} (${totalSteps} steps)</span> <button id="seqViewToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle step/velocity view (V key)">Step</button> </div> <div class="flex items-center gap-2"> <label for="seqLengthInput-${track.id}" class="text-xs">Bars:</label> <input type="number" id="seqLengthInput-${track.id}" value="${numBars}" min="1" max="${Constants.MAX_BARS || 16}" class="w-12 p-0.5 border rounded text-xs dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <button id="seqSnapToggle-${track.id}" class="px-2 py-0.5 text-xs border rounded dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600" title="Toggle snap-to-grid (S key)">Snap: ${snapLabel}</button> </div> </div>`;
-    // Piano roll label column: 70px, shows octave piano-key visuals
     html += `<div class="sequencer-grid-layout" style="display: grid; grid-template-columns: 70px repeat(${totalSteps}, 20px); grid-auto-rows: 20px; gap: 0px; width: fit-content; position: relative; top: 0; left: 0;"> <div class="sequencer-header-cell sticky top-0 left-0 z-20 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700"></div>`;
     for (let i = 0; i < totalSteps; i++) { const beatsPerBar = 4; const barNum = Math.floor(i / beatsPerBar) + 1; const beatInBar = (i % beatsPerBar) + 1; const label = beatInBar === 1 ? String(barNum) : `${barNum}.${beatInBar}`; const isSnapPoint = snapValue === 0 || i % snapValue === 0; const snapClass = isSnapPoint ? 'snap-point' : 'non-snap-point'; html += `<div class="sequencer-header-cell ${snapClass} sticky top-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-center pr-1 text-[10px] text-gray-500 dark:text-slate-400">${label}</div>`; }
 
     const activeSequence = track.getActiveSequence();
     const sequenceData = activeSequence ? activeSequence.data : [];
 
-    // Determine track-type-specific dot class prefix for active note dots
     let dotClassPrefix = 'piano-note-synth';
     if (track.type === 'Sampler') dotClassPrefix = 'piano-note-sampler';
     else if (track.type === 'DrumSampler') dotClassPrefix = 'piano-note-drum';
     else if (track.type === 'InstrumentSampler') dotClassPrefix = 'piano-note-instrument';
 
+    // Track which cells are covered by longer notes (so we skip rendering them)
+    const coveredCells = new Set();
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < totalSteps; j++) {
+            const stepData = sequenceData[i]?.[j];
+            if (stepData && stepData.active) {
+                const noteLen = Math.max(1, stepData.length || 1);
+                for (let k = 1; k < noteLen; k++) {
+                    if (j + k < totalSteps) coveredCells.add(`${i},${j + k}`);
+                }
+            }
+        }
+    }
+
     for (let i = 0; i < rows; i++) {
         const noteLabel = rowLabels[i] || `R${i + 1}`;
         const isBlackKey = noteLabel.includes('#');
-        // Row label: piano key visual with note name
         html += `<div class="piano-key-cell ${isBlackKey ? 'piano-black-key' : 'piano-white-key'} sticky left-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700" style="width:70px;height:20px;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;gap:4px;" title="${rowLabels[i] || ''}">
             <span style="font-size:10px;font-family:monospace;font-weight:600;color:${isBlackKey ? '#e2e8f0' : '#1e293b'};">${noteLabel}</span>
             <div class="key-indicator"></div>
         </div>`;
         for (let j = 0; j < totalSteps; j++) {
+            const isCovered = coveredCells.has(`${i},${j}`);
             const stepData = sequenceData[i]?.[j];
-            let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
-            if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
-            else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
-            else if (j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
+            const isNoteStart = stepData && stepData.active;
 
-            // Active note: show centered piano note dot with track-type color
-            if (((stepData) && (stepData).active)) {
-                const vel = ((stepData) && (stepData).velocity) || 0.7;
+            if (isCovered) {
+                // Cell covered by a longer note — render empty placeholder (note body)
+                html += `<div class="sequencer-step-cell sequencer-note-body bg-transparent border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" style="cursor:default;"></div>`;
+            } else if (isNoteStart) {
+                const vel = stepData.velocity || 0.7;
                 const velPercent = Math.round(vel * 100);
-                // Slight brightness adjustment based on velocity
+                const noteLen = Math.max(1, stepData.length || 1);
                 const velClass = velPercent >= 80 ? 'vel-100' : (velPercent >= 60 ? 'vel-80' : (velPercent >= 40 ? 'vel-60' : 'vel-40'));
-                html += `<div class="sequencer-step-cell ${velClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" style="display:flex;align-items:center;justify-content:center;padding:0;">
-                    <div class="piano-note-dot ${dotClassPrefix}" style="width:14px;height:14px;border-radius:3px;"></div>
+                const noteWidth = noteLen * 20 - 1;
+                const noteTitle = `${noteLabel} | Vel: ${velPercent}% | Len: ${noteLen} step${noteLen > 1 ? 's' : ''} | Right-click for length`;
+                html += `<div class="sequencer-step-cell ${velClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}" data-length="${noteLen}" style="display:flex;align-items:center;padding:0;overflow:visible;" title="${noteTitle}">
+                    <div class="piano-note-bar ${dotClassPrefix}" style="width:${noteWidth}px;height:14px;border-radius:2px;"></div>
                 </div>`;
             } else {
+                let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
+                if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
+                else if (j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
+                else if (j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
                 html += `<div class="sequencer-step-cell ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" data-note="${noteLabel}"></div>`;
             }
         }
@@ -2520,17 +2537,28 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             const currentVel = stepData.velocity || Constants.defaultVelocity;
             const velPct = Math.round(currentVel * 100);
             
+            const noteLen = stepData.length || 1;
+            const maxLen = activeSequence.length - col;
             const menuItems = [
-                { label: `Velocity: ${velPct}%`, action: () => {}, disabled: true },
+                { label: `Note: ${noteLabel} | Vel: ${velPct}% | Len: ${noteLen}`, action: () => {}, disabled: true },
                 { separator: true },
-                { label: `Set to 100%`, action: () => { setVelocity(row, col, 1.0); } },
-                { label: `Set to 80%`, action: () => { setVelocity(row, col, 0.8); } },
-                { label: `Set to 60%`, action: () => { setVelocity(row, col, 0.6); } },
-                { label: `Set to 40%`, action: () => { setVelocity(row, col, 0.4); } },
-                { label: `Set to 20%`, action: () => { setVelocity(row, col, 0.2); } },
+                { label: `Velocity`, action: () => {}, disabled: true },
+                { label: `  Set to 100%`, action: () => { setVelocity(row, col, 1.0); } },
+                { label: `  Set to 80%`, action: () => { setVelocity(row, col, 0.8); } },
+                { label: `  Set to 60%`, action: () => { setVelocity(row, col, 0.6); } },
+                { label: `  Set to 40%`, action: () => { setVelocity(row, col, 0.4); } },
+                { label: `  Set to 20%`, action: () => { setVelocity(row, col, 0.2); } },
+                { label: `  + 10%`, action: () => { setVelocity(row, col, Math.min(1.0, currentVel + 0.1)); } },
+                { label: `  - 10%`, action: () => { setVelocity(row, col, Math.max(0.05, currentVel - 0.1)); } },
                 { separator: true },
-                { label: `+ 10%`, action: () => { setVelocity(row, col, Math.min(1.0, currentVel + 0.1)); } },
-                { label: `- 10%`, action: () => { setVelocity(row, col, Math.max(0.05, currentVel - 0.1)); } },
+                { label: `Note Length (steps)`, action: () => {}, disabled: true },
+                { label: `  1 step`, action: () => { setNoteLen(row, col, 1); } },
+                { label: `  2 steps`, action: () => { setNoteLen(row, col, 2); } },
+                { label: `  4 steps`, action: () => { setNoteLen(row, col, 4); } },
+                { label: `  8 steps`, action: () => { setNoteLen(row, col, 8); } },
+                { label: `  16 steps`, action: () => { setNoteLen(row, col, 16); } },
+                { label: `  + 1 step`, action: () => { setNoteLen(row, col, Math.min(maxLen, noteLen + 1)); } },
+                { label: `  - 1 step`, action: () => { setNoteLen(row, col, Math.max(1, noteLen - 1)); } },
             ];
             
             function setVelocity(r, c, v) {
@@ -2538,6 +2566,13 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 currentActiveSeq.data[r][c].velocity = Math.round(v * 100) / 100;
                 updateSequencerCellUI(sequencerWindow.element, track.type, r, c, true, currentActiveSeq.data[r][c].velocity);
                 showNotification(`Velocity: ${Math.round(currentActiveSeq.data[r][c].velocity * 100)}%`, 1000);
+            }
+            function setNoteLen(r, c, len) {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Set Note Length on ${track.name}`);
+                const clampedLen = Math.max(1, Math.min(len, activeSequence.length - c));
+                currentActiveSeq.data[r][c].length = clampedLen;
+                if (localAppServices.openTrackSequencerWindow) localAppServices.openTrackSequencerWindow(track.id, true);
+                showNotification(`Note length: ${clampedLen} step${clampedLen > 1 ? 's' : ''}`, 1000);
             }
             
             createContextMenu(e, menuItems, localAppServices);
