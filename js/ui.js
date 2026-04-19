@@ -1193,21 +1193,41 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     const activeSequence = track.getActiveSequence();
     const sequenceData = activeSequence ? activeSequence.data : [];
 
-    for (let i = 0; i < rows; i++) {
-        let labelText = rowLabels[i] || `R${i + 1}`; if (labelText.length > 6) labelText = labelText.substring(0,5) + "..";
-        html += `<div class="sequencer-label-cell sticky left-0 z-10 bg-gray-200 dark:bg-slate-800 border-r border-b dark:border-slate-700 flex items-center justify-end pr-1 text-[10px]" title="${rowLabels[i] || ''}">${labelText}</div>`;
-        for (let j = 0; j < totalSteps; j++) {
-            const stepData = sequenceData[i]?.[j];
-            let activeClass = '';
-            if (stepData?.active) { if (track.type === 'Synth') activeClass = 'active-synth'; else if (track.type === 'Sampler') activeClass = 'active-sampler'; else if (track.type === 'DrumSampler') activeClass = 'active-drum-sampler'; else if (track.type === 'InstrumentSampler') activeClass = 'active-instrument-sampler'; }
-            let beatBlockClass = (Math.floor((j % stepsPerBar) / 4) % 2 === 0) ? 'bg-gray-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-750';
-            if (j % stepsPerBar === 0 && j > 0) beatBlockClass += ' border-l-2 border-l-gray-400 dark:border-l-slate-600';
-            else if (j > 0 && j % (stepsPerBar / 2) === 0) beatBlockClass += ' border-l-gray-300 dark:border-l-slate-650';
-            else if (j > 0 && j % (stepsPerBar / 4) === 0) beatBlockClass += ' border-l-gray-200 dark:border-l-slate-675';
-            html += `<div class="sequencer-step-cell ${activeClass} ${beatBlockClass} border-r border-b border-gray-200 dark:border-slate-600" data-row="${i}" data-col="${j}" title="R${i+1},S${j+1}"></div>`;
-        }
+    // Build row labels (piano keys)
+    const rowLabelsHTML = `<div class="flex flex-col" style="width: 70px; flex-shrink: 0;">`;
+    for (let r = 0; r < numRows; r++) {
+        const pitchName = synthPitches[r] || `Row ${r + 1}`;
+        const isBlack = pitchName.includes('#');
+        rowLabelsHTML += `<div class="sequencer-row-label ${isBlack ? 'bg-gray-800 text-gray-300' : 'bg-gray-300 text-gray-800'}" data-row="${r}" style="height: ${rowHeight}px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 500; border-bottom: 1px solid #555; user-select: none;">${pitchName}</div>`;
     }
-    html += `</div></div>`; return html;
+    rowLabelsHTML += `</div>`;
+
+    // Build grid
+    const gridCols = Math.min(Constants.STEPS_PER_BAR, 16);
+    const gridRows = numRows;
+    let gridHTML = `<div id="sequencer-grid-${track.id}" class="sequencer-grid overflow-auto" style="flex: 1; display: flex; flex-direction: column;">`;
+    for (let r = 0; r < gridRows; r++) {
+        const isBlack = synthPitches[r] && synthPitches[r].includes('#');
+        gridHTML += `<div class="flex" style="flex-shrink: 0;">`;
+        for (let c = 0; c < activeSequence.length; c++) {
+            const col = c;
+            const stepData = activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][col] : null;
+            const isActive = stepData && stepData.active;
+            const velocity = stepData?.velocity || Constants.defaultVelocity;
+            const bar = Math.floor(col / Constants.STEPS_PER_BAR);
+            const beat = Math.floor((col % Constants.STEPS_PER_BAR) / 4);
+            const isBarLine = (col % Constants.STEPS_PER_BAR) === 0;
+            const isBeatLine = (col % 4) === 0 && !isBarLine;
+            const bgClass = isActive
+                ? (isBlack ? 'bg-violet-600' : 'bg-violet-500')
+                : (isBlack ? 'bg-gray-800' : 'bg-gray-400');
+            gridHTML += `<div class="sequencer-step-cell ${bgClass} ${isBarLine ? 'border-l-2 border-blue-400' : ''} ${isBeatLine ? 'border-l border-gray-600' : ''}" data-row="${r}" data-col="${col}" data-velocity="${velocity}" style="width: ${colWidth}px; height: ${rowHeight}px; border-bottom: 1px solid #444; cursor: pointer; transition: background-color 0.1s;" title="Row ${r + 1}, Step ${col + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ''}"></div>`;
+        }
+        gridHTML += `</div>`;
+    }
+    gridHTML += `</div>`;
+
+    return html;
 }
 
 export function openTrackSequencerWindow(trackId, forceRedraw = false, savedState = null) {
