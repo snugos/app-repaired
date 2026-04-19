@@ -147,7 +147,7 @@
 2. **Audio Recording** - Record audio from microphone into tracks ✅ COMPLETED
 3. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet ✅ COMPLETED
 4. **MIDI File Import/Export** - Drag & drop .mid files ✅ COMPLETED
-5. **Track Effects Presets** - Save/load effect chain presets per track
+5. **Track Effects Presets** - Save/load effect chain presets per track ✅ COMPLETED
 6. **Quantize Selection** - Quantize selected notes to grid
 7. **Undo/Redo Visual Stack** - Show undo history in a panel
 8. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
