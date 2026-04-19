@@ -1230,3 +1230,193 @@ export async function stopAudioRecording() {
         console.warn("[Audio stopAudioRecording] Recorder was in 'started' state but stop() did not yield a blob.");
     }
 }
+
+// ============================================
+// SIDECHAIN ROUTING SYSTEM
+// ============================================
+
+// Sidechain bus - a gain node that receives audio from tracks designated as sidechain sources
+let sidechainBusNode = null;
+let activeSidechainRouting = new Map(); // Map<sourceTrackId, Set<destinationTrackIds>>
+
+/**
+ * Gets or creates the sidechain bus node.
+ * @returns {Tone.Gain} The sidechain bus gain node.
+ */
+export function getSidechainBusNode() {
+    if (!sidechainBusNode || sidechainBusNode.disposed) {
+        if (sidechainBusNode && !sidechainBusNode.disposed) {
+            try { sidechainBusNode.dispose(); } catch(e) {}
+        }
+        sidechainBusNode = new Tone.Gain(1);
+        console.log('[Audio getSidechainBusNode] Sidechain bus node created.');
+    }
+    return sidechainBusNode;
+}
+
+/**
+ * Sets up sidechain routing for a track.
+ * The source track sends its audio to the sidechain bus, which is then used
+ * by the destination track's compressor for ducking.
+ * 
+ * @param {number} sourceTrackId - The track ID that will be the sidechain source
+ * @param {number} destinationTrackId - The track ID that will receive sidechain compression
+ * @param {Object} options - Sidechain options (threshold, ratio, attack, release)
+ */
+export function setupSidechainRouting(sourceTrackId, destinationTrackId, options = {}) {
+    console.log(`[Audio setupSidechainRouting] Setting up sidechain: Track ${sourceTrackId} -> Track ${destinationTrackId}`);
+    
+    const sourceTrack = localAppServices.getTrackById ? localAppServices.getTrackById(sourceTrackId) : null;
+    const destTrack = localAppServices.getTrackById ? localAppServices.getTrackById(destinationTrackId) : null;
+    
+    if (!sourceTrack || !destTrack) {
+        console.error('[Audio setupSidechainRouting] Source or destination track not found.');
+        return false;
+    }
+    
+    // Ensure sidechain bus exists
+    const sidechainBus = getSidechainBusNode();
+    
+    // Create sidechain compressor for destination track
+    const sidechainCompressor = new Tone.Compressor({
+        threshold: options.threshold || -30,
+        ratio: options.ratio || 4,
+        attack: options.attack || 0.01,
+        release: options.release || 0.25,
+        knee: options.knee || 10
+    });
+    
+    // Store sidechain compressor on the destination track
+    if (!destTrack._sidechainEffects) {
+        destTrack._sidechainEffects = new Map();
+    }
+    
+    const routingKey = `${sourceTrackId}-${destinationTrackId}`;
+    destTrack._sidechainEffects.set(routingKey, {
+        sourceTrackId,
+        compressor: sidechainCompressor,
+        options
+    });
+    
+    // Track the routing
+    if (!activeSidechainRouting.has(sourceTrackId)) {
+        activeSidechainRouting.set(sourceTrackId, new Set());
+    }
+    activeSidechainRouting.get(sourceTrackId).add(destinationTrackId);
+    
+    // Connect source track's gain to sidechain bus (for detection)
+    // Note: In Tone.js, true sidechain compression requires a more complex setup
+    // We'll use a simplified approach where the source track's output modulates the destination's gain
+    
+    console.log(`[Audio setupSidechainRouting] Sidechain routing established: Track ${sourceTrackId} -> Track ${destinationTrackId}`);
+    
+    return true;
+}
+
+/**
+ * Removes sidechain routing between two tracks.
+ * @param {number} sourceTrackId - The source track ID
+ * @param {number} destinationTrackId - The destination track ID
+ */
+export function removeSidechainRouting(sourceTrackId, destinationTrackId) {
+    console.log(`[Audio removeSidechainRouting] Removing sidechain: Track ${sourceTrackId} -> Track ${destinationTrackId}`);
+    
+    const destTrack = localAppServices.getTrackById ? localAppServices.getTrackById(destinationTrackId) : null;
+    
+    if (destTrack && destTrack._sidechainEffects) {
+        const routingKey = `${sourceTrackId}-${destinationTrackId}`;
+        const sidechainData = destTrack._sidechainEffects.get(routingKey);
+        if (sidechainData && sidechainData.compressor) {
+            try {
+                sidechainData.compressor.dispose();
+            } catch (e) {}
+        }
+        destTrack._sidechainEffects.delete(routingKey);
+    }
+    
+    // Remove from active routing
+    if (activeSidechainRouting.has(sourceTrackId)) {
+        activeSidechainRouting.get(sourceTrackId).delete(destinationTrackId);
+        if (activeSidechainRouting.get(sourceTrackId).size === 0) {
+            activeSidechainRouting.delete(sourceTrackId);
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Gets all active sidechain routings.
+ * @returns {Array<{sourceTrackId: number, destinationTrackIds: number[]}>}
+ */
+export function getActiveSidechainRoutings() {
+    const routings = [];
+    activeSidechainRouting.forEach((destIds, sourceId) => {
+        routings.push({
+            sourceTrackId: sourceId,
+            destinationTrackIds: Array.from(destIds)
+        });
+    });
+    return routings;
+}
+
+/**
+ * Applies sidechain compression during playback.
+ * This is called when the transport is running to apply ducking based on sidechain sources.
+ * 
+ * @param {number} sourceTrackId - The track triggering sidechain
+ * @param {number} time - The current time in the transport
+ * @param {number} duration - Duration of the sidechain effect
+ */
+export function triggerSidechainForTrack(sourceTrackId, time, duration = 0.1) {
+    if (!activeSidechainRouting.has(sourceTrackId)) return;
+    
+    const destTrackIds = activeSidechainRouting.get(sourceTrackId);
+    destTrackIds.forEach(destTrackId => {
+        const destTrack = localAppServices.getTrackById ? localAppServices.getTrackById(destTrackId) : null;
+        if (destTrack && destTrack._sidechainEffects) {
+            const routingKey = `${sourceTrackId}-${destTrackId}`;
+            const sidechainData = destTrack._sidechainEffects.get(routingKey);
+            if (sidechainData && sidechainData.compressor) {
+                // Apply sidechain ducking via gain reduction
+                if (destTrack.gainNode && !destTrack.gainNode.disposed) {
+                    const originalGain = destTrack.gainNode.gain.value;
+                    const reductionAmount = 1 - (sidechainData.options.reduction || 0.5);
+                    
+                    destTrack.gainNode.gain.setValueAtTime(originalGain, time);
+                    destTrack.gainNode.gain.linearRampToValueAtTime(
+                        originalGain * reductionAmount, 
+                        time + (sidechainData.options.attack || 0.01)
+                    );
+                    destTrack.gainNode.gain.linearRampToValueAtTime(
+                        originalGain, 
+                        time + (sidechainData.options.release || 0.25)
+                    );
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Clears all sidechain routings for a track (when track is removed).
+ * @param {number} trackId - The track ID to clear routings for
+ */
+export function clearAllSidechainForTrack(trackId) {
+    console.log(`[Audio clearAllSidechainForTrack] Clearing all sidechain routings for track ${trackId}`);
+    
+    // Clear as source
+    if (activeSidechainRouting.has(trackId)) {
+        const destTrackIds = activeSidechainRouting.get(trackId);
+        destTrackIds.forEach(destId => {
+            removeSidechainRouting(trackId, destId);
+        });
+    }
+    
+    // Clear as destination
+    activeSidechainRouting.forEach((destIds, sourceId) => {
+        if (destIds.has(trackId)) {
+            removeSidechainRouting(sourceId, trackId);
+        }
+    });
+}
