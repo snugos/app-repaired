@@ -13,5 +13,5 @@
 
 ## Scanning for new issues...
 
-_Scanning active — no new bugs detected._
+_Scanning active — no new bugs detected. Last scan: 2026-04-19 09:10 UTC._
 
