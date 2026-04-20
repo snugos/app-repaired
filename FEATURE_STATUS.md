@@ -3,6 +3,31 @@
 **Generated:** 2026-04-19
 **Branch:** LWB-with-Bugs
 
+## 🔴 Critical Bugs Fixed This Session
+
+### Bug 1: `getIsReconstructingDAW` Typo - ✅ FIXED
+**File:** `js/main.js`
+**Severity:** High — Project recovery broken
+**Issue:** Property name `_isReconstructingingDAW_flag` had triple "g" instead of single "g"
+**Fix:** Changed to `_isReconstructingDAW_flag` in all occurrences (lines 588-589)
+**Impact:** Master effects can now be properly added/removed during project recovery, and the reconstruction flag works correctly
+
+### Bug 2: `getIsReconstructingingDAW()` Function Call Typos - ✅ FIXED
+**File:** `js/main.js`
+**Severity:** High — Master effects broken
+**Issue:** Function calls used `getIsReconstructingingDAW()` instead of `getIsReconstructingDAW()`
+**Fix:** Corrected all function calls (lines 527, 547, 564, 565)
+**Impact:** Master effects add/remove/reorder now correctly check reconstruction state
+
+### Bug 3: Missing `updateSequencerCellUI` Function - ✅ FIXED
+**File:** `js/ui.js`
+**Severity:** High — Sequencer cell UI updates broken
+**Issue:** Function was called but never defined, causing silent failures
+**Fix:** Added complete implementation of `updateSequencerCellUI()` function
+**Impact:** Sequencer cells now update visually when toggled, velocities changed, or selection modified
+
+---
+
 ## 🔴 Critical Issues - Incomplete Features
 
 ### Feature 1: Timeline Window - ✅ COMPLETED

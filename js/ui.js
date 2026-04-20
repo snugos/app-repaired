@@ -2130,6 +2130,28 @@ export function clearSequencerSelection(trackId) {
     sequencerSelectedCells.delete(trackId);
 }
 
+/**
+ * Updates the visual state of a single sequencer cell.
+ * @param {HTMLElement} windowElement - The sequencer window element
+ * @param {string} trackType - The type of track (Synth, Sampler, DrumSampler, etc.)
+ * @param {number} row - The row index (0-based)
+ * @param {number} col - The column index (0-based)
+ * @param {boolean} isActive - Whether the cell is active
+ */
+export function updateSequencerCellUI(windowElement, trackType, row, col, isActive) {
+    if (!windowElement) return;
+    
+    const cell = windowElement.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) return;
+    
+    if (isActive) {
+        cell.classList.add('active');
+        cell.style.backgroundColor = ''; // Let CSS handle the color
+    } else {
+        cell.classList.remove('active');
+    }
+}
+
 // --- UI Update & Drawing Functions ---
 export function drawWaveform(track) {
     if (!track?.waveformCanvasCtx || !track.audioBuffer?.loaded) {
