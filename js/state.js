@@ -562,8 +562,8 @@ export async function duplicateTrack(sourceTrackId) {
             appServices.showNotification(`Duplicated "${sourceTrack.name}" as "${trackData.name}"`, 2000);
         }
         if (appServices.updateMixerWindow) appServices.updateMixerWindow();
-        if (appServices.renderTimeline) appServices.renderTimeline();
         if (appServices.updateUndoRedoButtonsUI) appServices.updateUndoRedoButtonsUI();
+        if (appServices.renderTimeline) appServices.renderTimeline();
 
         console.log(`[State duplicateTrack] Duplicated track ${sourceTrackId} to new track ${trackData.id}`);
         return newTrack;
@@ -624,6 +624,56 @@ export function reorderMasterEffectInState(effectId, newIndex) {
     }
     const [effectToMove] = masterEffectsChainState.splice(oldIndex, 1);
     masterEffectsChainState.splice(newIndex, 0, effectToMove);
+}
+
+export function toggleMasterEffectBypass(effectId) {
+    const effectWrapper = masterEffectsChainState.find(e => e.id === effectId);
+    if (!effectWrapper) {
+        console.warn(`[State toggleMasterEffectBypass] Effect ID ${effectId} not found.`);
+        return;
+    }
+
+    // Check if currently bypassed (wet === 0 or bypassed flag is true)
+    const isBypassed = effectWrapper.bypassed === true || (effectWrapper.params?.wet !== undefined && effectWrapper.params.wet === 0);
+
+    if (isBypassed) {
+        // Restore wet to previous value (or 1 if not stored)
+        const restoreValue = effectWrapper.previousWetValue !== undefined ? effectWrapper.previousWetValue : 1;
+        effectWrapper.bypassed = false;
+        if (effectWrapper.params) effectWrapper.params.wet = restoreValue;
+        delete effectWrapper.previousWetValue;
+
+        // Apply to Tone.js node via audio.js
+        if (appServices.setMasterEffectWet) {
+            appServices.setMasterEffectWet(effectId, restoreValue);
+        }
+
+        console.log(`[State toggleMasterEffectBypass] Master effect "${effectWrapper.type}" (${effectId}) enabled. Wet: ${restoreValue}`);
+        if (appServices.showNotification) {
+            appServices.showNotification(`Master effect "${effectWrapper.type}" enabled`, 1500);
+        }
+    } else {
+        // Store current wet value and bypass
+        const currentWet = effectWrapper.params?.wet ?? 1;
+        effectWrapper.previousWetValue = currentWet;
+        effectWrapper.bypassed = true;
+        if (effectWrapper.params) effectWrapper.params.wet = 0;
+
+        // Apply to Tone.js node via audio.js
+        if (appServices.setMasterEffectWet) {
+            appServices.setMasterEffectWet(effectId, 0);
+        }
+
+        console.log(`[State toggleMasterEffectBypass] Master effect "${effectWrapper.type}" (${effectId}) bypassed.`);
+        if (appServices.showNotification) {
+            appServices.showNotification(`Master effect "${effectWrapper.type}" bypassed`, 1500);
+        }
+    }
+
+    // Update UI
+    if (appServices.updateMasterEffectsRackUI) {
+        appServices.updateMasterEffectsRackUI();
+    }
 }
 
 // --- Undo/Redo Logic ---

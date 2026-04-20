@@ -589,6 +589,65 @@ export class Track {
         }
     }
 
+    toggleEffectBypass(effectId) {
+        const effectWrapper = this.activeEffects.find(e => e.id === effectId);
+        if (!effectWrapper) {
+            console.warn(`[Track ${this.id}] Effect ID ${effectId} not found for bypass toggle.`);
+            return;
+        }
+
+        if (!effectWrapper.toneNode || effectWrapper.toneNode.disposed) {
+            console.warn(`[Track ${this.id}] ToneNode for effect ${effectId} is invalid or disposed.`);
+            return;
+        }
+
+        // Check if currently bypassed (wet === 0 or bypassed flag is true)
+        const isBypassed = effectWrapper.bypassed === true || (effectWrapper.params?.wet !== undefined && effectWrapper.params.wet === 0);
+
+        if (isBypassed) {
+            // Restore wet to previous value (or 1 if not stored)
+            const restoreValue = effectWrapper.previousWetValue !== undefined ? effectWrapper.previousWetValue : 1;
+            effectWrapper.bypassed = false;
+            if (effectWrapper.params) effectWrapper.params.wet = restoreValue;
+            delete effectWrapper.previousWetValue;
+
+            // Apply to Tone.js node
+            if (effectWrapper.toneNode.wet && typeof effectWrapper.toneNode.wet.rampTo === 'function') {
+                effectWrapper.toneNode.wet.rampTo(restoreValue, 0.02);
+            } else if (effectWrapper.toneNode.wet && typeof effectWrapper.toneNode.wet.value !== 'undefined') {
+                effectWrapper.toneNode.wet.value = restoreValue;
+            }
+
+            console.log(`[Track ${this.id}] Effect "${effectWrapper.type}" (${effectId}) enabled. Wet: ${restoreValue}`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Effect "${effectWrapper.type}" enabled`, 1500);
+            }
+        } else {
+            // Store current wet value and bypass
+            const currentWet = effectWrapper.params?.wet ?? 1;
+            effectWrapper.previousWetValue = currentWet;
+            effectWrapper.bypassed = true;
+            if (effectWrapper.params) effectWrapper.params.wet = 0;
+
+            // Apply to Tone.js node
+            if (effectWrapper.toneNode.wet && typeof effectWrapper.toneNode.wet.rampTo === 'function') {
+                effectWrapper.toneNode.wet.rampTo(0, 0.02);
+            } else if (effectWrapper.toneNode.wet && typeof effectWrapper.toneNode.wet.value !== 'undefined') {
+                effectWrapper.toneNode.wet.value = 0;
+            }
+
+            console.log(`[Track ${this.id}] Effect "${effectWrapper.type}" (${effectId}) bypassed.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Effect "${effectWrapper.type}" bypassed`, 1500);
+            }
+        }
+
+        // Update UI
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'effectsListChanged');
+        }
+    }
+
     async fullyInitializeAudioResources() {
         console.log(`[Track ${this.id} fullyInitializeAudioResources] Initializing audio resources for "${this.name}" (type: ${this.type})`);
         if (!this.gainNode || this.gainNode.disposed) {
@@ -760,7 +819,7 @@ export class Track {
                                  if (this.appServices.showNotification) this.appServices.showNotification(`Audio for clip "${clip.name}" is missing.`, 3000);
                              }
                          } catch (err) {
-                             console.error(`[Track ${this.id} Audio] Error loading audio for clip ${clip.id} (source: ${clip.sourceId}):`, err);
+                             console.error(`[Track ${this.id} Audio] Error loading/scheduling audio clip ${clip.id}:`, err);
                          }
                      }
                  }
@@ -1638,7 +1697,7 @@ export class Track {
             }
             if (this.patternPlayerSequence && !this.patternPlayerSequence.disposed) {
                 if (this.patternPlayerSequence.state === 'started') {
-                    try {this.patternPlayerSequence.stop(Tone.Transport.now());} catch(e){console.warn("Err stopping seq player during schedule", e)}
+                    try {this.patternPlayerSequence.stop(Tone.Transport.now());} catch(e){console.warn("Err stopping seq player during schedule", e.message)}
                 }
                 console.log(`[Track ${this.id}] Sequencer mode: Starting patternPlayerSequence at transport offset: ${transportStartTime.toFixed(2)}s. Loop: ${this.patternPlayerSequence.loop}`);
                 try {

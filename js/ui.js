@@ -1739,6 +1739,44 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     html += `</div>`; // End grid area
     html += `</div>`; // End container
     
+    // Velocity Lane Section
+    html += `<div class="velocity-lane-section mt-1" id="velocityLaneSection-${track.id}">`;
+    html += `<div class="velocity-lane-header flex items-center justify-between bg-gray-300 dark:bg-slate-700 p-1 border-t border-b dark:border-slate-600">`;
+    html += `<span class="text-xs font-semibold">Velocity Lane</span>`;
+    html += `<div class="flex items-center gap-2">`;
+    html += `<button id="toggleVelocityLane-${track.id}" class="text-xs px-2 py-0.5 bg-slate-500 text-white rounded hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500">Hide</button>`;
+    html += `<button id="clearAllVelocities-${track.id}" class="text-xs px-2 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">Clear All</button>`;
+    html += `</div>`;
+    html += `</div>`;
+    html += `<div class="velocity-lane-content overflow-auto" id="velocityLaneContent-${track.id}" style="max-height: 80px;">`;
+    html += `<div class="flex">`;
+    // Row labels spacer
+    html += `<div style="width: ${labelWidth}px; flex-shrink: 0;"></div>`;
+    // Velocity bars grid
+    html += `<div class="velocity-grid" style="display: flex; flex-direction: column;">`;
+    for (let r = 0; r < rows; r++) {
+        const pitchName = rowLabels[r] || '';
+        html += `<div class="velocity-row" data-row="${r}" style="display: flex; height: 16px; background: #252525; border-bottom: 1px solid #333;">`;
+        for (let c = 0; c < totalSteps; c++) {
+            const stepData = activeSequence && activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][c] : null;
+            const isActive = stepData && stepData.active;
+            const velocity = stepData?.velocity || Constants.defaultVelocity;
+            const isBarLine = (c % stepsPerBar) === 0;
+            const isBeatLine = (c % 4) === 0 && !isBarLine;
+            const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #333;');
+            const velHeight = isActive ? Math.round(velocity * 16) : 0;
+            html += `<div class="velocity-cell" data-row="${r}" data-col="${c}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; position: relative;">`;
+            if (isActive) {
+                html += `<div class="velocity-bar" style="position: absolute; bottom: 0; left: 0; right: 0; height: ${velHeight}px; background: linear-gradient(to top, rgba(239, 68, 68, 0.8), rgba(249, 115, 22, 0.9)); transition: height 0.1s;" title="Vel: ${Math.round(velocity * 100)}%"></div>`;
+            }
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+    html += `</div>`; // End velocity lane section
+    
     return html;
 }
 

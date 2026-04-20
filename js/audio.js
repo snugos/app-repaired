@@ -807,6 +807,30 @@ export function reorderMasterEffectInAudio(effectIdIgnored, newIndexIgnored) {
     rebuildMasterEffectChain();
 }
 
+export function setMasterEffectWet(effectId, wetValue) {
+    const effectNode = activeMasterEffectNodes.get(effectId);
+    if (!effectNode || effectNode.disposed) {
+        console.warn(`[Audio setMasterEffectWet] Master effect node for ID ${effectId} not found or disposed.`);
+        return false;
+    }
+    
+    try {
+        if (effectNode.wet && typeof effectNode.wet.rampTo === 'function') {
+            effectNode.wet.rampTo(wetValue, 0.02);
+        } else if (effectNode.wet && typeof effectNode.wet.value !== 'undefined') {
+            effectNode.wet.value = wetValue;
+        } else {
+            console.warn(`[Audio setMasterEffectWet] Effect node for ID ${effectId} does not have a wet parameter.`);
+            return false;
+        }
+        console.log(`[Audio setMasterEffectWet] Set master effect ${effectId} wet to ${wetValue}`);
+        return true;
+    } catch (err) {
+        console.error(`[Audio setMasterEffectWet] Error setting wet for master effect ID ${effectId}:`, err);
+        return false;
+    }
+}
+
 
 export function updateMeters(globalMasterMeterBar, mixerMasterMeterBar, tracks) {
     if (!Tone.context || Tone.context.state !== 'running' || !audioContextInitialized) return;
@@ -1352,7 +1376,7 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
     if (loadedZips && loadedZips[libraryName] && loadedZips[libraryName] !== "loading") {
         console.log(`[Audio fetchSoundLibrary INFO] ${libraryName} already loaded or processed. Status:`, loadedZips[libraryName] instanceof JSZip ? 'JSZip Instance' : loadedZips[libraryName]);
         if (!isAutofetch && localAppServices.updateSoundBrowserDisplayForLibrary) {
-            localAppServices.updateSoundBrowserDisplayForLibrary(libraryName, false, false);
+            localAppServices.updateSoundBrowserDisplayForLibrary(libraryName, false, false); // isLoading = true, hasError = false
         }
         return; // Already loaded
     }
