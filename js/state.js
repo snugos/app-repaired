@@ -320,6 +320,138 @@ export function getExportPresetNames() {
     return Object.keys(exportPresets);
 }
 
+// --- Chord Memory ---
+// chordMemorySlots: Array of { id, name, notes: [{pitch, velocity}], timestamp }
+// Stores chord voicings that can be triggered with a single key
+let chordMemorySlots = [];
+
+export function getChordMemorySlots() { return chordMemorySlots; }
+
+/**
+ * Store a chord in memory.
+ * @param {string} name - Name for the chord (e.g., "C Major", "G7")
+ * @param {Array} notes - Array of {pitch: number (MIDI note), velocity: number (0-1)}
+ * @returns {string} The ID of the stored chord
+ */
+export function storeChord(name, notes) {
+    const id = `chord-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const chord = {
+        id,
+        name: name || `Chord ${chordMemorySlots.length + 1}`,
+        notes: notes.map(n => ({
+            pitch: Math.round(n.pitch),
+            velocity: Math.max(0, Math.min(1, n.velocity || 0.8))
+        })),
+        timestamp: Date.now()
+    };
+    chordMemorySlots.push(chord);
+    console.log(`[State] Stored chord "${chord.name}" with ${chord.notes.length} notes`);
+    return id;
+}
+
+/**
+ * Delete a chord from memory.
+ * @param {string} chordId - The ID of the chord to delete
+ */
+export function deleteChord(chordId) {
+    const idx = chordMemorySlots.findIndex(c => c.id === chordId);
+    if (idx !== -1) {
+        const deleted = chordMemorySlots.splice(idx, 1)[0];
+        console.log(`[State] Deleted chord "${deleted.name}"`);
+    }
+}
+
+/**
+ * Get a chord by ID.
+ * @param {string} chordId - The ID of the chord
+ * @returns {Object|null} The chord object or null if not found
+ */
+export function getChordById(chordId) {
+    return chordMemorySlots.find(c => c.id === chordId) || null;
+}
+
+/**
+ * Trigger a stored chord - plays all notes simultaneously.
+ * @param {string} chordId - The ID of the chord to trigger
+ * @param {number} trackId - Optional track ID to play on (uses armed track if null)
+ * @param {number} duration - Duration in seconds (0 = indefinite/legato)
+ * @returns {boolean} True if chord was triggered successfully
+ */
+export function triggerChord(chordId, trackId = null, duration = 0) {
+    const chord = getChordById(chordId);
+    if (!chord) {
+        console.warn(`[State triggerChord] Chord ${chordId} not found`);
+        return false;
+    }
+    
+    const targetTrackId = trackId || armedTrackId || activeSequencerTrackId;
+    if (targetTrackId === null) {
+        console.warn('[State triggerChord] No target track specified');
+        return false;
+    }
+    
+    const track = tracks.find(t => t.id === targetTrackId);
+    if (!track) {
+        console.warn(`[State triggerChord] Track ${targetTrackId} not found`);
+        return false;
+    }
+    
+    // Play all notes in the chord
+    const now = Tone.now();
+    chord.notes.forEach(note => {
+        if (track.playNote) {
+            track.playNote(note.pitch, now, duration > 0 ? duration : undefined, note.velocity);
+        } else if (track.instrument && track.instrument.triggerAttack) {
+            const freq = Tone.Frequency(note.pitch, 'midi').toFrequency();
+            track.instrument.triggerAttack(freq, now, note.velocity);
+            if (duration > 0) {
+                track.instrument.triggerRelease(freq, now + duration);
+            }
+        }
+    });
+    
+    console.log(`[State triggerChord] Triggered chord "${chord.name}" on track ${targetTrackId}`);
+    return true;
+}
+
+/**
+ * Clear all stored chords.
+ */
+export function clearAllChords() {
+    chordMemorySlots = [];
+    console.log('[State] Cleared all chord memory slots');
+}
+
+/**
+ * Rename a stored chord.
+ * @param {string} chordId - The ID of the chord
+ * @param {string} newName - New name for the chord
+ */
+export function renameChord(chordId, newName) {
+    const chord = chordMemorySlots.find(c => c.id === chordId);
+    if (chord) {
+        chord.name = newName;
+        console.log(`[State] Renamed chord to "${newName}"`);
+    }
+}
+
+/**
+ * Import chords from project data.
+ * @param {Array} chords - Array of chord objects to import
+ */
+export function setChordMemoryState(chords) {
+    chordMemorySlots = Array.isArray(chords) ? chords.map(c => ({
+        id: c.id || `chord-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: c.name || 'Unnamed Chord',
+        notes: Array.isArray(c.notes) ? c.notes.map(n => ({
+            pitch: Math.round(n.pitch),
+            velocity: Math.max(0, Math.min(1, n.velocity || 0.8))
+        })) : [],
+        timestamp: c.timestamp || Date.now()
+    })) : [];
+    console.log(`[State] Imported ${chordMemorySlots.length} chord memory slots`);
+}
+
 // --- AppServices Placeholder (will be populated by main.js) ---
 let appServices = {}; // Populated by initializeStateModule
 
@@ -1675,7 +1807,7 @@ async function normalizeAudioBlob(audioBlob, targetDb = -1) {
         }
         
         // Convert back to WAV
-        const wavBlob = audioBufferToWav(audioBuffer);
+        const wavBlob = bufferToWav(audioBuffer);
         await audioContext.close();
         return wavBlob;
         
@@ -1688,20 +1820,22 @@ async function normalizeAudioBlob(audioBlob, targetDb = -1) {
 /**
  * Converts an AudioBuffer to a WAV Blob.
  */
-function audioBufferToWav(audioBuffer) {
-    const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
+function bufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
     const format = 1; // PCM
     const bitDepth = 16;
     
     const bytesPerSample = bitDepth / 8;
     const blockAlign = numChannels * bytesPerSample;
     
-    const dataLength = audioBuffer.length * blockAlign;
-    const buffer = new ArrayBuffer(44 + dataLength);
-    const view = new DataView(buffer);
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
     
-    // Write WAV header
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV header
     writeString(view, 0, 'RIFF');
     view.setUint32(4, 36 + dataLength, true);
     writeString(view, 8, 'WAVE');
@@ -1720,11 +1854,11 @@ function audioBufferToWav(audioBuffer) {
     const offset = 44;
     const channelData = [];
     for (let i = 0; i < numChannels; i++) {
-        channelData.push(audioBuffer.getChannelData(i));
+        channelData.push(buffer.getChannelData(i));
     }
     
     let pos = offset;
-    for (let i = 0; i < audioBuffer.length; i++) {
+    for (let i = 0; i < buffer.length; i++) {
         for (let ch = 0; ch < numChannels; ch++) {
             const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
             const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
@@ -1733,12 +1867,9 @@ function audioBufferToWav(audioBuffer) {
         }
     }
     
-    return new Blob([buffer], { type: 'audio/wav' });
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 
-/**
- * Writes a string to a DataView at the specified offset.
- */
 function writeString(view, offset, string) {
     for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));

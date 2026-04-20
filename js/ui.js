@@ -4632,3 +4632,196 @@ export function updateTempoAutomationPanel() {
         renderTempoAutomationContent();
     }
 }
+
+// --- Chord Memory Panel ---
+
+/**
+ * Opens the Chord Memory panel.
+ */
+export function openChordMemoryPanel() {
+    const win = localAppServices.createWindow?.(
+        'chordMemory',
+        'Chord Memory',
+        '<div id="chordMemoryContent" style="padding: 12px; color: #e5e5e5;"></div>',
+        { width: 450, height: 500, x: 300, y: 150 }
+    );
+    
+    if (win) {
+        setTimeout(renderChordMemoryContent, 50);
+    }
+}
+
+/**
+ * Renders the chord memory panel content.
+ */
+function renderChordMemoryContent() {
+    const container = document.getElementById('chordMemoryContent');
+    if (!container) return;
+    
+    const chords = localAppServices.getChordMemorySlots?.() || [];
+    const tracks = localAppServices.getTracks?.() || [];
+    const armedTrackId = localAppServices.getArmedTrackId?.();
+    
+    // Build track selector options
+    const trackOptions = tracks
+        .filter(t => t.type !== 'Audio')
+        .map(t => `<option value="${t.id}" ${t.id === armedTrackId ? 'selected' : ''}>${t.name}</option>`)
+        .join('');
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input type="text" id="chordNameInput" placeholder="Chord name (e.g., C Major)" 
+                    style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                <button id="storeChordBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                    Store Current Notes
+                </button>
+            </div>
+            <div style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                Hold multiple notes on your MIDI keyboard, then click "Store Current Notes" to save the chord.
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: #aaa;">Trigger Chord</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="chordTrackSelect" style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    ${trackOptions || '<option value="">No instrument tracks</option>'}
+                </select>
+                <input type="number" id="chordDurationInput" placeholder="Duration (s)" value="0" min="0" step="0.1"
+                    style="width: 100px; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: #aaa;">Stored Chords (${chords.length})</h3>
+            <div id="chordsList" style="max-height: 250px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; background: #1a1a1a;">
+                ${chords.length === 0 ? '<div style="padding: 20px; text-align: center; color: #666;">No chords stored yet</div>' : ''}
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px;">
+            <button id="clearAllChordsBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600" 
+                ${chords.length === 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                Clear All Chords
+            </button>
+        </div>
+    `;
+    
+    // Render chords list
+    const chordsList = container.querySelector('#chordsList');
+    if (chords.length > 0 && chordsList) {
+        chordsList.innerHTML = chords.map(chord => `
+            <div class="chord-item" data-id="${chord.id}" style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #333; gap: 8px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: bold; color: #fff;">${chord.name}</div>
+                    <div style="font-size: 10px; color: #888;">
+                        ${chord.notes.length} notes: ${chord.notes.map(n => {
+                            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                            const octave = Math.floor(n.pitch / 12) - 1;
+                            const noteName = noteNames[n.pitch % 12];
+                            return `${noteName}${octave}`;
+                        }).join(', ')}
+                    </div>
+                </div>
+                <button class="trigger-chord-btn px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-id="${chord.id}">
+                    ▶ Play
+                </button>
+                <button class="delete-chord-btn px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-id="${chord.id}">
+                    ✕
+                </button>
+            </div>
+        `).join('');
+    }
+    
+    // Attach event listeners
+    attachChordMemoryEventListeners(container);
+}
+
+/**
+ * Attaches event listeners for the chord memory panel.
+ */
+function attachChordMemoryEventListeners(container) {
+    // Store chord button
+    const storeBtn = container.querySelector('#storeChordBtn');
+    storeBtn?.addEventListener('click', () => {
+        const nameInput = container.querySelector('#chordNameInput');
+        const name = nameInput?.value || '';
+        
+        // Get currently held MIDI notes from the MIDI input state
+        // This would need to be tracked in state.js or eventHandlers.js
+        // For now, we'll prompt the user to play notes
+        showNotification('Play notes on your MIDI keyboard, then click Store again', 2000);
+        
+        // Alternative: Use the track's active notes if available
+        const trackId = localAppServices.getArmedTrackId?.() || localAppServices.getActiveSequencerTrackId?.();
+        const track = localAppServices.getTrackById?.(trackId);
+        
+        if (track && track.activeNotes && track.activeNotes.size > 0) {
+            const notes = Array.from(track.activeNotes).map(pitch => ({
+                pitch,
+                velocity: 0.8
+            }));
+            
+            if (notes.length > 0) {
+                localAppServices.storeChord?.(name, notes);
+                showNotification(`Stored "${name || 'Chord'}" with ${notes.length} notes`, 2000);
+                nameInput.value = '';
+                renderChordMemoryContent();
+            }
+        } else {
+            showNotification('No active notes detected. Hold notes and try again.', 2000);
+        }
+    });
+    
+    // Trigger chord buttons
+    container.querySelectorAll('.trigger-chord-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chordId = e.target.dataset.id;
+            const trackSelect = container.querySelector('#chordTrackSelect');
+            const durationInput = container.querySelector('#chordDurationInput');
+            
+            const trackId = parseInt(trackSelect?.value) || null;
+            const duration = parseFloat(durationInput?.value) || 0;
+            
+            if (chordId && localAppServices.triggerChord) {
+                const success = localAppServices.triggerChord(chordId, trackId, duration);
+                if (success) {
+                    showNotification('Chord triggered', 1000);
+                }
+            }
+        });
+    });
+    
+    // Delete chord buttons
+    container.querySelectorAll('.delete-chord-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chordId = e.target.dataset.id;
+            if (chordId && localAppServices.deleteChord) {
+                localAppServices.deleteChord(chordId);
+                showNotification('Chord deleted', 1500);
+                renderChordMemoryContent();
+            }
+        });
+    });
+    
+    // Clear all chords button
+    const clearBtn = container.querySelector('#clearAllChordsBtn');
+    clearBtn?.addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all stored chords?')) {
+            localAppServices.clearAllChords?.();
+            showNotification('All chords cleared', 1500);
+            renderChordMemoryContent();
+        }
+    });
+}
+
+/**
+ * Updates the chord memory panel with current data.
+ */
+export function updateChordMemoryPanel() {
+    const container = document.getElementById('chordMemoryContent');
+    if (container) {
+        renderChordMemoryContent();
+    }
+}
