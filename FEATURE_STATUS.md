@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-20
 **Branch:** LWB-with-Bugs
-**Last Verified:** 2026-04-20 09:45 UTC
+**Last Verified:** 2026-04-20 10:40 UTC
 
 ## 🔴 Critical Bugs Fixed This Session
 
@@ -564,4 +564,26 @@ New Feature Queue:
 - Select "🔄 Reverse Audio" to reverse the audio playback direction
 - Works with undo/redo (can revert the reversal)
 - Preserves original audio data with a new key (original not deleted)
-- Visual notification confirms the action---
+- Visual notification confirms the action
+
+---
+
+## Feature: Step Sequencer Note Length Lane - ✅ COMPLETED
+**File:** `js/ui.js`
+**Status:** ✅ COMPLETED
+**What's New:** Visual note length lane editing per row in the sequencer
+**Implementation:**
+- [x] Add note length lane section below velocity lane in sequencer
+- [x] Display note length bars showing duration for each active step
+- [x] Add "Hide/Show" toggle button for note length lane
+- [x] Add "Reset All" button to reset all note lengths to default (0.25 beats)
+- [x] Click note length cell to cycle through preset durations
+- [x] Visual feedback updates both note length lane and main grid cell title
+
+**Features:**
+- Shows compact note length bars below each row in the sequencer
+- Bar width indicates note length (wider = longer note)
+- Color gradient from blue to indigo for visual feedback
+- Click to cycle through note lengths: 32nd, 16th, dotted 16th, 8th, dotted 8th, quarter, dotted quarter, half note
+- Supports durations from 0.125 to 2.0 beats
+- Integrates with velocity lane for complete step control---
