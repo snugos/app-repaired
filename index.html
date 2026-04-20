@@ -139,7 +139,29 @@
         <div id="taskbarButtons">
             <!-- Window buttons appear here -->
         </div>
-        <div id="taskbarTempoDisplay" title="Current Tempo">120.0 BPM</div>
+        <div id="taskbarTempoDisplay" data-active-section="status" title="Current Tempo">120.0 BPM</div>
+    </div>
+
+    <!-- Status Bar - CPU/FPS/Memory Indicators -->
+    <div id="statusBar" class="fixed bottom-0 left-0 right-0 h-6 bg-[#1a1a1a] border-t border-[#303030] flex items-center px-2 gap-4 z-[9998] text-xs text-gray-400">
+        <div id="statusCpu" class="flex items-center gap-1 cursor-pointer hover:text-gray-300" title="CPU Load">
+            <span class="text-gray-500">CPU:</span>
+            <span id="statusCpuValue">0%</span>
+        </div>
+        <div class="text-gray-600">|</div>
+        <div id="statusFps" class="flex items-center gap-1 cursor-pointer hover:text-gray-300" title="Frames Per Second">
+            <span class="text-gray-500">FPS:</span>
+            <span id="statusFpsValue">60</span>
+        </div>
+        <div class="text-gray-600">|</div>
+        <div id="statusMem" class="flex items-center gap-1 cursor-pointer hover:text-gray-300" title="Memory Usage">
+            <span class="text-gray-500">MEM:</span>
+            <span id="statusMemValue">0 MB</span>
+        </div>
+        <div class="flex-1"></div>
+        <div id="statusCpuHistory" class="flex items-end gap-[1px] h-3 w-16">
+            <!-- CPU history sparkline -->
+        </div>
     </div>
 
     <div id="startMenu" class="hidden">
