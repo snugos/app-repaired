@@ -1811,7 +1811,20 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
             const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #333;');
             const noteColor = isActive ? (isBlack ? 'bg-violet-600' : 'bg-violet-500') : (isBlack ? 'bg-gray-800' : 'bg-gray-600');
             const velOpacity = isActive ? 0.5 + (velocity * 0.5) : 1;
-            html += `<div class="sequencer-step-cell ${noteColor}" data-row="${r}" data-col="${c}" data-velocity="${velocity}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; transition: background-color 0.1s; opacity: ${isActive ? velOpacity : 1};" title="Row ${r + 1}, Step ${c + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ''}"></div>`;
+            // Apply scale hint overlay if enabled
+            let scaleOverlay = '';
+            const scaleHintEnabled = localAppServices.getScaleHintEnabled?.();
+            if (scaleHintEnabled && !isActive) {
+                // Check if this row's pitch is in the current scale
+                const scaleRoot = localAppServices.getScaleHintRoot?.() || 'C';
+                const scaleType = localAppServices.getScaleHintType?.() || 'major';
+                const pitchName = rowLabels[r] || '';
+                const isInScale = localAppServices.isNoteInScale?.(pitchName, scaleRoot, scaleType);
+                if (isInScale) {
+                    scaleOverlay = 'box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.6);';
+                }
+            }
+            html += `<div class="sequencer-step-cell ${noteColor}" data-row="${r}" data-col="${c}" data-velocity="${velocity}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; transition: background-color 0.1s; opacity: ${isActive ? velOpacity : 1}; ${scaleOverlay}" title="Row ${r + 1}, Step ${c + 1}${isActive ? `, Vel: ${Math.round(velocity * 100)}%` : ''}"></div>`;
         }
         html += `</div>`;
     }
@@ -2279,6 +2292,20 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                     velLaneContent.style.display = 'none';
                     toggleVelLaneBtn.textContent = 'Show';
                 }
+            });
+        }
+        
+        // Handle scale hint toggle button
+        const scaleHintToggleBtn = sequencerWindow.element.querySelector(`#scaleHintToggle-${track.id}`);
+        if (scaleHintToggleBtn) {
+            scaleHintToggleBtn.addEventListener('click', () => {
+                const currentEnabled = localAppServices.getScaleHintEnabled?.() || false;
+                localAppServices.setScaleHintEnabled?.(!currentEnabled);
+                // Update button appearance
+                scaleHintToggleBtn.className = `text-xs px-1.5 py-0.5 rounded ${!currentEnabled ? 'bg-green-500 text-white' : 'bg-gray-400 text-gray-800'}`;
+                // Re-render sequencer to show/hide scale hints
+                openTrackSequencerWindow(trackId, true);
+                showNotification(`Scale hints ${!currentEnabled ? 'enabled' : 'disabled'}`, 1000);
             });
         }
         

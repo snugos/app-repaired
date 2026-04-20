@@ -199,6 +199,14 @@ export function isNoteInScale(midiNote, root, type) {
     return scaleNotes.includes(noteName);
 }
 
+export function isNoteNameInScale(pitchName, root, type) {
+    if (!pitchName) return false;
+    const scaleNotes = getScaleNotes(root, type);
+    // pitchName could be like "C4", "C#4", "D4" - we just need the note letter part
+    const noteLetter = pitchName.replace(/[0-9]/g, '');
+    return scaleNotes.some(note => note === noteLetter || note === pitchName);
+}
+
 // Undo/Redo
 let undoStack = [];
 let redoStack = [];
