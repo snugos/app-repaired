@@ -888,6 +888,7 @@ export function gatherProjectDataInternal() {
                     sequences: track.type !== 'Audio' && track.sequences ? JSON.parse(JSON.stringify(track.sequences)) : [],
                     activeSequenceId: track.type !== 'Audio' ? track.activeSequenceId : null,
                     timelineClips: track.timelineClips ? JSON.parse(JSON.stringify(track.timelineClips)) : [],
+                    timelinePlaybackRate: track.timelinePlaybackRate !== undefined ? track.timelinePlaybackRate : 1.0,
                 };
                 // Type-specific parameters
                 if (track.type === 'Synth') {

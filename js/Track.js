@@ -1563,6 +1563,10 @@ export class Track {
                     if (!clip.sourceId) { console.warn(`[Track ${this.id}] Audio clip ${clip.id} has no sourceId.`); continue; }
                     console.log(`[Track ${this.id}] Timeline: Scheduling AUDIO clip "${clip.name}" (ID: ${clip.id}) at ${effectivePlayStart.toFixed(2)}s for ${playDurationInWindow.toFixed(2)}s (offset ${offsetIntoSource.toFixed(2)}s)`);
                     const player = new Tone.Player();
+                    if (this.timelinePlaybackRate !== 1.0) {
+                        player.playbackRate = this.timelinePlaybackRate;
+                        console.log(`[Track ${this.id}] Set playback rate ${this.timelinePlaybackRate}x for clip ${clip.id}`);
+                    }
                     this.clipPlayers.set(clip.id, player);
                     try {
                         const audioBlob = await getAudio(clip.sourceId);
@@ -1963,6 +1967,28 @@ export class Track {
             return { fadeIn: clip.fadeIn || 0, fadeOut: clip.fadeOut || 0 };
         }
         return null;
+    }
+
+    /**
+     * Set playback rate for timeline audio clips on this track.
+     * @param {number} rate - Playback rate (0.25 = 1/4 speed, 2.0 = 2x speed)
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setPlaybackRate(rate, fromInteraction = false) {
+        this.timelinePlaybackRate = Math.max(0.25, Math.min(4.0, parseFloat(rate) || 1.0));
+        console.log(`[Track ${this.id}] Set playback rate to ${this.timelinePlaybackRate}x`);
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Set playback rate for ${this.name} to ${this.timelinePlaybackRate}x`);
+        }
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+    }
+
+    /**
+     * Get current playback rate.
+     * @returns {number} Playback rate
+     */
+    getPlaybackRate() {
+        return this.timelinePlaybackRate;
     }
 
     /**

@@ -2947,6 +2947,37 @@ function setupTimelineEventListeners(content, tracks) {
                     }
                 }},
                 { separator: true },
+                { label: 'Playback Speed', action: () => {} },
+                { label: '  0.5x (Half)', action: () => {
+                    if (typeof track.setPlaybackRate === 'function') {
+                        track.setPlaybackRate(0.5, true);
+                        showNotification(`Playback speed: 0.5x`, 1500);
+                    }
+                }},
+                { label: '  0.75x (Three-Quarter)', action: () => {
+                    if (typeof track.setPlaybackRate === 'function') {
+                        track.setPlaybackRate(0.75, true);
+                        showNotification(`Playback speed: 0.75x`, 1500);
+                    }
+                }},
+                { label: '  1.0x (Normal)', action: () => {
+                    if (typeof track.setPlaybackRate === 'function') {
+                        track.setPlaybackRate(1.0, true);
+                        showNotification(`Playback speed: 1.0x`, 1500);
+                    }
+                }},
+                { label: '  1.5x (One-and-Half)', action: () => {
+                    if (typeof track.setPlaybackRate === 'function') {
+                        track.setPlaybackRate(1.5, true);
+                        showNotification(`Playback speed: 1.5x`, 1500);
+                    }
+                }},
+                { label: '  2.0x (Double)', action: () => {
+                    if (typeof track.setPlaybackRate === 'function') {
+                        track.setPlaybackRate(2.0, true);
+                        showNotification(`Playback speed: 2.0x`, 1500);
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);
