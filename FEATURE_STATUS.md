@@ -370,7 +370,7 @@ New Feature Queue:
 5. **Tempo Ramps** - Automation lane for tempo changes over time ✅ COMPLETED (already implemented in audio.js/state.js/ui.js)
 6. **Marker System** - Add named markers on timeline for navigation ✅ COMPLETED (already implemented in state.js/main.js)
 7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
-8. **Track Freeze** - Freeze a track to audio to save CPU
+8. **Track Freeze** - Freeze a track to audio to save CPU ✅ COMPLETED (wiring only - core methods existed in Track.js)
 9. **Clip Gain Envelope** - Draw volume automation on audio clips
 10. **MIDI CC Recording** - Record MIDI CC movements as automation
 
