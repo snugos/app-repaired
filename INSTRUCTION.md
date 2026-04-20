@@ -4,16 +4,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1 ~~**Automation Copy/Paste** - Copy/paste automation curves between parameters~~ ✅ COMPLETED
-2 ~~**Track Lane Reorder** - Drag to reorder lanes/tracks in timeline view~~ ✅ COMPLETED
-3 ~~**MIDI CC Visualizer** - Live display of incoming MIDI CC values as bars~~ ✅ COMPLETED
-4 ~~**Project Templates** - Save/load project templates with track presets~~ ✅ COMPLETED
-5. **Adaptive Metronome** - Metronome that adjusts timing based on recorded performance
-6. **Audio Warping** - Non-destructive timing adjustment for audio clips
-7. **Clip Split** - Split audio/MIDI clips at playhead with a keyboard shortcut
-8. **User Keyboard Shortcuts** - User-customizable hotkeys for all actions
-9. **Mixer Pan & Width** - Per-track panning and stereo width controls
-10. **Session View / Clip Launcher** - Ableton-style clip grid launching for live performance
+1. **Groove Template** - Apply swing/groove patterns to sequences
+2. **Clip Loop Mode** - Set clips to loop within a region
+3. **Crossfade Between Clips** - Smooth transitions between overlapping clips
+4. **Chord Detection** - Detect and display chords in piano roll
+5. **Arpeggiator** - Arpeggiate held notes in real-time
+6. **Note Velocity Randomization** - Add humanization to velocities
+7. **Delay Compensation** - Automatic delay compensation for effects
+8. **Track Grouping** - Group tracks for collective control
 
 ## Workflow
 
