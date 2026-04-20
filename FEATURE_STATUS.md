@@ -49,6 +49,25 @@
 - Option to create new Audio track from bounce
 - Configurable start/end bar range
 
+### Feature: Step Sequencer Velocity Lane - ✅ COMPLETED
+**File:** `js/ui.js`
+**Status:** ✅ COMPLETED
+**What's New:** Visual velocity lane editing per row in the sequencer
+**Implementation:**
+- [x] Add velocity lane section below main sequencer grid
+- [x] Display velocity bars showing note velocity for each step
+- [x] Add "Hide/Show" toggle button for velocity lane
+- [x] Add "Clear All" button to reset all velocities to default
+- [x] Click velocity cell to cycle through preset values (30%, 50%, 70%, 90%, 100%)
+- [x] Visual feedback updates both velocity lane and main grid cell
+
+**Features:**
+- Shows compact velocity bars below each row in the sequencer
+- Bar height indicates velocity (taller = louder)
+- Color gradient from red to orange for visual feedback
+- Click to cycle through preset velocities
+- Right-click still works for fine-grained velocity slider popup
+
 ---
 
 ## 🔴 Critical Issues - Incomplete Features
@@ -322,16 +341,16 @@ Generate 10 NEW feature ideas that are:
 3. Enhance creative workflow
 
 New Feature Queue:
-1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
-2. **Effect Bypass Toggle** - Quick bypass button for each effect
-3. **Project Export Presets** - Save/load project export configurations
-4. **Audio Normalization** - Auto-normalize recorded or imported audio
-5. **Tempo Ramps** - Automation lane for tempo changes over time
-6. **Marker System** - Add named markers on timeline for navigation
-7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
-8. **Track Freeze** - Freeze a track to audio to save CPU
-9. **Clip Gain Envelope** - Draw volume automation on audio clips
-10. **MIDI CC Recording** - Record MIDI CC movements as automation
+1. **Effect Bypass Toggle** - Quick bypass button for each effect
+2. **Project Export Presets** - Save/load project export configurations
+3. **Audio Normalization** - Auto-normalize recorded or imported audio
+4. **Tempo Ramps** - Automation lane for tempo changes over time
+5. **Marker System** - Add named markers on timeline for navigation
+6. **Audio Stretching** - Adjust audio clip tempo without changing pitch
+7. **Track Freeze** - Freeze a track to audio to save CPU
+8. **Clip Gain Envelope** - Draw volume automation on audio clips
+9. **MIDI CC Recording** - Record MIDI CC movements as automation
+10. **Chord Memory** - Store and trigger chord voicings with single key
 
 ---
 
