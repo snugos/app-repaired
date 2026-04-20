@@ -28,6 +28,29 @@
 
 ---
 
+## 🟠 New Features Completed This Session
+
+### Feature: Bounce Track to Audio - ✅ COMPLETED
+**File:** `js/state.js`, `js/ui.js`, `js/eventHandlers.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's New:** Render a track's output (including effects) to a WAV file
+**Implementation:**
+- [x] Add `bounceTrackToAudio(trackId, options)` function in state.js
+- [x] Add `showBounceTrackDialog(trackId)` function in state.js
+- [x] Add "Bounce to Audio" menu item in track context menu in ui.js
+- [x] Add `handleBounceTrack(trackId)` event handler in eventHandlers.js
+- [x] Wire up services in main.js appServices
+- [x] Support options: download WAV, create new Audio track, bar range selection
+
+**Features:**
+- Right-click track → "Bounce to Audio"
+- Options dialog for bounce settings
+- Download rendered audio as WAV
+- Option to create new Audio track from bounce
+- Configurable start/end bar range
+
+---
+
 ## 🔴 Critical Issues - Incomplete Features
 
 ### Feature 1: Timeline Window - ✅ COMPLETED
