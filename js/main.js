@@ -54,6 +54,7 @@ import {
     addTrackToStateInternal, removeTrackFromStateInternal, reorderTrackInState,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
+    saveProjectTemplate, loadProjectTemplate, getProjectTemplateNames, getProjectTemplate, deleteProjectTemplate,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
     exportToMidiInternal,
     // Scale Hint
@@ -366,6 +367,7 @@ const appServices = {
     exportToWav: exportToWavInternal,
 
     exportToMidi: exportToMidiInternal,
+    saveProjectTemplate, loadProjectTemplate, getProjectTemplateNames, getProjectTemplate, deleteProjectTemplate,
 
     // Event Handler Passthroughs
     selectMIDIInput: eventSelectMIDIInput, 

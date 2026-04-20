@@ -29,6 +29,9 @@ let masterGainValueState = (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone
 let trackEffectsPresets = {}; // { trackId: { presetName: effectsData } }
 let masterEffectPresets = {}; // { presetName: { effects: [...], masterGain: number } }
 
+// Project Templates Storage
+let projectTemplates = {}; // { templateName: templateData }
+
 // MIDI State
 let midiAccessGlobal = null;
 let activeMIDIInputGlobal = null;
@@ -522,6 +525,158 @@ export function getTrackEffectPresetNames(trackId) {
     }
     return [];
 }
+
+// --- Project Templates ---
+export function getProjectTemplatesState() { return projectTemplates; }
+
+export function saveProjectTemplate(templateName, includeTracks = true, includeMasterEffects = true) {
+    try {
+        const templateData = {
+            name: templateName,
+            createdAt: new Date().toISOString(),
+            globalSettings: {
+                tempo: Tone.Transport.bpm.value,
+                masterVolume: getMasterGainValueState()
+            },
+            tracks: [],
+            masterEffects: []
+        };
+        
+        if (includeMasterEffects) {
+            templateData.masterEffects = getMasterEffectsState().map(effect => ({
+                id: effect.id,
+                type: effect.type,
+                params: effect.params ? JSON.parse(JSON.stringify(effect.params)) : {}
+            }));
+        }
+        
+        if (includeTracks) {
+            templateData.tracks = getTracksState().map(track => {
+                if (!track || typeof track.id === 'undefined') return null;
+                const trackData = {
+                    type: track.type,
+                    name: track.name,
+                    volume: track.previousVolumeBeforeMute || track.volume,
+                    activeEffects: (track.activeEffects || []).map(effect => ({
+                        id: effect.id,
+                        type: effect.type,
+                        params: effect.params ? JSON.parse(JSON.stringify(effect.params)) : {}
+                    }))
+                };
+                if (track.type === 'Synth') {
+                    trackData.synthEngineType = track.synthEngineType || 'MonoSynth';
+                    trackData.synthParams = track.synthParams ? JSON.parse(JSON.stringify(track.synthParams)) : {};
+                } else if (track.type === 'Sampler') {
+                    trackData.slices = track.slices ? JSON.parse(JSON.stringify(track.slices)) : [];
+                    trackData.selectedSliceForEdit = track.selectedSliceForEdit;
+                } else if (track.type === 'DrumSampler') {
+                    trackData.drumSamplerPads = (track.drumSamplerPads || []).map(p => ({
+                        volume: p.volume,
+                        pitchShift: p.pitchShift,
+                        envelope: p.envelope ? JSON.parse(JSON.stringify(p.envelope)) : {}
+                    }));
+                }
+                return trackData;
+            }).filter(td => td !== null);
+        }
+        
+        projectTemplates[templateName] = templateData;
+        console.log(`[State] Saved project template "${templateName}" with ${templateData.tracks.length} tracks`);
+        return true;
+    } catch (error) {
+        console.error(`[State] Error saving project template "${templateName}":`, error);
+        return false;
+    }
+}
+
+export function deleteProjectTemplate(templateName) {
+    if (projectTemplates[templateName]) {
+        delete projectTemplates[templateName];
+        console.log(`[State] Deleted project template "${templateName}"`);
+        return true;
+    }
+    return false;
+}
+
+export function getProjectTemplate(templateName) {
+    if (projectTemplates[templateName]) {
+        return JSON.parse(JSON.stringify(projectTemplates[templateName]));
+    }
+    return null;
+}
+
+export function getProjectTemplateNames() {
+    return Object.keys(projectTemplates);
+}
+
+export function loadProjectTemplate(templateName, clearExisting = true) {
+    const template = getProjectTemplate(templateName);
+    if (!template) {
+        console.warn(`[State] Project template "${templateName}" not found`);
+        return false;
+    }
+    
+    try {
+        if (clearExisting) {
+            const existingTracks = getTracksState();
+            for (const track of existingTracks) {
+                if (track?.dispose) track.dispose();
+            }
+            tracks = [];
+            trackIdCounter = 0;
+        }
+        
+        if (template.globalSettings) {
+            if (template.globalSettings.tempo) {
+                Tone.Transport.bpm.value = template.globalSettings.tempo;
+            }
+        }
+        
+        if (template.masterEffects && appServices.addMasterEffectToAudio) {
+            for (const effectData of template.masterEffects) {
+                appServices.addMasterEffectToAudio(effectData.type, effectData.params);
+            }
+        }
+        
+        for (const trackData of template.tracks) {
+            const newTrack = appServices.createTrackInternal(trackData.type, trackData.name);
+            if (newTrack) {
+                if (trackData.volume !== undefined) {
+                    newTrack.volume = trackData.volume;
+                    if (newTrack.gainNode) newTrack.gainNode.gain.value = newTrack.volume;
+                }
+                
+                if (trackData.type === 'Synth' && trackData.synthParams && newTrack.synthParams) {
+                    Object.assign(newTrack.synthParams, trackData.synthParams);
+                    if (newTrack.synth) {
+                        newTrack.synth.set(trackData.synthParams);
+                    }
+                }
+                
+                if (trackData.type === 'Sampler' && trackData.slices) {
+                    newTrack.slices = trackData.slices;
+                }
+                
+                if (trackData.type === 'DrumSampler' && trackData.drumSamplerPads) {
+                    newTrack.drumSamplerPads = trackData.drumSamplerPads;
+                }
+                
+                if (trackData.activeEffects && appServices.addEffectToTrack) {
+                    for (const effectData of trackData.activeEffects) {
+                        appServices.addEffectToTrack(newTrack.id, effectData.type, effectData.params);
+                    }
+                }
+            }
+        }
+        
+        console.log(`[State] Loaded project template "${templateName}"`);
+        return true;
+    } catch (error) {
+        console.error(`[State] Error loading project template "${templateName}":`, error);
+        return false;
+    }
+}
+
 
 // --- Setters for Centralized State (called internally or via appServices) ---
 export function addWindowToStoreState(id, instance) { openWindowsMap.set(id, instance); }
