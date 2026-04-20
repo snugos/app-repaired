@@ -757,6 +757,7 @@ export function rebuildMasterEffectChain() {
             } else {
                 console.error(`[Audio rebuildMasterEffectChain] CRITICAL: Failed to recreate master effect node for ${effectState.type} (ID: ${effectState.id}). Chain will skip this effect and continue.`);
                 effectNode = null;
+                currentAudioPathEnd = null;
             }
         }
 
