@@ -374,6 +374,94 @@ export function getSidechainSettings() {
     return { ...sidechainSettings };
 }
 
+// --- Metronome ---
+let metronomeSynth = null;
+let metronomeGain = null;
+
+/**
+ * Initializes the metronome synth.
+ */
+function initMetronome() {
+    if (metronomeSynth) return;
+    
+    try {
+        metronomeSynth = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
+        });
+        metronomeGain = new Tone.Gain(0.5);
+        metronomeSynth.connect(metronomeGain);
+        metronomeGain.connect(Tone.Destination);
+        console.log('[Audio initMetronome] Metronome synth initialized.');
+    } catch (e) {
+        console.error('[Audio initMetronome] Error initializing metronome:', e);
+    }
+}
+
+/**
+ * Plays a metronome click.
+ * @param {boolean} isDownbeat - True for downbeat (high pitch), false for upbeat (low pitch)
+ * @param {number} time - Tone.js time to schedule the click
+ */
+export function playMetronomeClick(isDownbeat = true, time) {
+    if (!metronomeSynth || metronomeSynth.disposed) {
+        initMetronome();
+    }
+    
+    if (!metronomeSynth) return;
+    
+    const freq = isDownbeat ? 880 : 440; // A5 for downbeat, A4 for upbeat
+    const duration = '16n';
+    
+    try {
+        if (time !== undefined) {
+            metronomeSynth.triggerAttackRelease(freq, duration, time);
+        } else {
+            metronomeSynth.triggerAttackRelease(freq, duration);
+        }
+    } catch (e) {
+        console.error('[Audio playMetronomeClick] Error playing metronome:', e);
+    }
+}
+
+/**
+ * Sets the metronome volume.
+ * @param {number} volume - Volume level (0-1)
+ */
+export function setMetronomeVolume(volume) {
+    if (!metronomeGain || metronomeGain.disposed) {
+        initMetronome();
+    }
+    
+    if (metronomeGain) {
+        metronomeGain.gain.value = Math.max(0, Math.min(1, volume));
+        console.log('[Audio setMetronomeVolume] Volume set to:', volume);
+    }
+}
+
+/**
+ * Gets the current metronome volume.
+ * @returns {number}
+ */
+export function getMetronomeVolume() {
+    return metronomeGain ? metronomeGain.gain.value : 0.5;
+}
+
+/**
+ * Disposes metronome resources.
+ */
+export function disposeMetronome() {
+    if (metronomeSynth && !metronomeSynth.disposed) {
+        metronomeSynth.dispose();
+        metronomeSynth = null;
+    }
+    if (metronomeGain && !metronomeGain.disposed) {
+        metronomeGain.dispose();
+        metronomeGain = null;
+    }
+    console.log('[Audio disposeMetronome] Metronome disposed.');
+}
+
 export function initializeAudioModule(appServicesFromMain) {
     localAppServices = appServicesFromMain;
     // MODIFICATION START: Debug to confirm function reference
@@ -1485,10 +1573,8 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
         if (localAppServices.showNotification) localAppServices.showNotification(userMessage, 6000);
 
         // Cleanup on error
-        if (mic) {
-            if (mic.state === "started") {
-                try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
-            }
+        if (mic && mic.state === "started") {
+            try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
         }
         mic = null;
         return false;
