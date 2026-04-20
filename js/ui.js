@@ -1771,7 +1771,9 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     
     // Row labels column (piano keys)
     html += `<div class="piano-keys" style="width: ${labelWidth}px; flex-shrink: 0; position: sticky; left: 0; z-index: 15; background: inherit;">`;
-    html += `<div style="height: 24px; background: #ddd; border-bottom: 1px solid #555;"></div>`; // Header spacer
+    html += `<div style="height: 24px; background: #ddd; border-bottom: 1px solid #555; display: flex; align-items: center; justify-content: center; gap: 4px;">`;
+    html += `<button id="scaleHintToggle-${track.id}" class="text-xs px-1.5 py-0.5 rounded ${localAppServices.getScaleHintEnabled?.() ? 'bg-green-500 text-white' : 'bg-gray-400 text-gray-800'}" title="Toggle Scale Hint Overlay">Scale</button>`;
+    html += `</div>`;
     for (let r = 0; r < rows; r++) {
         const pitchName = rowLabels[r] || `Row ${r + 1}`;
         const isBlack = pitchName.includes('#');
