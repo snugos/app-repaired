@@ -1,5 +1,27 @@
 // js/main.js - Main Application Logic Orchestrator
 
+// --- bgDb (IndexedDB for desktop backgrounds) ---
+let bgDb;
+const BG_DB_NAME = 'SnugOSBgDb';
+const BG_DB_VERSION = 1;
+const BG_STORE_NAME = 'backgrounds';
+const DESKTOP_BACKGROUND_KEY = 'snaw_custom_desktop_bg';
+const DESKTOP_BG_TYPE_KEY = 'snaw_custom_desktop_bg_type';
+
+function initBgDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(BG_DB_NAME, BG_DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { bgDb = request.result; resolve(); };
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(BG_STORE_NAME)) {
+                db.createObjectStore(BG_STORE_NAME);
+            }
+        };
+    });
+}
+
 // --- Module Imports ---
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
@@ -710,6 +732,74 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
         }
     } catch (e) {
         console.error("Error applying desktop background style:", e);
+    }
+}
+
+// Handle custom background upload from file input
+async function handleCustomBackgroundUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    
+    const isVideo = file.type.startsWith('video/');
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        const result = e.target.result;
+        
+        if (isVideo) {
+            try {
+                await bgDb.put('desktopVideo', file);
+                localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'video');
+                applyDesktopBackground(result, 'video');
+                showSafeNotification('Video background applied.', 3000);
+            } catch (dbError) {
+                console.error("[Main handleCustomBackgroundUpload] Failed to store video in IndexedDB:", dbError);
+                showSafeNotification('Failed to apply video background.', 3000);
+            }
+        } else {
+            localStorage.setItem(DESKTOP_BACKGROUND_KEY, result);
+            localStorage.setItem(DESKTOP_BG_TYPE_KEY, 'image');
+            applyDesktopBackground(result, 'image');
+            showSafeNotification('Image background applied.', 3000);
+        }
+        event.target.value = '';
+    };
+    
+    reader.onerror = () => {
+        console.error("[Main handleCustomBackgroundUpload] FileReader error.");
+        showSafeNotification('Failed to read background file.', 3000);
+    };
+    
+    if (isVideo) {
+        reader.readAsDataURL(file);
+    } else {
+        reader.readAsDataURL(file);
+    }
+}
+
+// Remove custom desktop background
+function removeCustomDesktopBackground() {
+    try {
+        localStorage.removeItem(DESKTOP_BACKGROUND_KEY);
+        localStorage.removeItem(DESKTOP_BG_TYPE_KEY);
+        bgDb.delete('desktopVideo').catch(err => console.warn("Error clearing video from bgDb:", err));
+        
+        const desktop = uiElementsCache.desktop;
+        const videoBg = document.getElementById('desktopVideoBg');
+        
+        if (desktop) {
+            desktop.style.backgroundImage = '';
+            desktop.style.backgroundColor = Constants.defaultDesktopBg || '#101010';
+        }
+        if (videoBg) {
+            videoBg.style.display = 'none';
+            videoBg.pause();
+            videoBg.src = '';
+        }
+        showSafeNotification('Custom background removed.', 3000);
+    } catch (e) {
+        console.error("[Main removeCustomDesktopBackground] Error:", e);
+        showSafeNotification('Failed to remove background.', 3000);
     }
 }
 
