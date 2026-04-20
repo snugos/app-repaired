@@ -746,6 +746,11 @@ function handleMIDIMessage(message) {
             const normalizedValue = ccValue / 127; // 0-1
             const channelNum = channel;
             
+            // Update CC visualizer
+            if (localAppServices.updateCcVisualizerValue) {
+                localAppServices.updateCcVisualizerValue(ccNumber, channelNum, normalizedValue);
+            }
+            
             // Record CC if recording is enabled
             if (localAppServices.getCcRecordingEnabled && localAppServices.getCcRecordingEnabled()) {
                 const recordingStartTime = localAppServices.getCcRecordingStartTime ? localAppServices.getCcRecordingStartTime() : 0;

@@ -442,7 +442,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -782,6 +782,10 @@ function updateMetersLoop() {
             const mixerMasterMeterBar = mixerWindow?.element && !mixerWindow.isMinimized ? mixerWindow.element.querySelector('#mixerMasterMeterBar') : null;
             const tracks = getTracksState ? getTracksState() : [];
             updateMeters(uiElementsCache.masterMeterBarGlobal, mixerMasterMeterBar, tracks);
+        }
+        // Update CC Visualizer bars
+        if (typeof updateCcVisualizerBars === 'function') {
+            updateCcVisualizerBars();
         }
         if (typeof updatePlayheadPosition === 'function') {
             updatePlayheadPosition();
