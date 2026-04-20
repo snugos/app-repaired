@@ -180,6 +180,7 @@ export function initializePrimaryEventListeners(appContext) {
             menuLoadProject: () => { console.log('[Menu] Load clicked'); services.loadProject?.(); },
             menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
             menuExportStems: () => { console.log('[Menu] Export Stems clicked'); services.showStemExportDialog?.(); },
+            menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); services.openExportPresetsPanel?.(); },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };

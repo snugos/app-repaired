@@ -1269,6 +1269,287 @@ export async function exportToWavInternal() {
 }
 
 // ============================================
+// EXPORT WITH SETTINGS (Preset-based export)
+// ============================================
+
+/**
+ * Exports the project using preset settings.
+ * @param {Object} settings - Export settings from preset
+ * @param {string} settings.format - Audio format (wav, mp3)
+ * @param {number} settings.sampleRate - Sample rate (44100, 48000, 96000)
+ * @param {number} settings.bitDepth - Bit depth (16, 24, 32)
+ * @param {boolean} settings.normalize - Whether to normalize output
+ * @param {boolean} settings.dither - Whether to apply dithering
+ * @param {number} settings.tailSeconds - Seconds of tail to add after last note
+ */
+export async function exportWithSettingsInternal(settings = {}) {
+    const defaults = {
+        format: 'wav',
+        sampleRate: 44100,
+        bitDepth: 24,
+        normalize: false,
+        dither: false,
+        tailSeconds: 2
+    };
+    
+    const config = { ...defaults, ...settings };
+    
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State exportWithSettingsInternal] Required appServices not available.");
+        alert("Export feature is currently unavailable due to an internal error.");
+        return;
+    }
+
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
+        config.format = 'wav';
+    }
+
+    appServices.showNotification("Preparing export...", 2000);
+    
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        // Calculate duration
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+        const tracks = getTracksState();
+
+        if (currentPlaybackMode === 'timeline') {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio' && track.timelineClips) {
+                    track.timelineClips.forEach(clip => {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                        }
+                    });
+                }
+            });
+        } else {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio') {
+                    const activeSeq = track.getActiveSequence();
+                    if (activeSeq?.length > 0) {
+                        const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                        maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                    }
+                }
+            });
+        }
+
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+            return;
+        }
+        
+        // Add configurable tail
+        maxDuration = Math.min(maxDuration + config.tailSeconds, 600);
+        console.log(`[State exportWithSettingsInternal] Export duration: ${maxDuration.toFixed(1)}s, Sample Rate: ${config.sampleRate}, Bit Depth: ${config.bitDepth}`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
+
+        // Use Tone.Recorder to record from master output
+        const recorder = new Tone.Recorder();
+        const masterGain = appServices.getActualMasterGainNode();
+        
+        if (!masterGain || masterGain.disposed) {
+            appServices.showNotification("Master output not available.", 3000);
+            return;
+        }
+        
+        // Connect master gain to recorder
+        masterGain.connect(recorder);
+        console.log("[Export] Recorder connected to master gain");
+
+        // Reset transport
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+        
+        // Schedule all tracks
+        for (const track of tracks) {
+            if (track?.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        console.log("[Export] Recording started");
+        
+        Tone.Transport.start();
+        console.log("[Export] Transport started");
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log("[Export] Recording stopped, size:", recording.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+
+        // Cleanup
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        if (!recording || recording.size < 1000) {
+            appServices.showNotification("Export failed: No audio recorded.", 3000);
+            console.error("[Export] Recording too small:", recording?.size);
+            return;
+        }
+
+        // Process the recording if normalization is requested
+        let finalBlob = recording;
+        if (config.normalize) {
+            appServices.showNotification("Normalizing audio...", 2000);
+            finalBlob = await normalizeAudioBlob(recording, -1); // Normalize to -1dB peak
+        }
+
+        // Download with settings info in filename
+        const url = URL.createObjectURL(finalBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", finalBlob.size);
+
+    } catch (error) {
+        console.error("[State exportWithSettingsInternal] Error:", error);
+        appServices.showNotification(`Export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+/**
+ * Normalizes an audio blob to a target dB level.
+ * @param {Blob} audioBlob - The audio blob to normalize
+ * @param {number} targetDb - Target peak level in dB (e.g., -1 for -1dB)
+ * @returns {Promise<Blob>} - Normalized audio blob
+ */
+async function normalizeAudioBlob(audioBlob, targetDb = -1) {
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Find peak amplitude
+        let peak = 0;
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < channelData.length; i++) {
+                const absValue = Math.abs(channelData[i]);
+                if (absValue > peak) peak = absValue;
+            }
+        }
+        
+        if (peak === 0) {
+            await audioContext.close();
+            return audioBlob; // Silent audio, return as-is
+        }
+        
+        // Calculate gain needed
+        const targetLinear = Math.pow(10, targetDb / 20);
+        const gain = targetLinear / peak;
+        
+        // Apply gain
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < channelData.length; i++) {
+                channelData[i] *= gain;
+            }
+        }
+        
+        // Convert back to WAV
+        const wavBlob = audioBufferToWav(audioBuffer);
+        await audioContext.close();
+        return wavBlob;
+        
+    } catch (error) {
+        console.error("[Normalize] Error:", error);
+        return audioBlob; // Return original on error
+    }
+}
+
+/**
+ * Converts an AudioBuffer to a WAV Blob.
+ */
+function audioBufferToWav(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    
+    const dataLength = audioBuffer.length * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+    
+    // Write WAV header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    // Write audio data
+    const offset = 44;
+    const channelData = [];
+    for (let i = 0; i < numChannels; i++) {
+        channelData.push(audioBuffer.getChannelData(i));
+    }
+    
+    for (let i = 0; i < audioBuffer.length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+            const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(offset + (i * numChannels + channel) * 2, intSample, true);
+        }
+    }
+    
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+/**
+ * Writes a string to a DataView at the specified offset.
+ */
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+// ============================================
 // STEM EXPORT - Export individual tracks
 // ============================================
 
@@ -1339,6 +1620,7 @@ export async function exportStemsInternal(trackIds = []) {
             return;
         }
         
+        // Add 2s tail for safety
         maxDuration = Math.min(maxDuration + 2, 600);
         console.log(`[State exportStemsInternal] Export duration: ${maxDuration.toFixed(1)}s for ${tracksToExport.length} stems`);
 
