@@ -7,6 +7,7 @@ import { createEffectInstance, getEffectDefaultParams as getEffectDefaultParamsF
 import {
     initAudioContextAndMasterMeter as audioInitAudioContextAndMasterMeter
 } from './audio.js';
+import { encodeSequenceToMidi } from './midiUtils.js';
 // import { getAudio, storeAudio } from './db.js'; // Not directly used in this file after refactor to Track class
 import { storeProjectState, getProjectState, deleteProjectState } from './db.js'; // For auto-save/crash recovery
 
@@ -1808,6 +1809,8 @@ export async function exportWithSettingsInternal(settings = {}) {
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const projectName = appServices.getProjectName ? appServices.getProjectName() : 'snugos-project';
+        const sanitizedName = projectName.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
         a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
         document.body.appendChild(a);
         a.click();
@@ -2199,6 +2202,198 @@ export async function showStemExportDialogInternal() {
             modalOverlay.remove();
         }
     });
+}
+
+/**
+ * Exports all tracks with sequence data to a MIDI file.
+ * Creates a multi-track MIDI file (Format 1) with one track per instrument track.
+ */
+export async function exportToMidiInternal() {
+    if (!appServices.showNotification) {
+        console.error("[State exportToMidiInternal] showNotification not available.");
+        return;
+    }
+
+    appServices.showNotification("Preparing MIDI export...", 2000);
+    
+    try {
+        const tracks = getTracksState();
+        const currentBPM = appServices.getMasterBpm ? appServices.getMasterBpm() : 120;
+        
+        // Filter tracks that have sequence data
+        const sequenceTracks = tracks.filter(track => 
+            track && 
+            track.type !== 'Audio' && 
+            track.sequences && 
+            track.sequences.length > 0 &&
+            track.activeSequenceId
+        );
+
+        if (sequenceTracks.length === 0) {
+            appServices.showNotification("No tracks with sequence data to export.", 3000);
+            return;
+        }
+
+        console.log(`[MIDI Export] Found ${sequenceTracks.length} tracks with sequences`);
+
+        // Build MIDI file with multiple tracks
+        const ticksPerBeat = 480;
+        const microsecondsPerBeat = Math.round(60000000 / currentBPM);
+        
+        // Collect all track data
+        const trackDataList = [];
+        
+        sequenceTracks.forEach((track, trackIndex) => {
+            const activeSeq = track.getActiveSequence();
+            if (!activeSeq || !activeSeq.data || activeSeq.data.length === 0) return;
+            
+            const sequenceData = activeSeq.data;
+            const sequenceLength = activeSeq.length || Constants.defaultStepsPerBar;
+            
+            // Collect note events for this track
+            const noteEvents = [];
+            const ticksPerStep = ticksPerBeat / 4; // 16th notes
+            
+            for (let step = 0; step < sequenceLength; step++) {
+                for (let row = 0; row < sequenceData.length; row++) {
+                    const cell = sequenceData[row][step];
+                    if (cell && cell.active) {
+                        const noteNum = row;
+                        const velocity = Math.round((cell.velocity || 0.7) * 127);
+                        const startTime = step * ticksPerStep;
+                        // Default note length is 1 step (16th note)
+                        const durationSteps = cell.duration || 1;
+                        const endTime = (step + durationSteps) * ticksPerStep;
+                        
+                        noteEvents.push({ time: startTime, note: noteNum, velocity: velocity, isOn: true, channel: trackIndex % 16 });
+                        noteEvents.push({ time: endTime, note: noteNum, velocity: 0, isOn: false, channel: trackIndex % 16 });
+                    }
+                }
+            }
+            
+            // Sort by time
+            noteEvents.sort((a, b) => {
+                if (a.time !== b.time) return a.time - b.time;
+                if (a.isOn !== b.isOn) return a.isOn ? 1 : -1;
+                return a.note - b.note;
+            });
+            
+            trackDataList.push({
+                name: track.name || `Track ${trackIndex + 1}`,
+                noteEvents: noteEvents,
+                channel: trackIndex % 16
+            });
+        });
+
+        if (trackDataList.length === 0) {
+            appServices.showNotification("No sequence data found to export.", 3000);
+            return;
+        }
+
+        // Helper function for variable length encoding
+        function writeVarLen(value) {
+            const bytes = [];
+            let v = value;
+            bytes.unshift(v & 0x7f);
+            while ((v >>= 7) > 0) {
+                bytes.unshift((v & 0x7f) | 0x80);
+            }
+            return bytes;
+        }
+
+        // Build MIDI file
+        const midiFile = [];
+        
+        // Header chunk (Format 1 - multiple tracks)
+        midiFile.push(0x4d, 0x54, 0x68, 0x64); // MThd
+        midiFile.push(0, 0, 0, 6); // Header length
+        midiFile.push(0, 1); // Format 1
+        const numTracks = trackDataList.length + 1; // +1 for tempo track
+        midiFile.push((numTracks >> 8) & 0xff, numTracks & 0xff); // Number of tracks
+        midiFile.push((ticksPerBeat >> 8) & 0xff, ticksPerBeat & 0xff); // Ticks per beat
+        
+        // Tempo track (track 0)
+        const tempoTrack = [];
+        // Set tempo
+        tempoTrack.push(0, 0xff, 0x51, 0x03,
+            (microsecondsPerBeat >> 16) & 0xff,
+            (microsecondsPerBeat >> 8) & 0xff,
+            microsecondsPerBeat & 0xff
+        );
+        // Time signature (4/4)
+        tempoTrack.push(0, 0xff, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
+        // End of track
+        tempoTrack.push(0, 0xff, 0x2f, 0x00);
+        
+        // Write tempo track
+        midiFile.push(0x4d, 0x54, 0x72, 0x6b); // MTrk
+        const tempoTrackLen = tempoTrack.length;
+        midiFile.push((tempoTrackLen >> 24) & 0xff, (tempoTrackLen >> 16) & 0xff, (tempoTrackLen >> 8) & 0xff, tempoTrackLen & 0xff);
+        midiFile.push(...tempoTrack);
+        
+        // Write each track
+        trackDataList.forEach((trackData, trackIndex) => {
+            const trackEvents = [];
+            
+            // Track name
+            const trackName = trackData.name.substring(0, 50);
+            const trackNameBytes = Array.from(trackName).map(c => c.charCodeAt(0));
+            trackEvents.push(0, 0xff, 0x03, trackNameBytes.length, ...trackNameBytes);
+            
+            // Program change (set to piano for synth tracks, drum kit for drum tracks)
+            const program = trackData.channel === 9 ? 0 : 0; // Channel 10 is drums (0-indexed = 9)
+            trackEvents.push(0, 0xc0 | trackData.channel, program);
+            
+            // Note events
+            let lastTime = 0;
+            trackData.noteEvents.forEach(event => {
+                const deltaTime = event.time - lastTime;
+                lastTime = event.time;
+                
+                const varLen = writeVarLen(deltaTime);
+                trackEvents.push(...varLen);
+                
+                if (event.isOn) {
+                    trackEvents.push(0x90 | event.channel, event.note, event.velocity);
+                } else {
+                    trackEvents.push(0x80 | event.channel, event.note, 0);
+                }
+            });
+            
+            // End of track
+            trackEvents.push(0, 0xff, 0x2f, 0x00);
+            
+            // Write track chunk
+            midiFile.push(0x4d, 0x54, 0x72, 0x6b); // MTrk
+            const trackLen = trackEvents.length;
+            midiFile.push((trackLen >> 24) & 0xff, (trackLen >> 16) & 0xff, (trackLen >> 8) & 0xff, trackLen & 0xff);
+            midiFile.push(...trackEvents);
+        });
+        
+        // Create blob and download
+        const midiData = new Uint8Array(midiFile);
+        const blob = new Blob([midiData], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        const projectName = appServices.getProjectName ? appServices.getProjectName() : 'snugos-project';
+        const sanitizedName = projectName.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${sanitizedName}-${timestamp}.mid`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        appServices.showNotification(`MIDI export complete! Exported ${trackDataList.length} track(s).`, 4000);
+        console.log(`[MIDI Export] Complete. Exported ${trackDataList.length} tracks.`);
+        
+    } catch (error) {
+        console.error("[State exportToMidiInternal] Error:", error);
+        appServices.showNotification(`MIDI export error: ${error.message}`, 5000);
+    }
 }
 
 
