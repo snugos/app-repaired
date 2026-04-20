@@ -97,7 +97,8 @@ import {
     openMarkersPanel,
     openTempoAutomationPanel,
     openChordMemoryPanel,
-    openTrackGroupsPanel
+    openTrackGroupsPanel,
+    openArpeggiatorPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -735,7 +736,8 @@ const appServices = {
     openMarkersPanel,
     openTempoAutomationPanel,
     openChordMemoryPanel,
-    openTrackGroupsPanel
+    openTrackGroupsPanel,
+    openArpeggiatorPanel
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

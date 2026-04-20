@@ -3516,6 +3516,62 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`Snap not available`, 1500);
                     }
                 }},
+                { separator: true },
+                { label: '🔁 Loop Mode', action: () => {} },
+                { label: '  Enable Loop', action: () => {
+                    if (typeof track.setClipLoopMode === 'function') {
+                        track.setClipLoopMode(clipId, true, 0, clipData.duration);
+                        showNotification(`Loop enabled for clip`, 1500);
+                    }
+                }},
+                { label: '  Disable Loop', action: () => {
+                    if (typeof track.setClipLoopMode === 'function') {
+                        track.setClipLoopMode(clipId, false);
+                        showNotification(`Loop disabled for clip`, 1500);
+                    }
+                }},
+                { label: '  Set Loop Region...', action: () => {
+                    const loopStart = prompt('Loop start (seconds from clip start):', '0');
+                    const loopEnd = prompt('Loop end (seconds from clip start):', String(clipData.duration));
+                    if (loopStart !== null && loopEnd !== null) {
+                        if (typeof track.setClipLoopMode === 'function') {
+                            track.setClipLoopMode(clipId, true, parseFloat(loopStart), parseFloat(loopEnd));
+                            showNotification(`Loop region set: ${loopStart}s - ${loopEnd}s`, 1500);
+                        }
+                    }
+                }},
+                { separator: true },
+                { label: '🔀 Crossfade', action: () => {} },
+                { label: '  Crossfade with Next Clip', action: () => {
+                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
+                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
+                    const nextClip = sortedClips[currentSortedIndex + 1];
+                    if (nextClip && typeof track.crossfadeClips === 'function') {
+                        track.crossfadeClips(clipId, nextClip.id, 0.5);
+                    } else {
+                        showNotification(`No adjacent clip found for crossfade`, 2000);
+                    }
+                }},
+                { label: '  Crossfade (0.25s)', action: () => {
+                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
+                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
+                    const nextClip = sortedClips[currentSortedIndex + 1];
+                    if (nextClip && typeof track.crossfadeClips === 'function') {
+                        track.crossfadeClips(clipId, nextClip.id, 0.25);
+                    } else {
+                        showNotification(`No adjacent clip found for crossfade`, 2000);
+                    }
+                }},
+                { label: '  Crossfade (1.0s)', action: () => {
+                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
+                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
+                    const nextClip = sortedClips[currentSortedIndex + 1];
+                    if (nextClip && typeof track.crossfadeClips === 'function') {
+                        track.crossfadeClips(clipId, nextClip.id, 1.0);
+                    } else {
+                        showNotification(`No adjacent clip found for crossfade`, 2000);
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);
@@ -5621,6 +5677,145 @@ export function updateChordMemoryPanel() {
         renderChordMemoryContent();
     }
 }
+
+// ==========================================
+// ARPEGGIATOR PANEL
+// ==========================================
+
+/**
+ * Opens the Arpeggiator panel for the selected track.
+ */
+export function openArpeggiatorPanel(trackId) {
+    const tracks = localAppServices.getTracks?.() || [];
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track || track.type === 'Audio') {
+        localAppServices.showNotification?.('Select an instrument track for arpeggiator', 2000);
+        return;
+    }
+    
+    const win = localAppServices.createWindow?.(
+        `arpeggiator_${trackId}`,
+        `Arpeggiator - ${track.name}`,
+        '<div id="arpeggiatorContent" style="padding: 12px; color: #e5e5e5;"></div>',
+        { width: 400, height: 450, x: 350, y: 200 }
+    );
+    
+    if (win) {
+        setTimeout(() => renderArpeggiatorContent(trackId), 50);
+    }
+}
+
+/**
+ * Renders the arpeggiator panel content.
+ */
+function renderArpeggiatorContent(trackId) {
+    const container = document.getElementById('arpeggiatorContent');
+    if (!container) return;
+    
+    const tracks = localAppServices.getTracks?.() || [];
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+    
+    const settings = track.getArpeggiatorSettings?.() || { enabled: false, mode: 'up', octaves: 1, rate: '16n', gate: 0.8 };
+    
+    const modeOptions = ['up', 'down', 'updown', 'random', 'chord'].map(m => 
+        `<option value="${m}" ${settings.mode === m ? 'selected' : ''}>${m.charAt(0).toUpperCase() + m.slice(1)}</option>`
+    ).join('');
+    
+    const rateOptions = ['4n', '8n', '16n', '32n'].map(r => 
+        `<option value="${r}" ${settings.rate === r ? 'selected' : ''}>${r}</option>`
+    ).join('');
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="arpEnabled" ${settings.enabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                    <span style="font-weight: bold;">Enable Arpeggiator</span>
+                </label>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Mode</label>
+            <select id="arpMode" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                ${modeOptions}
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Octaves</label>
+                <input type="range" id="arpOctaves" min="1" max="4" value="${settings.octaves}" style="width: 100%;" 
+                    oninput="document.getElementById('arpOctavesVal').textContent = this.value">
+                <span id="arpOctavesVal" style="font-size: 12px; color: #888;">${settings.octaves}</span>
+            </div>
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Gate</label>
+                <input type="range" id="arpGate" min="0.1" max="1" step="0.05" value="${settings.gate}" style="width: 100%;" 
+                    oninput="document.getElementById('arpGateVal').textContent = this.value">
+                <span id="arpGateVal" style="font-size: 12px; color: #888;">${settings.gate}</span>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Rate</label>
+            <select id="arpRate" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                ${rateOptions}
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="arpHold" ${settings.hold ? 'checked' : ''} style="width: 16px; height: 16px;">
+                <span style="font-size: 13px;">Hold (Latch mode)</span>
+            </label>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-top: 20px;">
+            <button id="applyArpSettings" class="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Apply Settings</button>
+            <button id="testArpBtn" class="px-4 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">Test (Play C Major)</button>
+        </div>
+    `;
+    
+    const applyBtn = container.querySelector('#applyArpSettings');
+    applyBtn?.addEventListener('click', () => {
+        const newSettings = {
+            enabled: container.querySelector('#arpEnabled').checked,
+            mode: container.querySelector('#arpMode').value,
+            octaves: parseInt(container.querySelector('#arpOctaves').value),
+            rate: container.querySelector('#arpRate').value,
+            gate: parseFloat(container.querySelector('#arpGate').value),
+            hold: container.querySelector('#arpHold').checked
+        };
+        if (typeof track.setArpeggiatorSettings === 'function') {
+            track.setArpeggiatorSettings(newSettings);
+            localAppServices.showNotification?.('Arpeggiator settings applied', 1500);
+        }
+    });
+    
+    const testBtn = container.querySelector('#testArpBtn');
+    testBtn?.addEventListener('click', () => {
+        const testNotes = [60, 64, 67];
+        if (settings.enabled || container.querySelector('#arpEnabled').checked) {
+            if (!settings.enabled) track.setArpeggiatorSettings?.({ enabled: true });
+            testNotes.forEach(pitch => track.arpeggiatorNoteOn?.(pitch, 0.8));
+            setTimeout(() => {
+                testNotes.forEach(pitch => track.arpeggiatorNoteOff?.(pitch));
+                localAppServices.showNotification?.('Arpeggiator test complete', 1500);
+            }, 2000);
+        } else {
+            localAppServices.showNotification?.('Enable arpeggiator first', 1500);
+        }
+    });
+}
+
+export function updateArpeggiatorPanel(trackId) {
+    const container = document.getElementById('arpeggiatorContent');
+    if (container) renderArpeggiatorContent(trackId);
+}
+
 
 // ==========================================
 // TRACK GROUPS PANEL

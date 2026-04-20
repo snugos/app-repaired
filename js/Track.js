@@ -1734,7 +1734,7 @@ export class Track {
             return null;
         }
 
-        const sectionData = [];
+        let sectionData = [];
         for (let rowIndex = 0; rowIndex < activeSeq.data.length; rowIndex++) {
             const row = activeSeq.data[rowIndex];
             if (!row) continue;
@@ -2326,7 +2326,7 @@ export class Track {
     /**
      * Get fade values for a clip.
      * @param {string} clipId - The clip ID
-     * @returns {{fadeIn: number, fadeOut: number}|null}
+     * @returns {Object} Fade settings {fadeIn, fadeOut}
      */
     getClipFade(clipId) {
         const clip = this.timelineClips.find(c => c.id === clipId);
@@ -3108,6 +3108,325 @@ export class Track {
             frozen: this.frozen,
             frozenAudioDbKey: this.frozenAudioDbKey,
             frozenDuration: this.frozenDuration
+        };
+    }
+
+    // --- Clip Loop Mode ---
+    /**
+     * Set loop mode for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {boolean} enabled - Whether looping is enabled
+     * @param {number} loopStart - Loop start point relative to clip start (seconds)
+     * @param {number} loopEnd - Loop end point relative to clip start (seconds)
+     * @returns {boolean} True if successful
+     */
+    setClipLoopMode(clipId, enabled, loopStart = 0, loopEnd = 0) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found for loop mode.`);
+            return false;
+        }
+
+        clip.loopEnabled = Boolean(enabled);
+        clip.loopStart = Math.max(0, parseFloat(loopStart) || 0);
+        clip.loopEnd = Math.min(clip.duration, parseFloat(loopEnd) || clip.duration);
+
+        console.log(`[Track ${this.id}] Set clip "${clip.name}" loop mode: ${clip.loopEnabled}, ${clip.loopStart}s - ${clip.loopEnd}s`);
+        this._captureUndoState(`Set loop mode for ${clip.name}`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        return true;
+    }
+
+    /**
+     * Get loop mode settings for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @returns {Object} Loop settings {enabled, loopStart, loopEnd}
+     */
+    getClipLoopMode(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) return { enabled: false, loopStart: 0, loopEnd: 0 };
+        return {
+            enabled: clip.loopEnabled || false,
+            loopStart: clip.loopStart || 0,
+            loopEnd: clip.loopEnd || clip.duration || 0
+        };
+    }
+
+    // --- Crossfade Between Clips ---
+    /**
+     * Create a crossfade between two overlapping audio clips.
+     * @param {string} clipId1 - First clip ID (fades out)
+     * @param {string} clipId2 - Second clip ID (fades in)
+     * @param {number} crossfadeDuration - Duration of crossfade in seconds
+     * @returns {boolean} True if successful
+     */
+    crossfadeClips(clipId1, clipId2, crossfadeDuration = 0.5) {
+        const clip1 = this.timelineClips.find(c => c.id === clipId1);
+        const clip2 = this.timelineClips.find(c => c.id === clipId2);
+
+        if (!clip1 || !clip2) {
+            console.warn(`[Track ${this.id}] One or both clips not found for crossfade.`);
+            return false;
+        }
+
+        // Check if clips overlap or are adjacent
+        const clip1End = clip1.startTime + clip1.duration;
+        const clip2Start = clip2.startTime;
+
+        if (clip2Start > clip1End + crossfadeDuration) {
+            console.warn(`[Track ${this.id}] Clips do not overlap or are too far apart for crossfade.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification('Clips must overlap or be adjacent for crossfade.', 2000);
+            }
+            return false;
+        }
+
+        const fadeDuration = Math.max(0.05, Math.min(crossfadeDuration, clip1.duration, clip2.duration));
+
+        // Set fade out on clip 1 (fade out from end)
+        clip1.fadeOut = fadeDuration;
+
+        // Set fade in on clip 2 (fade in from start)
+        clip2.fadeIn = fadeDuration;
+
+        console.log(`[Track ${this.id}] Crossfade applied: ${fadeDuration}s between "${clip1.name}" and "${clip2.name}"`);
+        this._captureUndoState(`Crossfade clips ${clip1.name} and ${clip2.name}`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Crossfade applied (${fadeDuration}s)`, 1500);
+        }
+        return true;
+    }
+
+    // --- Arpeggiator ---
+    /**
+     * Initialize arpeggiator for this track.
+     * @param {Object} options - Arpeggiator settings
+     */
+    initArpeggiator(options = {}) {
+        this.arpeggiatorSettings = {
+            enabled: options.enabled || false,
+            mode: options.mode || 'up', // up, down, updown, random, chord
+            octaves: options.octaves || 1,
+            rate: options.rate || '16n', // 4n, 8n, 16n, 32n
+            gate: options.gate || 0.8, // 0-1, how much of each step is sounded
+            hold: options.hold || false, // whether held notes continue
+            ...this.arpeggiatorSettings
+        };
+        this.arpeggiatorHeldNotes = new Map(); // pitch -> velocity
+        this.arpeggiatorCurrentIndex = 0;
+        this.arpeggiatorDirection = 1; // 1 for up, -1 for down
+        this.arpeggiatorInterval = null;
+        console.log(`[Track ${this.id}] Arpeggiator initialized:`, this.arpeggiatorSettings);
+    }
+
+    /**
+     * Set arpeggiator settings.
+     * @param {Object} settings - Arpeggiator settings
+     */
+    setArpeggiatorSettings(settings) {
+        if (!this.arpeggiatorSettings) this.initArpeggiator();
+        this.arpeggiatorSettings = { ...this.arpeggiatorSettings, ...settings };
+        console.log(`[Track ${this.id}] Arpeggiator settings updated:`, this.arpeggiatorSettings);
+    }
+
+    /**
+     * Get arpeggiator settings.
+     * @returns {Object} Arpeggiator settings
+     */
+    getArpeggiatorSettings() {
+        return this.arpeggiatorSettings || { enabled: false, mode: 'up', octaves: 1, rate: '16n', gate: 0.8 };
+    }
+
+    /**
+     * Start arpeggiating held notes.
+     */
+    startArpeggiator() {
+        if (!this.arpeggiatorSettings?.enabled) return;
+        if (this.arpeggiatorInterval) return; // Already running
+
+        const rateToMs = (rate) => {
+            const bpm = this.appServices.getBPM ? this.appServices.getBPM() : 120;
+            const quarterNoteMs = 60000 / bpm;
+            const rateMap = { '4n': 1, '8n': 0.5, '16n': 0.25, '32n': 0.125 };
+            return quarterNoteMs * (rateMap[rate] || 0.25);
+        };
+
+        const intervalMs = rateToMs(this.arpeggiatorSettings.rate);
+
+        this.arpeggiatorInterval = setInterval(() => {
+            this._arpeggiateStep();
+        }, intervalMs);
+
+        console.log(`[Track ${this.id}] Arpeggiator started at ${this.arpeggiatorSettings.rate}`);
+    }
+
+    /**
+     * Stop arpeggiator.
+     */
+    stopArpeggiator() {
+        if (this.arpeggiatorInterval) {
+            clearInterval(this.arpeggiatorInterval);
+            this.arpeggiatorInterval = null;
+        }
+        this.arpeggiatorCurrentIndex = 0;
+        this.arpeggiatorDirection = 1;
+        console.log(`[Track ${this.id}] Arpeggiator stopped`);
+    }
+
+    /**
+     * Add a note to the arpeggiator's held notes.
+     * @param {number} pitch - MIDI pitch
+     * @param {number} velocity - Velocity (0-1)
+     */
+    arpeggiatorNoteOn(pitch, velocity = 0.8) {
+        if (!this.arpeggiatorSettings?.enabled) return;
+        if (!this.arpeggiatorHeldNotes) this.arpeggiatorHeldNotes = new Map();
+        this.arpeggiatorHeldNotes.set(pitch, velocity);
+        if (!this.arpeggiatorInterval) this.startArpeggiator();
+    }
+
+    /**
+     * Remove a note from the arpeggiator's held notes.
+     * @param {number} pitch - MIDI pitch
+     */
+    arpeggiatorNoteOff(pitch) {
+        if (!this.arpeggiatorHeldNotes) return;
+        this.arpeggiatorHeldNotes.delete(pitch);
+        if (this.arpeggiatorHeldNotes.size === 0 && !this.arpeggiatorSettings?.hold) {
+            this.stopArpeggiator();
+        }
+    }
+
+    /**
+     * Internal: Execute one step of the arpeggiator.
+     */
+    _arpeggiateStep() {
+        if (!this.arpeggiatorHeldNotes || this.arpeggiatorHeldNotes.size === 0) return;
+
+        const notes = Array.from(this.arpeggiatorHeldNotes.entries()).sort((a, b) => a[0] - b[0]);
+        if (notes.length === 0) return;
+
+        // Expand for octaves
+        const expandedNotes = [];
+        const octaves = this.arpeggiatorSettings?.octaves || 1;
+        for (let oct = 0; oct < octaves; oct++) {
+            for (const [pitch, velocity] of notes) {
+                expandedNotes.push([pitch + (oct * 12), velocity]);
+            }
+        }
+
+        let targetNote;
+        const mode = this.arpeggiatorSettings?.mode || 'up';
+
+        if (mode === 'up') {
+            targetNote = expandedNotes[this.arpeggiatorCurrentIndex % expandedNotes.length];
+            this.arpeggiatorCurrentIndex = (this.arpeggiatorCurrentIndex + 1) % expandedNotes.length;
+        } else if (mode === 'down') {
+            targetNote = expandedNotes[expandedNotes.length - 1 - (this.arpeggiatorCurrentIndex % expandedNotes.length)];
+            this.arpeggiatorCurrentIndex = (this.arpeggiatorCurrentIndex + 1) % expandedNotes.length;
+        } else if (mode === 'updown') {
+            targetNote = expandedNotes[this.arpeggiatorCurrentIndex];
+            this.arpeggiatorCurrentIndex += this.arpeggiatorDirection;
+            if (this.arpeggiatorCurrentIndex >= expandedNotes.length - 1) {
+                this.arpeggiatorDirection = -1;
+            } else if (this.arpeggiatorCurrentIndex <= 0) {
+                this.arpeggiatorDirection = 1;
+            }
+        } else if (mode === 'random') {
+            targetNote = expandedNotes[Math.floor(Math.random() * expandedNotes.length)];
+        } else if (mode === 'chord') {
+            // Play all held notes simultaneously
+            const now = Tone.now();
+            const gate = this.arpeggiatorSettings?.gate || 0.8;
+            const rateToSec = (rate) => {
+                const bpm = this.appServices.getBPM ? this.appServices.getBPM() : 120;
+                const quarterNoteSec = 60 / bpm;
+                const rateMap = { '4n': 1, '8n': 0.5, '16n': 0.25, '32n': 0.125 };
+                return quarterNoteSec * (rateMap[rate] || 0.25);
+            };
+            const duration = rateToSec(this.arpeggiatorSettings?.rate) * gate;
+            expandedNotes.forEach(([pitch, velocity]) => {
+                this.playNote(pitch, now, duration, velocity);
+            });
+            return;
+        }
+
+        if (targetNote) {
+            const [pitch, velocity] = targetNote;
+            const now = Tone.now();
+            const gate = this.arpeggiatorSettings?.gate || 0.8;
+            const rateToSec = (rate) => {
+                const bpm = this.appServices.getBPM ? this.appServices.getBPM() : 120;
+                const quarterNoteSec = 60 / bpm;
+                const rateMap = { '4n': 1, '8n': 0.5, '16n': 0.25, '32n': 0.125 };
+                return quarterNoteSec * (rateMap[rate] || 0.25);
+            };
+            const duration = rateToSec(this.arpeggiatorSettings?.rate) * gate;
+            this.playNote(pitch, now, duration, velocity);
+        }
+    }
+
+    // --- Chord Detection ---
+    /**
+     * Detect chord name from a set of pitches.
+     * @param {Array<number>} pitches - Array of MIDI pitch numbers
+     * @returns {Object} {name, type, root, notes}
+     */
+    static detectChord(pitches) {
+        if (!pitches || pitches.length === 0) return { name: 'N/A', type: 'unknown', root: null, notes: [] };
+
+        // Sort and normalize pitches to pitch classes (0-11)
+        const pitchClasses = [...new Set(pitches.map(p => Math.round(p) % 12))].sort((a, b) => a - b);
+
+        if (pitchClasses.length === 1) {
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            return { name: noteNames[pitchClasses[0]], type: 'note', root: pitchClasses[0], notes: [pitches[0]] };
+        }
+
+        // Chord intervals (relative to root)
+        const chordTypes = {
+            'major': [0, 4, 7],
+            'minor': [0, 3, 7],
+            'dim': [0, 3, 6],
+            'aug': [0, 4, 8],
+            'maj7': [0, 4, 7, 11],
+            'min7': [0, 3, 7, 10],
+            'dom7': [0, 4, 7, 10],
+            'dim7': [0, 3, 6, 9],
+            'sus2': [0, 2, 7],
+            'sus4': [0, 5, 7],
+            'add9': [0, 4, 7, 14],
+            'min9': [0, 3, 7, 10, 14],
+            'maj9': [0, 4, 7, 11, 14]
+        };
+
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // Try each pitch class as root
+        for (const root of pitchClasses) {
+            const intervals = pitchClasses.map(pc => (pc - root + 12) % 12).sort((a, b) => a - b);
+
+            for (const [type, pattern] of Object.entries(chordTypes)) {
+                const normalizedPattern = pattern.map(i => i % 12).sort((a, b) => a - b);
+                if (JSON.stringify(intervals) === JSON.stringify(normalizedPattern)) {
+                    return {
+                        name: `${noteNames[root]} ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+                        type: type,
+                        root: root,
+                        notes: pitches
+                    };
+                }
+            }
+        }
+
+        // No match found - return generic name
+        const lowest = pitchClasses[0];
+        return {
+            name: `${noteNames[lowest]} (unknown)`,
+            type: 'unknown',
+            root: lowest,
+            notes: pitches
         };
     }
 
