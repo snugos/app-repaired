@@ -185,6 +185,19 @@
 - [x] Add sidechain properties and methods to Track class
 - [x] Wire all functions in main.js appServices
 
+### Feature 15: Audio Clip Fade In/Out - ✅ COMPLETED
+**File:** `js/ui.js`, `js/Track.js`
+**Status:** ✅ COMPLETED
+**What's New:** Right-click audio clips on timeline to set fade in/out curves
+**Implementation Plan:**
+- [x] Add `setClipFade(clipId, fadeIn, fadeOut)` method to Track class
+- [x] Add `getClipFade(clipId)` method to Track class
+- [x] Add fade in/out context menu options for timeline audio clips
+- [x] Pre-defined fade durations: 0.1s, 0.25s, 0.5s, 1.0s
+- [x] Clear fade options to remove fades
+- [x] Show current fade values in menu labels
+- [x] Delete clip option in context menu
+
 ---
 
 ## 🟢 Low Priority - Nice-to-Have
@@ -288,6 +301,34 @@
 9. **Waveform Visualization** - Draw waveform on audio clips ✅ COMPLETED
 10. **Track Color Coding** - Assign colors to tracks for visual grouping ✅ COMPLETED
 11. **MIDI Learn / Mapping** - Map MIDI CC to parameters ✅ COMPLETED
+12. **Bounce to Audio** - Render a track's output to an audio file ✅ COMPLETED
+13. **Audio Clip Fade In/Out** - Add fade curves to audio clips on timeline ✅ COMPLETED
+
+## When Queue is Empty - New Feature Ideas
+
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+
+Generate 10 NEW feature ideas that are:
+1. Achievable in a single session
+2. Complement existing features
+3. Enhance creative workflow
+
+New Feature Queue:
+1. **Metronome Toggle** - Click track to enable/disable metronome during playback
+2. **Loop Region** - Set a loop region in the timeline for repeated playback
+3. **Track Duplicate** - Right-click track to duplicate it with all settings
+4. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
+5. **Effect Bypass Toggle** - Quick bypass button for each effect
+6. **Project Export Presets** - Save/load project export configurations
+7. **Audio Normalization** - Auto-normalize recorded or imported audio
+8. **Tempo Ramps** - Automation lane for tempo changes over time
+9. **Marker System** - Add named markers on timeline for navigation
+10. **Audio Stretching** - Adjust audio clip tempo without changing pitch
 
 ---
 
