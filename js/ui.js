@@ -3371,6 +3371,72 @@ function setupTimelineEventListeners(content, tracks) {
                     }
                 }},
                 { separator: true },
+                { label: 'Transpose', action: () => {} },
+                { label: '  +12 (Octave Up)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift + 12);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed +12 semitones`, 1500);
+                    }
+                }},
+                { label: '  +5 (Perfect Fifth)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift + 5);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed +5 semitones`, 1500);
+                    }
+                }},
+                { label: '  +2 (Whole Step)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift + 2);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed +2 semitones`, 1500);
+                    }
+                }},
+                { label: '  -2 (Whole Step Down)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift - 2);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed -2 semitones`, 1500);
+                    }
+                }},
+                { label: '  -5 (Perfect Fourth)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift - 5);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed -5 semitones`, 1500);
+                    }
+                }},
+                { label: '  -12 (Octave Down)', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        const currentShift = clipData.pitchShift || 0;
+                        track.setClipPitchShift(clipId, currentShift - 12);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Transposed -12 semitones`, 1500);
+                    }
+                }},
+                { label: '  Reset to 0', action: () => {
+                    if (typeof track.setClipPitchShift === 'function') {
+                        track.setClipPitchShift(clipId, 0);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Pitch reset to 0 semitones`, 1500);
+                    }
+                }},
+                { separator: true },
+                { label: 'Split at Playhead', action: () => {
+                    if (typeof track.splitClipAtPlayhead === 'function') {
+                        const playheadPos = Tone.Transport.seconds;
+                        track.splitClipAtPlayhead(clipId, playheadPos);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Clip split at playhead`, 1500);
+                    }
+                }},
+                { separator: true },
                 { label: 'Playback Speed', action: () => {} },
                 { label: '  0.5x (Half)', action: () => {
                     if (typeof track.setPlaybackRate === 'function') {

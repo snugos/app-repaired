@@ -1550,7 +1550,7 @@ export class Track {
         clip.startTime = snappedStartTime;
         clip.duration = newDuration;
 
-        console.log(`[Track ${this.id}] Quantized clip "${clip.name}" to ${resolution} grid. Start: ${originalStartTime.toFixed(3)}s → ${snappedStartTime.toFixed(3)}s, Duration: ${originalDuration.toFixed(3)}s → ${newDuration.toFixed(3)}s`);
+        console.log(`[Track ${this.id}] Quantized clip "${clip.name}" to ${resolution} grid. Start: ${originalStartTime.toFixed(2)}s → ${snappedStartTime.toFixed(3)}s, Duration: ${originalDuration.toFixed(3)}s → ${newDuration.toFixed(3)}s`);
 
         // Update timeline UI
         if (this.appServices.renderTimeline) {
@@ -1871,9 +1871,13 @@ export class Track {
                     if (!clip.sourceId) { console.warn(`[Track ${this.id}] Audio clip ${clip.id} has no sourceId.`); continue; }
                     console.log(`[Track ${this.id}] Timeline: Scheduling AUDIO clip "${clip.name}" (ID: ${clip.id}) at ${effectivePlayStart.toFixed(2)}s for ${playDurationInWindow.toFixed(2)}s (offset ${offsetIntoSource.toFixed(2)}s)`);
                     const player = new Tone.Player();
-                    if (this.timelinePlaybackRate !== 1.0) {
-                        player.playbackRate = this.timelinePlaybackRate;
-                        console.log(`[Track ${this.id}] Set playback rate ${this.timelinePlaybackRate}x for clip ${clip.id}`);
+                    
+                    // Calculate effective playback rate: track rate × pitch shift rate
+                    const pitchShiftRate = clip.pitchShift ? Math.pow(2, clip.pitchShift / 12) : 1.0;
+                    const effectiveRate = this.timelinePlaybackRate * pitchShiftRate;
+                    if (effectiveRate !== 1.0) {
+                        player.playbackRate = effectiveRate;
+                        console.log(`[Track ${this.id}] Set playback rate ${effectiveRate}x for clip ${clip.id} (track: ${this.timelinePlaybackRate}x, pitch: ${clip.pitchShift || 0} st)`);
                     }
                     this.clipPlayers.set(clip.id, player);
                     try {
@@ -2425,6 +2429,105 @@ export class Track {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Set pitch shift for an audio clip in semitones.
+     * @param {string} clipId - The clip ID
+     * @param {number} semitones - Pitch shift in semitones (positive = up, negative = down)
+     */
+    setClipPitchShift(clipId, semitones) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found for pitch shift.`);
+            return false;
+        }
+        
+        const oldShift = clip.pitchShift || 0;
+        const newShift = Math.max(-24, Math.min(24, parseFloat(semitones) || 0));
+        
+        if (oldShift === newShift) return true;
+        
+        clip.pitchShift = newShift;
+        console.log(`[Track ${this.id}] Set clip \"${clip.name}\" pitch shift: ${oldShift} → ${newShift} semitones`);
+        this._captureUndoState(`Set clip pitch shift for ${clip.name} to ${newShift} semitones`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        return true;
+    }
+
+    /**
+     * Get pitch shift for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @returns {number} Pitch shift in semitones
+     */
+    getClipPitchShift(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        return clip?.pitchShift || 0;
+    }
+
+    /**
+     * Split an audio clip at a given time.
+     * Creates two clips from one, with the second starting at the split point.
+     * @param {string} clipId - The clip ID to split
+     * @param {number} splitTime - Time in seconds (absolute, not relative to clip)
+     * @returns {Object|null} The new clip object, or null if split failed
+     */
+    splitClipAtPlayhead(clipId, splitTime) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found for split.`);
+            return null;
+        }
+
+        const clipStart = clip.startTime;
+        const clipEnd = clip.startTime + clip.duration;
+        const splitPoint = Math.max(clipStart, Math.min(clipEnd, parseFloat(splitTime) || clipStart));
+
+        // Need at least 0.05s on each side to create a valid split
+        if (splitPoint - clipStart < 0.05 || clipEnd - splitPoint < 0.05) {
+            console.warn(`[Track ${this.id}] Split point too close to clip edge.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification('Cannot split: resulting clips would be too short.', 2000);
+            }
+            return null;
+        }
+
+        const clip1Duration = splitPoint - clipStart;
+        const clip2Duration = clipEnd - splitPoint;
+        const clip2StartTime = splitPoint;
+
+        // Create second clip (right portion)
+        const newClipId = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const newClip = {
+            id: newClipId,
+            type: clip.type,
+            sourceId: clip.sourceId, // Same audio source
+            startTime: clip2StartTime,
+            duration: clip2Duration,
+            name: `${clip.name} (2)`,
+            fadeIn: clip.fadeIn || 0,
+            fadeOut: clip.fadeOut || 0,
+            pitchShift: clip.pitchShift || 0,
+            gainEnvelope: clip.gainEnvelope ? JSON.parse(JSON.stringify(clip.gainEnvelope)) : undefined,
+            // Copy over any other clip properties as needed
+        };
+
+        // Modify first clip (left portion)
+        clip.duration = clip1Duration;
+        clip.name = `${clip.name} (1)`;
+        // Transfer fade out to the first clip's end
+        if (clip.fadeOut && clip.fadeOut > 0) {
+            // The original fade out now applies to the first clip's end
+        }
+
+        // Add new clip to timeline
+        this.timelineClips.push(newClip);
+        this.timelineClips.sort((a, b) => a.startTime - b.startTime);
+
+        console.log(`[Track ${this.id}] Split clip \"${clip.name}\" at ${splitPoint.toFixed(2)}s → \"${clip.name}\" (${clip1Duration.toFixed(2)}s) + \"${newClip.name}\" (${clip2Duration.toFixed(2)}s)`);
+        this._captureUndoState(`Split clip \"${clip.name}\" at playhead`);
+
+        return newClip;
     }
 
     /**
