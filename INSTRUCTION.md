@@ -6,14 +6,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 1. **Scale Hint Overlay** - Show scale notes highlighted on piano roll/sequencer ✅ COMPLETED
 2. **Tempo Tap Button** - Tap rhythmically to set tempo ✅ COMPLETED
-3. **Track Grouping** - Group tracks for collective mute/solo/volume control
-4. **Clip Fade Handles** - Drag handles on timeline clips to adjust fades visually
-5. **MIDI File Export** - Export sequencer patterns as .mid files
-6. **Drum Pattern Templates** - Save/load drum patterns as templates
+3. **Track Grouping** - Group tracks for collective mute/solo/volume control ✅ COMPLETED
+4. **Track Solo Exclusive** - Shift+click solo to solo only that track ✅ COMPLETED
+5. **Clip Fade Handles** - Drag handles on timeline clips to adjust fades visually
+6. **MIDI File Export** - Export sequencer patterns as .mid files
 7. **Sample Browser Favorites** - Mark sounds as favorites for quick access
 8. **CPU Meter** - Show current CPU usage indicator
-9. **Track Solo Exclusive** - Shift+click solo to solo only that track
-10. **Audio Quality Selection** - Choose recording quality (128/256/320 kbps)
+9. **Audio Quality Selection** - Choose recording quality (128/256/320 kbps)
+10. **Loop Region** - Set a loop region in the timeline for repeated playback
 
 ## Workflow
 
