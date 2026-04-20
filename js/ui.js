@@ -4903,3 +4903,239 @@ export function updateChordMemoryPanel() {
         renderChordMemoryContent();
     }
 }
+
+// ==========================================
+// TRACK GROUPS PANEL
+// ==========================================
+
+/**
+ * Opens the Track Groups panel for managing track groupings.
+ */
+export function openTrackGroupsPanel(savedState = null) {
+    const windowId = 'trackGroups';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateTrackGroupsPanelContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'trackGroupsContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 500, 
+        height: 450, 
+        minWidth: 400, 
+        minHeight: 300,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Track Groups', contentContainer, options);
+    
+    if (win?.element) {
+        renderTrackGroupsContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the track groups content.
+ */
+function renderTrackGroupsContent() {
+    const container = document.getElementById('trackGroupsContent');
+    if (!container) return;
+
+    const groups = localAppServices.getTrackGroups ? localAppServices.getTrackGroups() : [];
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    
+    let html = `
+        <div class="mb-3 flex justify-between items-center">
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+                ${groups.length} group${groups.length !== 1 ? 's' : ''}
+            </span>
+            <button id="addTrackGroupBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                + Create Group
+            </button>
+        </div>
+        
+        <div class="mb-3 p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                Track groups let you control multiple tracks together. Adjust volume, mute, or solo entire groups at once.
+            </div>
+        </div>
+    `;
+    
+    if (groups.length === 0) {
+        html += `
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No track groups created.</p>
+                <p class="text-xs mt-2">Click "Create Group" to organize your tracks.</p>
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-3">`;
+        
+        groups.forEach(group => {
+            const groupTracks = group.trackIds.map(id => tracks.find(t => t.id === id)).filter(Boolean);
+            
+            html += `
+                <div class="p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 track-group-item" data-id="${group.id}" style="border-left: 4px solid ${group.color}">
+                    <div class="flex items-center justify-between mb-2">
+                        <input type="text" class="group-name-input p-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200 font-medium w-40"
+                            value="${group.name}" data-id="${group.id}" placeholder="Group name">
+                        <div class="flex items-center gap-2">
+                            <input type="color" class="group-color-input w-6 h-6 rounded cursor-pointer" 
+                                value="${group.color}" data-id="${group.id}" title="Group color">
+                            <button class="delete-group-btn px-2 py-1 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" data-id="${group.id}">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="flex items-center gap-1">
+                            <label class="text-xs text-gray-400 dark:text-gray-500">Vol</label>
+                            <input type="range" class="group-volume-slider w-24" min="0" max="1" step="0.01" 
+                                value="${group.volume}" data-id="${group.id}">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-mono w-10">${Math.round(group.volume * 100)}%</span>
+                        </div>
+                        <button class="group-mute-btn px-2 py-1 text-xs rounded ${group.muted ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}" data-id="${group.id}">
+                            ${group.muted ? 'Muted' : 'Mute'}
+                        </button>
+                        <button class="group-solo-btn px-2 py-1 text-xs rounded ${group.solo ? 'bg-yellow-500 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}" data-id="${group.id}">
+                            ${group.solo ? 'Solo' : 'Solo'}
+                        </button>
+                    </div>
+                    
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        ${groupTracks.length} track${groupTracks.length !== 1 ? 's' : ''}: ${groupTracks.length > 0 ? groupTracks.map(t => t.name).join(', ') : 'None'}
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <select class="add-track-to-group-select p-1 text-xs bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200 flex-1" data-id="${group.id}">
+                            <option value="">+ Add track to group...</option>
+                            ${tracks.filter(t => !group.trackIds.includes(t.id)).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Add event listeners
+    const addGroupBtn = container.querySelector('#addTrackGroupBtn');
+    addGroupBtn?.addEventListener('click', () => {
+        const name = prompt('Enter group name:', 'New Group');
+        if (name) {
+            localAppServices.addTrackGroup?.(name, [], '#6366f1');
+            showNotification('Track group created', 1500);
+            renderTrackGroupsContent();
+        }
+    });
+    
+    // Group name change
+    container.querySelectorAll('.group-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            localAppServices.updateTrackGroup?.(groupId, { name: e.target.value });
+        });
+    });
+    
+    // Group color change
+    container.querySelectorAll('.group-color-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            localAppServices.updateTrackGroup?.(groupId, { color: e.target.value });
+            renderTrackGroupsContent();
+        });
+    });
+    
+    // Volume slider
+    container.querySelectorAll('.group-volume-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            const volume = parseFloat(e.target.value);
+            localAppServices.setTrackGroupVolume?.(groupId, volume);
+            const span = e.target.nextElementSibling;
+            if (span) span.textContent = Math.round(volume * 100) + '%';
+        });
+    });
+    
+    // Mute button
+    container.querySelectorAll('.group-mute-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            localAppServices.toggleTrackGroupMute?.(groupId);
+            renderTrackGroupsContent();
+        });
+    });
+    
+    // Solo button
+    container.querySelectorAll('.group-solo-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            localAppServices.toggleTrackGroupSolo?.(groupId);
+            renderTrackGroupsContent();
+        });
+    });
+    
+    // Delete group
+    container.querySelectorAll('.delete-group-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            if (confirm('Delete this track group?')) {
+                localAppServices.removeTrackGroup?.(groupId);
+                showNotification('Group deleted', 1500);
+                renderTrackGroupsContent();
+            }
+        });
+    });
+    
+    // Add track to group
+    container.querySelectorAll('.add-track-to-group-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const groupId = parseInt(e.target.dataset.id, 10);
+            const trackId = parseInt(e.target.value, 10);
+            if (trackId) {
+                localAppServices.addTrackToGroup?.(groupId, trackId);
+                showNotification('Track added to group', 1500);
+                renderTrackGroupsContent();
+            }
+            e.target.value = '';
+        });
+    });
+}
+
+/**
+ * Updates the track groups panel with current data.
+ */
+export function updateTrackGroupsPanel() {
+    const container = document.getElementById('trackGroupsContent');
+    if (container) {
+        renderTrackGroupsContent();
+    }
+}

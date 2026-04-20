@@ -185,6 +185,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openTempoAutomationPanel?.();
                 } catch(e) { console.error('[Menu] Tempo Automation error:', e); }
             },
+            menuTrackGroups: () => {
+                console.log('[Menu] Track Groups clicked');
+                try {
+                    services.openTrackGroupsPanel?.();
+                } catch(e) { console.error('[Menu] Track Groups error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
