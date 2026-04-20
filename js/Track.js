@@ -1436,6 +1436,7 @@ export class Track {
         const activeSeq = this.getActiveSequence();
         if (!activeSeq || !activeSeq.data) return 0;
 
+        // Calculate grid size based on resolution
         const resolutionMap = {
             '1/4': 4,
             '1/8': 8,
@@ -1482,6 +1483,150 @@ export class Track {
         }
 
         return quantizedCount;
+    }
+
+    /**
+     * Quantize an audio clip's position to the nearest grid division.
+     * Snaps both start and end times to the grid.
+     * @param {string} clipId - The clip ID to quantize
+     * @param {string} resolution - Grid resolution ('1/4', '1/8', '1/16', '1/32')
+     * @returns {Object|null} Object with newStartTime and newDuration, or null if not found
+     */
+    quantizeAudioClip(clipId, resolution = '1/16') {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] quantizeAudioClip only works on Audio tracks.`);
+            return null;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return null;
+        }
+
+        // Get BPM for grid calculation
+        const bpm = this.appServices?.getBPM ? this.appServices.getBPM() : 120;
+        const secondsPerBeat = 60 / bpm;
+
+        // Calculate grid size in seconds based on resolution
+        const resolutionMap = {
+            '1/4': 4,    // quarter note = 1 beat
+            '1/8': 8,    // eighth note = 0.5 beat
+            '1/16': 16,  // sixteenth note = 0.25 beat
+            '1/32': 32   // thirty-second note = 0.125 beat
+        };
+        
+        const gridDivisions = resolutionMap[resolution] || 16;
+        const gridSeconds = secondsPerBeat * (4 / gridDivisions); // seconds per grid division
+
+        const originalStartTime = clip.startTime;
+        const originalDuration = clip.duration;
+        const originalEndTime = originalStartTime + originalDuration;
+
+        // Snap start time to nearest grid
+        const snappedStartTime = Math.round(originalStartTime / gridSeconds) * gridSeconds;
+        
+        // Snap end time to nearest grid
+        const snappedEndTime = Math.round(originalEndTime / gridSeconds) * gridSeconds;
+        
+        // Calculate new duration (ensure minimum of one grid division)
+        const newDuration = Math.max(gridSeconds, snappedEndTime - snappedStartTime);
+
+        // Check if anything changed
+        if (snappedStartTime === originalStartTime && newDuration === originalDuration) {
+            console.log(`[Track ${this.id}] Clip "${clip.name}" already on ${resolution} grid.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Clip already aligned to ${resolution} grid`, 1500);
+            }
+            return { startTime: snappedStartTime, duration: newDuration };
+        }
+
+        // Capture undo state before modifying
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Quantize clip "${clip.name}" to ${resolution}`);
+        }
+
+        // Apply quantization
+        clip.startTime = snappedStartTime;
+        clip.duration = newDuration;
+
+        console.log(`[Track ${this.id}] Quantized clip "${clip.name}" to ${resolution} grid. Start: ${originalStartTime.toFixed(3)}s → ${snappedStartTime.toFixed(3)}s, Duration: ${originalDuration.toFixed(3)}s → ${newDuration.toFixed(3)}s`);
+
+        // Update timeline UI
+        if (this.appServices.renderTimeline) {
+            this.appServices.renderTimeline();
+        }
+
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Quantized clip to ${resolution} grid`, 1500);
+        }
+
+        return { startTime: snappedStartTime, duration: newDuration };
+    }
+
+    /**
+     * Snap an audio clip's start time only to the nearest grid division (keeps duration intact).
+     * @param {string} clipId - The clip ID to snap
+     * @param {string} resolution - Grid resolution ('1/4', '1/8', '1/16', '1/32')
+     * @returns {number|null} New start time, or null if not found
+     */
+    snapAudioClipStart(clipId, resolution = '1/16') {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] snapAudioClipStart only works on Audio tracks.`);
+            return null;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return null;
+        }
+
+        // Get BPM for grid calculation
+        const bpm = this.appServices?.getBPM ? this.appServices.getBPM() : 120;
+        const secondsPerBeat = 60 / bpm;
+
+        // Calculate grid size in seconds based on resolution
+        const resolutionMap = {
+            '1/4': 4,
+            '1/8': 8,
+            '1/16': 16,
+            '1/32': 32
+        };
+        
+        const gridDivisions = resolutionMap[resolution] || 16;
+        const gridSeconds = secondsPerBeat * (4 / gridDivisions);
+
+        const originalStartTime = clip.startTime;
+        const snappedStartTime = Math.round(originalStartTime / gridSeconds) * gridSeconds;
+
+        if (snappedStartTime === originalStartTime) {
+            console.log(`[Track ${this.id}] Clip "${clip.name}" start already on ${resolution} grid.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Clip start already aligned`, 1500);
+            }
+            return snappedStartTime;
+        }
+
+        // Capture undo state before modifying
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Snap clip "${clip.name}" start to ${resolution}`);
+        }
+
+        clip.startTime = snappedStartTime;
+
+        console.log(`[Track ${this.id}] Snapped clip "${clip.name}" start to ${resolution} grid. ${originalStartTime.toFixed(3)}s → ${snappedStartTime.toFixed(3)}s`);
+
+        // Update timeline UI
+        if (this.appServices.renderTimeline) {
+            this.appServices.renderTimeline();
+        }
+
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Snapped clip start to ${resolution}`, 1500);
+        }
+
+        return snappedStartTime;
     }
 
     /**
