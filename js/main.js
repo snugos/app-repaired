@@ -41,6 +41,15 @@ import {
     setPlaybackModeState,
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
+    // MIDI Learn
+    getMidiLearnMode, setMidiLearnMode, getMidiLearnTarget, setMidiLearnTarget,
+    getMidiMappings, addMidiMapping, removeMidiMapping, getMidiMappingForCC, clearAllMidiMappings,
+    // MIDI CC Visualizer
+    getCcVisualizerValues, updateCcVisualizerValue,
+    // Loop Region
+    getLoopRegionEnabled, setLoopRegionEnabled, getLoopRegionStart, setLoopRegionStart, getLoopRegionEnd, setLoopRegionEnd, getLoopRegion,
+    // Metronome
+    getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume,
     // Core State Actions
     addTrackToStateInternal, removeTrackFromStateInternal, reorderTrackInState,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
@@ -433,7 +442,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -452,7 +461,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -469,8 +478,8 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();

@@ -223,133 +223,44 @@ let midiLearnMode = false; // Whether we're currently in learn mode
 let midiLearnTarget = null; // { type: 'track'|'master', targetId: number|null, paramPath: string }
 let midiMappings = {}; // { 'ccX_channelY': { type: 'track'|'master', targetId: number|null, paramPath: string, min: number, max: number } }
 
-// --- MIDI CC Recording ---
-let ccRecordingEnabled = false; // Whether CC recording is enabled
-let ccRecordingStartTime = 0; // When CC recording started (transport time)
-let ccRecordingTrackId = null; // Which track to record CC to (null = all armed tracks)
-let ccRecordingBuffer = {}; // Buffer for CC values during recording: { 'ccX_channelY': [{time, value}] }
-
-export function getCcRecordingEnabled() { return ccRecordingEnabled; }
-export function setCcRecordingEnabled(enabled) { 
-    ccRecordingEnabled = !!enabled;
-    console.log(`[State] CC recording ${ccRecordingEnabled ? 'enabled' : 'disabled'}`);
+export function getMidiLearnMode() { return midiLearnMode; }
+export function setMidiLearnMode(enabled) { 
+    midiLearnMode = !!enabled; 
+    if (!midiLearnMode) midiLearnTarget = null;
+    console.log(`[State] MIDI Learn mode ${midiLearnMode ? 'enabled' : 'disabled'}`);
 }
-export function getCcRecordingStartTime() { return ccRecordingStartTime; }
-export function setCcRecordingStartTime(time) { 
-    ccRecordingStartTime = parseFloat(time) || 0;
+export function getMidiLearnTarget() { return midiLearnTarget; }
+export function setMidiLearnTarget(target) { midiLearnTarget = target; }
+export function getMidiMappings() { return { ...midiMappings }; }
+export function addMidiMapping(ccNumber, channel, target) {
+    const key = `cc${ccNumber}_channel${channel}`;
+    midiMappings[key] = { ...target, min: 0, max: 1 };
+    console.log(`[State] Added MIDI mapping: ${key} -> ${target.type}:${target.targetId}:${target.paramPath}`);
 }
-export function getCcRecordingTrackId() { return ccRecordingTrackId; }
-export function setCcRecordingTrackId(trackId) { 
-    ccRecordingTrackId = trackId;
+export function removeMidiMapping(ccNumber, channel) {
+    const key = `cc${ccNumber}_channel${channel}`;
+    if (midiMappings[key]) {
+        delete midiMappings[key];
+        console.log(`[State] Removed MIDI mapping: ${key}`);
+    }
 }
-export function getCcRecordingBuffer() { return ccRecordingBuffer; }
-export function clearCcRecordingBuffer() { 
-    ccRecordingBuffer = {}; 
+export function getMidiMappingForCC(ccNumber, channel) {
+    const key = `cc${ccNumber}_channel${channel}`;
+    return midiMappings[key] || null;
 }
-export function addCcRecordingPoint(ccKey, time, value) {
-    if (!ccRecordingBuffer[ccKey]) {
-        ccRecordingBuffer[ccKey] = [];
-    }
-    ccRecordingBuffer[ccKey].push({ time, value });
-}
-
-/**
- * Finalize CC recording and convert to track automation.
- * @param {number} targetTrackId - Track to apply automation to (null = armed track)
- * @param {string} targetParam - Parameter to automate (e.g., 'volume', 'pan')
- * @param {string} ccKey - Specific CC key to finalize, or null for all
- * @returns {boolean} True if successful
- */
-export function finalizeCcRecording(targetTrackId = null, targetParam = 'volume', ccKey = null) {
-    const buffer = ccRecordingBuffer;
-    const keys = ccKey ? [ccKey] : Object.keys(buffer);
-    
-    if (keys.length === 0) {
-        console.log('[State finalizeCcRecording] No CC data recorded');
-        return false;
-    }
-    
-    const trackId = targetTrackId || ccRecordingTrackId || armedTrackId;
-    if (trackId === null) {
-        console.warn('[State finalizeCcRecording] No target track specified');
-        return false;
-    }
-    
-    const track = tracks.find(t => t.id === trackId);
-    if (!track) {
-        console.warn(`[State finalizeCcRecording] Track ${trackId} not found`);
-        return false;
-    }
-    
-    let pointsAdded = 0;
-    
-    keys.forEach(key => {
-        const points = buffer[key] || [];
-        if (points.length === 0) return;
-        
-        // Sort points by time
-        points.sort((a, b) => a.time - b.time);
-        
-        // Add automation points
-        points.forEach(point => {
-            if (track.addAutomationPoint) {
-                track.addAutomationPoint(targetParam, point.time, point.value);
-                pointsAdded++;
-            }
-        });
-        
-        console.log(`[State finalizeCcRecording] Added ${points.length} automation points from ${key} to track ${trackId}`);
-    });
-    
-    // Clear the buffer after finalizing
-    if (!ccKey) {
-        clearCcRecordingBuffer();
-    } else {
-        delete ccRecordingBuffer[ccKey];
-    }
-    
-    if (pointsAdded > 0 && appServices.captureStateForUndo) {
-        appServices.captureStateForUndo(`Recorded CC automation on ${track.name}`);
-    }
-    
-    if (appServices.showNotification) {
-        appServices.showNotification(`Recorded ${pointsAdded} automation points to ${track.name}`, 2000);
-    }
-    
-    return true;
+export function clearAllMidiMappings() {
+    midiMappings = {};
+    console.log('[State] Cleared all MIDI mappings');
 }
 
-/**
- * Start CC recording mode.
- * @param {number} trackId - Target track for recording (null = armed track)
- */
-export function startCcRecording(trackId = null) {
-    ccRecordingEnabled = true;
-    ccRecordingStartTime = Tone.Transport.seconds;
-    ccRecordingTrackId = trackId;
-    clearCcRecordingBuffer();
-    console.log(`[State startCcRecording] CC recording started at ${ccRecordingStartTime}s for track ${trackId || 'armed'}`);
-    if (appServices.showNotification) {
-        appServices.showNotification('CC Recording started', 1500);
-    }
-}
+// --- MIDI CC Visualizer ---
+let ccVisualizerValues = {}; // { 'ccX_channelY': number (0-1) }
+let ccVisualizerMaxBars = 16; // Number of bars to show in history
 
-/**
- * Stop CC recording mode.
- * @param {boolean} finalize - Whether to finalize and apply automation
- * @param {string} targetParam - Parameter to automate if finalizing
- */
-export function stopCcRecording(finalize = true, targetParam = 'volume') {
-    ccRecordingEnabled = false;
-    console.log(`[State stopCcRecording] CC recording stopped. Finalize: ${finalize}`);
-    
-    if (finalize) {
-        finalizeCcRecording(null, targetParam, null);
-    }
-    
-    if (appServices.showNotification) {
-        appServices.showNotification('CC Recording stopped', 1500);
-    }
+export function getCcVisualizerValues() { return { ...ccVisualizerValues }; }
+export function updateCcVisualizerValue(ccNumber, channel, value) {
+    const key = `cc${ccNumber}_channel${channel}`;
+    ccVisualizerValues[key] = Math.max(0, Math.min(1, value));
 }
 
 // --- Project Export Presets ---
@@ -611,57 +522,6 @@ export function getTrackEffectPresetNames(trackId) {
     }
     return [];
 }
-
-// --- MIDI Learn / Mapping ---
-export function getMidiLearnModeState() { return midiLearnMode; }
-export function getMidiLearnTargetState() { return midiLearnTarget; }
-export function getMidiMappingsState() { return midiMappings; }
-
-export function setMidiLearnModeState(enabled) {
-    midiLearnMode = enabled;
-    if (!enabled) {
-        midiLearnTarget = null;
-    }
-    console.log(`[State] MIDI Learn Mode: ${enabled ? 'ENABLED' : 'DISABLED'}`);
-}
-
-export function setMidiLearnTargetState(target) {
-    midiLearnTarget = target;
-    console.log(`[State] MIDI Learn Target set:`, target);
-}
-
-export function addMidiMapping(ccNumber, channel, mapping) {
-    const key = `cc${ccNumber}_ch${channel}`;
-    midiMappings[key] = {
-        type: mapping.type, // 'track' or 'master'
-        targetId: mapping.targetId, // track ID or null for master
-        paramPath: mapping.paramPath, // e.g., 'volume', 'pan', 'effects.0.wet'
-        min: mapping.min ?? 0,
-        max: mapping.max ?? 1
-    };
-    console.log(`[State] Added MIDI mapping: CC${ccNumber} ch${channel} -> ${mapping.paramPath}`);
-}
-
-export function removeMidiMapping(ccNumber, channel) {
-    const key = `cc${ccNumber}_ch${channel}`;
-    if (midiMappings[key]) {
-        delete midiMappings[key];
-        console.log(`[State] Removed MIDI mapping: CC${ccNumber} ch${channel}`);
-        return true;
-    }
-    return false;
-}
-
-export function clearAllMidiMappings() {
-    midiMappings = {};
-    console.log(`[State] Cleared all MIDI mappings`);
-}
-
-export function getMidiMappingForCC(ccNumber, channel) {
-    const key = `cc${ccNumber}_ch${channel}`;
-    return midiMappings[key] || null;
-}
-
 
 // --- Setters for Centralized State (called internally or via appServices) ---
 export function addWindowToStoreState(id, instance) { openWindowsMap.set(id, instance); }
