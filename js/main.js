@@ -217,6 +217,75 @@ function showSafeNotification(message, duration) {
     }
 }
 
+// --- CC Visualizer Bar Update ---
+let lastCcVisualizerUpdate = 0;
+const CC_VISUALIZER_UPDATE_INTERVAL = 50; // ms between visualizer updates
+
+function updateCcVisualizerBars() {
+    const now = Date.now();
+    if (now - lastCcVisualizerUpdate < CC_VISUALIZER_UPDATE_INTERVAL) return;
+    lastCcVisualizerUpdate = now;
+    
+    const container = document.getElementById('ccVisualizerContainer');
+    if (!container) return;
+    
+    const ccValues = typeof getCcVisualizerValues === 'function' ? getCcVisualizerValues() : {};
+    const ccKeys = Object.keys(ccValues);
+    
+    if (ccKeys.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-400 dark:text-slate-500">No CC</span>';
+        return;
+    }
+    
+    // Build bars for active CCs (show first 16 for space)
+    const displayKeys = ccKeys.slice(0, 16);
+    const existingBars = new Map();
+    container.querySelectorAll('.cc-bar-wrapper').forEach(wrapper => {
+        const key = wrapper.dataset.ccKey;
+        if (key) existingBars.set(key, wrapper);
+    });
+    
+    displayKeys.forEach(key => {
+        const value = ccValues[key] || 0;
+        let wrapper = existingBars.get(key);
+        
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'cc-bar-wrapper flex flex-col items-center';
+            wrapper.dataset.ccKey = key;
+            
+            const label = document.createElement('span');
+            label.className = 'text-[9px] text-gray-500 dark:text-slate-400';
+            // Parse CC number and channel from key
+            const match = key.match(/cc(\d+)_channel(\d+)/);
+            if (match) {
+                label.textContent = `${match[1]}`;
+            }
+            
+            const barContainer = document.createElement('div');
+            barContainer.className = 'w-4 h-12 bg-gray-200 dark:bg-slate-600 rounded-sm overflow-hidden flex items-end';
+            
+            const bar = document.createElement('div');
+            bar.className = 'w-full bg-purple-400 transition-all duration-75';
+            bar.style.height = `${Math.round(value * 100)}%`;
+            
+            barContainer.appendChild(bar);
+            wrapper.appendChild(label);
+            wrapper.appendChild(barContainer);
+            container.appendChild(wrapper);
+        } else {
+            const bar = wrapper.querySelector('div:last-child > div');
+            if (bar) {
+                bar.style.height = `${Math.round(value * 100)}%`;
+            }
+        }
+        existingBars.delete(key);
+    });
+    
+    // Remove bars for CCs no longer active
+    existingBars.forEach(wrapper => wrapper.remove());
+}
+
 const appServices = {
     // UI Module Functions
     openTrackInspectorWindow, openTrackEffectsRackWindow, openTrackSequencerWindow,
@@ -461,7 +530,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -478,7 +547,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 

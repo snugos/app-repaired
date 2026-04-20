@@ -6,7 +6,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 1 ~~**Automation Copy/Paste** - Copy/paste automation curves between parameters~~ ✅ COMPLETED
 2 ~~**Track Lane Reorder** - Drag to reorder lanes/tracks in timeline view~~ ✅ COMPLETED
-3. **MIDI CC Visualizer** - Live display of incoming MIDI CC values as bars
+3. ~~**MIDI CC Visualizer** - Live display of incoming MIDI CC values as bars~~ ✅ COMPLETED
 4. **Project Templates** - Save/load project templates with track presets
 5. **Adaptive Metronome** - Metronome that adjusts timing based on recorded performance
 6. **Audio Warping** - Non-destructive timing adjustment for audio clips
