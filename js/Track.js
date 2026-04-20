@@ -157,6 +157,7 @@ export class Track {
 
         this.sequences = [];
         this.activeSequenceId = null;
+        this.groovePreset = initialData?.groovePreset || 'none';
         this.timelineClips = initialData?.timelineClips ? JSON.parse(JSON.stringify(initialData.timelineClips)) : [];
 
 
@@ -285,6 +286,16 @@ export class Track {
     }
 
     // --- Synth Specific ---
+
+    // --- Groove Template ---
+    setGroovePreset(grooveId) {
+        this.groovePreset = grooveId || 'none';
+        console.log(`[Track ${this.id}] Groove preset set to: ${this.groovePreset}`);
+    }
+
+    getGroovePreset() {
+        return this.groovePreset || 'none';
+    }
     getDefaultSynthParams() {
         // MODIFICATION: Change default oscillator type, decay, and sustain
         return {

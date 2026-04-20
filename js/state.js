@@ -29,6 +29,22 @@ let masterGainValueState = (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone
 let trackEffectsPresets = {}; // { trackId: { presetName: effectsData } }
 let masterEffectPresets = {}; // { presetName: { effects: [...], masterGain: number } }
 
+// --- Groove Template Presets ---
+// Groove templates define timing offsets for even-numbered 16th notes (swing/shuffle)
+const GROOVE_PRESETS = [
+    { id: 'none', name: 'None (Straight)', swingAmount: 0 },
+    { id: 'swing_50', name: '50% Swing', swingAmount: 0.25 },
+    { id: 'swing_66', name: '66% Swing (Triplets)', swingAmount: 0.333 },
+    { id: 'swing_75', name: '75% Swing', swingAmount: 0.5 },
+    { id: 'swing_33', name: '33% Shuffle', swingAmount: 0.166 }
+];
+export function getGroovePresets() { return [...GROOVE_PRESETS]; }
+export function getGroovePresetById(id) { return GROOVE_PRESETS.find(g => g.id === id) || GROOVE_PRESETS[0]; }
+export function getGrooveSwingAmount(grooveId) {
+    const preset = getGroovePresetById(grooveId);
+    return preset ? preset.swingAmount : 0;
+}
+
 // Project Templates Storage
 let projectTemplates = {}; // { templateName: templateData }
 
