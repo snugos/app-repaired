@@ -17,6 +17,7 @@ import {
     handleOpenSequencer as eventHandleOpenSequencer,
     handleBounceTrack as eventHandleBounceTrack,
     handleDuplicateTrack as eventHandleDuplicateTrack,
+    handleTrackFreeze as eventHandleTrackFreeze,
     handleTimelineLaneDrop
 } from './eventHandlers.js';
 import {
@@ -427,6 +428,7 @@ const appServices = {
     handleOpenSequencer: eventHandleOpenSequencer,
     handleBounceTrack: eventHandleBounceTrack,
     handleDuplicateTrack: eventHandleDuplicateTrack,
+    handleTrackFreeze: eventHandleTrackFreeze,
     handleTimelineLaneDrop: handleTimelineLaneDrop,
     attachGlobalControlEvents: attachGlobalControlEvents, // FIX: Expose for reconstruction
 

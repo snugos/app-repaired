@@ -1121,6 +1121,32 @@ export function handleDuplicateTrack(trackId) {
     } catch (error) { console.error(`[EventHandlers handleDuplicateTrack] Error for track ${trackId}:`, error); }
 }
 
+export function handleTrackFreeze(trackId) {
+    try {
+        const track = getTrackById(trackId);
+        if (!track) {
+            console.warn(`[EventHandlers] Freeze: Track ${trackId} not found.`);
+            return;
+        }
+        
+        if (track.frozen) {
+            // Unfreeze the track
+            if (typeof track.unfreeze === 'function') {
+                track.unfreeze();
+            } else {
+                console.warn("[EventHandlers] unfreeze method not available on track.");
+            }
+        } else {
+            // Freeze the track
+            if (typeof track.freeze === 'function') {
+                track.freeze();
+            } else {
+                console.warn("[EventHandlers] freeze method not available on track.");
+            }
+        }
+    } catch (error) { console.error(`[EventHandlers handleTrackFreeze] Error for track ${trackId}:`, error); }
+}
+
 export function handleOpenTrackInspector(trackId) {
     if (localAppServices.openTrackInspectorWindow) {
         localAppServices.openTrackInspectorWindow(trackId);
