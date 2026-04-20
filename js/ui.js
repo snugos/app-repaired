@@ -1855,6 +1855,44 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     html += `</div>`;
     html += `</div>`; // End velocity lane section
     
+    // Note Length Lane Section
+    html += `<div class="note-length-lane-section mt-1" id="noteLengthLaneSection-${track.id}">`;
+    html += `<div class="note-length-lane-header flex items-center justify-between bg-gray-300 dark:bg-slate-700 p-1 border-t border-b dark:border-slate-600">`;
+    html += `<span class="text-xs font-semibold">Note Length Lane</span>`;
+    html += `<div class="flex items-center gap-2">`;
+    html += `<button id="toggleNoteLengthLane-${track.id}" class="text-xs px-2 py-0.5 bg-slate-500 text-white rounded hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500">Hide</button>`;
+    html += `<button id="clearAllNoteLengths-${track.id}" class="text-xs px-2 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">Reset All</button>`;
+    html += `</div>`;
+    html += `</div>`;
+    html += `<div class="note-length-lane-content overflow-auto" id="noteLengthLaneContent-${track.id}" style="max-height: 60px;">`;
+    html += `<div class="flex">`;
+    // Row labels spacer
+    html += `<div style="width: ${labelWidth}px; flex-shrink: 0;"></div>`;
+    // Note length bars grid
+    html += `<div class="note-length-grid" style="display: flex; flex-direction: column;">`;
+    for (let r = 0; r < rows; r++) {
+        const pitchName = rowLabels[r] || '';
+        html += `<div class="note-length-row" data-row="${r}" style="display: flex; height: 12px; background: #252525; border-bottom: 1px solid #333;">`;
+        for (let c = 0; c < totalSteps; c++) {
+            const stepData = activeSequence && activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][c] : null;
+            const isActive = stepData && stepData.active;
+            const noteLength = stepData?.noteLength || 0.25; // Default 16th note
+            const isBarLine = (c % stepsPerBar) === 0;
+            const isBeatLine = (c % 4) === 0 && !isBarLine;
+            const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #333;');
+            const lenWidth = isActive ? Math.round(noteLength * colWidth * 4) : 0; // Length in pixels relative to grid
+            html += `<div class="note-length-cell" data-row="${r}" data-col="${c}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; position: relative; overflow: visible;">`;
+            if (isActive) {
+                html += `<div class="note-length-bar" style="position: absolute; top: 2px; left: 0; width: ${Math.min(lenWidth, colWidth * 2)}px; height: 8px; background: linear-gradient(to right, rgba(59, 130, 246, 0.8), rgba(99, 102, 241, 0.9)); border-radius: 2px; transition: width 0.1s; z-index: 1;" title="Len: ${noteLength.toFixed(2)} beats"></div>`;
+            }
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+    html += `</div>`; // End note length lane section
+    
     return html;
 }
 
@@ -2305,6 +2343,93 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                             velBar.title = `Vel: ${Math.round(nextVel * 100)}%`;
                         }
                     }
+                }
+            });
+        }
+        
+        // Handle note length lane toggle and reset buttons
+        const toggleNoteLenLaneBtn = sequencerWindow.element.querySelector(`#toggleNoteLengthLane-${track.id}`);
+        const clearAllNoteLenBtn = sequencerWindow.element.querySelector(`#clearAllNoteLengths-${track.id}`);
+        const noteLenLaneContent = sequencerWindow.element.querySelector(`#noteLengthLaneContent-${track.id}`);
+        
+        if (toggleNoteLenLaneBtn && noteLenLaneContent) {
+            toggleNoteLenLaneBtn.addEventListener('click', () => {
+                if (noteLenLaneContent.style.display === 'none') {
+                    noteLenLaneContent.style.display = 'block';
+                    toggleNoteLenLaneBtn.textContent = 'Hide';
+                } else {
+                    noteLenLaneContent.style.display = 'none';
+                    toggleNoteLenLaneBtn.textContent = 'Show';
+                }
+            });
+        }
+        
+        if (clearAllNoteLenBtn) {
+            clearAllNoteLenBtn.addEventListener('click', () => {
+                if (localAppServices.showConfirmationDialog) {
+                    localAppServices.showConfirmationDialog('Reset All Note Lengths', 'Reset all note lengths to default (0.25 beats)?', () => {
+                        const currentActiveSeq = track.getActiveSequence();
+                        if (!currentActiveSeq || !currentActiveSeq.data) return;
+                        currentActiveSeq.data.forEach((row, rowIdx) => {
+                            if (row) {
+                                row.forEach((cell, colIdx) => {
+                                    if (cell?.active) {
+                                        currentActiveSeq.data[rowIdx][colIdx] = { ...cell, noteLength: 0.25 };
+                                    }
+                                });
+                            }
+                        });
+                        openTrackSequencerWindow(trackId, true);
+                        if (localAppServices.showNotification) localAppServices.showNotification('All note lengths reset to default.', 1500);
+                    });
+                }
+            });
+        }
+        
+        // Handle note length lane cell clicks for direct note length editing
+        const noteLenGrid = sequencerWindow.element.querySelector(`#noteLengthLaneContent-${track.id} .note-length-grid`);
+        if (noteLenGrid) {
+            noteLenGrid.addEventListener('click', (e) => {
+                const noteLenCell = e.target.closest('.note-length-cell');
+                if (!noteLenCell) return;
+                
+                const row = parseInt(noteLenCell.dataset.row, 10);
+                const col = parseInt(noteLenCell.dataset.col, 10);
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+                
+                const stepData = currentActiveSeq.data[row][col];
+                if (!stepData?.active) return;
+                
+                // Cycle note length on click: 0.125 (32nd), 0.25 (16th), 0.375 (dotted 16th), 0.5 (8th), 0.75 (dotted 8th), 1.0 (quarter), 1.5 (dotted quarter), 2.0 (half)
+                const noteLengths = [0.125, 0.25, 0.375, 0.5, 0.75, 1.0, 1.5, 2.0];
+                const currentLen = stepData.noteLength || 0.25;
+                const idx = noteLengths.findIndex(l => Math.abs(l - currentLen) < 0.01);
+                const nextLen = idx >= 0 ? noteLengths[(idx + 1) % noteLengths.length] : 0.25;
+                currentActiveSeq.data[row][col] = { ...stepData, noteLength: nextLen };
+                
+                if (localAppServices.captureStateForUndo) {
+                    localAppServices.captureStateForUndo(`Set note length to ${nextLen} beats for step (${row + 1},${col + 1}) on ${track.name}`);
+                }
+                
+                // Update note length bar in lane
+                const noteLenRow = noteLenGrid.querySelector(`.note-length-row[data-row="${row}"]`);
+                if (noteLenRow) {
+                    const cell = noteLenRow.querySelector(`.note-length-cell[data-col="${col}"]`);
+                    if (cell) {
+                        const lenWidth = Math.round(nextLen * colWidth * 4);
+                        const lenBar = cell.querySelector('.note-length-bar');
+                        if (lenBar) {
+                            lenBar.style.width = `${Math.min(lenWidth, colWidth * 2)}px`;
+                            lenBar.title = `Len: ${nextLen.toFixed(2)} beats`;
+                        }
+                    }
+                }
+                
+                // Update the main grid cell title to reflect new length
+                const gridCell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+                if (gridCell) {
+                    gridCell.title = `Row ${row + 1}, Step ${col + 1}, Vel: ${Math.round((stepData.velocity || 0.7) * 100)}%, Len: ${nextLen.toFixed(2)} beats`;
                 }
             });
         }
