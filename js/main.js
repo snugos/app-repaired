@@ -332,6 +332,18 @@ const appServices = {
     getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
     isNoteInScale, isNoteNameInScale,
 
+    // Global Scale/Key wrappers for UI
+    setGlobalScale: (scaleId) => {
+        if (typeof setScaleHintType === 'function') {
+            setScaleHintType(scaleId);
+        }
+    },
+    setGlobalKey: (keyRoot) => {
+        if (typeof setScaleHintRoot === 'function') {
+            setScaleHintRoot(keyRoot);
+        }
+    },
+
     // State Module Setters & Core Actions
     addWindowToStore: addWindowToStoreState, removeWindowFromStore: removeWindowFromStoreState,
     setHighestZ: setHighestZState, incrementHighestZ: incrementHighestZState,
@@ -520,7 +532,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -539,7 +551,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -557,7 +569,7 @@ const appServices = {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -778,7 +790,10 @@ async function initializeSnugOS() {
             masterMeterBarGlobal: document.getElementById('masterMeterBarGlobal'),
             midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
-            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal')
+            playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
+            scaleSelectGlobal: document.getElementById('scaleSelectGlobal'),
+            keySelectGlobal: document.getElementById('keySelectGlobal'),
+            scaleNotesDisplay: document.getElementById('scaleNotesDisplay')
         };
         
         // Add to cache
