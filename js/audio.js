@@ -525,6 +525,80 @@ export function handleTransportStop() {
     stopMetronomeScheduling();
 }
 
+// --- Tempo Ramp Scheduling ---
+let tempoRampsScheduleId = null;
+let activeTempoRamps = []; // Cached from state
+
+/**
+ * Sets up the tempo ramp schedule. Called when transport starts.
+ * Uses Tone.Transport.scheduleRepeat to update BPM based on ramp points.
+ */
+export function setupTempoRampScheduling(tempoRamps) {
+    clearTempoRampScheduling();
+    
+    if (!tempoRamps || tempoRamps.length === 0) {
+        console.log('[Audio setupTempoRampScheduling] No tempo ramps to schedule.');
+        return;
+    }
+    
+    activeTempoRamps = [...tempoRamps].sort((a, b) => a.barPosition - b.barPosition);
+    
+    // Use scheduleRepeat to check and update tempo at every beat
+    // We need high resolution to catch ramp changes. Using '16n' for precision.
+    tempoRampsScheduleId = Tone.Transport.scheduleRepeat((time) => {
+        if (activeTempoRamps.length === 0) return;
+        
+        // Get current position in bars
+        const pos = Tone.Transport.position;
+        const parts = pos.split(':');
+        const bars = parseInt(parts[0], 10);
+        const beats = parseInt(parts[1], 10);
+        const subBeats = parseFloat(parts[2] || '0');
+        const currentBarFloat = bars + (beats / 4) + (subBeats / 16);
+        
+        // Find the applicable ramp point
+        // Tempo changes at the ramp point's bar position
+        let targetBpm = Tone.Transport.bpm.value; // Default to current
+        
+        for (let i = activeTempoRamps.length - 1; i >= 0; i--) {
+            if (currentBarFloat >= activeTempoRamps[i].barPosition) {
+                targetBpm = activeTempoRamps[i].bpm;
+                break;
+            }
+        }
+        
+        // Only update if different (avoid jitter)
+        if (Math.abs(Tone.Transport.bpm.value - targetBpm) > 0.01) {
+            Tone.Transport.bpm.value = targetBpm;
+            console.log(`[Audio tempoRamp] Bar ${currentBarFloat.toFixed(2)} -> BPM ${targetBpm}`);
+        }
+    }, '16n');
+    
+    console.log('[Audio setupTempoRampScheduling] Tempo ramp scheduling started with', activeTempoRamps.length, 'points.');
+}
+
+/**
+ * Clears the tempo ramp schedule.
+ */
+export function clearTempoRampScheduling() {
+    if (tempoRampsScheduleId !== null) {
+        Tone.Transport.clear(tempoRampsScheduleId);
+        tempoRampsScheduleId = null;
+        activeTempoRamps = [];
+        console.log('[Audio clearTempoRampScheduling] Tempo ramp scheduling cleared.');
+    }
+}
+
+/**
+ * Refreshes tempo ramp scheduling with updated ramps from state.
+ * Call this when ramps are modified during playback.
+ */
+export function refreshTempoRampScheduling(tempoRamps) {
+    if (Tone.Transport.state === 'started') {
+        setupTempoRampScheduling(tempoRamps);
+    }
+}
+
 export function initializeAudioModule(appServicesFromMain) {
     localAppServices = appServicesFromMain;
     // MODIFICATION START: Debug to confirm function reference
@@ -1047,7 +1121,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructing) {
+    if (localAppServices.captureStateForUndo && !isReconstructinging) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -1116,7 +1190,7 @@ async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHin
                 padData.dbKey = dbKey;
                 padData.status = 'loaded';
                 track.drumPadPlayers[padIndex] = new Tone.Player(newAudioBuffer); // Create new player
-                // Connection will be handled by rebuildEffectChain or play preview
+                // Connection will be handled by rebuildMasterEffectChain or play preview
             } else {
                 console.error(`[Audio commonLoadSampleLogic] Pad data not found for index ${padIndex} on track ${track.id}`);
                 throw new Error(`Pad data not found for index ${padIndex}.`);
@@ -1676,7 +1750,7 @@ export async function stopAudioRecording() {
         console.warn("[Audio stopAudioRecording] Recorder not initialized. Cannot stop recording.");
         if (mic && mic.state === "started") {
             console.log("[Audio stopAudioRecording] Mic was started, closing it (recorder was null).");
-            try { mic.close(); } catch(e) { console.warn("[Audio stopAudioRecording] Error closing mic (recorder null):", e.message); }
+            try { mic.close(); } catch(e) { console.warn("[Audio stopAudioRecording] Error closing/disconnecting mic (recorder null):", e.message); }
         }
         mic = null;
         return; // Nothing to process if recorder wasn't there
@@ -2267,10 +2341,9 @@ export function createTimelineClipWaveformCanvas(audioBuffer, width, height, col
     const samplesPerBar = Math.floor(channelData.length / numBars);
     
     ctx.fillStyle = color;
-    const centerY = canvas.height / 2;
+    const centerY = height / 2;
     
     for (let i = 0; i < numBars; i++) {
-        // Get max amplitude for this bar's sample range
         let maxAmplitude = 0;
         const startSample = i * samplesPerBar;
         const endSample = Math.min(startSample + samplesPerBar, channelData.length);
@@ -2296,7 +2369,7 @@ export function createTimelineClipWaveformCanvas(audioBuffer, width, height, col
         }
         
         // Draw bar (mirrored from center)
-        const barHeight = maxAmplitude * (canvas.height - 2);
+        const barHeight = maxAmplitude * (height - 2);
         const x = i * barWidth;
         
         ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);

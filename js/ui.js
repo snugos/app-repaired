@@ -2721,6 +2721,8 @@ function renderTimeRuler(duration, pixelsPerSecond) {
         html += `<div class="absolute text-xs text-gray-500 dark:text-slate-400" style="left: ${x}px; top: 0;">${formatTime(t)}</div>`;
         html += `<div class="absolute w-px h-full bg-gray-300 dark:bg-slate-600" style="left: ${x}px;"></div>`;
     }
+    // Add timeline markers
+    html += renderTimelineMarkers(pixelsPerSecond, duration);
     return html;
 }
 
@@ -3018,6 +3020,43 @@ function setupTimelineEventListeners(content, tracks) {
                 timelineState.selectedClipId = null;
                 renderTimeline();
             }
+        });
+    });
+
+    // Timeline ruler click to move playhead
+    content.querySelectorAll('.timeline-ruler').forEach(ruler => {
+        ruler.addEventListener('click', (e) => {
+            const rect = ruler.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const newPosition = x / timelineState.pixelsPerSecond;
+            timelineState.playheadPosition = newPosition;
+            if (localAppServices.seekToPosition) {
+                localAppServices.seekToPosition(newPosition);
+            }
+            renderTimeline();
+        });
+        
+        // Right-click on timeline ruler to add marker
+        ruler.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const rect = ruler.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const position = x / timelineState.pixelsPerSecond;
+            showAddMarkerDialog(position);
+        });
+    });
+
+    // Marker click to jump
+    content.querySelectorAll('.timeline-marker').forEach(markerEl => {
+        markerEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const markerId = markerEl.dataset.markerId;
+            jumpToMarker(markerId);
+        });
+        
+        // Marker right-click for context menu
+        markerEl.addEventListener('contextmenu', (e) => {
+            showMarkerContextMenu(e, markerEl.dataset.markerId);
         });
     });
 }
@@ -3651,4 +3690,397 @@ function applyExportSettings(container, preset) {
         const tailInput = container.querySelector('#exportTail');
         if (tailInput) tailInput.value = preset.tailSeconds.toString();
     }
+}
+
+// ==========================================
+// MARKER SYSTEM FUNCTIONS
+// ==========================================
+
+/**
+ * Renders timeline markers on the ruler.
+ * Call this after renderTimeRuler to overlay markers.
+ */
+function renderTimelineMarkers(pixelsPerSecond, duration) {
+    const markers = localAppServices.getTimelineMarkers ? localAppServices.getTimelineMarkers() : [];
+    if (!markers || markers.length === 0) return '';
+    
+    let html = '';
+    markers.forEach(marker => {
+        const x = marker.position * pixelsPerSecond;
+        const displayPosition = formatTime(marker.position);
+        
+        html += `
+            <div class="timeline-marker absolute cursor-pointer group"
+                 data-marker-id="${marker.id}"
+                 style="left: ${x}px; top: 0; height: 100%; width: 2px; background: ${marker.color}; z-index: 50;"
+                 title="${marker.name} (${displayPosition})">
+                <div class="marker-flag absolute -top-5 left-1/2 transform -translate-x-1/2 px-1 py-0.5 text-xs text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity"
+                     style="background: ${marker.color};">
+                    ${marker.name}
+                </div>
+                <div class="marker-triangle absolute -bottom-1 left-1/2 transform -translate-x-1/2"
+                     style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${marker.color};"></div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+/**
+ * Shows a dialog to add a new timeline marker.
+ * @param {number} position - Position in seconds for the marker
+ */
+export function showAddMarkerDialog(position) {
+    const existingMarkers = localAppServices.getTimelineMarkers ? localAppServices.getTimelineMarkers() : [];
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'add-marker-dialog';
+    dialog.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    
+    dialog.innerHTML = `
+        <div class="bg-slate-800 rounded-xl p-6 w-96 shadow-2xl border border-slate-700">
+            <h3 class="text-xl font-bold text-white mb-4">📍 Add Timeline Marker</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Marker Name</label>
+                    <input type="text" id="markerName" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-blue-500"
+                           placeholder="Verse, Chorus, etc." value="Marker ${existingMarkers.length + 1}">
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Position (seconds)</label>
+                    <input type="number" id="markerPosition" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-blue-500"
+                           step="0.1" min="0" value="${position.toFixed(2)}">
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Color</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #f59e0b;" data-color="#f59e0b"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #ef4444;" data-color="#ef4444"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #22c55e;" data-color="#22c55e"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #3b82f6;" data-color="#3b82f6"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #a855f7;" data-color="#a855f7"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #ec4899;" data-color="#ec4899"></button>
+                    </div>
+                    <input type="hidden" id="markerColor" value="#f59e0b">
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button id="cancelMarker" class="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors">Cancel</button>
+                <button id="saveMarker" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">Add Marker</button>
+            </div>
+        </div>
+    `;
+    
+    // Color selection
+    let selectedColor = '#f59e0b';
+    dialog.querySelectorAll('.color-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            dialog.querySelectorAll('.color-btn').forEach(b => b.classList.remove('border-white'));
+            btn.classList.add('border-white');
+            selectedColor = btn.dataset.color;
+            dialog.querySelector('#markerColor').value = selectedColor;
+        });
+    });
+    // Select first color by default
+    dialog.querySelector('.color-btn').classList.add('border-white');
+    
+    // Cancel button
+    dialog.querySelector('#cancelMarker').addEventListener('click', () => dialog.remove());
+    
+    // Save button
+    dialog.querySelector('#saveMarker').addEventListener('click', () => {
+        const name = dialog.querySelector('#markerName').value.trim() || 'Marker';
+        const pos = parseFloat(dialog.querySelector('#markerPosition').value) || 0;
+        const color = dialog.querySelector('#markerColor').value;
+        
+        if (localAppServices.addTimelineMarker) {
+            localAppServices.addTimelineMarker(name, pos, color);
+            showNotification(`Added marker "${name}" at ${formatTime(pos)}`, 2000);
+            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+        }
+        dialog.remove();
+    });
+    
+    // Close on background click
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.remove();
+    });
+    
+    document.body.appendChild(dialog);
+    dialog.querySelector('#markerName').select();
+}
+
+/**
+ * Shows a dialog to edit an existing marker.
+ * @param {string} markerId - The marker ID to edit
+ */
+export function showEditMarkerDialog(markerId) {
+    const marker = localAppServices.getTimelineMarkerById ? localAppServices.getTimelineMarkerById(markerId) : null;
+    if (!marker) return;
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'edit-marker-dialog';
+    dialog.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    
+    dialog.innerHTML = `
+        <div class="bg-slate-800 rounded-xl p-6 w-96 shadow-2xl border border-slate-700">
+            <h3 class="text-xl font-bold text-white mb-4">✏️ Edit Marker</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Marker Name</label>
+                    <input type="text" id="markerName" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-blue-500"
+                           value="${marker.name}">
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Position (seconds)</label>
+                    <input type="number" id="markerPosition" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-blue-500"
+                           step="0.1" min="0" value="${marker.position.toFixed(2)}">
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Color</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #f59e0b;" data-color="#f59e0b"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #ef4444;" data-color="#ef4444"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #22c55e;" data-color="#22c55e"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #3b82f6;" data-color="#3b82f6"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #a855f7;" data-color="#a855f7"></button>
+                        <button class="color-btn w-8 h-8 rounded border-2 border-transparent hover:border-white" style="background: #ec4899;" data-color="#ec4899"></button>
+                    </div>
+                    <input type="hidden" id="markerColor" value="${marker.color}">
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button id="deleteMarker" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded transition-colors">Delete</button>
+                <button id="cancelEdit" class="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors">Cancel</button>
+                <button id="saveEdit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">Save</button>
+            </div>
+        </div>
+    `;
+    
+    // Color selection - highlight current color
+    dialog.querySelectorAll('.color-btn').forEach(btn => {
+        if (btn.dataset.color === marker.color) {
+            btn.classList.add('border-white');
+        }
+        btn.addEventListener('click', () => {
+            dialog.querySelectorAll('.color-btn').forEach(b => b.classList.remove('border-white'));
+            btn.classList.add('border-white');
+            dialog.querySelector('#markerColor').value = btn.dataset.color;
+        });
+    });
+    
+    // Cancel button
+    dialog.querySelector('#cancelEdit').addEventListener('click', () => dialog.remove());
+    
+    // Delete button
+    dialog.querySelector('#deleteMarker').addEventListener('click', () => {
+        if (localAppServices.removeTimelineMarker) {
+            localAppServices.removeTimelineMarker(markerId);
+            showNotification('Marker deleted', 1500);
+            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+        }
+        dialog.remove();
+    });
+    
+    // Save button
+    dialog.querySelector('#saveEdit').addEventListener('click', () => {
+        const name = dialog.querySelector('#markerName').value.trim() || 'Marker';
+        const pos = parseFloat(dialog.querySelector('#markerPosition').value) || 0;
+        const color = dialog.querySelector('#markerColor').value;
+        
+        if (localAppServices.updateTimelineMarker) {
+            localAppServices.updateTimelineMarker(markerId, { name, position: pos, color });
+            showNotification(`Marker updated`, 1500);
+            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+        }
+        dialog.remove();
+    });
+    
+    // Close on background click
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.remove();
+    });
+    
+    document.body.appendChild(dialog);
+    dialog.querySelector('#markerName').select();
+}
+
+/**
+ * Shows a context menu for a timeline marker.
+ * @param {Event} e - The contextmenu event
+ * @param {string} markerId - The marker ID
+ */
+export function showMarkerContextMenu(e, markerId) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const marker = localAppServices.getTimelineMarkerById ? localAppServices.getTimelineMarkerById(markerId) : null;
+    if (!marker) return;
+    
+    const menuItems = [
+        { label: `📍 ${marker.name}`, action: () => {} },
+        { label: `Position: ${formatTime(marker.position)}`, action: () => {} },
+        { separator: true },
+        { label: 'Jump to Marker', action: () => jumpToMarker(markerId) },
+        { label: 'Edit Marker...', action: () => showEditMarkerDialog(markerId) },
+        { separator: true },
+        { label: 'Delete Marker', action: () => {
+            if (localAppServices.removeTimelineMarker) {
+                localAppServices.removeTimelineMarker(markerId);
+                showNotification('Marker deleted', 1500);
+                if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+            }
+        }}
+    ];
+    
+    createContextMenu(e, menuItems, localAppServices);
+}
+
+/**
+ * Jumps playback to a marker's position.
+ * @param {string} markerId - The marker ID to jump to
+ */
+export function jumpToMarker(markerId) {
+    const marker = localAppServices.getTimelineMarkerById ? localAppServices.getTimelineMarkerById(markerId) : null;
+    if (!marker) return;
+    
+    // Set playhead position
+    timelineState.playheadPosition = marker.position;
+    
+    // Update UI
+    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+    
+    // If there's a seek function, use it
+    if (localAppServices.seekToPosition) {
+        localAppServices.seekToPosition(marker.position);
+    }
+    
+    showNotification(`Jumped to "${marker.name}" (${formatTime(marker.position)})`, 1500);
+}
+
+/**
+ * Opens the markers panel to view/manage all markers.
+ */
+export function openMarkersPanel() {
+    const markers = localAppServices.getTimelineMarkers ? localAppServices.getTimelineMarkers() : [];
+    
+    const existingPanel = document.getElementById('markers-panel-window');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+    
+    const panel = document.createElement('div');
+    panel.id = 'markers-panel-window';
+    panel.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 z-50';
+    panel.style.width = '400px';
+    panel.style.maxHeight = '70vh';
+    
+    let markersHTML = '';
+    if (markers.length === 0) {
+        markersHTML = '<p class="text-slate-500 text-center py-8">No markers yet. Right-click on the timeline ruler to add one.</p>';
+    } else {
+        markersHTML = `
+            <div class="divide-y divide-slate-700">
+                ${markers.map(m => `
+                    <div class="marker-item flex items-center justify-between px-4 py-3 hover:bg-slate-800 cursor-pointer" data-marker-id="${m.id}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 rounded-full" style="background: ${m.color};"></div>
+                            <span class="text-white font-medium">${m.name}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-400 text-sm">${formatTime(m.position)}</span>
+                            <button class="edit-marker-btn text-slate-500 hover:text-white" title="Edit">✏️</button>
+                            <button class="delete-marker-btn text-slate-500 hover:text-red-400" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    panel.innerHTML = `
+        <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white">📍 Timeline Markers</h3>
+            <button class="close-panel-btn text-slate-500 hover:text-white text-xl">&times;</button>
+        </div>
+        <div class="markers-content overflow-y-auto" style="max-height: 50vh;">
+            ${markersHTML}
+        </div>
+        <div class="p-4 border-t border-slate-700 flex gap-2">
+            <button id="addMarkerBtn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">+ Add Marker at Playhead</button>
+            <button id="clearAllMarkersBtn" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded transition-colors ${markers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}">Clear All</button>
+        </div>
+    `;
+    
+    // Close button
+    panel.querySelector('.close-panel-btn').addEventListener('click', () => panel.remove());
+    
+    // Add marker button
+    panel.querySelector('#addMarkerBtn').addEventListener('click', () => {
+        showAddMarkerDialog(timelineState.playheadPosition || 0);
+    });
+    
+    // Clear all button
+    panel.querySelector('#clearAllMarkersBtn').addEventListener('click', () => {
+        if (markers.length === 0) return;
+        if (confirm('Delete all markers?')) {
+            if (localAppServices.clearAllTimelineMarkers) {
+                localAppServices.clearAllTimelineMarkers();
+                showNotification('All markers cleared', 1500);
+                panel.remove();
+                if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+            }
+        }
+    });
+    
+    // Marker item interactions
+    panel.querySelectorAll('.marker-item').forEach(item => {
+        const markerId = item.dataset.markerId;
+        
+        // Click to jump
+        item.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('edit-marker-btn') && !e.target.classList.contains('delete-marker-btn')) {
+                jumpToMarker(markerId);
+                panel.remove();
+            }
+        });
+        
+        // Edit button
+        item.querySelector('.edit-marker-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showEditMarkerDialog(markerId);
+            panel.remove();
+        });
+        
+        // Delete button
+        item.querySelector('.delete-marker-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (localAppServices.removeTimelineMarker) {
+                localAppServices.removeTimelineMarker(markerId);
+                showNotification('Marker deleted', 1500);
+                panel.remove();
+                if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+            }
+        });
+    });
+    
+    // Close on escape key
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            panel.remove();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
+    document.body.appendChild(panel);
 }

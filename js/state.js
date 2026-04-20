@@ -104,12 +104,58 @@ export function setMetronomeVolume(volume) {
     console.log(`[State] Metronome volume set to: ${metronomeVolume}`);
 }
 
+// --- Tempo Ramps State ---
+// tempoRamps: Array of { id, barPosition: number (in bars), bpm: number, curve: 'linear'|'exponential' }
+let tempoRampsState = [];
+let tempoRampsScheduleId = null;
+
+export function getTempoRampsState() { return tempoRampsState; }
+
+export function addTempoRampPoint(barPosition, bpm, curve = 'linear') {
+    const id = `tempoRamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    tempoRampsState.push({ id, barPosition: parseFloat(barPosition) || 0, bpm: parseFloat(bpm) || 120, curve });
+    tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+    console.log(`[State] Added tempo ramp point at bar ${barPosition}: ${bpm} BPM`);
+    return id;
+}
+
+export function removeTempoRampPoint(id) {
+    const idx = tempoRampsState.findIndex(r => r.id === id);
+    if (idx !== -1) {
+        tempoRampsState.splice(idx, 1);
+        console.log(`[State] Removed tempo ramp point ${id}`);
+    }
+}
+
+export function updateTempoRampPoint(id, barPosition, bpm, curve) {
+    const ramp = tempoRampsState.find(r => r.id === id);
+    if (ramp) {
+        if (barPosition !== undefined) ramp.barPosition = parseFloat(barPosition) || 0;
+        if (bpm !== undefined) ramp.bpm = parseFloat(bpm) || 120;
+        if (curve !== undefined) ramp.curve = curve;
+        tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+        console.log(`[State] Updated tempo ramp point ${id}`);
+    }
+}
+
+export function clearTempoRamps() {
+    tempoRampsState = [];
+    console.log('[State] Cleared all tempo ramp points');
+}
+
+export function setTempoRampsState(ramps) {
+    tempoRampsState = Array.isArray(ramps) ? ramps.map(r => ({
+        id: r.id || `tempoRamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        barPosition: parseFloat(r.barPosition) || 0,
+        bpm: parseFloat(r.bpm) || 120,
+        curve: r.curve || 'linear'
+    })) : [];
+    tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+}
+
 // Undo/Redo
 let undoStack = [];
 let redoStack = [];
-
-// Track Effects Presets - stored per trackId as { presetName: { effectType, params } }
-let trackEffectsPresets = {};
 
 // --- MIDI Learn / Mapping ---
 let midiLearnMode = false; // Whether we're currently in learn mode
@@ -2469,4 +2515,142 @@ export function setNormalizationTargetDb(db) {
     // Clamp to reasonable range: -6dB to 0dB
     normalizationTargetDb = Math.max(-6, Math.min(0, parseFloat(db) || -1));
     console.log(`[State] Normalization target set to: ${normalizationTargetDb}dB`);
+}
+
+// --- Timeline Markers System ---
+let timelineMarkers = []; // Array of { id, name, position, color }
+let timelineMarkerIdCounter = 0;
+
+/**
+ * Adds a new timeline marker.
+ * @param {string} name - Marker name
+ * @param {number} position - Position in seconds
+ * @param {string} color - Marker color (hex or named color)
+ * @returns {object} The created marker
+ */
+export function addTimelineMarker(name, position, color = '#f59e0b') {
+    const marker = {
+        id: `marker_${++timelineMarkerIdCounter}`,
+        name: name || `Marker ${timelineMarkerIdCounter}`,
+        position: Math.max(0, parseFloat(position) || 0),
+        color: color
+    };
+    timelineMarkers.push(marker);
+    timelineMarkers.sort((a, b) => a.position - b.position);
+    console.log(`[State] Added timeline marker "${marker.name}" at ${marker.position}s`);
+    return marker;
+}
+
+/**
+ * Removes a timeline marker by ID.
+ * @param {string} markerId - The marker ID to remove
+ * @returns {boolean} True if removed, false if not found
+ */
+export function removeTimelineMarker(markerId) {
+    const index = timelineMarkers.findIndex(m => m.id === markerId);
+    if (index !== -1) {
+        const removed = timelineMarkers.splice(index, 1)[0];
+        console.log(`[State] Removed timeline marker "${removed.name}"`);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Updates a timeline marker's properties.
+ * @param {string} markerId - The marker ID to update
+ * @param {object} updates - Properties to update (name, position, color)
+ * @returns {object|null} The updated marker or null if not found
+ */
+export function updateTimelineMarker(markerId, updates) {
+    const marker = timelineMarkers.find(m => m.id === markerId);
+    if (marker) {
+        if (updates.name !== undefined) marker.name = String(updates.name);
+        if (updates.position !== undefined) {
+            marker.position = Math.max(0, parseFloat(updates.position) || 0);
+            // Re-sort after position change
+            timelineMarkers.sort((a, b) => a.position - b.position);
+        }
+        if (updates.color !== undefined) marker.color = updates.color;
+        console.log(`[State] Updated timeline marker "${marker.name}"`);
+        return marker;
+    }
+    return null;
+}
+
+/**
+ * Gets all timeline markers sorted by position.
+ * @returns {Array} Array of marker objects
+ */
+export function getTimelineMarkers() {
+    return [...timelineMarkers];
+}
+
+/**
+ * Gets a specific timeline marker by ID.
+ * @param {string} markerId - The marker ID
+ * @returns {object|null} The marker or null if not found
+ */
+export function getTimelineMarkerById(markerId) {
+    return timelineMarkers.find(m => m.id === markerId) || null;
+}
+
+/**
+ * Clears all timeline markers.
+ */
+export function clearAllTimelineMarkers() {
+    timelineMarkers = [];
+    timelineMarkerIdCounter = 0;
+    console.log(`[State] Cleared all timeline markers`);
+}
+
+/**
+ * Gets the next marker after a given position (for navigation).
+ * @param {number} position - Current position in seconds
+ * @returns {object|null} The next marker or null if none exists
+ */
+export function getNextTimelineMarker(position) {
+    const sortedMarkers = timelineMarkers.filter(m => m.position > position);
+    return sortedMarkers.length > 0 ? sortedMarkers[0] : null;
+}
+
+/**
+ * Gets the previous marker before a given position (for navigation).
+ * @param {number} position - Current position in seconds
+ * @returns {object|null} The previous marker or null if none exists
+ */
+export function getPrevTimelineMarker(position) {
+    const sortedMarkers = timelineMarkers.filter(m => m.position < position);
+    return sortedMarkers.length > 0 ? sortedMarkers[sortedMarkers.length - 1] : null;
+}
+
+/**
+ * Imports markers from an array (used during project load).
+ * @param {Array} markersData - Array of marker objects
+ */
+export function importTimelineMarkers(markersData) {
+    if (Array.isArray(markersData)) {
+        timelineMarkers = markersData.map(m => ({
+            id: m.id || `marker_${++timelineMarkerIdCounter}`,
+            name: m.name || 'Unnamed',
+            position: Math.max(0, parseFloat(m.position) || 0),
+            color: m.color || '#f59e0b'
+        }));
+        timelineMarkers.sort((a, b) => a.position - b.position);
+        // Update counter to avoid ID collisions
+        const maxId = timelineMarkers.reduce((max, m) => {
+            const match = m.id.match(/marker_(\d+)/);
+            return match ? Math.max(max, parseInt(match[1], 10)) : max;
+        }, 0);
+        timelineMarkerIdCounter = maxId;
+        console.log(`[State] Imported ${timelineMarkers.length} timeline markers`);
+    }
+}
+
+/**
+ * Exports markers for project save.
+ * @returns {Array} Array of marker objects
+ */
+export function exportTimelineMarkers() {
+    return JSON.parse(JSON.stringify(timelineMarkers));
 }
