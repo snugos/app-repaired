@@ -907,8 +907,46 @@ export function openMasterEffectsRackWindow(savedState = null) {
     if (savedState) Object.assign(rackOptions, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const rackWindow = localAppServices.createWindow(windowId, 'Master Effects Rack', contentDOM, rackOptions);
     if (rackWindow?.element) {
-        renderEffectsList(null, 'master', rackWindow.element.querySelector(`#effectsList-master`), rackWindow.element.querySelector(`#effectControlsContainer-master`));
-        rackWindow.element.querySelector(`#addEffectBtn-master`)?.addEventListener('click', () => showAddEffectModal(null, 'master'));
+        renderEffectsList(null, 'master', rackWindow.element.querySelector('#effectsList-master'), rackWindow.element.querySelector('#effectControlsContainer-master'));
+        rackWindow.element.querySelector('#addEffectBtn-master')?.addEventListener('click', () => showAddEffectModal(null, 'master'));
+
+        // Master effects preset buttons
+        const savePresetBtn = rackWindow.element.querySelector('#saveEffectPresetBtn-master');
+        if (savePresetBtn) {
+            savePresetBtn.addEventListener('click', () => {
+                const presetName = prompt('Enter a name for this master effect preset:');
+                if (presetName && presetName.trim()) {
+                    if (localAppServices.saveMasterEffectPreset) {
+                        localAppServices.saveMasterEffectPreset(presetName.trim());
+                        showNotification(`Preset "${presetName.trim()}" saved.`, 2000);
+                    }
+                }
+            });
+        }
+
+        const loadPresetBtn = rackWindow.element.querySelector('#loadEffectPresetBtn-master');
+        if (loadPresetBtn) {
+            loadPresetBtn.addEventListener('click', () => {
+                if (localAppServices.getAvailableMasterEffectPresets) {
+                    const presets = localAppServices.getAvailableMasterEffectPresets();
+                    if (presets.length === 0) {
+                        showNotification('No master presets saved.', 2000);
+                        return;
+                    }
+                    const presetOptions = presets.map(p => p.name).join('\n');
+                    const selectedPreset = prompt(`Available master presets:\n${presetOptions}\n\nEnter preset name to load:`);
+                    if (selectedPreset && selectedPreset.trim()) {
+                        if (localAppServices.loadMasterEffectPreset) {
+                            const success = localAppServices.loadMasterEffectPreset(selectedPreset.trim());
+                            if (success) {
+                                showNotification(`Preset "${selectedPreset.trim()}" loaded.`, 2000);
+                                renderEffectsList(null, 'master', rackWindow.element.querySelector('#effectsList-master'), rackWindow.element.querySelector('#effectControlsContainer-master'));
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
     return rackWindow;
 }
