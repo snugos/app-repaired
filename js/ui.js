@@ -987,8 +987,10 @@ export function openGlobalControlsWindow(onReadyCallback, savedState = null) {
         <div class="flex justify-between items-center text-xs mt-1.5"> <span id="midiIndicatorGlobal" title="MIDI Activity" class="px-2 py-1 rounded-full bg-gray-300 text-gray-600 font-medium transition-colors duration-150 dark:bg-slate-600 dark:text-slate-300">MIDI</span> <span id="keyboardIndicatorGlobal" title="Computer Keyboard Activity" class="px-2 py-1 rounded-full bg-gray-300 text-gray-600 font-medium transition-colors duration-150 dark:bg-slate-600 dark:text-slate-300">KBD</span> </div>
         <div id="ccVisualizerContainer" class="mt-2 flex flex-wrap gap-1 items-center" title="MIDI CC Values"></div>
         <div class="mt-2 flex gap-2"> <button id="playbackModeToggleBtnGlobal" title="Toggle Playback Mode (Sequencer/Timeline)" class="flex-1 bg-violet-400 hover:bg-violet-500 text-white font-semibold py-1.5 px-3 rounded shadow transition-colors duration-150 dark:bg-violet-500 dark:hover:bg-violet-600">Mode: Sequencer</button> <button id="metronomeBtnGlobal" title="Toggle Metronome" class="bg-slate-400 hover:bg-slate-500 text-white font-semibold py-1.5 px-3 rounded shadow transition-colors duration-150 dark:bg-slate-500 dark:hover:bg-slate-600">🔲 Metronome</button> </div>
+        <div class="mt-2 flex gap-2 items-center"> <label class="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap">Scale:</label> <select id="scaleSelectGlobal" class="flex-1 p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"> <option value="major">Major</option> <option value="minor">Natural Minor</option> <option value="harmonic_minor">Harmonic Minor</option> <option value="melodic_minor">Melodic Minor</option> <option value="dorian">Dorian</option> <option value="phrygian">Phrygian</option> <option value="lydian">Lydian</option> <option value="mixolydian">Mixolydian</option> <option value="locrian">Locrian</option> <option value="pentatonic_major">Major Pentatonic</option> <option value="pentatonic_minor">Minor Pentatonic</option> <option value="blues">Blues</option> <option value="chromatic">Chromatic</option> <option value="whole_tone">Whole Tone</option> <option value="dorian_b9">Dorian b9</option> <option value="lydian_dom">Lydian Dominant</option> </select> <label class="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap">Key:</label> <select id="keySelectGlobal" class="p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 w-16"> <option value="C">C</option> <option value="C#">C#</option> <option value="D">D</option> <option value="D#">D#</option> <option value="E">E</option> <option value="F">F</option> <option value="F#">F#</option> <option value="G">G</option> <option value="G#">G#</option> <option value="A">A</option> <option value="A#">A#</option> <option value="B">B</option> </select> </div>
+        <div id="scaleNotesDisplay" class="mt-1 text-xs text-center text-gray-500 dark:text-slate-400 font-mono"></div>
     </div>`;
-    const options = { width: 280, height: 360, minWidth: 250, minHeight: 340, closable: true, minimizable: true, resizable: true, initialContentKey: windowId }; // Adjusted height slightly
+    const options = { width: 280, height: 420, minWidth: 250, minHeight: 380, closable: true, minimizable: true, resizable: true, initialContentKey: windowId }; // Adjusted height slightly
     if (savedState) Object.assign(options, { x: parseInt(savedState.left,10), y: parseInt(savedState.top,10), width: parseInt(savedState.width,10), height: parseInt(savedState.height,10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
     const newWindow = localAppServices.createWindow(windowId, 'Global Controls', contentHTML, options);
     if (newWindow?.element && typeof onReadyCallback === 'function') {
@@ -1003,7 +1005,10 @@ export function openGlobalControlsWindow(onReadyCallback, savedState = null) {
             masterMeterBarGlobal: newWindow.element.querySelector('#masterMeterBarGlobal'),
             midiIndicatorGlobal: newWindow.element.querySelector('#midiIndicatorGlobal'),
             keyboardIndicatorGlobal: newWindow.element.querySelector('#keyboardIndicatorGlobal'),
-            playbackModeToggleBtnGlobal: newWindow.element.querySelector('#playbackModeToggleBtnGlobal')
+            playbackModeToggleBtnGlobal: newWindow.element.querySelector('#playbackModeToggleBtnGlobal'),
+            scaleSelectGlobal: newWindow.element.querySelector('#scaleSelectGlobal'),
+            keySelectGlobal: newWindow.element.querySelector('#keySelectGlobal'),
+            scaleNotesDisplay: newWindow.element.querySelector('#scaleNotesDisplay')
         });
     }
     return newWindow;

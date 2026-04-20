@@ -55,7 +55,11 @@ import {
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
-    exportToMidiInternal
+    exportToMidiInternal,
+    // Scale Hint
+    getScaleHintEnabled, setScaleHintEnabled, getScaleHintRoot, setScaleHintRoot,
+    getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
+    isNoteInScale, isNoteNameInScale
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -323,6 +327,11 @@ const appServices = {
     getUndoStack: getUndoStackState, getRedoStack: getRedoStackState,
     getPlaybackMode: getPlaybackModeState,
 
+    // Scale Hint Getters/Setters
+    getScaleHintEnabled, setScaleHintEnabled, getScaleHintRoot, setScaleHintRoot,
+    getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
+    isNoteInScale, isNoteNameInScale,
+
     // State Module Setters & Core Actions
     addWindowToStore: addWindowToStoreState, removeWindowFromStore: removeWindowFromStoreState,
     setHighestZ: setHighestZState, incrementHighestZ: incrementHighestZState,
@@ -511,7 +520,7 @@ const appServices = {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -547,7 +556,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 

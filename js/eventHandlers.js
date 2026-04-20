@@ -246,7 +246,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -338,6 +338,41 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Metronome Controls ===
+
+    // === Scale/Key Selector Controls ===
+    function updateScaleNotesDisplay() {
+        if (!scaleSelectGlobal || !keySelectGlobal || !scaleNotesDisplay) return;
+        const scaleId = scaleSelectGlobal.value;
+        const keyRoot = keySelectGlobal.value;
+        const scaleObj = Constants.AVAILABLE_SCALES.find(s => s.id === scaleId);
+        if (scaleObj) {
+            const notes = Constants.getScaleNotes(keyRoot, scaleObj.intervals);
+            scaleNotesDisplay.textContent = notes.join(' - ');
+        }
+    }
+
+    if (scaleSelectGlobal) {
+        scaleSelectGlobal.addEventListener('change', () => {
+            updateScaleNotesDisplay();
+            if (localAppServices.setGlobalScale) {
+                localAppServices.setGlobalScale(scaleSelectGlobal.value);
+            }
+        });
+    }
+
+    if (keySelectGlobal) {
+        keySelectGlobal.addEventListener('change', () => {
+            updateScaleNotesDisplay();
+            if (localAppServices.setGlobalKey) {
+                localAppServices.setGlobalKey(keySelectGlobal.value);
+            }
+        });
+    }
+
+    if (scaleNotesDisplay) {
+        updateScaleNotesDisplay();
+    }
+    // === End Scale/Key Controls ===
 
     if (playBtnGlobal) {
         playBtnGlobal.addEventListener('click', async () => {
