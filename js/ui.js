@@ -4346,6 +4346,170 @@ export function openExportPresetsPanel() {
 }
 
 /**
+ * Opens the Project Templates panel where users can save, load, and manage project templates.
+ */
+export function openProjectTemplatesPanel() {
+    const panelId = 'projectTemplatesPanel';
+    let win = localAppServices.getWindowByIdState ? localAppServices.getWindowByIdState(panelId) : null;
+    
+    if (win) {
+        win.bringToFront();
+        return;
+    }
+    
+    win = new SnugWindow({
+        id: panelId,
+        title: 'Project Templates',
+        width: 500,
+        height: 550,
+        x: 200,
+        y: 100,
+        minWidth: 350,
+        minHeight: 300,
+        onCloseCallback: () => {
+            if (localAppServices.removeWindowFromStoreState) {
+                localAppServices.removeWindowFromStoreState(panelId);
+            }
+        }
+    });
+    
+    if (localAppServices.addWindowToStoreState) {
+        localAppServices.addWindowToStoreState(panelId, win);
+    }
+    
+    renderProjectTemplatesContent(win.contentArea);
+}
+
+/**
+ * Renders the content of the Project Templates panel.
+ */
+function renderProjectTemplatesContent(container) {
+    const templateNames = localAppServices.getProjectTemplateNames ? localAppServices.getProjectTemplateNames() : [];
+    
+    container.innerHTML = `
+        <div class="p-4 h-full flex flex-col">
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Save Current as Template</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="newTemplateName" placeholder="Template name..." class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs">
+                    <button id="saveTemplateBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                </div>
+                <div class="flex gap-4 mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    <label class="flex items-center gap-1">
+                        <input type="checkbox" id="includeTracks" checked class="rounded">
+                        <span>Include Tracks</span>
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <input type="checkbox" id="includeMasterEffects" checked class="rounded">
+                        <span>Include Master Effects</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Saved Templates</h3>
+                <div id="templateList" class="space-y-1">
+                    ${templateNames.length === 0 ? '<p class="text-xs text-slate-500 italic">No templates saved yet.</p>' : 
+                        templateNames.map(name => `
+                            <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-700 rounded px-2 py-2">
+                                <div class="flex-1">
+                                    <span class="text-xs font-medium">${escapeHtml(name)}</span>
+                                    ${getTemplatePreviewInfo(name)}
+                                </div>
+                                <div class="flex gap-1">
+                                    <button class="load-template-btn px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-template="${escapeHtml(name)}">Load</button>
+                                    <button class="delete-template-btn px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-template="${escapeHtml(name)}">Delete</button>
+                                </div>
+                            </div>
+                        `).join('')
+                    }
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-2 border-t border-slate-200 dark:border-slate-600">
+                <p class="text-xs text-slate-500 dark:text-slate-400 italic">Tip: Templates save track settings, effects, and global settings (tempo, volume).</p>
+            </div>
+        </div>
+    `;
+    
+    // Attach event listeners
+    const saveBtn = container.querySelector('#saveTemplateBtn');
+    const nameInput = container.querySelector('#newTemplateName');
+    const includeTracks = container.querySelector('#includeTracks');
+    const includeMasterEffects = container.querySelector('#includeMasterEffects');
+    
+    saveBtn?.addEventListener('click', () => {
+        const templateName = nameInput?.value.trim();
+        if (!templateName) {
+            localAppServices.showNotification?.('Please enter a template name.', 2000);
+            return;
+        }
+        
+        const includeTracksVal = includeTracks?.checked ?? true;
+        const includeMasterEffectsVal = includeMasterEffects?.checked ?? true;
+        
+        const success = localAppServices.saveProjectTemplate?.(templateName, includeTracksVal, includeMasterEffectsVal);
+        if (success) {
+            localAppServices.showNotification?.(`Template "${templateName}" saved!`, 2000);
+            nameInput.value = '';
+            renderProjectTemplatesContent(container);
+        } else {
+            localAppServices.showNotification?.('Failed to save template.', 2000);
+        }
+    });
+    
+    nameInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') saveBtn?.click();
+    });
+    
+    // Load buttons
+    container.querySelectorAll('.load-template-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const templateName = btn.dataset.template;
+            if (confirm(`Load template "${templateName}"? This will ${localAppServices.getTracksState?.().length > 0 ? 'clear existing tracks and ' : ''}load the template.`)) {
+                const success = localAppServices.loadProjectTemplate?.(templateName);
+                if (success) {
+                    localAppServices.showNotification?.(`Template "${templateName}" loaded!`, 2000);
+                    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                    if (localAppServices.updateMixerWindow) localAppServices.updateMixerWindow();
+                } else {
+                    localAppServices.showNotification?.('Failed to load template.', 2000);
+                }
+            }
+        });
+    });
+    
+    // Delete buttons
+    container.querySelectorAll('.delete-template-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const templateName = btn.dataset.template;
+            if (confirm(`Delete template "${templateName}"?`)) {
+                localAppServices.deleteProjectTemplate?.(templateName);
+                localAppServices.showNotification?.(`Template "${templateName}" deleted.`, 1500);
+                renderProjectTemplatesContent(container);
+            }
+        });
+    });
+}
+
+/**
+ * Gets a brief preview info string for a template.
+ */
+function getTemplatePreviewInfo(templateName) {
+    try {
+        const template = localAppServices.getProjectTemplate?.(templateName);
+        if (!template) return '';
+        const parts = [];
+        if (template.tracks?.length) parts.push(`${template.tracks.length} track${template.tracks.length !== 1 ? 's' : ''}`);
+        if (template.masterEffects?.length) parts.push(`${template.masterEffects.length} master FX`);
+        if (template.globalSettings?.tempo) parts.push(`${template.globalSettings.tempo} BPM`);
+        return parts.length ? `<div class="text-xs text-slate-500 dark:text-slate-400">${parts.join(' • ')}</div>` : '';
+    } catch {
+        return '';
+    }
+}
+
+/**
  * Renders the content of the Export Presets panel.
  */
 function renderExportPresetsContent(container) {
