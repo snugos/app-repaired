@@ -203,6 +203,7 @@ export function initializePrimaryEventListeners(appContext) {
             menuSaveProject: () => { console.log('[Menu] Save clicked'); services.saveProject?.(); },
             menuLoadProject: () => { console.log('[Menu] Load clicked'); services.loadProject?.(); },
             menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
+            menuExportMidi: () => { console.log('[Menu] Export MIDI clicked'); services.exportToMidi?.(); },
             menuExportStems: () => { console.log('[Menu] Export Stems clicked'); services.showStemExportDialog?.(); },
             menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); services.openExportPresetsPanel?.(); },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
