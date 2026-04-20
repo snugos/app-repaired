@@ -4,15 +4,10 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Gain Envelope** - Draw volume automation on audio clips ✅ COMPLETED (UI editor implemented)
-2. **MIDI CC Recording** - Record MIDI CC movements as automation ✅ COMPLETED (state and handlers wired)
-3. **Adaptive Quantize** - Intelligently quantize while preserving musical feel ✅ COMPLETED (strength parameter exists)
-4. **Track Grouping** - Group tracks for collective mute/solo/volume ❌ NOT IMPLEMENTED
-5. **Audio Reverse** - Reverse audio clips with a click ❌ NOT IMPLEMENTED
-6. **Step Sequencer Note Length Lane** - Visual note length lane per step ❌ NOT IMPLEMENTED
-7. **Track Lane Reordering** - Drag to reorder tracks in mixer/arrangement ❌ NOT IMPLEMENTED
-8. **Sample Rate Conversion** - Change project sample rate ❌ NOT IMPLEMENTED
-9. **Chord Trigger** - Store and trigger chord voicings with single key ✅ COMPLETED (just committed)
+1. **Track Grouping** - Group tracks for collective mute/solo/volume ❌ NOT IMPLEMENTED
+2. **Audio Reverse** - Reverse audio clips with a click ❌ NOT IMPLEMENTED
+3. **Step Sequencer Note Length Lane** - Visual note length lane per step ❌ NOT IMPLEMENTED
+4. **Sample Rate Conversion** - Change project sample rate ❌ NOT IMPLEMENTED
 
 ## Workflow
 
