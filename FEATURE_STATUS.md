@@ -300,6 +300,22 @@
 
 ### Completed This Session (2026-04-20)
 
+#### Feature Fix: Scale Hint Overlay - ✅ COMPLETED (13:20 UTC)
+- **Issue:** Scale hint overlay feature was partially implemented
+  - UI code existed in js/ui.js to highlight notes in the current musical scale
+  - Functions were defined in js/state.js: `getScaleHintEnabled`, `setScaleHintEnabled`, `getScaleHintRoot`, `setScaleHintRoot`, `getScaleHintType`, `setScaleHintType`, `isNoteInScale`, `isNoteNameInScale`, `getScaleTypes`, `getScaleNotes`
+  - **Bug:** Functions were not imported in js/main.js and not added to appServices
+  - **Bug:** UI was calling `isNoteInScale` with pitch names (like "C4") instead of MIDI note numbers
+- **Fix:** 
+  - Added all scale hint functions to imports in js/main.js
+  - Added all scale hint functions to appServices object for UI access
+  - Fixed UI to use `isNoteNameInScale` for pitch name strings
+- **Impact:** Scale hint overlay now works correctly in sequencer window
+  - Toggle button in sequencer highlights notes that belong to the selected scale
+  - Green box-shadow overlay shows in-scale notes on the sequencer grid
+- All JavaScript syntax checks passed (all 12 JS files)
+- Git status: pushed to origin LWB-with-Bugs
+
 #### Verification Run (12:50 UTC)
 - ✅ **Codebase Verification Complete** - Full scan for incomplete features
   - No TODO/FIXME/XXX/HACK/INCOMPLETE/STUB markers found
