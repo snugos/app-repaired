@@ -24,6 +24,10 @@ let masterEffectsChainState = []; // Array of {id, type, params, toneNode (manag
 // Use numeric fallback until Tone.js is available (Tone.dbToGain(0) = 1.0 linear)
 let masterGainValueState = (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone.dbToGain(0) : 1.0; // Linear gain value
 
+// Effect Presets Storage
+let trackEffectsPresets = {}; // { trackId: { presetName: effectsData } }
+let masterEffectPresets = {}; // { presetName: { effects: [...], masterGain: number } }
+
 // MIDI State
 let midiAccessGlobal = null;
 let activeMIDIInputGlobal = null;
