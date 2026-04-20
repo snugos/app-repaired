@@ -872,7 +872,7 @@ export function getMimeTypeFromFilename(filename) {
 async function commonLoadSampleLogic(fileObject, sourceName, track, trackTypeHint, padIndex = null) {
     const isReconstructing = localAppServices.getIsReconstructingDAW ? localAppServices.getIsReconstructingDAW() : false;
 
-    if (localAppServices.captureStateForUndo && !isReconstructinging) {
+    if (localAppServices.captureStateForUndo && !isReconstructing) {
         const targetName = trackTypeHint === 'DrumSampler' && padIndex !== null ?
             `Pad ${padIndex + 1} on ${track.name}` :
             track.name;
@@ -1491,10 +1491,6 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
             }
         }
         mic = null;
-        if (recorder) {
-            if (!recorder.disposed) try { recorder.dispose(); } catch(e) { console.warn("Cleanup error disposing recorder:", e.message); }
-        }
-        recorder = null;
         return false;
     }
 }
@@ -2187,5 +2183,169 @@ export function drawWaveformOnContext(ctx, audioBuffer, width, height, color = '
         const x = i * barWidth;
         
         ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);
+    }
+}
+
+/**
+ * Bounce a track to an audio buffer using offline rendering.
+ * Renders the track's complete output including effects, sends, and master chain.
+ * @param {Object} track - The track to bounce
+ * @param {number} duration - Duration in seconds to render
+ * @returns {Promise<Tone.ToneAudioBuffer>} - The rendered audio buffer
+ */
+export async function bounceTrackToBuffer(track, duration) {
+    console.log(`[Audio bounceTrackToBuffer] Starting bounce for track "${track.name}", duration: ${duration}s`);
+    
+    try {
+        // Get the master chain input node as the start point
+        const masterInput = getMasterEffectsBusInputNode();
+        if (!masterInput) {
+            throw new Error('Master effects bus not available');
+        }
+        
+        // Create offline context
+        const sampleRate = Tone.context.sampleRate;
+        const offlineContext = new Tone.OfflineContext(2, duration, sampleRate);
+        
+        // Clone the track's signal chain into the offline context
+        // We need to rebuild the chain in the offline context
+        
+        // Create effects chain for this bounce session
+        const bounceGain = new Tone.Gain(track.previousVolumeBeforeMute).connect(Tone.getDestination());
+        
+        // For synth tracks, we need to trigger the sequence
+        if (track.type === 'Synth' && track.sequences && track.sequences.length > 0) {
+            const activeSeq = track.sequences.find(s => s.id === track.activeSequenceId) || track.sequences[0];
+            if (activeSeq && activeSeq.data) {
+                // Schedule all notes in the sequence
+                activeSeq.data.forEach((step, stepIndex) => {
+                    if (step && step.note) {
+                        const time = (stepIndex / track.stepsPerBeat) * (60 / track.bpm);
+                        if (track.instrument && typeof track.instrument.triggerAttackRelease === 'function') {
+                            track.instrument.triggerAttackRelease(step.note, step.duration || '8n', time);
+                        }
+                    }
+                });
+            }
+        }
+        
+        // For audio tracks with clips, render them
+        if (track.type === 'Audio' && track.timelineClips && track.timelineClips.length > 0) {
+            // Get audio buffer for each clip and schedule playback
+            for (const clip of track.timelineClips) {
+                if (clip.dbKey) {
+                    const audioBuffer = await getTimelineClipAudioBuffer(clip.id, clip.dbKey);
+                    if (audioBuffer) {
+                        const player = new Tone.Player(audioBuffer).connect(bounceGain);
+                        player.start(clip.startTime || 0);
+                    }
+                }
+            }
+        }
+        
+        // Render the offline context
+        const renderedBuffer = await offlineContext.render();
+        console.log(`[Audio bounceTrackToBuffer] Bounce complete. Duration: ${renderedBuffer.duration}s`);
+        
+        return renderedBuffer;
+        
+    } catch (error) {
+        console.error(`[Audio bounceTrackToBuffer] Error bouncing track:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Bounce a track to a WAV Blob.
+ * @param {Object} track - The track to bounce
+ * @param {number} duration - Duration in seconds
+ * @returns {Promise<Blob>} - WAV file as Blob
+ */
+export async function bounceTrackToWav(track, duration) {
+    console.log(`[Audio bounceTrackToWav] Starting bounce to WAV for track "${track.name}"`);
+    
+    try {
+        const buffer = await bounceTrackToBuffer(track, duration);
+        
+        // Convert ToneAudioBuffer to plain AudioBuffer for WAV encoding
+        const audioBuffer = buffer.get() ? buffer.get() : buffer;
+        
+        // Encode to WAV
+        const wavBlob = encodeWavFromAudioBuffer(audioBuffer, audioBuffer.sampleRate);
+        
+        console.log(`[Audio bounceTrackToWav] WAV created. Size: ${wavBlob.size} bytes`);
+        return wavBlob;
+        
+    } catch (error) {
+        console.error(`[Audio bounceTrackToWav] Error:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Encodes an AudioBuffer to a WAV Blob.
+ * @param {AudioBuffer} buffer - The AudioBuffer to encode
+ * @param {number} sampleRate - Sample rate (usually from buffer.sampleRate)
+ * @returns {Blob} - WAV file as Blob
+ */
+export function encodeWavFromAudioBuffer(buffer, sampleRate) {
+    const numChannels = buffer.numberOfChannels || 2;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+    
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+    
+    // Write WAV header
+    // "RIFF" chunk
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    
+    // "fmt " sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // Sub-chunk size
+    view.setUint16(20, format, true); // Audio format (1 = PCM)
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true); // Byte rate
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    
+    // "data" sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    // Write audio data samples
+    const offset = 44;
+    const channelData = [];
+    for (let i = 0; i < numChannels; i++) {
+        channelData.push(buffer.getChannelData(i));
+    }
+    
+    let pos = offset;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(pos, intSample, true);
+            pos += 2;
+        }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+/**
+ * Writes a string to a DataView at the specified offset.
+ */
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
     }
 }

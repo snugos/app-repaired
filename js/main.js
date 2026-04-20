@@ -52,7 +52,8 @@ import {
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
-    exportStemsInternal, showStemExportDialogInternal
+    exportStemsInternal, showStemExportDialogInternal,
+    bounceTrackToAudio, showBounceTrackDialog
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -364,6 +365,8 @@ const appServices = {
     exportToWav: exportToWavInternal,
     exportStems: exportStemsInternal,
     showStemExportDialog: showStemExportDialogInternal,
+    bounceTrackToAudio: bounceTrackToAudio,
+    showBounceTrackDialog: showBounceTrackDialog,
 
     // Event Handler Passthroughs
     selectMIDIInput: eventSelectMIDIInput, 
@@ -528,7 +531,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -548,7 +551,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -563,9 +566,22 @@ const appServices = {
         updateMasterEffectParamInState(effectId, paramPath, value);
         updateMasterEffectParamInAudio(effectId, paramPath, value);
     },
+    toggleMasterEffectBypass: (effectId) => {
+        try {
+            const effects = getMasterEffectsState();
+            const effect = effects ? effects.find(e => e.id === effectId) : null;
+            if (!effect) { console.warn(`[Main toggleMasterEffectBypass] Effect ${effectId} not found.`); return; }
+            const currentWet = effect.params?.wet ?? 1;
+            const newWet = currentWet > 0 ? 0 : 1;
+            updateMasterEffectParamInState(effectId, 'wet', newWet);
+            updateMasterEffectParamInAudio(effectId, 'wet', newWet);
+        } catch (error) {
+            console.error(`[Main toggleMasterEffectBypass] Error toggling bypass for ${effectId}:`, error);
+        }
+    },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -589,8 +605,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },

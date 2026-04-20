@@ -985,7 +985,7 @@ export async function exportToWavInternal() {
 
         if (currentPlaybackMode === 'timeline') {
             tracks.forEach(track => {
-                if (track?.timelineClips) {
+                if (track && track.type !== 'Audio' && track.timelineClips) {
                     track.timelineClips.forEach(clip => {
                         if (clip?.startTime !== undefined && clip?.duration !== undefined) {
                             maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
@@ -1351,6 +1351,328 @@ export async function showStemExportDialogInternal() {
         }
         
         await exportStemsInternal(selectedTrackIds);
+    });
+
+    // Close on overlay click
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            modalOverlay.remove();
+        }
+    });
+}
+
+
+/**
+ * Bounces a track's output to an audio file.
+ * Renders the track's output (including effects) to a WAV file.
+ * 
+ * @param {number} trackId - The ID of the track to bounce
+ * @param {Object} options - Options for the bounce
+ * @param {boolean} options.createNewTrack - If true, creates a new Audio track with the rendered audio
+ * @param {boolean} options.download - If true, downloads the rendered audio file
+ * @param {number} options.startBar - Start bar for rendering (default: 0)
+ * @param {number} options.endBar - End bar for rendering (default: auto-detect from track content)
+ */
+export async function bounceTrackToAudio(trackId, options = {}) {
+    const { createNewTrack = false, download = true, startBar = 0, endBar = null } = options;
+    
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State bounceTrackToAudio] Required appServices not available.");
+        alert("Bounce feature is currently unavailable due to an internal error.");
+        return null;
+    }
+
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        appServices.showNotification("Track not found for bounce.", 2000);
+        return null;
+    }
+
+    if (track.type === 'Audio' && (!track.timelineClips || track.timelineClips.length === 0)) {
+        appServices.showNotification("Audio track has no clips to bounce.", 2000);
+        return null;
+    }
+
+    appServices.showNotification(`Bouncing track: ${track.name}...`, 15000);
+    console.log(`[Bounce] Starting bounce for track: ${track.name}`);
+
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for bounce.", 3000);
+            return null;
+        }
+
+        // Calculate duration based on track content
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+
+        if (currentPlaybackMode === 'timeline') {
+            if (track.timelineClips) {
+                track.timelineClips.forEach(clip => {
+                    if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                    }
+                });
+            }
+        } else {
+            if (track && track.type !== 'Audio') {
+                const activeSeq = track.getActiveSequence();
+                if (activeSeq?.length > 0) {
+                    const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                    maxDuration = activeSeq.length * sixteenthNoteTime;
+                }
+            }
+        }
+
+        // Apply bar constraints if specified
+        const barsPerSecond = Tone.Time("1m").toSeconds();
+        const barStart = startBar * barsPerSecond;
+        const barEnd = endBar !== null ? endBar * barsPerSecond : maxDuration;
+        maxDuration = Math.max(barEnd - barStart, maxDuration);
+
+        if (maxDuration <= 0) {
+            appServices.showNotification("Nothing to bounce. Add some notes or audio first.", 3000);
+            return null;
+        }
+
+        maxDuration = Math.min(maxDuration + 2, 600); // Add 2s tail, cap at 10 min
+        console.log(`[Bounce] Render duration: ${maxDuration.toFixed(1)}s`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        // Create recorder
+        const recorder = new Tone.Recorder();
+        
+        // Connect track output to recorder
+        if (track.gainNode && !track.gainNode.disposed) {
+            track.gainNode.connect(recorder);
+        } else {
+            console.warn(`[Bounce] Track ${track.name} has no gainNode.`);
+            appServices.showNotification("Track audio not available for bounce.", 3000);
+            recorder.dispose();
+            return null;
+        }
+
+        // Store and modify mute states
+        const originalMuteStates = tracks.map(t => ({ id: t.id, isMuted: t.isMuted }));
+        
+        // Mute all other tracks
+        tracks.forEach(t => {
+            if (t.id !== track.id) {
+                t.isMuted = true;
+                if (t.gainNode && !t.gainNode.disposed) {
+                    t.gainNode.gain.value = 0;
+                }
+            }
+        });
+
+        // Unmute current track
+        track.isMuted = false;
+        if (track.gainNode && !track.gainNode.disposed && track.previousVolumeBeforeMute !== undefined) {
+            track.gainNode.gain.value = Tone.dbToGain(track.previousVolumeBeforeMute);
+        }
+
+        // Reset transport
+        Tone.Transport.position = barStart;
+        Tone.Transport.loop = false;
+        
+        // Schedule playback
+        if (track.schedulePlayback) {
+            await track.schedulePlayback(barStart, maxDuration);
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        Tone.Transport.start();
+        console.log(`[Bounce] Recording started for ${track.name}`);
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log(`[Bounce] Recording stopped for ${track.name}, size:`, recording?.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        if (track.stopPlayback) track.stopPlayback();
+
+        // Cleanup recorder connection
+        try { track.gainNode.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        // Restore mute states
+        originalMuteStates.forEach(({ id, isMuted }) => {
+            const t = tracks.find(tr => tr.id === id);
+            if (t) {
+                t.isMuted = isMuted;
+                if (t.gainNode && !t.gainNode.disposed) {
+                    if (isMuted) {
+                        t.gainNode.gain.value = 0;
+                    } else if (t.previousVolumeBeforeMute !== undefined) {
+                        t.gainNode.gain.value = Tone.dbToGain(t.previousVolumeBeforeMute);
+                    }
+                }
+            }
+        });
+
+        if (!recording || recording.size < 1000) {
+            console.warn(`[Bounce] Recording too small for ${track.name}:`, recording?.size);
+            appServices.showNotification("Bounce failed. No audio was recorded.", 3000);
+            return null;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const sanitizedName = track.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+        const filename = `bounced-${sanitizedName}-${timestamp}.wav`;
+
+        // Handle download option
+        if (download) {
+            const url = URL.createObjectURL(recording);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log(`[Bounce] Downloaded: ${filename}`);
+        }
+
+        // Handle create new track option
+        if (createNewTrack && appServices.addTrack) {
+            appServices.showNotification("Creating new Audio track from bounce...", 2000);
+            
+            // Create new Audio track
+            const newTrack = await appServices.addTrack('Audio');
+            if (newTrack) {
+                newTrack.name = `${track.name} (Bounced)`;
+                
+                // Convert blob to AudioBuffer and load into track
+                const arrayBuffer = await recording.arrayBuffer();
+                const audioBuffer = await Tone.context.decodeAudioData(arrayBuffer);
+                
+                // Create timeline clip for the new track
+                const clipData = {
+                    id: `clip-${Date.now()}`,
+                    startTime: 0,
+                    duration: audioBuffer.duration,
+                    audioBuffer: audioBuffer,
+                    offset: 0
+                };
+                
+                if (!newTrack.timelineClips) {
+                    newTrack.timelineClips = [];
+                }
+                newTrack.timelineClips.push(clipData);
+                
+                // Store audio buffer reference
+                if (!newTrack.audioBuffers) {
+                    newTrack.audioBuffers = new Map();
+                }
+                newTrack.audioBuffers.set(clipData.id, audioBuffer);
+                
+                console.log(`[Bounce] Created new Audio track: ${newTrack.name}`);
+                
+                // Update UI if available
+                if (appServices.updateTrackUI) {
+                    appServices.updateTrackUI(newTrack.id);
+                }
+            }
+        }
+
+        appServices.showNotification(`Bounce complete: ${track.name}`, 3000);
+        console.log(`[Bounce] Complete for ${track.name}`);
+        
+        return { blob: recording, filename, duration: maxDuration };
+
+    } catch (error) {
+        console.error("[State bounceTrackToAudio] Error:", error);
+        appServices.showNotification(`Bounce error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        return null;
+    }
+}
+
+/**
+ * Shows a dialog for bouncing a track to audio.
+ */
+export function showBounceTrackDialog(trackId) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        if (appServices.showNotification) appServices.showNotification("Track not found.", 2000);
+        return;
+    }
+
+    const dialogContent = `
+        <div class="bounce-dialog p-4">
+            <h3 class="text-lg font-bold mb-4 text-purple-300">Bounce Track to Audio</h3>
+            <p class="text-sm text-gray-400 mb-4">Render "${track.name}" (${track.type}) to an audio file:</p>
+            
+            <div class="options mb-4 space-y-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="bounce-download" checked>
+                    <span class="text-sm">Download as WAV file</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="bounce-new-track">
+                    <span class="text-sm">Create new Audio track with rendered audio</span>
+                </label>
+            </div>
+            
+            <div class="bar-range mb-4 p-3 bg-gray-800/50 rounded">
+                <div class="flex items-center gap-2 mb-2">
+                    <label class="text-sm text-gray-400">Start Bar:</label>
+                    <input type="number" id="bounce-start-bar" value="0" min="0" max="999" 
+                           class="w-16 px-2 py-1 bg-gray-700 rounded text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">End Bar:</label>
+                    <input type="number" id="bounce-end-bar" value="" min="1" max="999" 
+                           placeholder="Auto" class="w-16 px-2 py-1 bg-gray-700 rounded text-sm">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <button id="bounce-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm">Cancel</button>
+                <button id="bounce-confirm" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm">Bounce</button>
+            </div>
+        </div>
+    `;
+
+    // Create modal
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modalOverlay.innerHTML = dialogContent;
+    document.body.appendChild(modalOverlay);
+
+    // Handle cancel
+    modalOverlay.querySelector('#bounce-cancel').addEventListener('click', () => {
+        modalOverlay.remove();
+    });
+
+    // Handle bounce
+    modalOverlay.querySelector('#bounce-confirm').addEventListener('click', async () => {
+        const download = modalOverlay.querySelector('#bounce-download').checked;
+        const createNewTrack = modalOverlay.querySelector('#bounce-new-track').checked;
+        const startBar = parseInt(modalOverlay.querySelector('#bounce-start-bar').value, 10) || 0;
+        const endBarInput = modalOverlay.querySelector('#bounce-end-bar').value;
+        const endBar = endBarInput ? parseInt(endBarInput, 10) : null;
+        
+        modalOverlay.remove();
+        
+        await bounceTrackToAudio(trackId, { download, createNewTrack, startBar, endBar });
     });
 
     // Close on overlay click

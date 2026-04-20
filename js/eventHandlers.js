@@ -1024,6 +1024,43 @@ export function handleRemoveTrack(trackId) {
     } catch (error) { console.error(`[EventHandlers handleRemoveTrack] Error for track ${trackId}:`, error); }
 }
 
+export function handleBounceTrack(trackId) {
+    try {
+        const track = getTrackById(trackId);
+        if (!track) {
+            console.warn(`[EventHandlers] Bounce: Track ${trackId} not found.`);
+            return;
+        }
+        
+        // Check if track has content to bounce
+        if (track.type === 'Audio' && (!track.timelineClips || track.timelineClips.length === 0)) {
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification(`Track "${track.name}" has no audio clips to bounce.`, 3000);
+            }
+            return;
+        }
+        
+        if (track.type !== 'Audio') {
+            const activeSeq = track.getActiveSequence();
+            if (!activeSeq || activeSeq.length === 0) {
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification(`Track "${track.name}" has no notes to bounce.`, 3000);
+                }
+                return;
+            }
+        }
+        
+        // Open bounce dialog
+        if (localAppServices.showBounceTrackDialog) {
+            localAppServices.showBounceTrackDialog(trackId);
+        } else {
+            console.error("[EventHandlers] showBounceTrackDialog service not available.");
+        }
+    } catch (error) {
+        console.error(`[EventHandlers handleBounceTrack] Error for track ${trackId}:`, error);
+    }
+}
+
 export function handleOpenTrackInspector(trackId) {
     if (localAppServices.openTrackInspectorWindow) {
         localAppServices.openTrackInspectorWindow(trackId);
