@@ -2466,6 +2466,1637 @@ export function showBounceTrackDialog(trackId) {
 }
 
 
+// --- Track Groups ---
+// Groups: Array of { id: string, name: string, trackIds: number[], color: string, isMuted: boolean, isSoloed: boolean }
+let trackGroups = [];
+
+export function getTrackGroupsState() { return trackGroups; }
+
+export function createTrackGroup(name, trackIds = []) {
+    const id = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const group = {
+        id,
+        name: name || `Group ${trackGroups.length + 1}`,
+        trackIds: [...new Set(trackIds)],
+        color: '#6366f1',
+        isMuted: false,
+        isSoloed: false
+    };
+    trackGroups.push(group);
+    console.log(`[State] Created track group "${group.name}" with ${trackIds.length} tracks`);
+    return group;
+}
+
+export function deleteTrackGroup(groupId) {
+    const idx = trackGroups.findIndex(g => g.id === groupId);
+    if (idx !== -1) {
+        const group = trackGroups[idx];
+        console.log(`[State] Deleted track group "${group.name}"`);
+        trackGroups.splice(idx, 1);
+        if (appServices.renderMixer) appServices.renderMixer();
+        if (appServices.updateGroupPanels) appServices.updateGroupPanels();
+    }
+}
+
+export function updateTrackGroup(groupId, updates) {
+    const group = trackGroups.find(g => g.id === groupId);
+    if (group) {
+        if (updates.name !== undefined) group.name = updates.name;
+        if (updates.trackIds !== undefined) group.trackIds = [...new Set(updates.trackIds)];
+        if (updates.color !== undefined) group.color = updates.color;
+        if (updates.isMuted !== undefined) group.isMuted = updates.isMuted;
+        if (updates.isSoloed !== undefined) group.isSoloed = updates.isSoloed;
+        console.log(`[State] Updated track group "${group.name}"`);
+        if (updates.isMuted !== undefined || updates.isSoloed !== undefined) {
+            applyGroupMuteSolo(group);
+        }
+        if (appServices.renderMixer) appServices.renderMixer();
+        if (appServices.updateGroupPanels) appServices.updateGroupPanels();
+    }
+}
+
+export function addTrackToGroup(groupId, trackId) {
+    const group = trackGroups.find(g => g.id === groupId);
+    if (group && !group.trackIds.includes(trackId)) {
+        group.trackIds.push(trackId);
+        console.log(`[State] Added track ${trackId} to group "${group.name}"`);
+        if (appServices.renderMixer) appServices.renderMixer();
+        if (appServices.updateGroupPanels) appServices.updateGroupPanels();
+    }
+}
+
+export function removeTrackFromGroup(groupId, trackId) {
+    const group = trackGroups.find(g => g.id === groupId);
+    if (group) {
+        group.trackIds = group.trackIds.filter(id => id !== trackId);
+        console.log(`[State] Removed track ${trackId} from group "${group.name}"`);
+        if (appServices.renderMixer) appServices.renderMixer();
+        if (appServices.updateGroupPanels) appServices.updateGroupPanels();
+    }
+}
+
+function applyGroupMuteSolo(group) {
+    const tracks = getTracksState();
+    group.trackIds.forEach(trackId => {
+        const track = tracks.find(t => t.id === trackId);
+        if (track) {
+            if (group.isMuted && !track.isMuted) {
+                track.isMuted = true;
+                if (track.gainNode && !track.gainNode.disposed) track.gainNode.gain.value = 0;
+            } else if (!group.isMuted && track.isMuted && track.previousVolumeBeforeMute !== undefined) {
+                track.isMuted = false;
+                if (track.gainNode && !track.gainNode.disposed) track.gainNode.gain.value = track.previousVolumeBeforeMute;
+            }
+        }
+    });
+}
+
+export function getGroupForTrack(trackId) {
+    return trackGroups.find(g => g.trackIds.includes(trackId)) || null;
+}
+
+export function setTrackGroupsState(groups) {
+    trackGroups = Array.isArray(groups) ? groups : [];
+    console.log(`[State] Set track groups to ${trackGroups.length} groups`);
+}
+
+// --- Master Effects Chain Management ---
+export function addMasterEffectToState(effectType, initialParams) {
+    const effectId = `mastereffect_${effectType}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
+    const defaultParams = appServices.effectsRegistryAccess?.getEffectDefaultParams
+        ? appServices.effectsRegistryAccess.getEffectDefaultParams(effectType)
+        : getEffectDefaultParamsFromRegistry(effectType); // Fallback
+
+    masterEffectsChainState.push({
+        id: effectId,
+        type: effectType,
+        params: initialParams || defaultParams
+    });
+    return effectId;
+}
+
+export function removeMasterEffectFromState(effectId) {
+    const effectIndex = masterEffectsChainState.findIndex(e => e.id === effectId);
+    if (effectIndex > -1) {
+        masterEffectsChainState.splice(effectIndex, 1);
+    }
+}
+
+export function updateMasterEffectParamInState(effectId, paramPath, value) {
+    const effectWrapper = masterEffectsChainState.find(e => e.id === effectId);
+    if (!effectWrapper || !effectWrapper.params) {
+        console.warn(`[State updateMasterEffectParamInState] Effect wrapper or params not found for ID: ${effectId}`);
+        return;
+    }
+    try {
+        const keys = paramPath.split('.');
+        let currentStoredParamLevel = effectWrapper.params;
+        for (let i = 0; i < keys.length - 1; i++) {
+            currentStoredParamLevel[keys[i]] = currentStoredParamLevel[keys[i]] || {};
+            currentStoredParamLevel = currentStoredParamLevel[keys[i]];
+        }
+        currentStoredParamLevel[keys[keys.length - 1]] = value;
+    } catch (error) {
+        console.error(`[State updateMasterEffectParamInState] Error updating param ${paramPath} for effect ${effectId}:`, error);
+    }
+}
+
+export function reorderMasterEffectInState(effectId, newIndex) {
+    const oldIndex = masterEffectsChainState.findIndex(e => e.id === effectId);
+    if (oldIndex === -1 || oldIndex === newIndex || newIndex < 0 || newIndex >= masterEffectsChainState.length) {
+        if (oldIndex === -1) console.warn(`[State reorderMasterEffectInState] Effect ID ${effectId} not found.`);
+        return;
+    }
+    const [effectToMove] = masterEffectsChainState.splice(oldIndex, 1);
+    masterEffectsChainState.splice(newIndex, 0, effectToMove);
+}
+
+export function toggleMasterEffectBypass(effectId) {
+    const effectWrapper = masterEffectsChainState.find(e => e.id === effectId);
+    if (!effectWrapper) {
+        console.warn(`[State toggleMasterEffectBypass] Effect ID ${effectId} not found.`);
+        return;
+    }
+
+    // Check if currently bypassed (wet === 0 or bypassed flag is true)
+    const isBypassed = effectWrapper.bypassed === true || (effectWrapper.params?.wet !== undefined && effectWrapper.params.wet === 0);
+
+    if (isBypassed) {
+        // Restore wet to previous value (or 1 if not stored)
+        const restoreValue = effectWrapper.previousWetValue !== undefined ? effectWrapper.previousWetValue : 1;
+        effectWrapper.bypassed = false;
+        if (effectWrapper.params) effectWrapper.params.wet = restoreValue;
+        delete effectWrapper.previousWetValue;
+
+        // Apply to Tone.js node via audio.js
+        if (appServices.setMasterEffectWet) {
+            appServices.setMasterEffectWet(effectId, restoreValue);
+        }
+
+        console.log(`[State toggleMasterEffectBypass] Master effect "${effectWrapper.type}" (${effectId}) enabled. Wet: ${restoreValue}`);
+        if (appServices.showNotification) {
+            appServices.showNotification(`Master effect "${effectWrapper.type}" enabled`, 1500);
+        }
+    } else {
+        // Store current wet value and bypass
+        const currentWet = effectWrapper.params?.wet ?? 1;
+        effectWrapper.previousWetValue = currentWet;
+        effectWrapper.bypassed = true;
+        if (effectWrapper.params) effectWrapper.params.wet = 0;
+
+        // Apply to Tone.js node via audio.js
+        if (appServices.setMasterEffectWet) {
+            appServices.setMasterEffectWet(effectId, 0);
+        }
+
+        console.log(`[State toggleMasterEffectBypass] Master effect "${effectWrapper.type}" (${effectId}) bypassed.`);
+        if (appServices.showNotification) {
+            appServices.showNotification(`Master effect "${effectWrapper.type}" bypassed`, 1500);
+        }
+    }
+
+    // Update UI
+    if (appServices.updateMasterEffectsRackUI) {
+        appServices.updateMasterEffectsRackUI();
+    }
+}
+
+// --- Undo/Redo Logic ---
+function updateInternalUndoRedoState() {
+    if (appServices.updateUndoRedoButtonsUI && typeof appServices.updateUndoRedoButtonsUI === 'function') {
+        try {
+            appServices.updateUndoRedoButtonsUI(
+                undoStack.length > 0 ? undoStack[undoStack.length - 1] : null,
+                redoStack.length > 0 ? redoStack[redoStack.length - 1] : null
+            );
+        } catch (error) {
+            console.error("[State updateInternalUndoRedoState] Error calling appServices.updateUndoRedoButtonsUI:", error);
+        }
+    }
+    // Also update the undo history panel if it's open
+    if (appServices.updateUndoHistoryPanel && typeof appServices.updateUndoHistoryPanel === 'function') {
+        try {
+            appServices.updateUndoHistoryPanel();
+        } catch (error) {
+            console.error("[State updateInternalUndoRedoState] Error calling appServices.updateUndoHistoryPanel:", error);
+        }
+    }
+}
+
+export function captureStateForUndoInternal(description = "Unknown action") {
+    try {
+        const currentState = gatherProjectDataInternal();
+        if (!currentState) {
+            console.error("[State captureStateForUndoInternal] Failed to gather project data. Aborting undo capture.");
+            return;
+        }
+        currentState.description = description; // Add description to the state object
+        undoStack.push(JSON.parse(JSON.stringify(currentState))); // Deep copy
+        if (undoStack.length > Constants.MAX_HISTORY_STATES) {
+            undoStack.shift();
+        }
+        redoStack = []; // Clear redo stack on new action
+        updateInternalUndoRedoState();
+    } catch (error) {
+        console.error("[State captureStateForUndoInternal] Error capturing state for undo:", error);
+        if (appServices.showNotification) appServices.showNotification("Error capturing undo state. See console.", 3000);
+    }
+}
+
+export async function undoLastActionInternal() {
+    if (undoStack.length === 0) {
+        if (appServices.showNotification) appServices.showNotification("Nothing to undo.", 1500);
+        return;
+    }
+    try {
+        const stateToRestore = undoStack.pop();
+        const currentStateForRedo = gatherProjectDataInternal();
+        if (!currentStateForRedo) {
+            console.error("[State undoLastActionInternal] Failed to gather current project data for redo stack. Undoing without pushing to redo.");
+        } else {
+            currentStateForRedo.description = stateToRestore.description; // Use the undone action's description for redo
+            redoStack.push(JSON.parse(JSON.stringify(currentStateForRedo)));
+            if (redoStack.length > Constants.MAX_HISTORY_STATES) redoStack.shift();
+        }
+
+        if (appServices.showNotification) appServices.showNotification(`Undoing: ${stateToRestore.description || 'last action'}...`, 2000);
+        if (appServices) appServices._isReconstructingDAW_flag = true; // Signal reconstruction globally
+        await reconstructDAWInternal(stateToRestore, true); // true for isUndoRedo
+    } catch (error) {
+        console.error("[State undoLastActionInternal] Error during undo:", error);
+        if (appServices.showNotification) appServices.showNotification(`Error during undo operation: ${error.message}. Project may be unstable.`, 4000);
+        // Potentially try to restore the popped state back to undoStack if reconstruction fails badly? Complex.
+    } finally {
+        if (appServices) appServices._isReconstructingDAW_flag = false;
+        updateInternalUndoRedoState();
+    }
+}
+
+export async function redoLastActionInternal() {
+    if (redoStack.length === 0) {
+        if (appServices.showNotification) appServices.showNotification("Nothing to redo.", 1500);
+        return;
+    }
+    try {
+        const stateToRestore = redoStack.pop();
+        const currentStateForUndo = gatherProjectDataInternal();
+        if (!currentStateForUndo) {
+            console.error("[State redoLastActionInternal] Failed to gather current project data for undo stack. Redoing without pushing to undo.");
+        } else {
+            currentStateForUndo.description = stateToRestore.description;
+            undoStack.push(JSON.parse(JSON.stringify(currentStateForUndo)));
+            if (undoStack.length > Constants.MAX_HISTORY_STATES) undoStack.shift();
+        }
+
+        if (appServices.showNotification) appServices.showNotification(`Redoing: ${stateToRestore.description || 'last action'}...`, 2000);
+        if (appServices) appServices._isReconstructingDAW_flag = true;
+        await reconstructDAWInternal(stateToRestore, true); // true for isUndoRedo
+    } catch (error) {
+        console.error("[State redoLastActionInternal] Error during redo:", error);
+        if (appServices.showNotification) appServices.showNotification(`Error during redo operation: ${error.message}. Project may be unstable.`, 4000);
+    } finally {
+        if (appServices) appServices._isReconstructingDAW_flag = false;
+        updateInternalUndoRedoState();
+    }
+}
+
+// --- Project Data Handling ---
+export function gatherProjectDataInternal() {
+    console.log("[State gatherProjectDataInternal] Starting to gather project data...");
+    try {
+        const projectData = {
+            version: Constants.APP_VERSION || "5.9.1", // Use a constant for app version
+            globalSettings: {
+                tempo: Tone.Transport.bpm.value,
+                masterVolume: getMasterGainValueState(),
+                activeMIDIInputId: getActiveMIDIInputState() ? getActiveMIDIInputState().id : null,
+                soloedTrackId: getSoloedTrackIdState(),
+                armedTrackId: getArmedTrackIdState(),
+                highestZIndex: getHighestZState(),
+                playbackMode: getPlaybackModeState(),
+            },
+            masterEffects: getMasterEffectsState().map(effect => ({
+                id: effect.id,
+                type: effect.type,
+                params: effect.params ? JSON.parse(JSON.stringify(effect.params)) : {} // Ensure params exist
+            })),
+            tracks: getTracksState().map(track => {
+                if (!track || typeof track.id === 'undefined') {
+                    console.warn("[State gatherProjectDataInternal] Invalid track object found, skipping:", track);
+                    return null; // Skip invalid tracks
+                }
+                const trackData = { // Base data
+                    id: track.id, type: track.type, name: track.name,
+                    isMuted: track.isMuted,
+                    volume: track.previousVolumeBeforeMute, // Store the actual volume, not the muted one
+                    activeEffects: (track.activeEffects || []).map(effect => ({
+                        id: effect.id, type: effect.type,
+                        params: effect.params ? JSON.parse(JSON.stringify(effect.params)) : {}
+                    })),
+                    automation: track.automation ? JSON.parse(JSON.stringify(track.automation)) : { volume: [] },
+                    // Type-specific sequence/clip data
+                    sequences: track.type !== 'Audio' && track.sequences ? JSON.parse(JSON.stringify(track.sequences)) : [],
+                    activeSequenceId: track.type !== 'Audio' ? track.activeSequenceId : null,
+                    timelineClips: track.timelineClips ? JSON.parse(JSON.stringify(track.timelineClips)) : [],
+                    timelinePlaybackRate: track.timelinePlaybackRate !== undefined ? track.timelinePlaybackRate : 1.0,
+                };
+                // Type-specific parameters
+                if (track.type === 'Synth') {
+                    trackData.synthEngineType = track.synthEngineType || 'MonoSynth';
+                    trackData.synthParams = track.synthParams ? JSON.parse(JSON.stringify(track.synthParams)) : {};
+                } else if (track.type === 'Sampler') {
+                    trackData.samplerAudioData = {
+                        fileName: track.samplerAudioData?.fileName,
+                        dbKey: track.samplerAudioData?.dbKey,
+                        // status is runtime, not strictly needed for save, but useful for rehydration hint
+                        status: track.samplerAudioData?.dbKey ? 'persisted' : (track.samplerAudioData?.fileName ? 'volatile' : 'empty')
+                    };
+                    trackData.slices = track.slices ? JSON.parse(JSON.stringify(track.slices)) : [];
+                    trackData.selectedSliceForEdit = track.selectedSliceForEdit;
+                    trackData.slicerIsPolyphonic = track.slicerIsPolyphonic;
+                } else if (track.type === 'DrumSampler') {
+                    trackData.drumSamplerPads = (track.drumSamplerPads || []).map(p => ({
+                        originalFileName: p.originalFileName, dbKey: p.dbKey,
+                        volume: p.volume, pitchShift: p.pitchShift,
+                        envelope: p.envelope ? JSON.parse(JSON.stringify(p.envelope)) : {},
+                        status: p.dbKey ? 'persisted' : (p.originalFileName ? 'volatile' : 'empty')
+                    }));
+                    trackData.selectedDrumPadForEdit = track.selectedDrumPadForEdit;
+                } else if (track.type === 'InstrumentSampler') {
+                    trackData.instrumentSamplerSettings = {
+                        originalFileName: track.instrumentSamplerSettings?.originalFileName,
+                        dbKey: track.instrumentSamplerSettings?.dbKey,
+                        rootNote: track.instrumentSamplerSettings?.rootNote,
+                        loop: track.instrumentSamplerSettings?.loop,
+                        loopStart: track.instrumentSamplerSettings?.loopStart,
+                        loopEnd: track.instrumentSamplerSettings?.loopEnd,
+                        envelope: track.instrumentSamplerSettings?.envelope ? JSON.parse(JSON.stringify(track.instrumentSamplerSettings.envelope)) : {},
+                        status: track.instrumentSamplerSettings?.dbKey ? 'persisted' : (track.instrumentSamplerSettings?.originalFileName ? 'volatile' : 'empty')
+                    };
+                    trackData.instrumentSamplerIsPolyphonic = track.instrumentSamplerIsPolyphonic;
+                }
+                 if (track.type === 'Audio') { // Audio track specific settings
+                    trackData.isMonitoringEnabled = track.isMonitoringEnabled;
+                }
+                // Remove deprecated/runtime-only properties if they accidentally get included
+                delete trackData.sequenceData; delete trackData.sequenceLength;
+                return trackData;
+            }).filter(td => td !== null), // Filter out any skipped invalid tracks
+            windowStates: Array.from(getOpenWindowsState().values())
+                .map(win => {
+                    if (!win || !win.element) return null;
+                    return {
+                        id: win.id, title: win.title,
+                        left: win.element.style.left, top: win.element.style.top,
+                        width: win.element.style.width, height: win.element.style.height,
+                        zIndex: parseInt(win.element.style.zIndex, 10) || 100,
+                        isMinimized: win.isMinimized,
+                        isMaximized: win.isMaximized, // Save maximized state
+                        restoreState: win.isMaximized ? JSON.parse(JSON.stringify(win.restoreState)) : {},
+                        initialContentKey: win.initialContentKey || win.id // Ensure this is saved
+                    };
+                }).filter(ws => ws !== null)
+        };
+        console.log("[State gatherProjectDataInternal] Project data gathered successfully.");
+        return projectData;
+    } catch (error) {
+        console.error("[State gatherProjectDataInternal] Error gathering project data:", error);
+        if (appServices.showNotification) appServices.showNotification("Error preparing project data for saving/undo.", 4000);
+        return null;
+    }
+}
+
+export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
+    if (!projectData) {
+        console.error("[State reconstructDAWInternal] projectData is null or undefined. Aborting reconstruction.");
+        if (appServices.showNotification) appServices.showNotification("Error: No project data to load.", 3000);
+        if (appServices) appServices._isReconstructingDAW_flag = false;
+        return;
+    }
+    
+    console.log(`[State reconstructDAWInternal] Starting reconstruction. isUndoRedo: ${isUndoRedo}`);
+    if (appServices) appServices._isReconstructingDAW_flag = true;
+
+    // --- Global Reset Phase ---
+    try {
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        if (appServices && typeof appServices.initAudioContextAndMasterMeter !== 'function') await appServices.initAudioContextAndMasterMeter(true); // Ensure audio context is running, true for user initiated context
+        (getTracksState() || []).forEach(track => { if (track && typeof track.dispose === 'function') track.dispose(); });
+        tracks = [];
+        trackIdCounter = 0;
+        if (appServices && typeof appServices.clearAllMasterEffectNodes !== 'function') appServices.clearAllMasterEffectNodes(); else console.warn("clearAllMasterEffectNodes service missing");
+        masterEffectsChainState = [];
+        if (appServices && typeof appServices.closeAllWindows !== 'function') appServices.closeAllWindows(true); else console.warn("closeAllWindows service missing");
+        if (appServices && typeof appServices.clearOpenWindowsMap !== 'function') appServices.clearOpenWindowsMap(); else console.warn("clearOpenWindowsMap service missing");
+        highestZ = 100;
+        setArmedTrackIdState(null); setSoloedTrackIdState(null); setActiveSequencerTrackIdState(null);
+        setIsRecordingState(false); setRecordingTrackIdState(null);
+        if (appServices && typeof appServices.updateRecordButtonUI !== 'function') appServices.updateRecordButtonUI(false);
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error during global reset phase:", error);
+        if (appServices.showNotification) appServices.showNotification("Critical error during project reset.", 5000);
+        if (appServices) appServices._isReconstructingDAW_flag = false;
+        return; // Abort further reconstruction
+    }
+
+    try { // --- Global Settings ---
+        const gs = projectData.globalSettings || {};
+        Tone.Transport.bpm.value = Number.isFinite(gs.tempo) ? gs.tempo : 120;
+        setMasterGainValueState(Number.isFinite(gs.masterVolume) ? gs.masterVolume : (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone.dbToGain(0) : 1.0);
+        if (appServices && typeof appServices.setActualMasterVolume !== 'function') appServices.setActualMasterVolume(getMasterGainValueState());
+        setPlaybackModeStateInternal(gs.playbackMode === 'timeline' || gs.playbackMode === 'sequencer' ? gs.playbackMode : 'sequencer');
+        if (appServices && typeof appServices.updateTaskbarTempoDisplay !== 'function') appServices.updateTaskbarTempoDisplay(Tone.Transport.bpm.value);
+        setHighestZState(Number.isFinite(gs.highestZIndex) ? gs.highestZIndex : 100);
+        // Armed and Soloed will be set after tracks are created
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error applying global settings:", error);
+        if (appServices.showNotification) appServices.showNotification("Error loading global settings.", 3000);
+    }
+
+    try { // --- Master Effects ---
+        if (projectData.masterEffects && Array.isArray(projectData.masterEffects)) {
+            for (const effectData of projectData.masterEffects) {
+                if (effectData && effectData.type) {
+                    const effectIdInState = addMasterEffectToState(effectData.type, effectData.params || {});
+                    if (appServices.addMasterEffectToAudio) {
+                         await appServices.addMasterEffectToAudio(effectIdInState, effectData.type, effectData.params || {});
+                    }
+                } else { console.warn("[State reconstructDAWInternal] Invalid master effect data found:", effectData); }
+            }
+        }
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error reconstructuring master effects:", error);
+        if (appServices.showNotification) appServices.showNotification("Error loading master effects.", 3000);
+    }
+
+    try { // --- Tracks ---
+        if (projectData.tracks && Array.isArray(projectData.tracks)) {
+            const trackPromises = projectData.tracks.map(trackData => {
+                if (trackData && trackData.type) {
+                    return addTrackToStateInternal(trackData.type, trackData, false); // false for isUserAction
+                } else { console.warn("[State reconstructDAWInternal] Invalid track data found:", trackData); return Promise.resolve(null); }
+            });
+            await Promise.all(trackPromises);
+            // After all tracks and their audio resources are initialized:
+            console.log(`[State reconstructDAWInternal] All track instances created. Now setting armed/soloed states.`);
+            const globalSettings = projectData.globalSettings || {};
+            if (globalSettings.armedTrackId !== null && typeof globalSettings.armedTrackId !== 'undefined') {
+                setArmedTrackIdState(globalSettings.armedTrackId);
+            }
+            if (globalSettings.soloedTrackId !== null && typeof globalSettings.soloedTrackId !== 'undefined') {
+                setSoloedTrackIdState(globalSettings.soloedTrackId);
+                getTracksState().forEach(t => { // Apply solo state after all tracks are potentially available
+                    if (t) {
+                        t.isSoloed = (t.id === getSoloedTrackIdState());
+                        if (typeof t.applySoloState === 'function') t.applySoloState();
+                        if (appServices.updateTrackUI) appServices.updateTrackUI(t.id, 'soloChanged');
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error reconstructuring tracks:", error);
+        if (appServices.showNotification) appServices.showNotification("Error loading tracks.", 3000);
+    }
+
+    // Window reconstruction needs to happen after tracks are potentially created, as some windows depend on track IDs.
+    try {
+        if (projectData.windowStates && Array.isArray(projectData.windowStates)) {
+            const sortedWindowStates = projectData.windowStates.sort((a, b) => (a?.zIndex || 0) - (b?.zIndex || 0));
+            for (const winState of sortedWindowStates) {
+                if (!winState || !winState.id) { console.warn("[State reconstructDAWInternal] Invalid window state found:", winState); continue; }
+                const key = winState.initialContentKey || winState.id; // Use initialContentKey for routing
+                console.log(`[State reconstructDAWInternal] Reconstructing window: ${key}, ID: ${winState.id}`);
+                if (key === 'globalControls' && appServices.openGlobalControlsWindow) {
+                    // FIX: Pass a callback to wire up controls even during reconstruction
+                    // The callback will be called by openGlobalControlsWindow to attach event listeners
+                    appServices.openGlobalControlsWindow((elements) => {
+                        if (elements && appServices.attachGlobalControlEvents) {
+                            console.log("[State reconstructDAWInternal] Wiring up global controls after reconstruction");
+                            appServices.attachGlobalControlEvents(elements);
+                        }
+                    }, winState);
+                }
+                else if (key === 'soundBrowser' && appServices.openSoundBrowserWindow) appServices.openSoundBrowserWindow(winState);
+                else if (key === 'mixer' && appServices.openMixerWindow) appServices.openMixerWindow(winState);
+                else if (key === 'masterEffectsRack' && appServices.openMasterEffectsRackWindow) appServices.openMasterEffectsRackWindow(winState);
+                else if (key === 'timeline' && appServices.openTimelineWindow) appServices.openTimelineWindow(winState);
+                else if (key.startsWith('trackInspector-') && appServices.openTrackInspectorWindow) {
+                    const trackIdNum = parseInt(key.split('-')[1], 10);
+                    if (!isNaN(trackIdNum) && getTrackByIdState(trackIdNum)) appServices.openTrackInspectorWindow(trackIdNum, winState);
+                    else console.warn(`[State reconstructDAWInternal] Track for inspector ${key} not found or ID invalid.`);
+                } else if (key.startsWith('effectsRack-') && appServices.openTrackEffectsRackWindow) {
+                    const trackIdNum = parseInt(key.split('-')[1], 10);
+                    if (!isNaN(trackIdNum) && getTrackByIdState(trackIdNum)) appServices.openTrackEffectsRackWindow(trackIdNum, winState);
+                    else console.warn(`[State reconstructDAWInternal] Track for effects rack ${key} not found or ID invalid.`);
+                } else if (key.startsWith('sequencerWin-') && appServices.openTrackSequencerWindow) {
+                    const trackIdNum = parseInt(key.split('-')[2], 10);
+                    const trackForSeq = getTrackByIdState(trackIdNum);
+                    if (!isNaN(trackIdNum) && trackForSeq && trackForSeq.type !== 'Audio') {
+                        appServices.openTrackSequencerWindow(trackIdNum, true, winState); // true for forceRedraw
+                    } else { console.warn(`[State reconstructDAWInternal] Track for sequencer ${key} not found, ID invalid, or is Audio type.`);}
+                } else {
+                    console.warn(`[State reconstructDAWInternal] Unknown window key "${key}" during reconstruction.`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error reconstructuring windows:", error);
+        if (appServices.showNotification) appServices.showNotification("Error loading window layout.", 3000);
+    }
+
+    // Final UI updates and MIDI setup
+    try {
+        const gs = projectData.globalSettings || {};
+        if(gs && gs.activeMIDIInputId && appServices.selectMIDIInput) {
+            appServices.selectMIDIInput(gs.activeMIDIInputId, true); // true for silent
+        }
+        if(appServices.updateMixerWindow) appServices.updateMixerWindow();
+        if(appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
+        if(appServices.renderTimeline) appServices.renderTimeline();
+        updateInternalUndoRedoState();
+    } catch (error) {
+        console.error("[State reconstructDAWInternal] Error during final UI updates/MIDI setup:", error);
+    }
+
+    if (appServices) appServices._isReconstructingDAW_flag = false;
+    if (!isUndoRedo && appServices.showNotification) appServices.showNotification(`Project loaded successfully.`, 3500);
+    console.log("[State reconstructDAWInternal] Reconstruction finished.");
+}
+
+
+export function saveProjectInternal() {
+    try {
+        const projectData = gatherProjectDataInternal();
+        if (!projectData) throw new Error("Failed to gather project data for saving.");
+
+        const jsonString = JSON.stringify(projectData, null, 2); // Beautify JSON
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `snugos-project-${timestamp}.snug`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (appServices.showNotification) appServices.showNotification(`Project saved as ${a.download}`, 2000);
+    } catch (error) {
+        console.error("[State saveProjectInternal] Error saving project:", error);
+        if (appServices.showNotification) appServices.showNotification(`Error saving project: ${error.message}. See console.`, 4000);
+    }
+}
+
+export function loadProjectInternal() {
+    const loadProjectInputEl = appServices.uiElementsCache?.loadProjectInput;
+    if (loadProjectInputEl) {
+        loadProjectInputEl.click();
+    } else {
+        console.error("[State loadProjectInternal] Load project input element not found.");
+        if (appServices.showNotification) appServices.showNotification("Error: File input for loading project not found.", 3000);
+    }
+}
+
+export async function handleProjectFileLoadInternal(event) {
+    if (!event || !event.target || !event.target.files || event.target.files.length === 0) {
+        console.warn("[State handleProjectFileLoadInternal] No file selected or event invalid.");
+        if (event && event.target) event.target.value = null; // Reset file input
+        return;
+    }
+    const file = event.target.files[0];
+    if (file && file.name.endsWith('.snug')) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                if (!e.target || !e.target.result) throw new Error("FileReader did not produce a result.");
+                const projectData = JSON.parse(e.target.result);
+                undoStack = []; // Clear undo/redo stacks for new project
+                redoStack = [];
+                await reconstructDAWInternal(projectData, false); // false for isUndoRedo
+                captureStateForUndoInternal("Load Project: " + file.name.substring(0, 20)); // Initial state for undo
+            } catch (error) {
+                console.error("[State handleProjectFileLoadInternal] Error loading project from file:", error);
+                if (appServices.showNotification) appServices.showNotification(`Error loading project: ${error.message}. File might be corrupt or invalid.`, 5000);
+            }
+        };
+        reader.onerror = (err) => {
+            console.error("[State handleProjectFileLoadInternal] FileReader error:", err);
+            if (appServices.showNotification) appServices.showNotification("Error reading project file.", 3000);
+        };
+        reader.readAsText(file);
+    } else if (file) {
+        if (appServices.showNotification) appServices.showNotification("Invalid file type. Please select a .snug project file.", 3000);
+    }
+    if (event.target) event.target.value = null; // Reset file input
+}
+
+export async function exportToWavInternal() {
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State exportToWavInternal] Required appServices not available.");
+        alert("Export WAV feature is currently unavailable due to an internal error.");
+        return;
+    }
+
+    appServices.showNotification("Preparing export...", 2000);
+    
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        // Calculate duration
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+        const tracks = getTracksState();
+
+        if (currentPlaybackMode === 'timeline') {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio' && track.timelineClips) {
+                    track.timelineClips.forEach(clip => {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                        }
+                    });
+                }
+            });
+        } else {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio') {
+                    const activeSeq = track.getActiveSequence();
+                    if (activeSeq?.length > 0) {
+                        const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                        maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                    }
+                }
+            });
+        }
+
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+            return;
+        }
+        
+        maxDuration = Math.min(maxDuration + 2, 600);
+        console.log(`[State exportToWavInternal] Export duration: ${maxDuration.toFixed(1)}s`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
+
+        // Use Tone.Recorder to record from master output
+        const recorder = new Tone.Recorder();
+        const masterGain = appServices.getActualMasterGainNode();
+        
+        if (!masterGain || masterGain.disposed) {
+            appServices.showNotification("Master output not available.", 3000);
+            return;
+        }
+        
+        // Connect master gain to recorder
+        masterGain.connect(recorder);
+        console.log("[Export] Recorder connected to master gain");
+
+        // Reset transport
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+        
+        // Schedule all tracks
+        for (const track of tracks) {
+            if (track?.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        console.log("[Export] Recording started");
+        
+        Tone.Transport.start();
+        console.log("[Export] Transport started");
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log("[Export] Recording stopped, size:", recording.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+
+        // Cleanup
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        if (!recording || recording.size < 1000) {
+            appServices.showNotification("Export failed: No audio recorded.", 3000);
+            console.error("[Export] Recording too small:", recording?.size);
+            return;
+        }
+
+        // Download
+        const url = URL.createObjectURL(recording);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `snugos-export-${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        appServices.showNotification("Export to WAV successful!", 3000);
+        console.log("[Export] Complete, size:", recording.size);
+
+    } catch (error) {
+        console.error("[State exportToWavInternal] Error:", error);
+        appServices.showNotification(`Export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+// ============================================
+// EXPORT WITH SETTINGS (Preset-based export)
+// ============================================
+
+/**
+ * Exports the project using preset settings.
+ * @param {Object} settings - Export settings from preset
+ * @param {string} settings.format - Audio format (wav, mp3)
+ * @param {number} settings.sampleRate - Sample rate (44100, 48000, 96000)
+ * @param {number} settings.bitDepth - Bit depth (16, 24, 32)
+ * @param {boolean} settings.normalize - Whether to normalize output
+ * @param {boolean} settings.dither - Whether to apply dithering
+ * @param {number} settings.tailSeconds - Seconds of tail to add after last note
+ */
+export async function exportWithSettingsInternal(settings = {}) {
+    const defaults = {
+        format: 'wav',
+        sampleRate: 44100,
+        bitDepth: 24,
+        normalize: false,
+        dither: false,
+        tailSeconds: 2
+    };
+    
+    const config = { ...defaults, ...settings };
+    
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State exportWithSettingsInternal] Required appServices not available.");
+        alert("Export feature is currently unavailable due to an internal error.");
+        return;
+    }
+
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
+        config.format = 'wav';
+    }
+
+    appServices.showNotification("Preparing export...", 2000);
+    
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        // Calculate duration
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+        const tracks = getTracksState();
+
+        if (currentPlaybackMode === 'timeline') {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio' && track.timelineClips) {
+                    track.timelineClips.forEach(clip => {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                        }
+                    });
+                }
+            });
+        } else {
+            tracks.forEach(track => {
+                if (track && track.type !== 'Audio') {
+                    const activeSeq = track.getActiveSequence();
+                    if (activeSeq?.length > 0) {
+                        const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                        maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                    }
+                }
+            });
+        }
+
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+            return;
+        }
+        
+        // Add configurable tail
+        maxDuration = Math.min(maxDuration + config.tailSeconds, 600);
+        console.log(`[State exportWithSettingsInternal] Export duration: ${maxDuration.toFixed(1)}s, Sample Rate: ${config.sampleRate}, Bit Depth: ${config.bitDepth}`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        appServices.showNotification(`Rendering audio (${maxDuration.toFixed(1)}s)...`, 15000);
+
+        // Use Tone.Recorder to record from master output
+        const recorder = new Tone.Recorder();
+        const masterGain = appServices.getActualMasterGainNode();
+        
+        if (!masterGain || masterGain.disposed) {
+            appServices.showNotification("Master output not available.", 3000);
+            return;
+        }
+        
+        // Connect master gain to recorder
+        masterGain.connect(recorder);
+        console.log("[Export] Recorder connected to master gain");
+
+        // Reset transport
+        Tone.Transport.position = 0;
+        Tone.Transport.loop = false;
+        
+        // Schedule all tracks
+        for (const track of tracks) {
+            if (track?.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        console.log("[Export] Recording started");
+        
+        Tone.Transport.start();
+        console.log("[Export] Transport started");
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log("[Export] Recording stopped, size:", recording.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+
+        // Cleanup
+        try { masterGain.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        if (!recording || recording.size < 1000) {
+            appServices.showNotification("Export failed: No audio recorded.", 3000);
+            console.error("[Export] Recording too small:", recording?.size);
+            return;
+        }
+
+        // Process the recording if normalization is requested
+        let finalBlob = recording;
+        if (config.normalize) {
+            appServices.showNotification("Normalizing audio...", 2000);
+            finalBlob = await normalizeAudioBlob(recording, -1); // Normalize to -1dB peak
+        }
+
+        // Download with settings info in filename
+        const url = URL.createObjectURL(finalBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", finalBlob.size);
+
+    } catch (error) {
+        console.error("[State exportWithSettingsInternal] Error:", error);
+        appServices.showNotification(`Export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+/**
+ * Normalizes an audio blob to a target dB level.
+ * @param {Blob} audioBlob - The audio blob to normalize
+ * @param {number} targetDb - Target peak level in dB (e.g., -1 for -1dB)
+ * @returns {Promise<Blob>} - Normalized audio blob
+ */
+async function normalizeAudioBlob(audioBlob, targetDb = -1) {
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Find peak amplitude
+        let peak = 0;
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < channelData.length; i++) {
+                const absValue = Math.abs(channelData[i]);
+                if (absValue > peak) peak = absValue;
+            }
+        }
+        
+        if (peak === 0) {
+            await audioContext.close();
+            return audioBlob; // Silent audio, return as-is
+        }
+        
+        // Calculate gain needed
+        const targetLinear = Math.pow(10, targetDb / 20);
+        const gain = targetLinear / peak;
+        
+        // Apply gain
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < channelData.length; i++) {
+                channelData[i] *= gain;
+            }
+        }
+        
+        // Convert back to WAV
+        const wavBlob = bufferToWav(audioBuffer);
+        await audioContext.close();
+        return wavBlob;
+        
+    } catch (error) {
+        console.error("[Normalize] Error:", error);
+        return audioBlob; // Return original on error
+    }
+}
+
+/**
+ * Converts an AudioBuffer to a WAV Blob.
+ */
+function bufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+    
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    // Write audio data
+    const offset = 44;
+    const channelData = [];
+    for (let i = 0; i < numChannels; i++) {
+        channelData.push(buffer.getChannelData(i));
+    }
+    
+    let pos = offset;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(pos, intSample, true);
+            pos += 2;
+        }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+// ============================================
+// STEM EXPORT - Export individual tracks
+// ============================================
+
+/**
+ * Exports selected tracks as individual WAV files (stems).
+ * @param {Array<number>} trackIds - Array of track IDs to export. If empty, exports all non-muted tracks.
+ */
+export async function exportStemsInternal(trackIds = []) {
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State exportStemsInternal] Required appServices not available.");
+        alert("Stem export feature is currently unavailable due to an internal error.");
+        return;
+    }
+
+    appServices.showNotification("Preparing stem export...", 2000);
+    
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        const tracks = getTracksState();
+        
+        // Determine which tracks to export
+        let tracksToExport = [];
+        if (trackIds && trackIds.length > 0) {
+            tracksToExport = tracks.filter(t => trackIds.includes(t.id) && !t.isMuted);
+        } else {
+            // Export all non-muted tracks
+            tracksToExport = tracks.filter(t => !t.isMuted);
+        }
+
+        if (tracksToExport.length === 0) {
+            appServices.showNotification("No tracks to export. Unmute tracks or select specific tracks.", 3000);
+            return;
+        }
+
+        // Calculate duration
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+
+        if (currentPlaybackMode === 'timeline') {
+            tracksToExport.forEach(track => {
+                if (track?.timelineClips) {
+                    track.timelineClips.forEach(clip => {
+                        if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                            maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                        }
+                    });
+                }
+            });
+        } else {
+            tracksToExport.forEach(track => {
+                if (track && track.type !== 'Audio') {
+                    const activeSeq = track.getActiveSequence();
+                    if (activeSeq?.length > 0) {
+                        const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                        maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                    }
+                }
+            });
+        }
+
+        if (maxDuration === 0) {
+            appServices.showNotification("Nothing to export. Add some notes or audio first.", 3000);
+            return;
+        }
+        
+        // Add 2s tail for safety
+        maxDuration = Math.min(maxDuration + 2, 600);
+        console.log(`[State exportStemsInternal] Export duration: ${maxDuration.toFixed(1)}s for ${tracksToExport.length} stems`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        const exportedFiles = [];
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        // Export each track individually
+        for (const track of tracksToExport) {
+            appServices.showNotification(`Rendering stem: ${track.name}...`, 15000);
+            console.log(`[Stem Export] Processing track: ${track.name}`);
+
+            // Create a dedicated recorder for this track
+            const recorder = new Tone.Recorder();
+            
+            // Connect track output to recorder
+            // We need to connect from the track's gainNode
+            if (track.gainNode && !track.gainNode.disposed) {
+                track.gainNode.connect(recorder);
+            } else {
+                console.warn(`[Stem Export] Track ${track.name} has no gainNode, skipping.`);
+                continue;
+            }
+
+            // Reset transport
+            Tone.Transport.position = 0;
+            Tone.Transport.loop = false;
+            
+            // Mute all other tracks temporarily
+            const originalMuteStates = tracks.map(t => ({ id: t.id, isMuted: t.isMuted }));
+            tracks.forEach(t => {
+                if (t.id !== track.id) {
+                    t.isMuted = true;
+                    if (t.gainNode && !t.gainNode.disposed) {
+                        t.gainNode.gain.value = 0;
+                    }
+                }
+            });
+
+            // Unmute current track
+            track.isMuted = false;
+            if (track.gainNode && !track.gainNode.disposed && track.previousVolumeBeforeMute !== undefined) {
+                track.gainNode.gain.value = Tone.dbToGain(track.previousVolumeBeforeMute);
+            }
+
+            // Schedule playback for this track only
+            if (track.schedulePlayback) {
+                await track.schedulePlayback(0, maxDuration);
+            }
+
+            // Start recording and playback
+            await recorder.start();
+            Tone.Transport.start();
+            console.log(`[Stem Export] Recording started for ${track.name}`);
+
+            // Wait for recording
+            await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+            // Stop recording
+            const recording = await recorder.stop();
+            console.log(`[Stem Export] Recording stopped for ${track.name}, size:`, recording.size);
+
+            // Stop transport
+            Tone.Transport.stop();
+            Tone.Transport.cancel(0);
+            if (track.stopPlayback) track.stopPlayback();
+
+            // Cleanup
+            try { track.gainNode.disconnect(recorder); } catch (e) {}
+            recorder.dispose();
+
+            // Restore mute states
+            originalMuteStates.forEach(({ id, isMuted }) => {
+                const t = tracks.find(tr => tr.id === id);
+                if (t) {
+                    t.isMuted = isMuted;
+                    if (t.gainNode && !t.gainNode.disposed) {
+                        if (isMuted) {
+                            t.gainNode.gain.value = 0;
+                        } else if (t.previousVolumeBeforeMute !== undefined) {
+                            t.gainNode.gain.value = Tone.dbToGain(t.previousVolumeBeforeMute);
+                        }
+                    }
+                }
+            });
+
+            if (recording && recording.size > 1000) {
+                const url = URL.createObjectURL(recording);
+                const a = document.createElement('a');
+                a.href = url;
+                // Sanitize filename
+                const sanitizedName = track.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+                a.download = `stem-${sanitizedName}-${timestamp}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                exportedFiles.push(track.name);
+                console.log(`[Stem Export] Downloaded: ${a.download}`);
+            } else {
+                console.warn(`[Stem Export] Recording too small for ${track.name}:`, recording?.size);
+            }
+        }
+
+        // Final cleanup
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        
+        if (exportedFiles.length > 0) {
+            appServices.showNotification(`Stem export complete! Exported ${exportedFiles.length} track(s).`, 4000);
+            console.log(`[Stem Export] Complete. Exported: ${exportedFiles.join(', ')}`);
+        } else {
+            appServices.showNotification("Stem export failed. No audio was recorded.", 3000);
+        }
+
+    } catch (error) {
+        console.error("[State exportStemsInternal] Error:", error);
+        appServices.showNotification(`Stem export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+/**
+ * Shows a dialog for selecting which tracks to export as stems.
+ */
+export async function showStemExportDialogInternal() {
+    const tracks = getTracksState();
+    
+    if (tracks.length === 0) {
+        if (appServices.showNotification) appServices.showNotification("No tracks to export.", 2000);
+        return;
+    }
+
+    // Build checkbox list for tracks
+    const trackCheckboxes = tracks.map(track => `
+        <label class="flex items-center gap-2 p-2 hover:bg-purple-900/30 rounded cursor-pointer">
+            <input type="checkbox" class="stem-export-checkbox" data-track-id="${track.id}" ${!track.isMuted ? 'checked' : ''}>
+            <span class="flex-1">${track.name} (${track.type})</span>
+            <span class="text-xs text-gray-400">${track.isMuted ? 'Muted' : 'Active'}</span>
+        </label>
+    `).join('');
+
+    const dialogContent = `
+        <div class="stem-export-dialog p-4">
+            <h3 class="text-lg font-bold mb-4 text-purple-300">Export Stems</h3>
+            <p class="text-sm text-gray-400 mb-4">Select tracks to export as individual WAV files:</p>
+            <div class="track-list max-h-64 overflow-y-auto border border-gray-700 rounded p-2 mb-4">
+                ${trackCheckboxes}
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="stem-export-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm">Cancel</button>
+                <button id="stem-export-confirm" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm">Export Selected</button>
+            </div>
+        </div>
+    `;
+
+    // Create modal
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modalOverlay.innerHTML = dialogContent;
+    document.body.appendChild(modalOverlay);
+
+    // Handle cancel
+    modalOverlay.querySelector('#stem-export-cancel').addEventListener('click', () => {
+        modalOverlay.remove();
+    });
+
+    // Handle export
+    modalOverlay.querySelector('#stem-export-confirm').addEventListener('click', async () => {
+        const checkboxes = modalOverlay.querySelectorAll('.stem-export-checkbox:checked');
+        const selectedTrackIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.trackId, 10));
+        
+        modalOverlay.remove();
+        
+        if (selectedTrackIds.length === 0) {
+            if (appServices.showNotification) appServices.showNotification("No tracks selected for export.", 2000);
+            return;
+        }
+        
+        await exportStemsInternal(selectedTrackIds);
+    });
+
+    // Close on overlay click
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            modalOverlay.remove();
+        }
+    });
+}
+
+
+/**
+ * Bounces a track's output to an audio file.
+ * Renders the track's output (including effects) to a WAV file.
+ * 
+ * @param {number} trackId - The ID of the track to bounce
+ * @param {Object} options - Options for the bounce
+ * @param {boolean} options.createNewTrack - If true, creates a new Audio track with the rendered audio
+ * @param {boolean} options.download - If true, downloads the rendered audio file
+ * @param {number} options.startBar - Start bar for rendering (default: 0)
+ * @param {number} options.endBar - End bar for rendering (default: auto-detect from track content)
+ */
+export async function bounceTrackToAudio(trackId, options = {}) {
+    const { createNewTrack = false, download = true, startBar = 0, endBar = null } = options;
+    
+    if (!appServices.showNotification || !appServices.getActualMasterGainNode || !audioInitAudioContextAndMasterMeter) {
+        console.error("[State bounceTrackToAudio] Required appServices not available.");
+        alert("Bounce feature is currently unavailable due to an internal error.");
+        return null;
+    }
+
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        appServices.showNotification("Track not found for bounce.", 2000);
+        return null;
+    }
+
+    if (track.type === 'Audio' && (!track.timelineClips || track.timelineClips.length === 0)) {
+        appServices.showNotification("Audio track has no clips to bounce.", 2000);
+        return null;
+    }
+
+    appServices.showNotification(`Bouncing track: ${track.name}...`, 15000);
+    console.log(`[Bounce] Starting bounce for track: ${track.name}`);
+
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for bounce.", 3000);
+            return null;
+        }
+
+        // Calculate duration based on track content
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+
+        if (currentPlaybackMode === 'timeline') {
+            if (track.timelineClips) {
+                track.timelineClips.forEach(clip => {
+                    if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                    }
+                });
+            }
+        } else {
+            if (track && track.type !== 'Audio') {
+                const activeSeq = track.getActiveSequence();
+                if (activeSeq?.length > 0) {
+                    const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                    maxDuration = activeSeq.length * sixteenthNoteTime;
+                }
+            }
+        }
+
+        // Apply bar constraints if specified
+        const barsPerSecond = Tone.Time("1m").toSeconds();
+        const barStart = startBar * barsPerSecond;
+        const barEnd = endBar !== null ? endBar * barsPerSecond : maxDuration;
+        maxDuration = Math.max(barEnd - barStart, maxDuration);
+
+        if (maxDuration <= 0) {
+            appServices.showNotification("Nothing to bounce. Add some notes or audio first.", 3000);
+            return null;
+        }
+
+        maxDuration = Math.min(maxDuration + 2, 600); // Add 2s tail, cap at 10 min
+        console.log(`[Bounce] Render duration: ${maxDuration.toFixed(1)}s`);
+
+        // Stop everything first
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracks.forEach(t => { if (t?.stopPlayback) t.stopPlayback(); });
+        await new Promise(r => setTimeout(r, 100));
+
+        // Create recorder
+        const recorder = new Tone.Recorder();
+        
+        // Connect track output to recorder
+        if (track.gainNode && !track.gainNode.disposed) {
+            track.gainNode.connect(recorder);
+        } else {
+            console.warn(`[Bounce] Track ${track.name} has no gainNode.`);
+            appServices.showNotification("Track audio not available for bounce.", 3000);
+            recorder.dispose();
+            return null;
+        }
+
+        // Store and modify mute states
+        const originalMuteStates = tracks.map(t => ({ id: t.id, isMuted: t.isMuted }));
+        
+        // Mute all other tracks
+        tracks.forEach(t => {
+            if (t.id !== track.id) {
+                t.isMuted = true;
+                if (t.gainNode && !t.gainNode.disposed) {
+                    t.gainNode.gain.value = 0;
+                }
+            }
+        });
+
+        // Unmute current track
+        track.isMuted = false;
+        if (track.gainNode && !track.gainNode.disposed && track.previousVolumeBeforeMute !== undefined) {
+            track.gainNode.gain.value = Tone.dbToGain(track.previousVolumeBeforeMute);
+        }
+
+        // Reset transport
+        Tone.Transport.position = barStart;
+        Tone.Transport.loop = false;
+        
+        // Schedule playback
+        if (track.schedulePlayback) {
+            await track.schedulePlayback(barStart, maxDuration);
+        }
+
+        // Start recording and playback
+        await recorder.start();
+        Tone.Transport.start();
+        console.log(`[Bounce] Recording started for ${track.name}`);
+
+        // Wait for recording
+        await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+
+        // Stop recording
+        const recording = await recorder.stop();
+        console.log(`[Bounce] Recording stopped for ${track.name}, size:`, recording?.size);
+
+        // Stop transport
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        if (track.stopPlayback) track.stopPlayback();
+
+        // Cleanup recorder connection
+        try { track.gainNode.disconnect(recorder); } catch (e) {}
+        recorder.dispose();
+
+        // Restore mute states
+        originalMuteStates.forEach(({ id, isMuted }) => {
+            const t = tracks.find(tr => tr.id === id);
+            if (t) {
+                t.isMuted = isMuted;
+                if (t.gainNode && !t.gainNode.disposed) {
+                    if (isMuted) {
+                        t.gainNode.gain.value = 0;
+                    } else if (t.previousVolumeBeforeMute !== undefined) {
+                        t.gainNode.gain.value = Tone.dbToGain(t.previousVolumeBeforeMute);
+                    }
+                }
+            }
+        });
+
+        if (!recording || recording.size < 1000) {
+            console.warn(`[Bounce] Recording too small for ${track.name}:`, recording?.size);
+            appServices.showNotification("Bounce failed. No audio was recorded.", 3000);
+            return null;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const sanitizedName = track.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+        const filename = `bounced-${sanitizedName}-${timestamp}.wav`;
+
+        // Handle download option
+        if (download) {
+            const url = URL.createObjectURL(recording);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log(`[Bounce] Downloaded: ${filename}`);
+        }
+
+        // Handle create new track option
+        if (createNewTrack && appServices.addTrack) {
+            appServices.showNotification("Creating new Audio track from bounce...", 2000);
+            
+            // Create new Audio track
+            const newTrack = await appServices.addTrack('Audio');
+            if (newTrack) {
+                newTrack.name = `${track.name} (Bounced)`;
+                
+                // Convert blob to AudioBuffer and load into track
+                const arrayBuffer = await recording.arrayBuffer();
+                const audioBuffer = await Tone.context.decodeAudioData(arrayBuffer);
+                
+                // Create timeline clip for the new track
+                const clipData = {
+                    id: `clip-${Date.now()}`,
+                    startTime: 0,
+                    duration: audioBuffer.duration,
+                    audioBuffer: audioBuffer,
+                    offset: 0
+                };
+                
+                if (!newTrack.timelineClips) {
+                    newTrack.timelineClips = [];
+                }
+                newTrack.timelineClips.push(clipData);
+                
+                // Store audio buffer reference
+                if (!newTrack.audioBuffers) {
+                    newTrack.audioBuffers = new Map();
+                }
+                newTrack.audioBuffers.set(clipData.id, audioBuffer);
+                
+                console.log(`[Bounce] Created new Audio track: ${newTrack.name}`);
+                
+                // Update UI if available
+                if (appServices.updateTrackUI) {
+                    appServices.updateTrackUI(newTrack.id);
+                }
+            }
+        }
+
+        appServices.showNotification(`Bounce complete: ${track.name}`, 3000);
+        console.log(`[Bounce] Complete for ${track.name}`);
+        
+        return { blob: recording, filename, duration: maxDuration };
+
+    } catch (error) {
+        console.error("[State bounceTrackToAudio] Error:", error);
+        appServices.showNotification(`Bounce error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        return null;
+    }
+}
+
+/**
+ * Shows a dialog for bouncing a track to audio.
+ */
+export function showBounceTrackDialog(trackId) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        if (appServices.showNotification) appServices.showNotification("Track not found.", 2000);
+        return;
+    }
+
+    const dialogContent = `
+        <div class="bounce-dialog p-4">
+            <h3 class="text-lg font-bold mb-4 text-purple-300">Bounce Track to Audio</h3>
+            <p class="text-sm text-gray-400 mb-4">Render "${track.name}" (${track.type}) to an audio file:</p>
+            
+            <div class="options mb-4 space-y-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="bounce-download" checked>
+                    <span class="text-sm">Download as WAV file</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="bounce-new-track">
+                    <span class="text-sm">Create new Audio track with rendered audio</span>
+                </label>
+            </div>
+            
+            <div class="bar-range mb-4 p-3 bg-gray-800/50 rounded">
+                <div class="flex items-center gap-2 mb-2">
+                    <label class="text-sm text-gray-400">Start Bar:</label>
+                    <input type="number" id="bounce-start-bar" value="0" min="0" max="999" 
+                           class="w-16 px-2 py-1 bg-gray-700 rounded text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">End Bar:</label>
+                    <input type="number" id="bounce-end-bar" value="" min="1" max="999" 
+                           placeholder="Auto" class="w-16 px-2 py-1 bg-gray-700 rounded text-sm">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <button id="bounce-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm">Cancel</button>
+                <button id="bounce-confirm" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm">Bounce</button>
+            </div>
+        </div>
+    `;
+
+    // Create modal
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
+    modalOverlay.innerHTML = dialogContent;
+    document.body.appendChild(modalOverlay);
+
+    // Handle cancel
+    modalOverlay.querySelector('#bounce-cancel').addEventListener('click', () => {
+        modalOverlay.remove();
+    });
+
+    // Handle bounce
+    modalOverlay.querySelector('#bounce-confirm').addEventListener('click', async () => {
+        const download = modalOverlay.querySelector('#bounce-download').checked;
+        const createNewTrack = modalOverlay.querySelector('#bounce-new-track').checked;
+        const startBar = parseInt(modalOverlay.querySelector('#bounce-start-bar').value, 10) || 0;
+        const endBarInput = modalOverlay.querySelector('#bounce-end-bar').value;
+        const endBar = endBarInput ? parseInt(endBarInput, 10) : null;
+        
+        modalOverlay.remove();
+        
+        await bounceTrackToAudio(trackId, { download, createNewTrack, startBar, endBar });
+    });
+
+    // Close on overlay click
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            modalOverlay.remove();
+        }
+    });
+}
+
+
 // Helper function to convert AudioBuffer to WAV
 function bufferToWav(buffer) {
     const numChannels = buffer.numberOfChannels;
