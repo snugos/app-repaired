@@ -4,10 +4,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Grouping** - Group tracks for collective mute/solo/volume ❌ NOT IMPLEMENTED
-2. **Audio Reverse** - Reverse audio clips with a click ❌ NOT IMPLEMENTED
-3. **Step Sequencer Note Length Lane** - Visual note length lane per step ❌ NOT IMPLEMENTED
-4. **Sample Rate Conversion** - Change project sample rate ❌ NOT IMPLEMENTED
+1. **Step Sequencer Note Length Lane** - Visual note length lane per step ❌ NOT IMPLEMENTED
+2. **Sample Rate Conversion** - Change project sample rate ❌ NOT IMPLEMENTED
 
 ## Workflow
 

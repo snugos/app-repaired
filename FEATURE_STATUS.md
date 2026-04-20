@@ -547,3 +547,21 @@ New Feature Queue:
 - Works with existing automation system (addAutomationPoint)
 
 ---
+
+## Feature: Audio Reverse - ✅ COMPLETED
+**File:** `js/Track.js`, `js/ui.js`
+**Status:** ✅ COMPLETED
+**What's New:** Reverse audio clips with a click via right-click context menu
+**Implementation:**
+- [x] Add `reverseAudioClip(clipId)` method to Track class
+- [x] Method decodes audio from IndexedDB, reverses sample data per channel, re-encodes to WAV, stores with new key
+- [x] Updates clip's sourceId to point to reversed audio
+- [x] Captures undo state and updates UI after reversal
+- [x] Add "🔄 Reverse Audio" menu item to audio clip context menu in ui.js
+
+**Features:**
+- Right-click any audio clip on the timeline
+- Select "🔄 Reverse Audio" to reverse the audio playback direction
+- Works with undo/redo (can revert the reversal)
+- Preserves original audio data with a new key (original not deleted)
+- Visual notification confirms the action---
