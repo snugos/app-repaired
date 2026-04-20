@@ -56,7 +56,11 @@ import {
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
     exportStemsInternal, showStemExportDialogInternal,
-    bounceTrackToAudio, showBounceTrackDialog
+    bounceTrackToAudio, showBounceTrackDialog,
+    // Project Export Presets
+    getExportPresetsState, saveExportPreset, deleteExportPreset, getExportPreset, getExportPresetNames,
+    // Audio Normalization Settings
+    getAutoNormalizeEnabled, setAutoNormalizeEnabled, getNormalizationTargetDb, setNormalizationTargetDb
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -348,6 +352,19 @@ const appServices = {
     getTrackEffectPreset,
     getTrackEffectPresetNames,
     getTrackEffectsPresetsState, saveTrackEffectPreset, deleteTrackEffectPreset, getTrackEffectPreset, getTrackEffectPresetNames,
+
+    // Project Export Presets
+    getExportPresets: getExportPresetsState,
+    saveExportPreset,
+    deleteExportPreset,
+    getExportPreset,
+    getExportPresetNames,
+
+    // Audio Normalization Settings
+    getAutoNormalizeEnabled,
+    setAutoNormalizeEnabled,
+    getNormalizationTargetDb,
+    setNormalizationTargetDb,
 
     // State Module Setters & Core Actions
     addWindowToStore: addWindowToStoreState, removeWindowFromStore: removeWindowFromStoreState,

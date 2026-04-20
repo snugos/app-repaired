@@ -2172,3 +2172,19 @@ export function getAutoSaveStatus() {
         isSaving: isAutoSaving
     };
 }
+
+// --- Audio Normalization Settings ---
+let autoNormalizeEnabled = true;
+let normalizationTargetDb = -1; // Target peak level in dB
+
+export function getAutoNormalizeEnabled() { return autoNormalizeEnabled; }
+export function setAutoNormalizeEnabled(enabled) { 
+    autoNormalizeEnabled = !!enabled;
+    console.log(`[State] Auto-normalization ${autoNormalizeEnabled ? 'enabled' : 'disabled'}`);
+}
+export function getNormalizationTargetDb() { return normalizationTargetDb; }
+export function setNormalizationTargetDb(db) { 
+    // Clamp to reasonable range: -6dB to 0dB
+    normalizationTargetDb = Math.max(-6, Math.min(0, parseFloat(db) || -1));
+    console.log(`[State] Normalization target set to: ${normalizationTargetDb}dB`);
+}

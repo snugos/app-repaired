@@ -1954,6 +1954,226 @@ export class Track {
         return null;
     }
 
+    /**
+     * Add an audio clip to this track from a recorded blob.
+     * @param {Blob} audioBlob - The recorded audio blob
+     * @param {number} startTime - Start time in seconds on the timeline
+     * @param {Object} options - Optional settings
+     * @param {boolean} options.normalize - Whether to normalize audio (default true)
+     * @param {number} options.targetDb - Target peak level in dB for normalization (default -1)
+     * @returns {Promise<Object|null>} The created clip object or null on failure
+     */
+    async addAudioClip(audioBlob, startTime, options = {}) {
+        const { normalize = true, targetDb = -1 } = options;
+        
+        if (this.type !== 'Audio') {
+            console.error(`[Track ${this.id} addAudioClip] Cannot add audio clip to non-Audio track.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification('Cannot add audio to non-Audio track.', 3000);
+            }
+            return null;
+        }
+
+        if (!audioBlob || audioBlob.size === 0) {
+            console.error(`[Track ${this.id} addAudioClip] Invalid or empty audio blob.`);
+            return null;
+        }
+
+        try {
+            console.log(`[Track ${this.id} addAudioClip] Processing audio blob, size: ${audioBlob.size}, normalize: ${normalize}, targetDb: ${targetDb}dB`);
+            
+            let processedBlob = audioBlob;
+            
+            // Normalize audio if requested
+            if (normalize) {
+                processedBlob = await this._normalizeAudioBlob(audioBlob, targetDb);
+            }
+
+            // Store in IndexedDB
+            const dbKey = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const audioData = await processedBlob.arrayBuffer();
+            await storeAudio(dbKey, audioData);
+            console.log(`[Track ${this.id} addAudioClip] Audio stored with key: ${dbKey}`);
+
+            // Get duration from the audio buffer
+            const duration = await this.getBlobDuration(processedBlob);
+            
+            // Create clip entry
+            const clipId = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const clipNumber = this.timelineClips.filter(c => c.type === 'audio').length + 1;
+            const clip = {
+                id: clipId,
+                type: 'audio',
+                sourceId: dbKey,
+                startTime: startTime || 0,
+                duration: duration,
+                name: `Recording ${clipNumber}`,
+                fadeIn: 0,
+                fadeOut: 0,
+                normalized: normalize,
+                targetDb: normalize ? targetDb : null
+            };
+
+            this.timelineClips.push(clip);
+            console.log(`[Track ${this.id} addAudioClip] Created clip:`, clip.name, 'at', clip.startTime, 'duration:', clip.duration);
+
+            // Capture undo state
+            this._captureUndoState(`Added audio clip "${clip.name}" on ${this.name}`);
+
+            // Update UI if available
+            if (this.appServices.updateTrackUI) {
+                this.appServices.updateTrackUI(this.id, 'audioClipAdded');
+            }
+
+            return clip;
+        } catch (error) {
+            console.error(`[Track ${this.id} addAudioClip] Error:`, error);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Error adding audio clip: ${error.message}`, 3000);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Normalize an audio blob to a target peak level.
+     * @param {Blob} audioBlob - The audio blob to normalize
+     * @param {number} targetDb - Target peak level in dB (default -1)
+     * @returns {Promise<Blob>} Normalized audio blob
+     */
+    async _normalizeAudioBlob(audioBlob, targetDb = -1) {
+        try {
+            // Decode the audio data
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Find the peak amplitude
+            let peakAmplitude = 0;
+            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                const channelData = audioBuffer.getChannelData(channel);
+                for (let i = 0; i < channelData.length; i++) {
+                    const absValue = Math.abs(channelData[i]);
+                    if (absValue > peakAmplitude) {
+                        peakAmplitude = absValue;
+                    }
+                }
+            }
+            
+            if (peakAmplitude === 0) {
+                console.warn('[Audio Normalization] Audio is silent, skipping normalization.');
+                await audioContext.close();
+                return audioBlob;
+            }
+            
+            // Calculate gain needed to reach target dB
+            // Target linear amplitude from dB: 10^(targetDb/20)
+            const targetLinear = Math.pow(10, targetDb / 20);
+            const gainFactor = targetLinear / peakAmplitude;
+            
+            console.log(`[Audio Normalization] Peak: ${peakAmplitude.toFixed(4)} (${(20 * Math.log10(peakAmplitude)).toFixed(2)}dB), Target: ${targetDb}dB, Gain: ${gainFactor.toFixed(4)}`);
+            
+            // If gain is very close to 1, no normalization needed
+            if (Math.abs(gainFactor - 1) < 0.001) {
+                console.log('[Audio Normalization] Audio already at target level, skipping.');
+                await audioContext.close();
+                return audioBlob;
+            }
+            
+            // Apply gain to all channels
+            const offlineContext = new OfflineAudioContext(
+                audioBuffer.numberOfChannels,
+                audioBuffer.length,
+                audioBuffer.sampleRate
+            );
+            
+            const source = offlineContext.createBufferSource();
+            source.buffer = audioBuffer;
+            
+            const gainNode = offlineContext.createGain();
+            gainNode.gain.value = gainFactor;
+            
+            source.connect(gainNode);
+            gainNode.connect(offlineContext.destination);
+            
+            source.start();
+            const normalizedBuffer = await offlineContext.startRendering();
+            
+            // Convert back to WAV blob
+            const normalizedBlob = await this._audioBufferToWav(normalizedBuffer);
+            
+            await audioContext.close();
+            console.log(`[Audio Normalization] Complete, new blob size: ${normalizedBlob.size}`);
+            
+            return normalizedBlob;
+        } catch (error) {
+            console.error('[Audio Normalization] Error:', error);
+            // Return original blob on error
+            return audioBlob;
+        }
+    }
+
+    /**
+     * Convert an AudioBuffer to a WAV blob.
+     * @param {AudioBuffer} audioBuffer - The audio buffer to convert
+     * @returns {Blob} WAV blob
+     */
+    _audioBufferToWav(audioBuffer) {
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const format = 1; // PCM
+        const bitDepth = 16;
+        
+        const bytesPerSample = bitDepth / 8;
+        const blockAlign = numChannels * bytesPerSample;
+        
+        const dataLength = audioBuffer.length * blockAlign;
+        const buffer = new ArrayBuffer(44 + dataLength);
+        const view = new DataView(buffer);
+        
+        // WAV header
+        this._writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + dataLength, true);
+        this._writeString(view, 8, 'WAVE');
+        this._writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true); // fmt chunk size
+        view.setUint16(20, format, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * blockAlign, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bitDepth, true);
+        this._writeString(view, 36, 'data');
+        view.setUint32(40, dataLength, true);
+        
+        // Write interleaved audio data
+        const channels = [];
+        for (let i = 0; i < numChannels; i++) {
+            channels.push(audioBuffer.getChannelData(i));
+        }
+        
+        let offset = 44;
+        for (let i = 0; i < audioBuffer.length; i++) {
+            for (let channel = 0; channel < numChannels; channel++) {
+                const sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                view.setInt16(offset, intSample, true);
+                offset += 2;
+            }
+        }
+        
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    /**
+     * Helper to write a string to a DataView.
+     */
+    _writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
     dispose() {
         const trackNameForLog = this.name || `Track ${this.id}`; 
         console.log(`[Track Dispose START ${this.id}] Starting disposal for track: "${trackNameForLog}"`);

@@ -1659,7 +1659,7 @@ export async function startAudioRecording(track, isMonitoringEnabled) {
         }
         if (localAppServices.showNotification) localAppServices.showNotification(userMessage, 6000);
 
-        // Cleanup on error
+        // Attempt to clean up even if stop fails
         if (mic && mic.state === "started") {
             try { mic.close(); } catch(e) { console.warn("Cleanup error closing mic:", e.message); }
         }
@@ -1690,7 +1690,6 @@ export async function stopAudioRecording() {
         } catch (e) {
             console.error("[Audio stopAudioRecording] Error stopping recorder:", e);
             if (localAppServices.showNotification) localAppServices.showNotification("Error stopping recorder. Recording may be lost.", 3000);
-            // Attempt to clean up even if stop fails
         }
     } else {
         console.warn("[Audio stopAudioRecording] Recorder was not in 'started' state. Current state:", recorder.state);
@@ -1739,7 +1738,11 @@ export async function stopAudioRecording() {
         if (track) {
             console.log(`[Audio stopAudioRecording] Processing recorded blob for track ${track.name} (ID: ${track.id}), original startTime: ${startTime}`);
             if (typeof track.addAudioClip === 'function') {
-                await track.addAudioClip(blob, startTime);
+                // Get normalization settings
+                const normalize = localAppServices.getAutoNormalizeEnabled ? localAppServices.getAutoNormalizeEnabled() : true;
+                const targetDb = localAppServices.getNormalizationTargetDb ? localAppServices.getNormalizationTargetDb() : -1;
+                
+                await track.addAudioClip(blob, startTime, { normalize, targetDb });
             } else {
                 console.error("[Audio stopAudioRecording] Track object does not have addAudioClip method.");
                 if (localAppServices.showNotification) localAppServices.showNotification("Error: Could not process recorded audio (internal error).", 3000);

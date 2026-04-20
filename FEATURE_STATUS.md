@@ -341,10 +341,10 @@ Generate 10 NEW feature ideas that are:
 3. Enhance creative workflow
 
 New Feature Queue:
-1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
+1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row ✅ COMPLETED
 2. **Effect Bypass Toggle** - Quick bypass button for each effect ✅ COMPLETED
-3. **Project Export Presets** - Save/load project export configurations
-4. **Audio Normalization** - Auto-normalize recorded or imported audio
+3. **Audio Normalization** - Auto-normalize recorded or imported audio ✅ COMPLETED
+4. **Project Export Presets** - Save/load project export configurations
 5. **Tempo Ramps** - Automation lane for tempo changes over time
 6. **Marker System** - Add named markers on timeline for navigation
 7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
@@ -374,6 +374,45 @@ New Feature Queue:
 - Active effects show green button color
 - Stores previous wet value for accurate restoration
 - Works for both track effects and master effects
+
+---
+
+## Feature: Audio Normalization - ✅ COMPLETED
+**File:** `js/Track.js`, `js/state.js`, `js/audio.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's New:** Auto-normalize recorded audio to a target peak level
+**Implementation:**
+- [x] Add `addAudioClip(blob, startTime, options)` method to Track class
+- [x] Add `_normalizeAudioBlob(audioBlob, targetDb)` private method for normalization
+- [x] Add `_audioBufferToWav(audioBuffer)` helper for WAV encoding
+- [x] Add `_writeString(view, offset, string)` helper for WAV header
+- [x] Add normalization settings in state.js (`autoNormalizeEnabled`, `normalizationTargetDb`)
+- [x] Wire up normalization settings in main.js appServices
+- [x] Update `stopAudioRecording` to pass normalization options to `addAudioClip`
+
+**Features:**
+- Recorded audio is automatically normalized to target peak level (default -1dB)
+- Normalization can be enabled/disabled via `getAutoNormalizeEnabled()/setAutoNormalizeEnabled()`
+- Target dB level can be configured via `getNormalizationTargetDb()/setNormalizationTargetDb()`
+- Normalization uses Web Audio API for accurate peak detection and gain adjustment
+- Target range: -6dB to 0dB (clamped for safety)
+- Silent audio is skipped (no gain applied)
+- Audio already at target level is skipped (no unnecessary processing)
+
+---
+
+## Feature: addAudioClip Method (Bug Fix) - ✅ COMPLETED
+**File:** `js/Track.js`
+**Status:** ✅ COMPLETED
+**What Was Missing:** The `stopAudioRecording` function called `track.addAudioClip()` but the method did not exist on the Track class, causing audio recordings to be lost.
+**Implementation:**
+- [x] Add complete `addAudioClip(blob, startTime, options)` method
+- [x] Store audio blob in IndexedDB via `storeAudio`
+- [x] Create timeline clip entry with proper metadata
+- [x] Support normalization via options parameter
+- [x] Capture undo state for the action
+- [x] Update UI via `updateTrackUI` callback
+- [x] Return created clip object on success, null on failure
 
 ---
 
