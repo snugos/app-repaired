@@ -2730,6 +2730,114 @@ function setupTimelineEventListeners(content, tracks) {
                 trackId: clip.dataset.trackId
             }));
         });
+
+        // Clip context menu for fade editing (audio clips only)
+        clip.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const clipId = clip.dataset.clipId;
+            const trackId = parseInt(clip.dataset.trackId);
+            const track = tracks.find(t => t.id === trackId);
+            if (!track || track.type !== 'Audio') return;
+
+            const clipData = track.timelineClips?.find(c => c.id === clipId);
+            if (!clipData) return;
+
+            const currentFadeIn = clipData.fadeIn || 0;
+            const currentFadeOut = clipData.fadeOut || 0;
+
+            const menuItems = [
+                { label: `Fade In: ${currentFadeIn.toFixed(2)}s`, action: () => {} },
+                { label: `Fade Out: ${currentFadeOut.toFixed(2)}s`, action: () => {} },
+                { separator: true },
+                { label: 'Set Fade In (0.1s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, 0.1, currentFadeOut);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade in set to 0.1s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade In (0.25s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, 0.25, currentFadeOut);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade in set to 0.25s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade In (0.5s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, 0.5, currentFadeOut);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade in set to 0.5s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade In (1.0s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, 1.0, currentFadeOut);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade in set to 1.0s`, 1500);
+                    }
+                }},
+                { label: 'Clear Fade In', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, 0, currentFadeOut);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade in cleared`, 1500);
+                    }
+                }},
+                { separator: true },
+                { label: 'Set Fade Out (0.1s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, currentFadeIn, 0.1);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade out set to 0.1s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade Out (0.25s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, currentFadeIn, 0.25);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade out set to 0.25s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade Out (0.5s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, currentFadeIn, 0.5);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade out set to 0.5s`, 1500);
+                    }
+                }},
+                { label: 'Set Fade Out (1.0s)', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, currentFadeIn, 1.0);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade out set to 1.0s`, 1500);
+                    }
+                }},
+                { label: 'Clear Fade Out', action: () => {
+                    if (typeof track.setClipFade === 'function') {
+                        track.setClipFade(clipId, currentFadeIn, 0);
+                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                        showNotification(`Fade out cleared`, 1500);
+                    }
+                }},
+                { separator: true },
+                { label: 'Delete Clip', action: () => {
+                    showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
+                        const idx = track.timelineClips.findIndex(c => c.id === clipId);
+                        if (idx !== -1) {
+                            if (localAppServices.captureStateForUndo) {
+                                localAppServices.captureStateForUndo(`Delete clip on ${track.name}`);
+                            }
+                            track.timelineClips.splice(idx, 1);
+                            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                            showNotification(`Clip deleted`, 1500);
+                        }
+                    });
+                }}
+            ];
+            createContextMenu(e, menuItems, localAppServices);
+        });
     });
 
     // Timeline track lane drop for audio files
