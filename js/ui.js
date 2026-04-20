@@ -3436,6 +3436,145 @@ export function openTimelineWindow(savedState = null) {
     return win;
 }
 
+// --- Scale Hint Overlay Panel ---
+export function openScaleHintPanel(savedState = null) {
+    const windowId = 'scaleHint';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderScaleHintPanelContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'scaleHintContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 360, 
+        height: 320, 
+        minWidth: 300, 
+        minHeight: 250,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Scale Hint Overlay', contentContainer, options);
+    
+    if (win?.element) {
+        renderScaleHintPanelContent();
+    }
+    
+    return win;
+}
+
+function renderScaleHintPanelContent() {
+    const container = document.getElementById('scaleHintContent');
+    if (!container) return;
+
+    const enabled = localAppServices.getScaleHintEnabled?.() ?? false;
+    const root = localAppServices.getScaleHintRoot?.() ?? 'C';
+    const type = localAppServices.getScaleHintType?.() ?? 'major';
+    const scaleTypes = localAppServices.getScaleTypes?.() ?? ['major', 'minor'];
+    const scaleNotes = localAppServices.getScaleNotes?.(root, type) ?? [];
+    
+    const noteColors = {
+        'C': 'bg-white dark:bg-gray-100',
+        'C#': 'bg-gray-300 dark:bg-gray-600',
+        'D': 'bg-white dark:bg-gray-100',
+        'D#': 'bg-gray-300 dark:bg-gray-600',
+        'E': 'bg-white dark:bg-gray-100',
+        'F': 'bg-white dark:bg-gray-100',
+        'F#': 'bg-gray-300 dark:bg-gray-600',
+        'G': 'bg-white dark:bg-gray-100',
+        'G#': 'bg-gray-300 dark:bg-gray-600',
+        'A': 'bg-white dark:bg-gray-100',
+        'A#': 'bg-gray-300 dark:bg-gray-600',
+        'B': 'bg-white dark:bg-gray-100'
+    };
+
+    let html = `
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Scale Hint Overlay</span>
+                <button id="scaleHintToggleBtn" class="px-3 py-1 text-xs rounded font-medium ${enabled ? 'bg-green-500 text-white' : 'bg-gray-400 text-gray-800'}">
+                    ${enabled ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                When enabled, notes that are in the selected scale will be highlighted on the piano roll and sequencer.
+            </p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Root Note</label>
+            <div class="grid grid-cols-6 gap-1">
+                ${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(n => `
+                    <button class="root-note-btn px-2 py-1.5 text-xs rounded border ${root === n ? 'bg-blue-500 text-white border-blue-600' : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300'}" data-root="${n}">
+                        ${n}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Scale Type</label>
+            <select id="scaleTypeSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-gray-700 dark:text-gray-200">
+                ${scaleTypes.map(t => `<option value="${t}" ${type === t ? 'selected' : ''}>${t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div class="p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Notes in Scale</div>
+            <div class="flex flex-wrap gap-1">
+                ${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(n => `
+                    <div class="w-8 h-8 flex items-center justify-center text-xs font-bold rounded ${scaleNotes.includes(n) ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-800 text-gray-400'} ${noteColors[n]}">
+                        ${n}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Toggle button
+    container.querySelector('#scaleHintToggleBtn')?.addEventListener('click', () => {
+        const newEnabled = !enabled;
+        localAppServices.setScaleHintEnabled?.(newEnabled);
+        renderScaleHintPanelContent();
+    });
+    
+    // Root note buttons
+    container.querySelectorAll('.root-note-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            localAppServices.setScaleHintRoot?.(btn.dataset.root);
+            renderScaleHintPanelContent();
+        });
+    });
+    
+    // Scale type select
+    container.querySelector('#scaleTypeSelect')?.addEventListener('change', (e) => {
+        localAppServices.setScaleHintType?.(e.target.value);
+        renderScaleHintPanelContent();
+    });
+}
+
 // --- Undo/Redo History Panel ---
 export function openUndoHistoryPanel(savedState = null) {
     const windowId = 'undoHistory';

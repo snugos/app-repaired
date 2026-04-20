@@ -191,6 +191,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openTrackGroupsPanel?.();
                 } catch(e) { console.error('[Menu] Track Groups error:', e); }
             },
+            menuScaleHint: () => {
+                console.log('[Menu] Scale Hint Overlay clicked');
+                try {
+                    services.openScaleHintPanel?.();
+                } catch(e) { console.error('[Menu] Scale Hint Overlay error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
