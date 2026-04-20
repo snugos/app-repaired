@@ -66,7 +66,6 @@ import {
     startAudioRecording,
     stopAudioRecording,
     // Waveform visualization functions
-    drawWaveform,
     drawPlayhead,
     decodeAudioBlob,
     setWaveformPreviewCanvas,
@@ -132,6 +131,7 @@ const uiElementsCache = {
     tempoGlobalInput: null, midiInputSelectGlobal: null, masterMeterContainerGlobal: null,
     masterMeterBarGlobal: null, midiIndicatorGlobal: null, keyboardIndicatorGlobal: null,
     playbackModeToggleBtnGlobal: null, midiLearnBtnGlobal: null,
+    tapBtnGlobal: null,
 };
 
 const DESKTOP_BACKGROUND_KEY = 'snugosDesktopBackground';
@@ -807,7 +807,8 @@ async function initializeSnugOS() {
             midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
             playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
-            midiLearnBtnGlobal: document.getElementById('midiLearnBtnGlobal')
+            midiLearnBtnGlobal: document.getElementById('midiLearnBtnGlobal'),
+            tapBtnGlobal: document.getElementById('tapBtnGlobal')
         };
         
         // Add to cache

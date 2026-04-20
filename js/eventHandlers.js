@@ -216,7 +216,7 @@ export function attachGlobalControlEvents(elements) {
         console.error("[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.");
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal } = elements;
 
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
@@ -455,6 +455,31 @@ export function attachGlobalControlEvents(elements) {
         });
     }
 }
+
+    // Tap Tempo button handler
+    if (tapBtnGlobal) {
+        tapBtnGlobal.addEventListener('click', async () => {
+            try {
+                const { handleTapTempo } = await import('./ui.js');
+                const tappedBpm = handleTapTempo();
+                if (tappedBpm !== null) {
+                    Tone.Transport.bpm.value = tappedBpm;
+                    if (tempoGlobalInput) {
+                        tempoGlobalInput.value = tappedBpm.toFixed(1);
+                    }
+                    if (localAppServices.updateTaskbarTempoDisplay) {
+                        localAppServices.updateTaskbarTempoDisplay(tappedBpm);
+                    }
+                    tapBtnGlobal.style.backgroundColor = '#3a3a3a';
+                    setTimeout(() => { tapBtnGlobal.style.backgroundColor = ''; }, 100);
+                }
+            } catch (error) {
+                console.error("[EventHandlers TapTempo] Error:", error);
+            }
+        });
+    }
+
+
 
 export function setupMIDI() {
     if (navigator.requestMIDIAccess) {

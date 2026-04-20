@@ -2435,6 +2435,51 @@ let timelineState = {
 };
 
 // --- Timeline Functions (Stubs) ---
+
+// --- Tap Tempo ---
+const TAP_TIMEOUT_MS = 2000;
+let tapTimes = [];
+
+export function handleTapTempo() {
+    const now = performance.now();
+    
+    // Reset if too much time has passed since last tap
+    if (tapTimes.length > 0 && (now - tapTimes[tapTimes.length - 1]) > TAP_TIMEOUT_MS) {
+        tapTimes = [];
+    }
+    
+    tapTimes.push(now);
+    
+    // Keep only the last 8 taps
+    if (tapTimes.length > 8) {
+        tapTimes.shift();
+    }
+    
+    // Need at least 2 taps to calculate tempo
+    if (tapTimes.length < 2) {
+        return null;
+    }
+    
+    // Calculate average interval between taps
+    let totalInterval = 0;
+    for (let i = 1; i < tapTimes.length; i++) {
+        totalInterval += tapTimes[i] - tapTimes[i - 1];
+    }
+    const avgInterval = totalInterval / (tapTimes.length - 1);
+    
+    // Convert interval (ms) to BPM
+    const bpm = 60000 / avgInterval;
+    
+    // Clamp to reasonable tempo range
+    const clampedBpm = Math.min(Constants.MAX_TEMPO, Math.max(Constants.MIN_TEMPO, bpm));
+    
+    return clampedBpm;
+}
+
+export function resetTapTempo() {
+    tapTimes = [];
+}
+
 export function renderTimeline() {
     const timelineWindow = localAppServices.getWindowById ? localAppServices.getWindowById('timeline') : null;
     if (!timelineWindow || !timelineWindow.element || timelineWindow.isMinimized) return;
