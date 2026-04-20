@@ -86,7 +86,16 @@ import {
     openMasterEffectsRackWindow,
     renderTimeline,
     updatePlayheadPosition,
-    openTimelineWindow
+    openTimelineWindow,
+    openScaleHintPanel,
+    openUndoHistoryPanel,
+    openMidiMappingsPanel,
+    openExportPresetsPanel,
+    openProjectTemplatesPanel,
+    openMarkersPanel,
+    openTempoAutomationPanel,
+    openChordMemoryPanel,
+    openTrackGroupsPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -458,7 +467,7 @@ const appServices = {
                     }
                 }
                 
-                if (track && track.type === 'Sampler' && !track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
+                if (track && track.type === 'Sampler' && track.slicerIsPolyphonic && track.slicerMonoPlayer && track.slicerMonoEnvelope) {
                     if (track.slicerMonoPlayer.state === 'started' && !track.slicerMonoPlayer.disposed) {
                         try { track.slicerMonoPlayer.stop(Tone.now()); } catch(e) { console.warn("Error stopping mono slicer player during panic", e); }
                     }
@@ -533,7 +542,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -553,7 +562,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -599,8 +608,8 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -652,7 +661,15 @@ const appServices = {
         if (appServices.renderTimeline && typeof appServices.renderTimeline === 'function') {
             appServices.renderTimeline(); 
         }
-    }
+    },
+    openUndoHistoryPanel,
+    openMidiMappingsPanel,
+    openExportPresetsPanel,
+    openProjectTemplatesPanel,
+    openMarkersPanel,
+    openTempoAutomationPanel,
+    openChordMemoryPanel,
+    openTrackGroupsPanel
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
