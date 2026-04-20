@@ -42,7 +42,7 @@ import {
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
     // Core State Actions
-    addTrackToStateInternal, removeTrackFromStateInternal,
+    addTrackToStateInternal, removeTrackFromStateInternal, reorderTrackInState,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
@@ -259,7 +259,7 @@ const appServices = {
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
     // Core State Actions
-    addTrack: addTrackToStateInternal, removeTrack: removeTrackFromStateInternal,
+    addTrack: addTrackToStateInternal, removeTrack: removeTrackFromStateInternal, reorderTrack: reorderTrackInState,
     captureStateForUndo: captureStateForUndoInternal, undoLastAction: undoLastActionInternal,
     redoLastAction: redoLastActionInternal, gatherProjectData: gatherProjectDataInternal,
     reconstructDAW: reconstructDAWInternal, saveProject: saveProjectInternal,
