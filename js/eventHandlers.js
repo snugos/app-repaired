@@ -173,6 +173,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openMidiMappingsPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Mappings error:', e); }
             },
+            menuTempoAutomation: () => {
+                console.log('[Menu] Tempo Automation clicked');
+                try {
+                    services.openTempoAutomationPanel?.();
+                } catch(e) { console.error('[Menu] Tempo Automation error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },

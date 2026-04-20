@@ -2583,7 +2583,8 @@ let timelineState = {
     selectedClipId: null,
     isDraggingClip: false,
     dragStartX: 0,
-    dragClipStartX: 0
+    dragClipStartX: 0,
+    selectedTempoRampId: null
 };
 
 // --- Timeline Functions (Stubs) ---
@@ -4083,4 +4084,237 @@ export function openMarkersPanel() {
     document.addEventListener('keydown', handleEscape);
     
     document.body.appendChild(panel);
+}
+
+/**
+ * Opens the Tempo Automation panel for managing tempo changes over time.
+ */
+export function openTempoAutomationPanel(savedState = null) {
+    const windowId = 'tempoAutomation';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateTempoAutomationPanel();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'tempoAutomationContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 450, 
+        height: 400, 
+        minWidth: 350, 
+        minHeight: 250,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Tempo Automation', contentContainer, options);
+    
+    if (win?.element) {
+        renderTempoAutomationContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the tempo automation content.
+ */
+function renderTempoAutomationContent() {
+    const container = document.getElementById('tempoAutomationContent');
+    if (!container) return;
+
+    const tempoRamps = localAppServices.getTempoRamps ? localAppServices.getTempoRamps() : [];
+    
+    let html = `
+        <div class="mb-3 flex justify-between items-center">
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+                ${tempoRamps.length} tempo point${tempoRamps.length !== 1 ? 's' : ''}
+            </span>
+            <div class="flex gap-2">
+                <button id="addTempoPointBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                    + Add Point
+                </button>
+                <button id="clearAllTempoPointsBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 ${tempoRamps.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${tempoRamps.length === 0 ? 'disabled' : ''}>
+                    Clear All
+                </button>
+            </div>
+        </div>
+        
+        <div class="mb-3 p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Current tempo: <span class="font-mono text-purple-600 dark:text-purple-400">${(Tone.Transport.bpm.value || 120).toFixed(1)}</span> BPM
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500">
+                Tempo points trigger at their bar position during playback. The tempo changes to the specified BPM when reaching that bar.
+            </div>
+        </div>
+    `;
+    
+    if (tempoRamps.length === 0) {
+        html += `
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No tempo automation points.</p>
+                <p class="text-xs mt-2">Add points to create tempo changes during playback.</p>
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-2">`;
+        
+        // Sort by bar position
+        const sortedRamps = [...tempoRamps].sort((a, b) => a.barPosition - b.barPosition);
+        
+        sortedRamps.forEach(ramp => {
+            html += `
+                <div class="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 tempo-point-item" data-id="${ramp.id}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex flex-col">
+                            <label class="text-xs text-gray-400 dark:text-gray-500">Bar</label>
+                            <input type="number" class="tempo-bar-input w-16 p-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200 text-center" 
+                                value="${ramp.barPosition}" step="0.5" min="0" data-id="${ramp.id}">
+                        </div>
+                        <div class="flex flex-col">
+                            <label class="text-xs text-gray-400 dark:text-gray-500">BPM</label>
+                            <input type="number" class="tempo-bpm-input w-20 p-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200 text-center font-mono" 
+                                value="${ramp.bpm}" step="0.1" min="20" max="999" data-id="${ramp.id}">
+                        </div>
+                        <div class="flex flex-col">
+                            <label class="text-xs text-gray-400 dark:text-gray-500">Curve</label>
+                            <select class="tempo-curve-select p-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200" data-id="${ramp.id}">
+                                <option value="linear" ${ramp.curve === 'linear' ? 'selected' : ''}>Linear</option>
+                                <option value="exponential" ${ramp.curve === 'exponential' ? 'selected' : ''}>Exponential</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="delete-tempo-point-btn px-2 py-1 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" data-id="${ramp.id}">
+                        ✕
+                    </button>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Add tempo point button
+    const addBtn = document.getElementById('addTempoPointBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            // Default: add at next bar position with current tempo
+            const currentBar = localAppServices.getCurrentBar ? localAppServices.getCurrentBar() : 0;
+            const currentTempo = Tone.Transport.bpm.value || 120;
+            const newBar = Math.max(currentBar, tempoRamps.length > 0 ? Math.max(...tempoRamps.map(r => r.barPosition)) + 4 : 1);
+            
+            if (localAppServices.addTempoRampPoint) {
+                localAppServices.addTempoRampPoint(newBar, currentTempo, 'linear');
+                renderTempoAutomationContent();
+                showNotification(`Added tempo point at bar ${newBar}`, 1500);
+            }
+        });
+    }
+    
+    // Clear all button
+    const clearBtn = document.getElementById('clearAllTempoPointsBtn');
+    if (clearBtn && !clearBtn.disabled) {
+        clearBtn.addEventListener('click', () => {
+            if (localAppServices.clearTempoRamps) {
+                localAppServices.clearTempoRamps();
+                renderTempoAutomationContent();
+                showNotification('All tempo points cleared', 1500);
+            }
+        });
+    }
+    
+    // Tempo point inputs
+    container.querySelectorAll('.tempo-bar-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const id = e.target.dataset.id;
+            const barPosition = parseFloat(e.target.value) || 0;
+            const parent = e.target.closest('.tempo-point-item');
+            const bpmInput = parent?.querySelector('.tempo-bpm-input');
+            const curveSelect = parent?.querySelector('.tempo-curve-select');
+            const bpm = parseFloat(bpmInput?.value) || 120;
+            const curve = curveSelect?.value || 'linear';
+            
+            if (localAppServices.updateTempoRampPoint) {
+                localAppServices.updateTempoRampPoint(id, barPosition, bpm, curve);
+                renderTempoAutomationContent();
+            }
+        });
+    });
+    
+    container.querySelectorAll('.tempo-bpm-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const id = e.target.dataset.id;
+            const bpm = parseFloat(e.target.value) || 120;
+            const parent = e.target.closest('.tempo-point-item');
+            const barInput = parent?.querySelector('.tempo-bar-input');
+            const curveSelect = parent?.querySelector('.tempo-curve-select');
+            const barPosition = parseFloat(barInput?.value) || 0;
+            const curve = curveSelect?.value || 'linear';
+            
+            if (localAppServices.updateTempoRampPoint) {
+                localAppServices.updateTempoRampPoint(id, barPosition, bpm, curve);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.tempo-curve-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const id = e.target.dataset.id;
+            const curve = e.target.value;
+            const parent = e.target.closest('.tempo-point-item');
+            const barInput = parent?.querySelector('.tempo-bar-input');
+            const bpmInput = parent?.querySelector('.tempo-bpm-input');
+            const barPosition = parseFloat(barInput?.value) || 0;
+            const bpm = parseFloat(bpmInput?.value) || 120;
+            
+            if (localAppServices.updateTempoRampPoint) {
+                localAppServices.updateTempoRampPoint(id, barPosition, bpm, curve);
+            }
+        });
+    });
+    
+    // Delete buttons
+    container.querySelectorAll('.delete-tempo-point-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            if (localAppServices.removeTempoRampPoint) {
+                localAppServices.removeTempoRampPoint(id);
+                renderTempoAutomationContent();
+                showNotification('Tempo point removed', 1500);
+            }
+        });
+    });
+}
+
+/**
+ * Updates the tempo automation panel with current data.
+ */
+export function updateTempoAutomationPanel() {
+    const container = document.getElementById('tempoAutomationContent');
+    if (container) {
+        renderTempoAutomationContent();
+    }
 }

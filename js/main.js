@@ -129,7 +129,9 @@ import {
     openMidiMappingsPanel,
     updateMidiMappingsPanel,
     openExportPresetsPanel,
-    openMarkersPanel
+    openMarkersPanel,
+    openTempoAutomationPanel,
+    updateTempoAutomationPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
