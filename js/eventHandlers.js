@@ -22,7 +22,9 @@ import {
     getMidiAccessState, 
     getActiveMIDIInputState,
     // Loop Region State
-    getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd
+    getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd,
+    // Metronome State
+    getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume
 } from './state.js';
 
 let localAppServices = {};
@@ -218,8 +220,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput } = elements;
-
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -235,7 +236,6 @@ export function attachGlobalControlEvents(elements) {
             if (pauseIcon) pauseIcon.classList.add('hidden');
         }
     }
-
     // Initialize to stopped state
     setPlayButtonState(false);
 
@@ -248,7 +248,6 @@ export function attachGlobalControlEvents(elements) {
             loopToggleBtnGlobal.classList.toggle('playing', loopEnabled);
         };
         updateLoopButtonState();
-
         loopToggleBtnGlobal.addEventListener('click', () => {
             const currentEnabled = typeof getLoopRegionEnabled === 'function' ? getLoopRegionEnabled() : false;
             if (typeof setLoopRegionEnabled === 'function') {
@@ -279,6 +278,40 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Loop Region Controls ===
+
+    // === Metronome Controls ===
+    if (metronomeToggleBtnGlobal) {
+        const updateMetronomeButtonState = () => {
+            const metronomeEnabled = typeof getMetronomeEnabled === 'function' ? getMetronomeEnabled() : false;
+            metronomeToggleBtnGlobal.textContent = metronomeEnabled ? '🔔 Metronome' : '🔲 Metronome';
+            metronomeToggleBtnGlobal.classList.toggle('playing', metronomeEnabled);
+        };
+        updateMetronomeButtonState();
+
+        metronomeToggleBtnGlobal.addEventListener('click', async () => {
+            const currentEnabled = typeof getMetronomeEnabled === 'function' ? getMetronomeEnabled() : false;
+            if (typeof setMetronomeEnabled === 'function') {
+                setMetronomeEnabled(!currentEnabled);
+                updateMetronomeButtonState();
+                showNotification(`Metronome ${!currentEnabled ? 'enabled' : 'disabled'}`, 1500);
+                
+                // If enabling, initialize audio context if needed and start scheduling
+                if (!currentEnabled) {
+                    if (localAppServices.initAudioContextAndMasterMeter) {
+                        await localAppServices.initAudioContextAndMasterMeter(true);
+                    }
+                    // Start metronome scheduling if transport is running
+                    if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started') {
+                        startMetronomeScheduling('4n');
+                    }
+                } else {
+                    // If disabling, stop metronome scheduling
+                    stopMetronomeScheduling();
+                }
+            }
+        });
+    }
+    // === End Metronome Controls ===
 
     if (playBtnGlobal) {
         playBtnGlobal.addEventListener('click', async () => {
@@ -338,6 +371,12 @@ export function attachGlobalControlEvents(elements) {
                         }
                     }
                     transport.start(Tone.now() + 0.05, startTime);
+                    
+                    // Start metronome if enabled
+                    if (getMetronomeEnabled()) {
+                        startMetronomeScheduling('4n');
+                    }
+                    
                     playBtnGlobal.textContent = 'Pause';
                     playBtnGlobal.classList.add('playing');
                 } else { 
@@ -367,6 +406,8 @@ export function attachGlobalControlEvents(elements) {
                 if (typeof Tone !== 'undefined') {
                     Tone.Transport.stop();
                     Tone.Transport.cancel(0);
+                    // Stop metronome when transport stops
+                    stopMetronomeScheduling();
                 }
                 const playButton = localAppServices.uiElementsCache?.playBtnGlobal;
                 if(playButton) {

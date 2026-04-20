@@ -462,6 +462,69 @@ export function disposeMetronome() {
     console.log('[Audio disposeMetronome] Metronome disposed.');
 }
 
+// --- Metronome Scheduling ---
+let metronomeScheduleId = null;
+let currentMetronomeInterval = '4n'; // Default to quarter notes
+
+/**
+ * Starts the metronome scheduling during transport playback.
+ * @param {string} interval - The interval for metronome clicks (e.g., '4n', '8n')
+ */
+export function startMetronomeScheduling(interval = '4n') {
+    stopMetronomeScheduling();
+    currentMetronomeInterval = interval;
+    
+    // Schedule metronome clicks
+    metronomeScheduleId = Tone.Transport.scheduleRepeat((time) => {
+        // Get the position to determine if it's a downbeat (beat 1)
+        const pos = Tone.Transport.position;
+        const parts = pos.split(':');
+        const beatsInBar = parseInt(parts[1], 10);
+        const isDownbeat = beatsInBar === 0;
+        playMetronomeClick(isDownbeat, time);
+    }, interval);
+    
+    console.log('[Audio] Metronome scheduling started with interval:', interval);
+}
+
+/**
+ * Stops the metronome scheduling.
+ */
+export function stopMetronomeScheduling() {
+    if (metronomeScheduleId !== null) {
+        Tone.Transport.clear(metronomeScheduleId);
+        metronomeScheduleId = null;
+        console.log('[Audio] Metronome scheduling stopped.');
+    }
+}
+
+/**
+ * Updates the metronome interval (e.g., when tempo changes).
+ * @param {string} interval - The new interval for metronome clicks
+ */
+export function updateMetronomeInterval(interval) {
+    if (metronomeScheduleId !== null) {
+        stopMetronomeScheduling();
+        startMetronomeScheduling(interval);
+    }
+}
+
+/**
+ * Starts metronome if enabled in state, called when transport starts.
+ */
+export function handleTransportStart() {
+    if (typeof getMetronomeEnabled === 'function' && getMetronomeEnabled()) {
+        startMetronomeScheduling('4n');
+    }
+}
+
+/**
+ * Stops metronome when transport stops.
+ */
+export function handleTransportStop() {
+    stopMetronomeScheduling();
+}
+
 export function initializeAudioModule(appServicesFromMain) {
     localAppServices = appServicesFromMain;
     // MODIFICATION START: Debug to confirm function reference

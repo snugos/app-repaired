@@ -138,6 +138,8 @@ const uiElementsCache = {
     tapBtnGlobal: null,
     // Loop Region Controls
     loopToggleBtnGlobal: null, loopStartInput: null, loopEndInput: null,
+    // Metronome Toggle
+    metronomeToggleBtnGlobal: null,
 };
 
 const DESKTOP_BACKGROUND_KEY = 'snugosDesktopBackground';
@@ -834,7 +836,9 @@ async function initializeSnugOS() {
             // Loop Region Controls
             loopToggleBtnGlobal: document.getElementById('loopToggleBtnGlobal'),
             loopStartInput: document.getElementById('loopStartInput'),
-            loopEndInput: document.getElementById('loopEndInput')
+            loopEndInput: document.getElementById('loopEndInput'),
+            // Metronome Toggle
+            metronomeToggleBtnGlobal: document.getElementById('metronomeToggleBtnGlobal')
         };
         
         // Add to cache
