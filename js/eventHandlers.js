@@ -173,6 +173,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openMidiMappingsPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Mappings error:', e); }
             },
+            menuChordMemory: () => {
+                console.log('[Menu] Chord Memory clicked');
+                try {
+                    services.openChordMemoryPanel?.();
+                } catch(e) { console.error('[Menu] Chord Memory error:', e); }
+            },
             menuTempoAutomation: () => {
                 console.log('[Menu] Tempo Automation clicked');
                 try {
