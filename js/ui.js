@@ -677,6 +677,13 @@ export function renderEffectsList(owner, ownerType, listDiv, controlsContainer) 
             if (ownerType === 'track') owner.reorderEffect(effect.id, index + 1);
             else if (localAppServices.reorderMasterEffect) localAppServices.reorderMasterEffect(effect.id, index + 1);
         });
+        item.querySelector('.bypass-btn').addEventListener('click', () => {
+            if (ownerType === 'track') {
+                if (owner.toggleEffectBypass) owner.toggleEffectBypass(effect.id);
+            } else if (localAppServices.toggleMasterEffectBypass) {
+                localAppServices.toggleMasterEffectBypass(effect.id);
+            }
+        });
         item.querySelector('.remove-btn').addEventListener('click', () => {
             if(localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Remove ${effect.type} from ${ownerType === 'track' ? owner.name : 'Master'}`);
             if (ownerType === 'track') owner.removeEffect(effect.id);
