@@ -1,5 +1,143 @@
 // js/effectsRegistry.js - Definitions for modular effects
 
+// Multi-band Compressor - 3-band dynamics processor
+class MultibandCompressor extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(initialParams.gain || 1);
+
+        // Split into 3 bands using EQ3
+        this._lowBand = new Tone.Filter({
+            type: 'lowpass',
+            frequency: initialParams.lowCrossover || 250,
+            rolloff: -48
+        });
+        this._midBand = new Tone.Filter({
+            type: 'bandpass',
+            frequency: initialParams.lowCrossover || 250,
+            highFrequency: initialParams.highCrossover || 4000,
+            rolloff: -48
+        });
+        this._highBand = new Tone.Filter({
+            type: 'highpass',
+            frequency: initialParams.highCrossover || 4000,
+            rolloff: -48
+        });
+
+        // Individual compressors per band
+        this._lowComp = new Tone.Compressor({
+            threshold: initialParams.lowThreshold || -24,
+            ratio: initialParams.lowRatio || 4,
+            attack: initialParams.lowAttack || 0.003,
+            release: initialParams.lowRelease || 0.25
+        });
+        this._midComp = new Tone.Compressor({
+            threshold: initialParams.midThreshold || -24,
+            ratio: initialParams.midRatio || 4,
+            attack: initialParams.midAttack || 0.003,
+            release: initialParams.midRelease || 0.25
+        });
+        this._highComp = new Tone.Compressor({
+            threshold: initialParams.highThreshold || -24,
+            ratio: initialParams.highRatio || 4,
+            attack: initialParams.highAttack || 0.003,
+            release: initialParams.highRelease || 0.25
+        });
+
+        // Make-up gain per band
+        this._lowGain = new Tone.Gain(initialParams.lowMakeup || 1);
+        this._midGain = new Tone.Gain(initialParams.midMakeup || 1);
+        this._highGain = new Tone.Gain(initialParams.highMakeup || 1);
+
+        // Dry/wet mix
+        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1);
+        this._dryGain = new Tone.Gain(1);
+
+        // Internal state for crossover params
+        this._lowCrossover = initialParams.lowCrossover || 250;
+        this._highCrossover = initialParams.highCrossover || 4000;
+
+        // Routing: input -> splits -> compressors -> makeup -> merge -> wet/dry
+        this._splitter = new Tone.Gain();
+
+        // Connect bands in parallel: input -> splitter -> 3 bands in parallel
+        this.connect(this._splitter);
+
+        // Low band chain
+        this._splitter.connect(this._lowBand);
+        this._lowBand.connect(this._lowComp);
+        this._lowComp.connect(this._lowGain);
+
+        // Mid band chain
+        this._splitter.connect(this._midBand);
+        this._midBand.connect(this._midComp);
+        this._midComp.connect(this._midGain);
+
+        // High band chain
+        this._splitter.connect(this._highBand);
+        this._highBand.connect(this._highComp);
+        this._highComp.connect(this._highGain);
+
+        // Merge via summer gain nodes
+        this._lowGain.connect(this._wetGain);
+        this._midGain.connect(this._wetGain);
+        this._highGain.connect(this._wetGain);
+
+        // Dry path
+        this.connect(this._dryGain);
+        this._dryGain.connect(this._wetGain);
+
+        // Final output
+        this._wetGain.connect(Tone.context.destination);
+    }
+
+    getLowCrossover() { return this._lowCrossover; }
+    getHighCrossover() { return this._highCrossover; }
+
+    setLowCrossover(freq) {
+        this._lowCrossover = freq;
+        this._lowBand.frequency.value = freq;
+        this._midBand.frequency.value = freq;
+    }
+
+    setHighCrossover(freq) {
+        this._highCrossover = freq;
+        this._midBand.highFrequency.value = freq;
+        this._highBand.frequency.value = freq;
+    }
+
+    setLowThreshold(db) { this._lowComp.threshold.value = db; }
+    setLowRatio(r) { this._lowComp.ratio.value = r; }
+    setLowAttack(s) { this._lowComp.attack.value = s; }
+    setLowRelease(s) { this._lowComp.release.value = s; }
+    setLowMakeup(g) { this._lowGain.gain.value = g; }
+
+    setMidThreshold(db) { this._midComp.threshold.value = db; }
+    setMidRatio(r) { this._midComp.ratio.value = r; }
+    setMidAttack(s) { this._midComp.attack.value = s; }
+    setMidRelease(s) { this._midComp.release.value = s; }
+    setMidMakeup(g) { this._midGain.gain.value = g; }
+
+    setHighThreshold(db) { this._highComp.threshold.value = db; }
+    setHighRatio(r) { this._highComp.ratio.value = r; }
+    setHighAttack(s) { this._highComp.attack.value = s; }
+    setHighRelease(s) { this._highComp.release.value = s; }
+    setHighMakeup(g) { this._highGain.gain.value = g; }
+
+    dispose() {
+        [this._lowBand, this._midBand, this._highBand,
+         this._lowComp, this._midComp, this._highComp,
+         this._lowGain, this._midGain, this._highGain,
+         this._wetGain, this._dryGain, this._splitter].forEach(n => {
+            if (n && !n.disposed) n.dispose();
+        });
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.MultibandCompressor = MultibandCompressor;
+}
+
 export const synthEngineControlDefinitions = {
     MonoSynth: [
         { idPrefix: 'portamento', label: 'Porta', type: 'knob', min: 0, max: 0.2, step: 0.001, defaultValue: 0.01, decimals: 3, path: 'portamento' },
@@ -261,6 +399,24 @@ export const AVAILABLE_EFFECTS = {
         displayName: 'Mono',
         toneClass: 'Mono',
         params: [] 
+    },
+    MultibandCompressor: {
+        displayName: 'Multiband Compressor',
+        toneClass: 'MultibandCompressor',
+        params: [
+            { key: 'lowCrossover', label: 'Low Xover', type: 'knob', min: 60, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lowThreshold', label: 'Low Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'lowRatio', label: 'Low Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'lowMakeup', label: 'Low Makeup', type: 'knob', min: 0, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'midThreshold', label: 'Mid Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'midRatio', label: 'Mid Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'midMakeup', label: 'Mid Makeup', type: 'knob', min: 0, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'highCrossover', label: 'High Xover', type: 'knob', min: 1000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highThreshold', label: 'High Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'highRatio', label: 'High Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'highMakeup', label: 'High Makeup', type: 'knob', min: 0, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
     },
 };
 
