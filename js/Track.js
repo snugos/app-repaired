@@ -186,7 +186,9 @@ export class Track {
                             sourceId: ac.dbKey,
                             startTime: ac.startTime || 0,
                             duration: ac.duration || 0, 
-                            name: ac.name || `Rec Clip ${this.timelineClips.filter(c => c.type === 'audio').length + 1}`
+                            name: ac.name || `Rec Clip ${this.timelineClips.filter(c => c.type === 'audio').length + 1}`,
+                            fadeIn: ac.fadeIn ?? 0,
+                            fadeOut: ac.fadeOut ?? 0
                         });
                     }
                 });
@@ -754,7 +756,7 @@ export class Track {
                                      clip.duration = await this.getBlobDuration(audioBlob);
                                  }
                              } else {
-                                 console.warn(`[Track ${this.id} Audio] Audio data for clip ${clip.id} (source: ${clip.sourceId}) not found in DB.`);
+                                 console.warn(`[Track ${this.id} Audio] Audio data for clip ${clip.id} (source ${clip.sourceId}) not found in DB.`);
                                  if (this.appServices.showNotification) this.appServices.showNotification(`Audio for clip "${clip.name}" is missing.`, 3000);
                              }
                          } catch (err) {
@@ -1499,21 +1501,16 @@ export class Track {
                         const audioBlob = await getAudio(clip.sourceId);
                         if (audioBlob) {
                             const url = URL.createObjectURL(audioBlob);
-                            player.onload = () => {
-                                URL.revokeObjectURL(url);
-                                const destNode = (this.activeEffects.length > 0 && this.activeEffects[0].toneNode && !this.activeEffects[0].toneNode.disposed)
-                                    ? this.activeEffects[0].toneNode
-                                    : (this.gainNode || null);
-                                if (destNode) player.connect(destNode); else player.toDestination();
-                                player.start(effectivePlayStart, offsetIntoSource, playDurationInWindow);
-                            };
-                            player.onerror = (err) => { console.error(`[Track ${this.id}] Player error for clip ${clip.id}:`, err); URL.revokeObjectURL(url); if(this.clipPlayers.has(clip.id)){try{if(!player.disposed)player.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}};
-                            await player.load(url);
+                            console.log(`[Track ${this.id} Audio] Verified audio clip source ${clip.sourceId} (${clip.name}) from DB.`);
+                            URL.revokeObjectURL(url); 
+                            if (clip.duration === 0) { 
+                                clip.duration = await this.getBlobDuration(audioBlob);
+                            }
                         } else {
-                            console.warn(`[Track ${this.id}] Blob not found for audio clip ${clip.id} (source ${clip.sourceId})`);
-                            if(!player.disposed) player.dispose(); this.clipPlayers.delete(clip.id);
+                            console.warn(`[Track ${this.id} Audio] Audio data for clip ${clip.id} (source ${clip.sourceId}) not found in DB.`);
+                            if (this.appServices.showNotification) this.appServices.showNotification(`Audio for clip "${clip.name}" is missing.`, 3000);
                         }
-                    } catch (err) { console.error(`[Track ${this.id}] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}}
+                    } catch (err) { console.error(`[Track ${this.id} Audio] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}}
                 } else if (clip.type === 'sequence') {
                     const sourceSequence = this.sequences ? this.sequences.find(s => s.id === clip.sourceSequenceId) : null;
                     if (sourceSequence?.data?.length > 0 && sourceSequence.length > 0) {
@@ -1867,6 +1864,37 @@ export class Track {
         }
     }
 
+    /**
+     * Set fade in/out for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {number} fadeIn - Fade in duration in seconds
+     * @param {number} fadeOut - Fade out duration in seconds
+     */
+    setClipFade(clipId, fadeIn, fadeOut) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            clip.fadeIn = Math.max(0, parseFloat(fadeIn) || 0);
+            clip.fadeOut = Math.max(0, parseFloat(fadeOut) || 0);
+            console.log(`[Track ${this.id}] Set clip "${clip.name}" fade: in=${clip.fadeIn}s, out=${clip.fadeOut}s`);
+            this._captureUndoState(`Set fade for clip "${clip.name || clipId.slice(-4)}" on ${this.name}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get fade values for a clip.
+     * @param {string} clipId - The clip ID
+     * @returns {{fadeIn: number, fadeOut: number}|null}
+     */
+    getClipFade(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            return { fadeIn: clip.fadeIn || 0, fadeOut: clip.fadeOut || 0 };
+        }
+        return null;
+    }
+
     dispose() {
         const trackNameForLog = this.name || `Track ${this.id}`; 
         console.log(`[Track Dispose START ${this.id}] Starting disposal for track: "${trackNameForLog}"`);
@@ -1896,33 +1924,6 @@ export class Track {
             }
             this.drumPadPlayers[index] = null;
         });
-
-        this.activeEffects.forEach(effect => { 
-            if (effect.toneNode && !effect.toneNode.disposed) {
-                try { effect.toneNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing effect "${effect.type}":`, e.message); }
-            }
-        });
-        this.activeEffects = [];
-
-        if (this.gainNode && !this.gainNode.disposed) {
-            try { this.gainNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing gainNode:`, e.message); }
-        }
-        this.gainNode = null;
-
-        if (this.panNode && !this.panNode.disposed) {
-            try { this.panNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing panNode:`, e.message); }
-        }
-        this.panNode = null;
-
-        if (this.trackMeter && !this.trackMeter.disposed) {
-            try { this.trackMeter.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing trackMeter:`, e.message); }
-        }
-        this.trackMeter = null;
-
-        if (this.inputChannel && !this.inputChannel.disposed) { 
-            try { this.inputChannel.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing inputChannel:`, e.message); }
-        }
-        this.inputChannel = null;
 
         if (this.appServices.closeAllTrackWindows) {
             this.appServices.closeAllTrackWindows(this.id);
