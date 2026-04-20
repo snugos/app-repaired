@@ -4,8 +4,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Scale Hint Overlay** - Show scale notes highlighted on piano roll/sequencer
-2. **Tempo Tap Button** - Tap rhythmically to set tempo
+1. **Scale Hint Overlay** - Show scale notes highlighted on piano roll/sequencer ✅ COMPLETED
+2. **Tempo Tap Button** - Tap rhythmically to set tempo ✅ COMPLETED
 3. **Track Grouping** - Group tracks for collective mute/solo/volume control
 4. **Clip Fade Handles** - Drag handles on timeline clips to adjust fades visually
 5. **MIDI File Export** - Export sequencer patterns as .mid files
