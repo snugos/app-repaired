@@ -1819,7 +1819,7 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
                 const scaleRoot = localAppServices.getScaleHintRoot?.() || 'C';
                 const scaleType = localAppServices.getScaleHintType?.() || 'major';
                 const pitchName = rowLabels[r] || '';
-                const isInScale = localAppServices.isNoteInScale?.(pitchName, scaleRoot, scaleType);
+                const isInScale = localAppServices.isNoteNameInScale?.(pitchName, scaleRoot, scaleType);
                 if (isInScale) {
                     scaleOverlay = 'box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.6);';
                 }
