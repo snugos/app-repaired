@@ -292,6 +292,14 @@ import {
             }
         });
     },
+    // Track Groups
+    createTrackGroup: (name, trackIds) => createTrackGroup(name, trackIds),
+    deleteTrackGroup: (groupId) => deleteTrackGroup(groupId),
+    updateTrackGroup: (groupId, updates) => updateTrackGroup(groupId, updates),
+    addTrackToGroup: (groupId, trackId) => addTrackToGroup(groupId, trackId),
+    removeTrackFromGroup: (groupId, trackId) => removeTrackFromGroup(groupId, trackId),
+    getTrackGroups: () => getTrackGroupsState(),
+    getGroupForTrack: (trackId) => getGroupForTrack(trackId),
     updateTrackUI: handleTrackUIUpdate, 
     createWindow: (id, title, content, options) => new SnugWindow(id, title, content, options, appServices),
     uiElementsCache: uiElementsCache, 
@@ -299,7 +307,7 @@ import {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -319,7 +327,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -341,7 +349,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
