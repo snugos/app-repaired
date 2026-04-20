@@ -778,12 +778,16 @@ function showKeyboardShortcutsModal() {
         { keys: ['Space'], description: 'Play / Pause' },
         { keys: ['Z'], description: 'Stop' },
         { keys: ['R'], description: 'Start Recording' },
+        { keys: ['M'], description: 'Toggle Metronome' },
+        { keys: ['L'], description: 'Toggle Loop Region' },
         { keys: ['?'], description: 'Show Keyboard Shortcuts' },
         { keys: ['Escape'], description: 'Close Window / Modal' },
         { keys: ['Up / Down'], description: 'Transpose Octave (in Piano Roll)' },
+        { keys: ['Delete'], description: 'Delete Selected' },
         { keys: ['Ctrl', 'Z'], description: 'Undo' },
         { keys: ['Ctrl', 'Shift', 'Z'], description: 'Redo' },
         { keys: ['Ctrl', 'S'], description: 'Save Project' },
+        { keys: ['Ctrl', 'D'], description: 'Duplicate Selected' },
     ];
     
     const contentHTML = `<div style="display: grid; gap: 8px; min-width: 320px;">

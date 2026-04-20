@@ -116,6 +116,35 @@ let midiLearnMode = false; // Whether we're currently in learn mode
 let midiLearnTarget = null; // { type: 'track'|'master', targetId: number|null, paramPath: string }
 let midiMappings = {}; // { 'ccX_channelY': { type: 'track'|'master', targetId: number|null, paramPath: string, min: number, max: number } }
 
+// --- Project Export Presets ---
+// Stored as { presetName: { tempo, format, sampleRate, bitDepth, includeStems, stemTrackIds, bounceTracks, bounceStartBar, bounceEndBar, ... } }
+let exportPresets = {};
+
+export function getExportPresetsState() { return exportPresets; }
+
+export function saveExportPreset(presetName, presetData) {
+    exportPresets[presetName] = JSON.parse(JSON.stringify(presetData));
+    console.log(`[State] Saved export preset "${presetName}"`);
+}
+
+export function deleteExportPreset(presetName) {
+    if (exportPresets[presetName]) {
+        delete exportPresets[presetName];
+        console.log(`[State] Deleted export preset "${presetName}"`);
+    }
+}
+
+export function getExportPreset(presetName) {
+    if (exportPresets[presetName]) {
+        return JSON.parse(JSON.stringify(exportPresets[presetName]));
+    }
+    return null;
+}
+
+export function getExportPresetNames() {
+    return Object.keys(exportPresets);
+}
+
 // --- AppServices Placeholder (will be populated by main.js) ---
 let appServices = {}; // Populated by initializeStateModule
 
