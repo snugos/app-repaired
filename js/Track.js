@@ -1484,6 +1484,169 @@ export class Track {
         return quantizedCount;
     }
 
+    /**
+     * Shift all notes in the active sequence up or down by semitones.
+     * @param {number} semitones - Number of semitones to shift (positive = up, negative = down)
+     * @returns {number} Number of notes shifted
+     */
+    shiftSequenceNotes(semitones) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id} shiftSequenceNotes] No active sequence found.`);
+            return 0;
+        }
+
+        let shiftedCount = 0;
+        const numRows = activeSeq.data.length;
+        const totalSteps = activeSeq.length;
+
+        // Determine row shift based on track type
+        let rowShift = 0;
+        if (this.type === 'Synth' || this.type === 'InstrumentSampler') {
+            rowShift = -semitones; // Higher pitch = lower row index
+        } else {
+            // For Sampler/DrumSampler, just return 0 (can't meaningfully shift pads)
+            return 0;
+        }
+
+        if (rowShift === 0) return 0;
+
+        const newData = activeSeq.data.map((row, rowIndex) => {
+            const newRow = [];
+            for (let col = 0; col < totalSteps; col++) {
+                const stepData = row && row[col];
+                if (stepData && stepData.active) {
+                    const sourceRow = rowIndex + rowShift;
+                    if (sourceRow >= 0 && sourceRow < numRows) {
+                        newRow[col] = { ...stepData };
+                        shiftedCount++;
+                    }
+                }
+            }
+            return newRow;
+        });
+
+        activeSeq.data = newData;
+        this._captureUndoState(`Shift Notes ${semitones > 0 ? 'Down' : 'Up'} on ${activeSeq.name}`);
+        return shiftedCount;
+    }
+
+    /**
+     * Humanize the velocity of notes in the active sequence by adding random variation.
+     * @param {number} amount - Amount of randomization (0 to 1)
+     * @returns {number} Number of notes humanized
+     */
+    humanizeVelocity(amount = 0.15) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id} humanizeVelocity] No active sequence found.`);
+            return 0;
+        }
+
+        let humanizedCount = 0;
+        const totalSteps = activeSeq.length;
+
+        activeSeq.data.forEach(row => {
+            if (!row) return;
+            for (let col = 0; col < totalSteps; col++) {
+                const stepData = row[col];
+                if (stepData && stepData.active && stepData.velocity !== undefined) {
+                    const variation = (Math.random() * 2 - 1) * amount; // -amount to +amount
+                    const newVelocity = Math.max(0.05, Math.min(1.0, stepData.velocity + variation));
+                    row[col].velocity = Math.round(newVelocity * 100) / 100; // Round to 2 decimal places
+                    humanizedCount++;
+                }
+            }
+        });
+
+        return humanizedCount;
+    }
+
+    /**
+     * Copy a section of the sequence for later pasting.
+     * @param {number} startCol - Start column (step)
+     * @param {number} endCol - End column (step)
+     * @returns {Array|null} Section data or null if invalid
+     */
+    copySequenceSection(startCol, endCol) {
+        if (this.type === 'Audio') return null;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id} copySequenceSection] No active sequence found.`);
+            return null;
+        }
+
+        const sectionData = [];
+        for (let rowIndex = 0; rowIndex < activeSeq.data.length; rowIndex++) {
+            const row = activeSeq.data[rowIndex];
+            if (!row) continue;
+            const newRow = [];
+            for (let col = startCol; col <= endCol; col++) {
+                if (col >= 0 && col < row.length) {
+                    newRow.push(row[col]);
+                } else {
+                    newRow.push(null);
+                }
+            }
+            sectionData.push(newRow);
+        }
+
+        return sectionData;
+    }
+
+    /**
+     * Paste a previously copied section into the sequence.
+     * @param {Array} sectionData - Section data from copySequenceSection
+     * @param {number} targetCol - Target column to paste at
+     * @param {boolean} skipUndo - Skip undo capture (default false)
+     * @returns {number} Number of notes pasted
+     */
+    pasteSequenceSection(sectionData, targetCol, skipUndo = false) {
+        if (this.type === 'Audio') return 0;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data || !sectionData) {
+            console.warn(`[Track ${this.id} pasteSequenceSection] No active sequence or no section data.`);
+            return 0;
+        }
+
+        let pastedCount = 0;
+        const sectionNumRows = sectionData.length;
+        const sectionLength = sectionData[0]?.length || 0;
+
+        for (let rowIndex = 0; rowIndex < activeSeq.data.length; rowIndex++) {
+            const targetRow = activeSeq.data[rowIndex];
+            if (!targetRow) continue;
+
+            const sourceRowIndex = rowIndex < sectionNumRows ? rowIndex : (sectionNumRows > 1 ? sectionNumRows - 1 : 0);
+            const sourceRow = sectionData[sourceRowIndex];
+            if (!sourceRow) continue;
+
+            for (let colIndex = 0; colIndex < sectionLength; colIndex++) {
+                const targetColIndex = targetCol + colIndex;
+                if (targetColIndex < 0 || targetColIndex >= targetRow.length) continue;
+                const noteData = sourceRow[colIndex];
+                if (noteData && noteData.active) {
+                    if (!targetRow[targetColIndex] || !targetRow[targetColIndex].active) {
+                        pastedCount++;
+                    }
+                    targetRow[targetColIndex] = JSON.parse(JSON.stringify(noteData));
+                } else {
+                    if (targetColIndex >= 0 && targetColIndex < targetRow.length) {
+                        targetRow[targetColIndex] = null;
+                    }
+                }
+            }
+        }
+
+        if (!skipUndo) {
+            this._captureUndoState(`Paste section at col ${targetCol} on ${this.name}`);
+        }
+
+        return pastedCount;
+    }
+
     async renderTrackToBuffer(transportStartTime, transportStopTime) {
         const duration = transportStopTime - transportStartTime;
         if (duration <= 0) return null;
