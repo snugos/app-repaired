@@ -119,6 +119,7 @@ export function getPreviewPlayerState() { return previewPlayerGlobal; }
 export function getClipboardDataState() { return clipboardDataGlobal; }
 
 export function getArmedTrackIdState() { return armedTrackId; }
+export function getSoloedTrackIdState() { return soloedTrackId; }
 export function setSoloedTrackIdState(id) { soloedTrackId = id; }
 export function isTrackRecordingState() { return isRecordingGlobal; }
 export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
