@@ -366,7 +366,7 @@ New Feature Queue:
 1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row ✅ COMPLETED
 2. **Effect Bypass Toggle** - Quick bypass button for each effect ✅ COMPLETED
 3. **Audio Normalization** - Auto-normalize recorded or imported audio ✅ COMPLETED
-4. **Project Export Presets** - Save/load project export configurations
+4. **Project Export Presets** - Save/load project export configurations ✅ COMPLETED
 5. **Tempo Ramps** - Automation lane for tempo changes over time
 6. **Marker System** - Add named markers on timeline for navigation
 7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
