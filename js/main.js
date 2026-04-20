@@ -36,6 +36,12 @@ import {
     getMidiLearnModeState, getMidiLearnTargetState, getMidiMappingsState,
     setMidiLearnModeState, setMidiLearnTargetState,
     addMidiMapping, removeMidiMapping, clearAllMidiMappings, getMidiMappingForCC,
+    // MIDI CC Recording
+    getCcRecordingEnabled, setCcRecordingEnabled,
+    getCcRecordingStartTime, setCcRecordingStartTime,
+    getCcRecordingTrackId, setCcRecordingTrackId,
+    getCcRecordingBuffer, clearCcRecordingBuffer, addCcRecordingPoint,
+    finalizeCcRecording, startCcRecording, stopCcRecording,
     // Loop Region State
     getLoopRegion, getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd,
     // State Setters
@@ -355,6 +361,19 @@ const appServices = {
     removeMidiMapping,
     clearAllMidiMappings,
     getMidiMappingForCC,
+    // MIDI CC Recording
+    getCcRecordingEnabled,
+    setCcRecordingEnabled,
+    getCcRecordingStartTime,
+    setCcRecordingStartTime,
+    getCcRecordingTrackId,
+    setCcRecordingTrackId,
+    getCcRecordingBuffer,
+    clearCcRecordingBuffer,
+    addCcRecordingPoint,
+    finalizeCcRecording,
+    startCcRecording,
+    stopCcRecording,
     // Track Effects Presets
     getTrackEffectsPresets: getTrackEffectsPresetsState,
     saveTrackEffectPreset,

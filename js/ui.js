@@ -2947,6 +2947,51 @@ function setupTimelineEventListeners(content, tracks) {
                     }
                 }},
                 { separator: true },
+                { label: 'Gain Envelope', action: () => {} },
+                { label: '  Linear Fade (In)', action: () => {
+                    if (typeof track.setClipGainEnvelope === 'function') {
+                        const fadePoints = [];
+                        const clipDuration = clipData.duration || 4;
+                        fadePoints.push({ time: 0, value: 0 });
+                        fadePoints.push({ time: Math.min(0.5, clipDuration * 0.1), value: 1 });
+                        track.setClipGainEnvelope(clipId, fadePoints);
+                        showNotification(`Linear fade in applied`, 1500);
+                    }
+                }},
+                { label: '  Linear Fade (Out)', action: () => {
+                    if (typeof track.setClipGainEnvelope === 'function') {
+                        const fadePoints = [];
+                        const clipDuration = clipData.duration || 4;
+                        fadePoints.push({ time: Math.max(0, clipDuration - 0.5), value: 1 });
+                        fadePoints.push({ time: clipDuration, value: 0 });
+                        track.setClipGainEnvelope(clipId, fadePoints);
+                        showNotification(`Linear fade out applied`, 1500);
+                    }
+                }},
+                { label: '  Linear Fade (In/Out)', action: () => {
+                    if (typeof track.setClipGainEnvelope === 'function') {
+                        const fadePoints = [];
+                        const clipDuration = clipData.duration || 4;
+                        fadePoints.push({ time: 0, value: 0 });
+                        fadePoints.push({ time: Math.min(0.5, clipDuration * 0.1), value: 1 });
+                        fadePoints.push({ time: Math.max(0, clipDuration - 0.5), value: 1 });
+                        fadePoints.push({ time: clipDuration, value: 0 });
+                        track.setClipGainEnvelope(clipId, fadePoints);
+                        showNotification(`Fade in/out applied`, 1500);
+                    }
+                }},
+                { label: '  Open Envelope Editor...', action: () => {
+                    if (typeof track.setClipGainEnvelope === 'function') {
+                        openGainEnvelopeEditor(track, clipId, clipData);
+                    }
+                }},
+                { label: '  Clear Envelope', action: () => {
+                    if (typeof track.clearClipGainEnvelope === 'function') {
+                        track.clearClipGainEnvelope(clipId);
+                        showNotification(`Gain envelope cleared`, 1500);
+                    }
+                }},
+                { separator: true },
                 { label: 'Playback Speed', action: () => {} },
                 { label: '  0.5x (Half)', action: () => {
                     if (typeof track.setPlaybackRate === 'function') {
@@ -3365,6 +3410,244 @@ export function updateMidiMappingsPanel() {
     const win = localAppServices.getWindowById ? localAppServices.getWindowById('midiMappings') : null;
     if (!win?.element || win.isMinimized) return;
     renderMidiMappingsContent();
+}
+
+/**
+ * Opens a gain envelope editor for a timeline audio clip.
+ * Allows drawing/ editing automation points for clip volume.
+ * @param {Object} track - The track object
+ * @param {string} clipId - The clip ID
+ * @param {Object} clipData - The clip data object
+ */
+export function openGainEnvelopeEditor(track, clipId, clipData) {
+    const existingPanel = document.getElementById('gainEnvelopeEditorPanel');
+    if (existingPanel) existingPanel.remove();
+
+    const clipDuration = clipData.duration || 4;
+    const envelope = track.getClipGainEnvelope ? track.getClipGainEnvelope(clipId) || [] : [];
+    const panel = document.createElement('div');
+    panel.id = 'gainEnvelopeEditorPanel';
+    panel.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+    
+    panel.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
+            <div class="flex items-center justify-between p-3 border-b dark:border-slate-600 bg-purple-100 dark:bg-purple-900">
+                <h3 class="font-semibold text-purple-700 dark:text-purple-300">Gain Envelope: ${escapeHtml(clipData.name || clipId.slice(-6))}</h3>
+                <button id="closeEnvelopeEditorBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
+            </div>
+            <div class="p-4">
+                <div class="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                    Click on the envelope line to add points. Drag points to adjust. Right-click to remove.
+                    <br>Envelope values range from 0 (silent) to 1 (full volume).
+                </div>
+                <div id="envelopeCanvasContainer" class="relative bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600" style="height: 200px;">
+                    <canvas id="envelopeCanvas" class="w-full h-full"></canvas>
+                </div>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                        Points: <span id="envelopePointCount">${envelope.length}</span>
+                    </span>
+                    <div class="flex gap-2">
+                        <button id="clearEnvelopeBtn" class="px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500 rounded">Clear All</button>
+                        <button id="closeEnvelopeBtn" class="px-3 py-1 text-xs bg-purple-500 text-white hover:bg-purple-600 rounded">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const canvas = panel.querySelector('#envelopeCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = panel.querySelector('#envelopeCanvasContainer');
+    
+    // Set canvas size
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    let points = envelope.length > 0 ? JSON.parse(JSON.stringify(envelope)) : [
+        { time: 0, value: 1 },
+        { time: clipDuration, value: 1 }
+    ];
+
+    // Ensure points are within bounds
+    points = points.filter(p => typeof p.time === 'number' && typeof p.value === 'number')
+                  .map(p => ({ time: Math.max(0, Math.min(clipDuration, p.time)), value: Math.max(0, Math.min(1, p.value)) }));
+    if (points.length === 0) {
+        points = [{ time: 0, value: 1 }, { time: clipDuration, value: 1 }];
+    }
+    points.sort((a, b) => a.time - b.time);
+
+    function drawEnvelope() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw background grid
+        ctx.strokeStyle = 'rgba(128,128,128,0.2)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (canvas.height / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+        for (let i = 0; i <= 8; i++) {
+            const x = (canvas.width / 8) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        
+        // Draw envelope line
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            const x = (p.time / clipDuration) * canvas.width;
+            const y = canvas.height - (p.value * canvas.height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        
+        // Fill area under envelope
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            const x = (p.time / clipDuration) * canvas.width;
+            const y = canvas.height - (p.value * canvas.height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.lineTo((points[points.length - 1].time / clipDuration) * canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw points
+        points.forEach((p, i) => {
+            const x = (p.time / clipDuration) * canvas.width;
+            const y = canvas.height - (p.value * canvas.height);
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = i === 0 || i === points.length - 1 ? '#6366f1' : '#8b5cf6';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+    }
+
+    function updatePointCount() {
+        const countEl = panel.querySelector('#envelopePointCount');
+        if (countEl) countEl.textContent = points.length;
+    }
+
+    function findNearestPoint(mouseX, mouseY) {
+        const time = (mouseX / canvas.width) * clipDuration;
+        const value = 1 - (mouseY / canvas.height);
+        let nearest = null;
+        let minDist = Infinity;
+        points.forEach((p, i) => {
+            const dx = p.time - time;
+            const dy = p.value - value;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist && dist < 0.05) {
+                minDist = dist;
+                nearest = i;
+            }
+        });
+        return nearest;
+    }
+
+    let draggingPoint = null;
+
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const idx = findNearestPoint(mouseX, mouseY);
+        if (idx !== null) {
+            draggingPoint = idx;
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (draggingPoint === null) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const time = Math.max(0, Math.min(clipDuration, (mouseX / canvas.width) * clipDuration));
+        const value = Math.max(0, Math.min(1, 1 - (mouseY / canvas.height)));
+        points[draggingPoint] = { time, value };
+        drawEnvelope();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        if (draggingPoint !== null) {
+            draggingPoint = null;
+            updatePointCount();
+        }
+    });
+
+    canvas.addEventListener('click', (e) => {
+        if (draggingPoint !== null) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const time = Math.max(0, Math.min(clipDuration, (mouseX / canvas.width) * clipDuration));
+        const value = Math.max(0, Math.min(1, 1 - (mouseY / canvas.height)));
+        
+        // Check if clicking near existing point
+        const idx = findNearestPoint(mouseX, mouseY);
+        if (idx === null) {
+            // Add new point
+            points.push({ time, value });
+            points.sort((a, b) => a.time - b.time);
+            updatePointCount();
+            drawEnvelope();
+        }
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const idx = findNearestPoint(mouseX, mouseY);
+        if (idx !== null && points.length > 2) {
+            points.splice(idx, 1);
+            updatePointCount();
+            drawEnvelope();
+        }
+    });
+
+    // Button handlers
+    panel.querySelector('#closeEnvelopeEditorBtn').addEventListener('click', () => panel.remove());
+    panel.querySelector('#closeEnvelopeBtn').addEventListener('click', () => panel.remove());
+    panel.querySelector('#clearEnvelopeBtn').addEventListener('click', () => {
+        points = [{ time: 0, value: 1 }, { time: clipDuration, value: 1 }];
+        updatePointCount();
+        drawEnvelope();
+    });
+
+    // Save on close
+    panel.addEventListener('click', (e) => {
+        if (e.target === panel) {
+            // Save envelope
+            if (track.setClipGainEnvelope) {
+                track.setClipGainEnvelope(clipId, points);
+                showNotification('Gain envelope saved', 1500);
+            }
+            panel.remove();
+        }
+    });
+
+    drawEnvelope();
+    updatePointCount();
 }
 
 export function renderUndoHistoryContent() {

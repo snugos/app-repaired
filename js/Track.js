@@ -1582,6 +1582,50 @@ export class Track {
                             if (this.appServices.showNotification) this.appServices.showNotification(`Audio for clip "${clip.name}" is missing.`, 3000);
                         }
                     } catch (err) { console.error(`[Track ${this.id} Audio] Error loading/scheduling audio clip ${clip.id}:`, err); if(this.clipPlayers.has(clip.id)){const p = this.clipPlayers.get(clip.id); if(p && !p.disposed) try{p.dispose()}catch(e){} this.clipPlayers.delete(clip.id);}}
+                    
+                    // Apply gain envelope if present
+                    const envelope = clip.gainEnvelope;
+                    const hasFadeIn = clip.fadeIn && clip.fadeIn > 0;
+                    const hasFadeOut = clip.fadeOut && clip.fadeOut > 0;
+                    if (envelope && envelope.length > 0) {
+                        // Create gain node for envelope
+                        const envGain = new Tone.Gain(1);
+                        // Schedule envelope points
+                        envelope.forEach((point, idx) => {
+                            if (point.time >= offsetIntoSource && point.time < offsetIntoSource + playDurationInWindow) {
+                                const absTime = effectivePlayStart + (point.time - offsetIntoSource);
+                                envGain.gain.setValueAtTime(point.value, absTime);
+                            }
+                        });
+                        // Connect player through envelope gain to destination
+                        player.connect(envGain);
+                        envGain.connect(this.gainNode || Tone.Destination);
+                        // Store reference for cleanup
+                        this.clipPlayers.set(`${clip.id}_envGain`, envGain);
+                    } else {
+                        // No envelope - apply fades if present or just connect directly
+                        if (hasFadeIn || hasFadeOut) {
+                            const fadeGain = new Tone.Gain(0);
+                            // Fade in
+                            if (hasFadeIn) {
+                                fadeGain.gain.setValueAtTime(0, effectivePlayStart);
+                                fadeGain.gain.linearRampToValueAtTime(1, effectivePlayStart + clip.fadeIn);
+                            } else {
+                                fadeGain.gain.setValueAtTime(1, effectivePlayStart);
+                            }
+                            // Fade out
+                            if (hasFadeOut) {
+                                const fadeOutStart = effectivePlayStart + playDurationInWindow - clip.fadeOut;
+                                fadeGain.gain.setValueAtTime(1, fadeOutStart);
+                                fadeGain.gain.linearRampToValueAtTime(0, effectivePlayStart + playDurationInWindow);
+                            }
+                            player.connect(fadeGain);
+                            fadeGain.connect(this.gainNode || Tone.Destination);
+                            this.clipPlayers.set(`${clip.id}_fadeGain`, fadeGain);
+                        } else {
+                            player.connect(this.gainNode || Tone.Destination);
+                        }
+                    }
                 } else if (clip.type === 'sequence') {
                     const sourceSequence = this.sequences ? this.sequences.find(s => s.id === clip.sourceSequenceId) : null;
                     if (sourceSequence?.data?.length > 0 && sourceSequence.length > 0) {

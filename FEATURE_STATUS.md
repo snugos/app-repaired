@@ -369,10 +369,10 @@ New Feature Queue:
 4. **Project Export Presets** - Save/load project export configurations ✅ COMPLETED
 5. **Tempo Ramps** - Automation lane for tempo changes over time ✅ COMPLETED (already implemented in audio.js/state.js/ui.js)
 6. **Marker System** - Add named markers on timeline for navigation ✅ COMPLETED (already implemented in state.js/main.js)
-7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
+7. **Audio Stretching** - Adjust audio clip tempo without changing pitch ✅ COMPLETED (playbackRate on Track class with UI context menu)
 8. **Track Freeze** - Freeze a track to audio to save CPU ✅ COMPLETED (wiring only - core methods existed in Track.js)
-9. **Clip Gain Envelope** - Draw volume automation on audio clips
-10. **MIDI CC Recording** - Record MIDI CC movements as automation
+9. **Clip Gain Envelope** - Draw volume automation on audio clips ✅ COMPLETED (setClipGainEnvelope/getClipGainEnvelope on Track class with UI panel)
+10. **MIDI CC Recording** - Record MIDI CC movements as automation ✅ COMPLETED
 
 ---
 
@@ -497,3 +497,30 @@ New Feature Queue:
 - Always push changes after completion
 - Test syntax before pushing
 - Keep commits atomic
+
+---
+
+## Feature: MIDI CC Recording - ✅ COMPLETED
+**File:** `js/state.js`, `js/eventHandlers.js`, `js/main.js`
+**Status:** ✅ COMPLETED
+**What's New:** Record MIDI CC movements in real-time and convert to track automation
+**Implementation:**
+- [x] Add CC recording state management (`ccRecordingEnabled`, `ccRecordingStartTime`, `ccRecordingTrackId`, `ccRecordingBuffer`)
+- [x] Add `getCcRecordingEnabled`, `setCcRecordingEnabled` functions
+- [x] Add `getCcRecordingStartTime`, `setCcRecordingStartTime` functions
+- [x] Add `getCcRecordingTrackId`, `setCcRecordingTrackId` functions
+- [x] Add `getCcRecordingBuffer`, `clearCcRecordingBuffer`, `addCcRecordingPoint` functions
+- [x] Add `finalizeCcRecording` function to convert recorded CC to automation points
+- [x] Add `startCcRecording`, `stopCcRecording` helper functions
+- [x] Wire CC recording in eventHandlers.js MIDI message handler
+- [x] Export all functions in main.js appServices
+
+**Features:**
+- Start CC recording via `startCcRecording(trackId)`
+- Stop CC recording via `stopCcRecording(finalize, targetParam)`
+- CC values are captured during transport playback
+- Finalized CC data is converted to track automation points
+- Supports recording to armed track or specific track
+- Works with existing automation system (addAutomationPoint)
+
+---

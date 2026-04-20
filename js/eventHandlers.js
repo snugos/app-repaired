@@ -725,6 +725,21 @@ function handleMIDIMessage(message) {
             const ccNumber = note;
             const ccValue = velocity; // 0-127
             const normalizedValue = ccValue / 127; // 0-1
+            const channelNum = channel;
+            
+            // Record CC if recording is enabled
+            if (localAppServices.getCcRecordingEnabled && localAppServices.getCcRecordingEnabled()) {
+                const recordingStartTime = localAppServices.getCcRecordingStartTime ? localAppServices.getCcRecordingStartTime() : 0;
+                const currentTime = Tone.Transport.seconds;
+                const relativeTime = currentTime - recordingStartTime;
+                
+                if (relativeTime >= 0) {
+                    const ccKey = `cc${ccNumber}_channel${channelNum}`;
+                    if (localAppServices.addCcRecordingPoint) {
+                        localAppServices.addCcRecordingPoint(ccKey, relativeTime, normalizedValue);
+                    }
+                }
+            }
             
             // Check if this CC is mapped to something
             const mapping = localAppServices.getMidiMappingForCC ? localAppServices.getMidiMappingForCC(ccNumber, channel) : null;
