@@ -305,6 +305,7 @@
 13. **Audio Clip Fade In/Out** - Add fade curves to audio clips on timeline ✅ COMPLETED
 14. **Metronome Toggle** - Click to enable/disable metronome during playback ✅ COMPLETED
 15. **Loop Region** - Set a loop region in the timeline for repeated playback ✅ COMPLETED
+16. **Track Duplicate** - Right-click track to duplicate it with all settings ✅ COMPLETED
 
 ## When Queue is Empty - New Feature Ideas
 
@@ -321,16 +322,16 @@ Generate 10 NEW feature ideas that are:
 3. Enhance creative workflow
 
 New Feature Queue:
-1. **Metronome Toggle** - Click track to enable/disable metronome during playback ✅ COMPLETED
-2. **Loop Region** - Set a loop region in the timeline for repeated playback ✅ COMPLETED
-3. **Track Duplicate** - Right-click track to duplicate it with all settings ✅ COMPLETED
-4. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
-5. **Effect Bypass Toggle** - Quick bypass button for each effect
-6. **Project Export Presets** - Save/load project export configurations
-7. **Audio Normalization** - Auto-normalize recorded or imported audio
-8. **Tempo Ramps** - Automation lane for tempo changes over time
-9. **Marker System** - Add named markers on timeline for navigation
-10. **Audio Stretching** - Adjust audio clip tempo without changing pitch
+1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
+2. **Effect Bypass Toggle** - Quick bypass button for each effect
+3. **Project Export Presets** - Save/load project export configurations
+4. **Audio Normalization** - Auto-normalize recorded or imported audio
+5. **Tempo Ramps** - Automation lane for tempo changes over time
+6. **Marker System** - Add named markers on timeline for navigation
+7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
+8. **Track Freeze** - Freeze a track to audio to save CPU
+9. **Clip Gain Envelope** - Draw volume automation on audio clips
+10. **MIDI CC Recording** - Record MIDI CC movements as automation
 
 ---
 
