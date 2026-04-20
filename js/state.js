@@ -89,6 +89,21 @@ export function setLoopRegion(enabled, start, end) {
 }
 // END MODIFICATION
 
+// --- Metronome State ---
+let metronomeEnabled = false;
+let metronomeVolume = 0.5; // 0-1
+
+export function getMetronomeEnabled() { return metronomeEnabled; }
+export function setMetronomeEnabled(enabled) {
+    metronomeEnabled = !!enabled;
+    console.log(`[State] Metronome ${metronomeEnabled ? 'enabled' : 'disabled'}`);
+}
+export function getMetronomeVolume() { return metronomeVolume; }
+export function setMetronomeVolume(volume) {
+    metronomeVolume = Math.max(0, Math.min(1, parseFloat(volume) || 0.5));
+    console.log(`[State] Metronome volume set to: ${metronomeVolume}`);
+}
+
 // Undo/Redo
 let undoStack = [];
 let redoStack = [];
