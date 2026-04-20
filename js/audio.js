@@ -4,7 +4,7 @@ import * as Constants from './constants.js';
 // import { showNotification } from './utils.js'; // Not directly imported, accessed via appServices
 import { createEffectInstance } from './effectsRegistry.js';
 import { storeAudio, getAudio } from './db.js';
-import { getRecordingStartTimeState } from './state.js';
+import { getRecordingStartTimeState, getAdaptiveMetronomeEnabled, getAdaptiveTimingOffset } from './state.js';
 
 
 let masterEffectsBusInputNode = null;
@@ -481,7 +481,15 @@ export function startMetronomeScheduling(interval = '4n') {
         const parts = pos.split(':');
         const beatsInBar = parseInt(parts[1], 10);
         const isDownbeat = beatsInBar === 0;
-        playMetronomeClick(isDownbeat, time);
+        
+        // Apply adaptive timing offset if enabled
+        let adjustedTime = time;
+        if (typeof getAdaptiveMetronomeEnabled === 'function' && getAdaptiveMetronomeEnabled()) {
+            const offset = typeof getAdaptiveTimingOffset === 'function' ? getAdaptiveTimingOffset() : 0;
+            adjustedTime = time + (offset / 1000); // Convert ms to seconds
+        }
+        
+        playMetronomeClick(isDownbeat, adjustedTime);
     }, interval);
     
     console.log('[Audio] Metronome scheduling started with interval:', interval);

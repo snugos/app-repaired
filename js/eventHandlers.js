@@ -24,7 +24,8 @@ import {
     // Loop Region State
     getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd,
     // Metronome State
-    getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume
+    getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume,
+    getAdaptiveMetronomeEnabled, setAdaptiveMetronomeEnabled, recordNoteTiming
 } from './state.js';
 
 let localAppServices = {};
