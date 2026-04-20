@@ -49,6 +49,7 @@ import {
     setPlaybackModeState,
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
+    toggleMasterEffectBypass,
     // Core State Actions
     addTrackToStateInternal, removeTrackFromStateInternal,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
@@ -65,6 +66,7 @@ import {
     removeMasterEffectFromAudio,
     updateMasterEffectParamInAudio,
     reorderMasterEffectInAudio,
+    setMasterEffectWet,
     getMimeTypeFromFilename, getMasterEffectsBusInputNode,
     getActualMasterGainNode as getActualMasterGainNodeFromAudio,
     clearAllMasterEffectNodes as clearAllMasterEffectNodesInAudio,
@@ -360,6 +362,7 @@ const appServices = {
     setPlaybackModeState,
     addMasterEffectToState, removeMasterEffectFromState,
     updateMasterEffectParamInState, reorderMasterEffectInState,
+    toggleMasterEffectBypass,
     // Core State Actions
     addTrack: addTrackToStateInternal, removeTrack: removeTrackFromStateInternal,
     captureStateForUndo: captureStateForUndoInternal, undoLastAction: undoLastActionInternal,
@@ -573,17 +576,10 @@ const appServices = {
         updateMasterEffectParamInAudio(effectId, paramPath, value);
     },
     toggleMasterEffectBypass: (effectId) => {
-        try {
-            const effects = getMasterEffectsState();
-            const effect = effects ? effects.find(e => e.id === effectId) : null;
-            if (!effect) { console.warn(`[Main toggleMasterEffectBypass] Effect ${effectId} not found.`); return; }
-            const currentWet = effect.params?.wet ?? 1;
-            const newWet = currentWet > 0 ? 0 : 1;
-            updateMasterEffectParamInState(effectId, 'wet', newWet);
-            updateMasterEffectParamInAudio(effectId, 'wet', newWet);
-        } catch (error) {
-            console.error(`[Main toggleMasterEffectBypass] Error toggling bypass for ${effectId}:`, error);
-        }
+        toggleMasterEffectBypass(effectId);
+    },
+    setMasterEffectWet: (effectId, wetValue) => {
+        setMasterEffectWet(effectId, wetValue);
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {

@@ -341,16 +341,39 @@ Generate 10 NEW feature ideas that are:
 3. Enhance creative workflow
 
 New Feature Queue:
-1. **Effect Bypass Toggle** - Quick bypass button for each effect
-2. **Project Export Presets** - Save/load project export configurations
-3. **Audio Normalization** - Auto-normalize recorded or imported audio
-4. **Tempo Ramps** - Automation lane for tempo changes over time
-5. **Marker System** - Add named markers on timeline for navigation
-6. **Audio Stretching** - Adjust audio clip tempo without changing pitch
-7. **Track Freeze** - Freeze a track to audio to save CPU
-8. **Clip Gain Envelope** - Draw volume automation on audio clips
-9. **MIDI CC Recording** - Record MIDI CC movements as automation
-10. **Chord Memory** - Store and trigger chord voicings with single key
+1. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
+2. **Effect Bypass Toggle** - Quick bypass button for each effect ✅ COMPLETED
+3. **Project Export Presets** - Save/load project export configurations
+4. **Audio Normalization** - Auto-normalize recorded or imported audio
+5. **Tempo Ramps** - Automation lane for tempo changes over time
+6. **Marker System** - Add named markers on timeline for navigation
+7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
+8. **Track Freeze** - Freeze a track to audio to save CPU
+9. **Clip Gain Envelope** - Draw volume automation on audio clips
+10. **MIDI CC Recording** - Record MIDI CC movements as automation
+
+---
+
+## Feature: Effect Bypass Toggle - ✅ COMPLETED
+**File:** `js/Track.js`, `js/state.js`, `js/audio.js`, `js/main.js`, `js/ui.js`
+**Status:** ✅ COMPLETED
+**What's New:** Quick bypass button for each effect in the effects rack
+**Implementation:**
+- [x] Add `toggleEffectBypass(effectId)` method to Track class
+- [x] Add `toggleMasterEffectBypass(effectId)` function to state.js
+- [x] Add `setMasterEffectWet(effectId, wetValue)` function to audio.js
+- [x] Wire up functions in main.js appServices
+- [x] Bypass button already exists in UI (bypass-btn in renderEffectsList)
+- [x] Store previous wet value for restoration when un-bypassing
+- [x] Visual feedback: button color changes based on bypass state
+- [x] Notification on bypass toggle
+
+**Features:**
+- Click bypass button (⏸) on any effect to toggle bypass
+- Bypassed effects show yellow button color
+- Active effects show green button color
+- Stores previous wet value for accurate restoration
+- Works for both track effects and master effects
 
 ---
 
