@@ -61,7 +61,11 @@ import {
     getExportPresetsState, saveExportPreset, deleteExportPreset, getExportPreset, getExportPresetNames,
     exportWithSettingsInternal,
     // Audio Normalization Settings
-    getAutoNormalizeEnabled, setAutoNormalizeEnabled, getNormalizationTargetDb, setNormalizationTargetDb
+    getAutoNormalizeEnabled, setAutoNormalizeEnabled, getNormalizationTargetDb, setNormalizationTargetDb,
+    // Timeline Markers System
+    addTimelineMarker, removeTimelineMarker, updateTimelineMarker, getTimelineMarkers, getTimelineMarkerById,
+    clearAllTimelineMarkers, getNextTimelineMarker, getPrevTimelineMarker, importTimelineMarkers, exportTimelineMarkers,
+    // openMarkersPanel is from ui.js, not state.js
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -124,7 +128,8 @@ import {
     updateUndoHistoryPanel,
     openMidiMappingsPanel,
     updateMidiMappingsPanel,
-    openExportPresetsPanel
+    openExportPresetsPanel,
+    openMarkersPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -369,6 +374,19 @@ const appServices = {
     setAutoNormalizeEnabled,
     getNormalizationTargetDb,
     setNormalizationTargetDb,
+
+    // Timeline Markers System
+    addTimelineMarker,
+    removeTimelineMarker,
+    updateTimelineMarker,
+    getTimelineMarkers,
+    getTimelineMarkerById,
+    clearAllTimelineMarkers,
+    getNextTimelineMarker,
+    getPrevTimelineMarker,
+    importTimelineMarkers,
+    exportTimelineMarkers,
+    // openMarkersPanel is from ui.js, not state.js
 
     // State Module Setters & Core Actions
     addWindowToStore: addWindowToStoreState, removeWindowFromStore: removeWindowFromStoreState,
