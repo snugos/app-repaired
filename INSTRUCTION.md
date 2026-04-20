@@ -4,11 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI File Export** - Export sequencer patterns as .mid files
-2. **Sample Browser Favorites** - Mark sounds as favorites for quick access
-3. **CPU Meter** - Show current CPU usage indicator
-4. **Audio Quality Selection** - Choose recording quality (128/256/320 kbps)
-5. **Loop Region** - Set a loop region in the timeline for repeated playback
+1. **Automation Copy/Paste** - Copy/paste automation curves between parameters
+2. **Track Lane Reorder** - Drag to reorder lanes/tracks in timeline view
+3. **MIDI CC Visualizer** - Live display of incoming MIDI CC values as bars
+4. **Project Templates** - Save/load project templates with track presets
+5. **Adaptive Metronome** - Metronome that adjusts timing based on recorded performance
+6. **Audio Warping** - Non-destructive timing adjustment for audio clips
+7. **Clip Split** - Split audio/MIDI clips at playhead with a keyboard shortcut
+8. **User Keyboard Shortcuts** - User-customizable hotkeys for all actions
+9. **Mixer Pan & Width** - Per-track panning and stereo width controls
+10. **Session View / Clip Launcher** - Ableton-style clip grid launching for live performance
 
 ## Workflow
 
