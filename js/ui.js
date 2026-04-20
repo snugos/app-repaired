@@ -3410,6 +3410,43 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`Reverse not available`, 1500);
                     }
                 }},
+                { separator: true },
+                { label: '📏 Quantize Clip', action: () => {} },
+                { label: '  Snap to 1/4 (Quarter)', action: () => {
+                    if (typeof track.quantizeAudioClip === 'function') {
+                        track.quantizeAudioClip(clipId, '1/4');
+                    } else {
+                        showNotification(`Quantize not available`, 1500);
+                    }
+                }},
+                { label: '  Snap to 1/8 (Eighth)', action: () => {
+                    if (typeof track.quantizeAudioClip === 'function') {
+                        track.quantizeAudioClip(clipId, '1/8');
+                    } else {
+                        showNotification(`Quantize not available`, 1500);
+                    }
+                }},
+                { label: '  Snap to 1/16 (Sixteenth)', action: () => {
+                    if (typeof track.quantizeAudioClip === 'function') {
+                        track.quantizeAudioClip(clipId, '1/16');
+                    } else {
+                        showNotification(`Quantize not available`, 1500);
+                    }
+                }},
+                { label: '  Snap to 1/32 (Thirty-second)', action: () => {
+                    if (typeof track.quantizeAudioClip === 'function') {
+                        track.quantizeAudioClip(clipId, '1/32');
+                    } else {
+                        showNotification(`Quantize not available`, 1500);
+                    }
+                }},
+                { label: '  Snap Start Only (1/16)', action: () => {
+                    if (typeof track.snapAudioClipStart === 'function') {
+                        track.snapAudioClipStart(clipId, '1/16');
+                    } else {
+                        showNotification(`Snap not available`, 1500);
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);

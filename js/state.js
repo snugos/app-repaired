@@ -103,6 +103,10 @@ export function setLoopRegion(enabled, start, end) {
 let metronomeEnabled = false;
 let metronomeVolume = 0.5; // 0-1
 
+let adaptiveMetronomeEnabled = false;
+let noteTimingHistory = [];
+const MAX_TIMING_HISTORY = 64;
+
 export function getMetronomeEnabled() { return metronomeEnabled; }
 export function setMetronomeEnabled(enabled) {
     metronomeEnabled = !!enabled;
@@ -112,6 +116,26 @@ export function getMetronomeVolume() { return metronomeVolume; }
 export function setMetronomeVolume(volume) {
     metronomeVolume = Math.max(0, Math.min(1, parseFloat(volume) || 0.5));
     console.log(`[State] Metronome volume set to: ${metronomeVolume}`);
+}
+export function getAdaptiveMetronomeEnabled() { return adaptiveMetronomeEnabled; }
+export function setAdaptiveMetronomeEnabled(enabled) {
+    adaptiveMetronomeEnabled = !!enabled;
+    if (!enabled) noteTimingHistory = [];
+    console.log(`[State] Adaptive Metronome ${adaptiveMetronomeEnabled ? 'enabled' : 'disabled'}`);
+}
+export function recordNoteTiming(deviationMs) {
+    if (!adaptiveMetronomeEnabled) return;
+    noteTimingHistory.push({ deviation: deviationMs });
+    if (noteTimingHistory.length > MAX_TIMING_HISTORY) {
+        noteTimingHistory.shift();
+}
+export function getAdaptiveTimingOffset() {
+    if (noteTimingHistory.length < 4) return 0;
+    const sum = noteTimingHistory.reduce((acc, item) => acc + item.deviation, 0);
+    return sum / noteTimingHistory.length;
+}
+export function resetAdaptiveTimingHistory() {
+    noteTimingHistory = [];
 }
 
 // --- Tempo Ramps State ---

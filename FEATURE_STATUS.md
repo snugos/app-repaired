@@ -300,6 +300,19 @@
 
 ### Completed This Session (2026-04-20)
 
+#### Feature: Audio Quantize - ✅ COMPLETED (20:45 UTC)
+- **Issue:** Audio clips could not be snapped to the beat grid for precise alignment
+- **Fix:**
+  - Added `quantizeAudioClip(clipId, resolution)` method to Track class
+  - Added `snapAudioClipStart(clipId, resolution)` method to Track class for start-only snapping
+  - Added context menu options for audio clips to quantize to different grid resolutions
+- **Implementation:**
+  - Calculates grid size in seconds based on BPM and resolution (1/4, 1/8, 1/16, 1/32)
+  - Snaps clip start time to nearest grid division
+  - Snaps clip end time to nearest grid (adjusts duration)
+  - Option to snap start only without changing duration
+- **Impact:** Users can now right-click audio clips on the timeline and quantize them to the beat grid for precise alignment with other tracks
+
 #### Feature: MIDI Export - ✅ COMPLETED (17:25 UTC)
 - **Issue:** Menu item and event handler for "Export to MIDI" existed but the function was not implemented
   - Menu item `menuExportMidi` was added to index.html
