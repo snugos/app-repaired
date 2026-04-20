@@ -2147,6 +2147,90 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
             setTimeout(() => document.addEventListener('click', closePopup), 10);
         });
 
+        // Handle velocity lane toggle and clear buttons
+        const toggleVelLaneBtn = sequencerWindow.element.querySelector(`#toggleVelocityLane-${track.id}`);
+        const clearAllVelBtn = sequencerWindow.element.querySelector(`#clearAllVelocities-${track.id}`);
+        const velLaneContent = sequencerWindow.element.querySelector(`#velocityLaneContent-${track.id}`);
+        
+        if (toggleVelLaneBtn && velLaneContent) {
+            toggleVelLaneBtn.addEventListener('click', () => {
+                if (velLaneContent.style.display === 'none') {
+                    velLaneContent.style.display = 'block';
+                    toggleVelLaneBtn.textContent = 'Hide';
+                } else {
+                    velLaneContent.style.display = 'none';
+                    toggleVelLaneBtn.textContent = 'Show';
+                }
+            });
+        }
+        
+        if (clearAllVelBtn) {
+            clearAllVelBtn.addEventListener('click', () => {
+                if (localAppServices.showConfirmationDialog) {
+                    localAppServices.showConfirmationDialog('Clear All Velocities', 'Reset all note velocities to default?', () => {
+                        const currentActiveSeq = track.getActiveSequence();
+                        if (!currentActiveSeq || !currentActiveSeq.data) return;
+                        currentActiveSeq.data.forEach((row, rowIdx) => {
+                            if (row) {
+                                row.forEach((cell, colIdx) => {
+                                    if (cell?.active) {
+                                        currentActiveSeq.data[rowIdx][colIdx] = { ...cell, velocity: Constants.defaultVelocity };
+                                    }
+                                });
+                            }
+                        });
+                        openTrackSequencerWindow(trackId, true);
+                        if (localAppServices.showNotification) localAppServices.showNotification('All velocities reset to default.', 1500);
+                    });
+                }
+            });
+        }
+        
+        // Handle velocity lane cell clicks for direct velocity editing
+        const velGrid = sequencerWindow.element.querySelector(`#velocityLaneContent-${track.id} .velocity-grid`);
+        if (velGrid) {
+            velGrid.addEventListener('click', (e) => {
+                const velCell = e.target.closest('.velocity-cell');
+                if (!velCell) return;
+                
+                const row = parseInt(velCell.dataset.row, 10);
+                const col = parseInt(velCell.dataset.col, 10);
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+                
+                const stepData = currentActiveSeq.data[row][col];
+                if (!stepData?.active) return;
+                
+                // Cycle velocity on click
+                const velocities = [0.3, 0.5, 0.7, 0.9, 1.0];
+                const currentVel = stepData.velocity || Constants.defaultVelocity;
+                const idx = velocities.findIndex(v => Math.abs(v - currentVel) < 0.05);
+                const nextVel = idx >= 0 ? velocities[(idx + 1) % velocities.length] : 0.7;
+                currentActiveSeq.data[row][col] = { ...stepData, velocity: nextVel };
+                
+                if (localAppServices.captureStateForUndo) {
+                    localAppServices.captureStateForUndo(`Set velocity to ${Math.round(nextVel * 100)}% for step (${row + 1},${col + 1}) on ${track.name}`);
+                }
+                
+                // Update both the velocity lane and main grid cell
+                updateSequencerCellUI(sequencerWindow.element, track.type, row, col, true);
+                
+                // Update velocity bar in velocity lane
+                const velRow = velGrid.querySelector(`.velocity-row[data-row="${row}"]`);
+                if (velRow) {
+                    const cell = velRow.querySelector(`.velocity-cell[data-col="${col}"]`);
+                    if (cell) {
+                        const velHeight = Math.round(nextVel * 16);
+                        const velBar = cell.querySelector('.velocity-bar');
+                        if (velBar) {
+                            velBar.style.height = `${velHeight}px`;
+                            velBar.title = `Vel: ${Math.round(nextVel * 100)}%`;
+                        }
+                    }
+                }
+            });
+        }
+
     }
     return sequencerWindow;
 }
