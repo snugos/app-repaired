@@ -1608,7 +1608,13 @@ export function renderMixer(container) {
         }
         
         trackDiv.querySelector(`#mixerMuteBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackMute(track.id));
-        trackDiv.querySelector(`#mixerSoloBtn-${track.id}`).addEventListener('click', () => localAppServices.handleTrackSolo(track.id));
+        trackDiv.querySelector(`#mixerSoloBtn-${track.id}`).addEventListener('click', (e) => {
+            if (e.shiftKey) {
+                localAppServices.handleTrackSoloExclusive?.(track.id);
+            } else {
+                localAppServices.handleTrackSolo?.(track.id);
+            }
+        });
     });
     
     // Return channel strips

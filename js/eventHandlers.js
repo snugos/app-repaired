@@ -1055,6 +1055,45 @@ export function handleTrackSolo(trackId) {
     } catch (error) { console.error(`[EventHandlers handleTrackSolo] Error for track ${trackId}:`, error); }
 }
 
+export function handleTrackSoloExclusive(trackId) {
+    try {
+        const track = getTrackById(trackId);
+        if (!track) { console.warn(`[EventHandlers] Exclusive Solo: Track ${trackId} not found.`); return; }
+        const currentSoloed = getSoloedTrackId();
+        const isCurrentlyExclusiveSoloed = currentSoloed === trackId && !track.isSoloed;
+        
+        captureStateForUndo(`Exclusive Solo for ${track.name}`);
+        
+        if (isCurrentlyExclusiveSoloed || currentSoloed !== trackId) {
+            setSoloedTrackId(trackId);
+            const tracks = getTracks();
+            if (tracks && Array.isArray(tracks)) {
+                tracks.forEach(t => {
+                    if (t) {
+                        t.isSoloed = (t.id === trackId);
+                        t.applySoloState();
+                        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(t.id, 'soloChanged');
+                    }
+                });
+            }
+            if (localAppServices.showNotification) localAppServices.showNotification(`Exclusive Solo: ${track.name}`, 1500);
+        } else {
+            setSoloedTrackId(null);
+            const tracks = getTracks();
+            if (tracks && Array.isArray(tracks)) {
+                tracks.forEach(t => {
+                    if (t) {
+                        t.isSoloed = false;
+                        t.applySoloState();
+                        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(t.id, 'soloChanged');
+                    }
+                });
+            }
+            if (localAppServices.showNotification) localAppServices.showNotification('All tracks unsoloed', 1500);
+        }
+    } catch (error) { console.error(`[EventHandlers handleTrackSoloExclusive] Error for track ${trackId}:`, error); }
+}
+
 export function handleTrackArm(trackId) {
     try {
         const track = getTrackById(trackId);
