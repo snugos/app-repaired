@@ -3101,6 +3101,14 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`Playback speed: 2.0x`, 1500);
                     }
                 }},
+                { label: '🔄 Reverse Audio', action: () => {
+                    if (typeof track.reverseAudioClip === 'function') {
+                        track.reverseAudioClip(clipId);
+                        showNotification(`Audio reversed`, 1500);
+                    } else {
+                        showNotification(`Reverse not available`, 1500);
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);

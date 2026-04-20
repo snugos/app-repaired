@@ -2398,6 +2398,98 @@ export class Track {
         }
     }
 
+    /**
+     * Reverse an audio clip in place.
+     * @param {string} clipId - The clip ID to reverse
+     * @returns {Promise<boolean>} True if successful
+     */
+    async reverseAudioClip(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || clip.type !== 'audio') {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found or not audio clip.`);
+            return false;
+        }
+
+        console.log(`[Track ${this.id}] Reversing audio clip "${clip.name}"...`);
+
+        try {
+            // Get the original audio blob from IndexedDB
+            const originalBlob = await getAudio(clip.sourceId);
+            if (!originalBlob) {
+                console.error(`[Track ${this.id}] Audio data not found for clip ${clipId}`);
+                if (this.appServices.showNotification) {
+                    this.appServices.showNotification('Audio data not found for this clip.', 3000);
+                }
+                return false;
+            }
+
+            // Decode the audio
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await originalBlob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            // Reverse the audio data for each channel
+            const numberOfChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const length = audioBuffer.length;
+            const reversedBuffer = audioContext.createBuffer(numberOfChannels, length, sampleRate);
+
+            for (let channel = 0; channel < numberOfChannels; channel++) {
+                const originalData = audioBuffer.getChannelData(channel);
+                const reversedData = reversedBuffer.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    reversedData[i] = originalData[length - 1 - i];
+                }
+            }
+
+            // Convert back to WAV blob
+            const reversedBlob = await this._audioBufferToWav(reversedBuffer);
+            await audioContext.close();
+
+            // Store the reversed audio with a new key
+            const newDbKey = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}_reversed`;
+            const newAudioData = await reversedBlob.arrayBuffer();
+            await storeAudio(newDbKey, newAudioData);
+
+            // Update the clip's sourceId
+            const oldSourceId = clip.sourceId;
+            clip.sourceId = newDbKey;
+
+            // Clear any audio buffer cache for this clip
+            if (clip.audioBuffer) {
+                if (clip.audioBuffer.disposed === false) {
+                    try { clip.audioBuffer.dispose(); } catch(e) {}
+                }
+                clip.audioBuffer = null;
+            }
+
+            console.log(`[Track ${this.id}] Reversed audio clip "${clip.name}" (old key: ${oldSourceId}, new key: ${newDbKey})`);
+
+            // Capture undo state
+            this._captureUndoState(`Reverse clip "${clip.name}" on ${this.name}`);
+
+            // Update UI
+            if (this.appServices.renderTimeline) {
+                this.appServices.renderTimeline();
+            }
+            if (this.appServices.updateTrackUI) {
+                this.appServices.updateTrackUI(this.id, 'audioClipReversed');
+            }
+
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Audio clip reversed.`, 2000);
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`[Track ${this.id}] Error reversing audio clip:`, error);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Error reversing audio: ${error.message}`, 3000);
+            }
+            return false;
+        }
+    }
+
     // --- Track Freeze Methods ---
     /**
      * Freeze the track - render to audio and disable real-time processing.
