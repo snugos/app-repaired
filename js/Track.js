@@ -1969,6 +1969,149 @@ export class Track {
         return null;
     }
 
+    // --- Clip Gain Envelope Methods ---
+    /**
+     * Set gain envelope for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {Array<{time:number, value:number}>} envelope - Array of {time (seconds), value (0-1)} points
+     */
+    setClipGainEnvelope(clipId, envelope) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            if (!Array.isArray(envelope)) {
+                console.warn(`[Track ${this.id}] Invalid envelope data for clip ${clipId}`);
+                return false;
+            }
+            // Validate and sort points
+            const validPoints = envelope
+                .filter(p => typeof p.time === 'number' && typeof p.value === 'number')
+                .map(p => ({ time: Math.max(0, p.time), value: Math.max(0, Math.min(1, p.value)) }))
+                .sort((a, b) => a.time - b.time);
+            
+            clip.gainEnvelope = validPoints;
+            console.log(`[Track ${this.id}] Set gain envelope for clip \"${clip.name}\" with ${validPoints.length} points`);
+            this._captureUndoState(`Set gain envelope for clip \"${clip.name || clipId.slice(-4)}\" on ${this.name}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get gain envelope for a clip.
+     * @param {string} clipId - The clip ID
+     * @returns {Array<{time:number, value:number}>|null}
+     */
+    getClipGainEnvelope(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            return clip.gainEnvelope || [];
+        }
+        return null;
+    }
+
+    /**
+     * Add a gain envelope point to a clip.
+     * @param {string} clipId - The clip ID
+     * @param {number} time - Time in seconds (relative to clip start)
+     * @param {number} value - Gain value (0-1)
+     */
+    addClipGainEnvelopePoint(clipId, time, value) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            if (!clip.gainEnvelope) clip.gainEnvelope = [];
+            const pointTime = Math.max(0, Math.min(clip.duration || 100, parseFloat(time) || 0));
+            const pointValue = Math.max(0, Math.min(1, parseFloat(value) || 0.7));
+            
+            // Remove existing point at same time (within 0.01s tolerance)
+            clip.gainEnvelope = clip.gainEnvelope.filter(p => Math.abs(p.time - pointTime) > 0.01);
+            clip.gainEnvelope.push({ time: pointTime, value: pointValue });
+            clip.gainEnvelope.sort((a, b) => a.time - b.time);
+            
+            console.log(`[Track ${this.id}] Added gain envelope point at ${pointTime.toFixed(2)}s: ${pointValue.toFixed(2)}`);
+            this._captureUndoState(`Add gain envelope point on ${this.name}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Remove a gain envelope point from a clip.
+     * @param {string} clipId - The clip ID
+     * @param {number} time - Time of the point to remove
+     */
+    removeClipGainEnvelopePoint(clipId, time) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip && clip.gainEnvelope) {
+            const initialLength = clip.gainEnvelope.length;
+            clip.gainEnvelope = clip.gainEnvelope.filter(p => Math.abs(p.time - time) > 0.01);
+            if (clip.gainEnvelope.length < initialLength) {
+                console.log(`[Track ${this.id}] Removed gain envelope point at ${time.toFixed(2)}s`);
+                this._captureUndoState(`Remove gain envelope point on ${this.name}`);
+                if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Clear gain envelope for a clip.
+     * @param {string} clipId - The clip ID
+     */
+    clearClipGainEnvelope(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (clip) {
+            const hadEnvelope = clip.gainEnvelope && clip.gainEnvelope.length > 0;
+            clip.gainEnvelope = [];
+            if (hadEnvelope) {
+                console.log(`[Track ${this.id}] Cleared gain envelope for clip \"${clip.name}\"`);
+                this._captureUndoState(`Clear gain envelope on ${this.name}`);
+                if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get interpolated gain value at a specific time within a clip.
+     * @param {string} clipId - The clip ID
+     * @param {number} time - Time in seconds (relative to clip start)
+     * @returns {number} Interpolated gain value (0-1)
+     */
+    getInterpolatedGainAtTime(clipId, time) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) return 1.0;
+        
+        const envelope = clip.gainEnvelope;
+        if (!envelope || envelope.length === 0) return 1.0;
+        
+        const clipDuration = clip.duration || 100;
+        const t = Math.max(0, Math.min(clipDuration, time));
+        
+        // If before first point, return first point's value
+        if (t <= envelope[0].time) return envelope[0].value;
+        
+        // If after last point, return last point's value
+        if (t >= envelope[envelope.length - 1].time) return envelope[envelope.length - 1].value;
+        
+        // Find surrounding points and interpolate
+        for (let i = 0; i < envelope.length - 1; i++) {
+            if (t >= envelope[i].time && t <= envelope[i + 1].time) {
+                const t0 = envelope[i].time;
+                const t1 = envelope[i + 1].time;
+                const v0 = envelope[i].value;
+                const v1 = envelope[i + 1].value;
+                const alpha = (t - t0) / (t1 - t0);
+                return v0 + (v1 - v0) * alpha;
+            }
+        }
+        
+        return 1.0;
+    }
+
     /**
      * Set playback rate for timeline audio clips on this track.
      * @param {number} rate - Playback rate (0.25 = 1/4 speed, 2.0 = 2x speed)
