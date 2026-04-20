@@ -59,6 +59,7 @@ import {
     bounceTrackToAudio, showBounceTrackDialog,
     // Project Export Presets
     getExportPresetsState, saveExportPreset, deleteExportPreset, getExportPreset, getExportPresetNames,
+    exportWithSettingsInternal,
     // Audio Normalization Settings
     getAutoNormalizeEnabled, setAutoNormalizeEnabled, getNormalizationTargetDb, setNormalizationTargetDb
 } from './state.js';
@@ -122,7 +123,8 @@ import {
     openUndoHistoryPanel,
     updateUndoHistoryPanel,
     openMidiMappingsPanel,
-    updateMidiMappingsPanel
+    updateMidiMappingsPanel,
+    openExportPresetsPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -359,6 +361,8 @@ const appServices = {
     deleteExportPreset,
     getExportPreset,
     getExportPresetNames,
+    openExportPresetsPanel,
+    exportWithSettings: exportWithSettingsInternal,
 
     // Audio Normalization Settings
     getAutoNormalizeEnabled,
@@ -557,7 +561,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -577,7 +581,7 @@ const appServices = {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -600,7 +604,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
