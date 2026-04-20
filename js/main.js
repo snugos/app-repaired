@@ -60,7 +60,9 @@ import {
     // Scale Hint
     getScaleHintEnabled, setScaleHintEnabled, getScaleHintRoot, setScaleHintRoot,
     getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
-    isNoteInScale, isNoteNameInScale
+    isNoteInScale, isNoteNameInScale,
+    // Groove Templates
+    getGroovePresets, getGroovePresetById, getGrooveSwingAmount
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -796,7 +798,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                         if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
                         const newDropZoneDiv = dzContainer.querySelector('.drop-zone');
                         if (newDropZoneDiv && typeof setupGenericDropZoneListeners === 'function') {
-                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, appServices.loadSampleFile, appServices.getTrackById);
+                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, loadFn, appServices.getTrackById);
                         }
                     }
                 }
