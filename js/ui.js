@@ -1436,10 +1436,88 @@ export function renderMixer(container) {
         masterVolKnobPlaceholder.innerHTML = ''; masterVolKnobPlaceholder.appendChild(masterVolKnob.element);
     }
 
-    // Track strips
-    tracks.forEach(track => {
+    // Track strips with drag-and-drop reordering
+    let draggedTrackId = null;
+    tracks.forEach((track, trackIndex) => {
         const trackDiv = document.createElement('div');
-        trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-28 mr-2 text-xs';
+        trackDiv.className = 'mixer-track inline-block align-top p-1.5 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 shadow w-28 mr-2 text-xs cursor-move';
+        trackDiv.draggable = true;
+        trackDiv.dataset.trackId = track.id;
+        trackDiv.dataset.trackIndex = trackIndex;
+        
+        // Add drag event handlers for track reordering
+        trackDiv.addEventListener('dragstart', (e) => {
+            draggedTrackId = track.id;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/json', JSON.stringify({ type: 'mixer-track-reorder', trackId: track.id, trackIndex: trackIndex }));
+            trackDiv.style.opacity = '0.5';
+            console.log(`[Mixer] Drag started for track ${track.id} (index ${trackIndex})`);
+        });
+        
+        trackDiv.addEventListener('dragend', (e) => {
+            trackDiv.style.opacity = '1';
+            trackDiv.classList.remove('drag-over-left', 'drag-over-right');
+            draggedTrackId = null;
+            console.log('[Mixer] Drag ended');
+        });
+        
+        trackDiv.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        
+        trackDiv.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (draggedTrackId !== null && draggedTrackId !== track.id) {
+                const rect = trackDiv.getBoundingClientRect();
+                const midpoint = rect.left + rect.width / 2;
+                if (e.clientX < midpoint) {
+                    trackDiv.classList.add('drag-over-left');
+                    trackDiv.classList.remove('drag-over-right');
+                } else {
+                    trackDiv.classList.add('drag-over-right');
+                    trackDiv.classList.remove('drag-over-left');
+                }
+            }
+        });
+        
+        trackDiv.addEventListener('dragleave', (e) => {
+            // Only remove if actually leaving the track div
+            if (!trackDiv.contains(e.relatedTarget)) {
+                trackDiv.classList.remove('drag-over-left', 'drag-over-right');
+            }
+        });
+        
+        trackDiv.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trackDiv.classList.remove('drag-over-left', 'drag-over-right');
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                if (data.type === 'mixer-track-reorder' && data.trackId !== track.id) {
+                    const sourceIndex = data.trackIndex;
+                    const targetIndex = trackIndex;
+                    
+                    // Determine insertion point based on drop position
+                    const rect = trackDiv.getBoundingClientRect();
+                    const midpoint = rect.left + rect.width / 2;
+                    let newIndex = targetIndex;
+                    if (e.clientX < midpoint) {
+                        newIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+                    } else {
+                        newIndex = sourceIndex < targetIndex ? targetIndex : targetIndex + 1;
+                    }
+                    
+                    console.log(`[Mixer] Drop: Moving track ${data.trackId} from index ${sourceIndex} to ${newIndex}`);
+                    
+                    if (localAppServices.reorderTrack) {
+                        localAppServices.reorderTrack(data.trackId, newIndex);
+                    }
+                }
+            } catch (err) {
+                console.warn('[Mixer] Error processing drop:', err);
+            }
+        });
         
         // Get sidechain info
         const sidechainInfo = track.getSidechainInfo ? track.getSidechainInfo() : { isSource: false, isDestination: false, sources: [], destinations: [] };
