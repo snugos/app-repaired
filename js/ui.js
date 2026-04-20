@@ -3038,6 +3038,17 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
             waveformHtml = `<canvas class="clip-waveform absolute inset-0 w-full h-full pointer-events-none" data-clip-id="${clip.id}" data-db-key="${clip.dbKey}"></canvas>`;
         }
 
+        // Add fade handles for audio clips
+        let fadeHandlesHtml = '';
+        if (clip.type === 'audio') {
+            const fadeInWidth = Math.min((clip.fadeIn || 0) * timelineState.pixelsPerSecond, 40);
+            const fadeOutWidth = Math.min((clip.fadeOut || 0) * timelineState.pixelsPerSecond, 40);
+            fadeHandlesHtml = `
+                <div class="fade-handle fade-handle-in absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-yellow-400/30 z-20" data-clip-id="${clip.id}" data-fade-type="in" style="width: ${fadeInWidth}px; background: linear-gradient(to right, rgba(255,255,255,0.3), transparent);"></div>
+                <div class="fade-handle fade-handle-out absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-yellow-400/30 z-20" data-clip-id="${clip.id}" data-fade-type="out" style="width: ${fadeOutWidth}px; background: linear-gradient(to left, rgba(255,255,255,0.3), transparent);"></div>
+            `;
+        }
+
         html += `
             <div class="timeline-clip absolute rounded cursor-move ${bgColor} ${selectedClass} hover:opacity-90 transition-opacity overflow-hidden"
                  data-clip-id="${clip.id}"
@@ -3045,6 +3056,7 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
                  style="left: ${x}px; top: ${clipY}px; width: ${width}px; height: ${clipHeight}px;"
                  draggable="true">
                 ${waveformHtml}
+                ${fadeHandlesHtml}
                 <div class="clip-content h-full flex items-center px-1 overflow-hidden relative z-10">
                     <span class="text-xs text-white truncate">${clip.name || clip.type}</span>
                 </div>
