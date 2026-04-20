@@ -1102,6 +1102,18 @@ export function handleBounceTrack(trackId) {
     }
 }
 
+export function handleDuplicateTrack(trackId) {
+    try {
+        const track = getTrackById(trackId);
+        if (!track) { console.warn(`[EventHandlers] Duplicate: Track ${trackId} not found.`); return; }
+        if (localAppServices.duplicateTrack) {
+            localAppServices.duplicateTrack(trackId);
+        } else {
+            console.warn("[EventHandlers] duplicateTrack service not available.");
+        }
+    } catch (error) { console.error(`[EventHandlers handleDuplicateTrack] Error for track ${trackId}:`, error); }
+}
+
 export function handleOpenTrackInspector(trackId) {
     if (localAppServices.openTrackInspectorWindow) {
         localAppServices.openTrackInspectorWindow(trackId);
