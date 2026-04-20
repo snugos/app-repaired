@@ -53,6 +53,42 @@ let recordingStartTime = 0;
 
 let globalPlaybackMode = 'sequencer'; // 'sequencer' or 'timeline'
 
+// MODIFICATION: Add Loop Region State
+let loopRegionEnabled = false;
+let loopRegionStart = 0; // in seconds
+let loopRegionEnd = 16; // in seconds
+
+// --- Loop Region Getters/Setters ---
+export function getLoopRegionEnabled() { return loopRegionEnabled; }
+export function setLoopRegionEnabled(enabled) { 
+    loopRegionEnabled = !!enabled;
+    console.log(`[State] Loop region ${loopRegionEnabled ? 'enabled' : 'disabled'}`);
+}
+export function getLoopRegionStart() { return loopRegionStart; }
+export function setLoopRegionStart(start) { 
+    loopRegionStart = Math.max(0, parseFloat(start) || 0);
+    console.log(`[State] Loop region start set to: ${loopRegionStart}s`);
+}
+export function getLoopRegionEnd() { return loopRegionEnd; }
+export function setLoopRegionEnd(end) { 
+    loopRegionEnd = Math.max(0.1, parseFloat(end) || 16);
+    console.log(`[State] Loop region end set to: ${loopRegionEnd}s`);
+}
+export function getLoopRegion() {
+    return { 
+        enabled: loopRegionEnabled, 
+        start: loopRegionStart, 
+        end: loopRegionEnd 
+    };
+}
+export function setLoopRegion(enabled, start, end) {
+    loopRegionEnabled = !!enabled;
+    loopRegionStart = Math.max(0, parseFloat(start) || 0);
+    loopRegionEnd = Math.max(0.1, parseFloat(end) || 16);
+    console.log(`[State] Loop region updated: enabled=${loopRegionEnabled}, start=${loopRegionStart}s, end=${loopRegionEnd}s`);
+}
+// END MODIFICATION
+
 // Undo/Redo
 let undoStack = [];
 let redoStack = [];

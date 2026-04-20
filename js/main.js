@@ -33,6 +33,8 @@ import {
     getMidiLearnModeState, getMidiLearnTargetState, getMidiMappingsState,
     setMidiLearnModeState, setMidiLearnTargetState,
     addMidiMapping, removeMidiMapping, clearAllMidiMappings, getMidiMappingForCC,
+    // Loop Region State
+    getLoopRegion, getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd,
     // State Setters
     addWindowToStoreState, removeWindowFromStoreState, setHighestZState, incrementHighestZState,
     setMasterEffectsState, setMasterGainValueState,
@@ -132,6 +134,8 @@ const uiElementsCache = {
     masterMeterBarGlobal: null, midiIndicatorGlobal: null, keyboardIndicatorGlobal: null,
     playbackModeToggleBtnGlobal: null, midiLearnBtnGlobal: null,
     tapBtnGlobal: null,
+    // Loop Region Controls
+    loopToggleBtnGlobal: null, loopStartInput: null, loopEndInput: null,
 };
 
 const DESKTOP_BACKGROUND_KEY = 'snugosDesktopBackground';
@@ -585,7 +589,7 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -701,7 +705,7 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                         if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
                         const newDropZoneDiv = dzContainer.querySelector('.drop-zone');
                         if (newDropZoneDiv && typeof setupGenericDropZoneListeners === 'function') {
-                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, appServices.loadSampleFile, appServices.getTrackById);
+                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, loadFn, appServices.getTrackById);
                         }
                     }
                 }
@@ -808,7 +812,11 @@ async function initializeSnugOS() {
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
             playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
             midiLearnBtnGlobal: document.getElementById('midiLearnBtnGlobal'),
-            tapBtnGlobal: document.getElementById('tapBtnGlobal')
+            tapBtnGlobal: document.getElementById('tapBtnGlobal'),
+            // Loop Region Controls
+            loopToggleBtnGlobal: document.getElementById('loopToggleBtnGlobal'),
+            loopStartInput: document.getElementById('loopStartInput'),
+            loopEndInput: document.getElementById('loopEndInput')
         };
         
         // Add to cache

@@ -20,7 +20,9 @@ import {
     getPlaybackModeState,
     setPlaybackModeState,
     getMidiAccessState, 
-    getActiveMIDIInputState
+    getActiveMIDIInputState,
+    // Loop Region State
+    getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd
 } from './state.js';
 
 let localAppServices = {};
@@ -213,10 +215,10 @@ export function initializePrimaryEventListeners(appContext) {
 
 export function attachGlobalControlEvents(elements) {
     if (!elements) {
-        console.error("[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.");
+        console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput } = elements;
 
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
@@ -236,6 +238,47 @@ export function attachGlobalControlEvents(elements) {
 
     // Initialize to stopped state
     setPlayButtonState(false);
+
+    // === Loop Region Controls ===
+    if (loopToggleBtnGlobal) {
+        // Update loop button state from current state
+        const updateLoopButtonState = () => {
+            const loopEnabled = typeof getLoopRegionEnabled === 'function' ? getLoopRegionEnabled() : false;
+            loopToggleBtnGlobal.textContent = loopEnabled ? 'Loop: On' : 'Loop: Off';
+            loopToggleBtnGlobal.classList.toggle('playing', loopEnabled);
+        };
+        updateLoopButtonState();
+
+        loopToggleBtnGlobal.addEventListener('click', () => {
+            const currentEnabled = typeof getLoopRegionEnabled === 'function' ? getLoopRegionEnabled() : false;
+            if (typeof setLoopRegionEnabled === 'function') {
+                setLoopRegionEnabled(!currentEnabled);
+                updateLoopButtonState();
+                showNotification(`Loop region ${!currentEnabled ? 'enabled' : 'disabled'}`, 1500);
+            }
+        });
+    }
+
+    if (loopStartInput) {
+        loopStartInput.addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value) || 0;
+            if (typeof setLoopRegionStart === 'function') {
+                setLoopRegionStart(value);
+                showNotification(`Loop start: ${value}s`, 1500);
+            }
+        });
+    }
+
+    if (loopEndInput) {
+        loopEndInput.addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value) || 16;
+            if (typeof setLoopRegionEnd === 'function') {
+                setLoopRegionEnd(value);
+                showNotification(`Loop end: ${value}s`, 1500);
+            }
+        });
+    }
+    // === End Loop Region Controls ===
 
     if (playBtnGlobal) {
         playBtnGlobal.addEventListener('click', async () => {
@@ -268,10 +311,15 @@ export function attachGlobalControlEvents(elements) {
                     if (!wasPaused) transport.position = 0;
 
                     console.log(`[EventHandlers Play/Resume] Starting/Resuming from ${startTime.toFixed(2)}s.`);
-                    transport.loop = true; 
-                    transport.loopStart = 0;
-                    transport.loopEnd = 3600; 
-
+                    
+                    // Get loop region settings from state
+                    const loopRegion = typeof getLoopRegion === 'function' ? getLoopRegion() : { enabled: false, start: 0, end: 16 };
+                    
+                    transport.loop = loopRegion.enabled;
+                    transport.loopStart = loopRegion.start;
+                    transport.loopEnd = loopRegion.end;
+                    console.log(`[EventHandlers Play/Resume] Loop region: ${loopRegion.enabled ? 'enabled' : 'disabled'} (${loopRegion.start}s - ${loopRegion.end}s)`);
+                    
                     if (!silentKeepAliveBuffer && Tone.context) {
                         try {
                             silentKeepAliveBuffer = Tone.context.createBuffer(1, 1, Tone.context.sampleRate);
@@ -1123,7 +1171,7 @@ export function handleMIDIDrop(event) {
                 return;
             }
 
-            // Get first non-Audio track or create one
+            // Get first non-audio track or create one
             let targetTrack = null;
             const tracks = getTracks();
             for (const t of tracks) {
