@@ -496,6 +496,85 @@ export function removeTrackFromStateInternal(trackId) {
     }
 }
 
+/**
+ * Duplicates a track with all its settings, sequences, and effects.
+ * @param {number} sourceTrackId - The ID of the track to duplicate
+ * @returns {Track|null} The new duplicated track, or null on error
+ */
+export async function duplicateTrack(sourceTrackId) {
+    try {
+        const sourceTrack = tracks.find(t => t.id === sourceTrackId);
+        if (!sourceTrack) {
+            console.warn(`[State duplicateTrack] Source track ID ${sourceTrackId} not found.`);
+            if (appServices.showNotification) appServices.showNotification('Track not found for duplication.', 3000);
+            return null;
+        }
+
+        captureStateForUndoInternal(`Duplicate Track "${sourceTrack.name}"`);
+
+        // Create a deep copy of the track's serializable data
+        const trackData = {
+            id: ++trackIdCounter,
+            name: `${sourceTrack.name} (copy)`,
+            type: sourceTrack.type,
+            color: sourceTrack.color,
+            isMuted: false,
+            isMonitoringEnabled: sourceTrack.isMonitoringEnabled,
+            previousVolumeBeforeMute: sourceTrack.previousVolumeBeforeMute,
+            pan: sourceTrack.pan,
+            sendLevels: JSON.parse(JSON.stringify(sourceTrack.sendLevels || {})),
+            volume: sourceTrack.previousVolumeBeforeMute || 0.7,
+            // Synth specific
+            synthEngineType: sourceTrack.synthEngineType,
+            synthParams: sourceTrack.synthParams ? JSON.parse(JSON.stringify(sourceTrack.synthParams)) : {},
+            // Sequences
+            sequences: sourceTrack.sequences ? JSON.parse(JSON.stringify(sourceTrack.sequences)) : [],
+            activeSequenceId: sourceTrack.activeSequenceId,
+            stepsPerBeat: sourceTrack.stepsPerBeat,
+            // Effects
+            activeEffects: sourceTrack.activeEffects ? sourceTrack.activeEffects.map(e => ({
+                id: `effect-${trackIdCounter}-${e.type}-${Date.now()}`,
+                type: e.type,
+                params: JSON.parse(JSON.stringify(e.params || {}))
+            })) : [],
+            // Sampler specific
+            samplerAudioData: sourceTrack.samplerAudioData ? JSON.parse(JSON.stringify(sourceTrack.samplerAudioData)) : null,
+            slices: sourceTrack.slices ? JSON.parse(JSON.stringify(sourceTrack.slices)) : [],
+            // Instrument Sampler
+            instrumentSamplerSettings: sourceTrack.instrumentSamplerSettings ? JSON.parse(JSON.stringify(sourceTrack.instrumentSamplerSettings)) : null,
+            // Drum Sampler
+            drumSamplerPads: sourceTrack.drumSamplerPads ? JSON.parse(JSON.stringify(sourceTrack.drumSamplerPads)) : [],
+            // Timeline clips
+            timelineClips: sourceTrack.timelineClips ? JSON.parse(JSON.stringify(sourceTrack.timelineClips)) : []
+        };
+
+        // Create the new track
+        const newTrack = new Track(trackData.id, trackData.type, trackData, appServices);
+        tracks.push(newTrack);
+
+        // Initialize audio nodes for the new track
+        if (typeof newTrack.initializeAudioNodes === 'function') {
+            await newTrack.initializeAudioNodes();
+        }
+
+        // Update UI
+        if (appServices.showNotification) {
+            appServices.showNotification(`Duplicated "${sourceTrack.name}" as "${trackData.name}"`, 2000);
+        }
+        if (appServices.updateMixerWindow) appServices.updateMixerWindow();
+        if (appServices.renderTimeline) appServices.renderTimeline();
+        if (appServices.updateUndoRedoButtonsUI) appServices.updateUndoRedoButtonsUI();
+
+        console.log(`[State duplicateTrack] Duplicated track ${sourceTrackId} to new track ${trackData.id}`);
+        return newTrack;
+
+    } catch (error) {
+        console.error(`[State duplicateTrack] Error duplicating track ${sourceTrackId}:`, error);
+        if (appServices.showNotification) appServices.showNotification(`Error duplicating track: ${error.message}`, 3000);
+        return null;
+    }
+}
+
 // --- Master Effects Chain Management ---
 export function addMasterEffectToState(effectType, initialParams) {
     const effectId = `mastereffect_${effectType}_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;

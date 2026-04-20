@@ -303,6 +303,8 @@
 11. **MIDI Learn / Mapping** - Map MIDI CC to parameters ✅ COMPLETED
 12. **Bounce to Audio** - Render a track's output to an audio file ✅ COMPLETED
 13. **Audio Clip Fade In/Out** - Add fade curves to audio clips on timeline ✅ COMPLETED
+14. **Metronome Toggle** - Click to enable/disable metronome during playback ✅ COMPLETED
+15. **Loop Region** - Set a loop region in the timeline for repeated playback ✅ COMPLETED
 
 ## When Queue is Empty - New Feature Ideas
 
@@ -319,9 +321,9 @@ Generate 10 NEW feature ideas that are:
 3. Enhance creative workflow
 
 New Feature Queue:
-1. **Metronome Toggle** - Click track to enable/disable metronome during playback
-2. **Loop Region** - Set a loop region in the timeline for repeated playback
-3. **Track Duplicate** - Right-click track to duplicate it with all settings
+1. **Metronome Toggle** - Click track to enable/disable metronome during playback ✅ COMPLETED
+2. **Loop Region** - Set a loop region in the timeline for repeated playback ✅ COMPLETED
+3. **Track Duplicate** - Right-click track to duplicate it with all settings ✅ COMPLETED
 4. **Step Sequencer Velocity Lane** - Visual velocity lane editing per row
 5. **Effect Bypass Toggle** - Quick bypass button for each effect
 6. **Project Export Presets** - Save/load project export configurations
