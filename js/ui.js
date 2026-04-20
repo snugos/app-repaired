@@ -3425,3 +3425,230 @@ function clearAllHistory() {
     
     updateUndoHistoryPanel();
 }
+
+// ============================================
+// PROJECT EXPORT PRESETS
+// ============================================
+
+/**
+ * Opens the Export Presets panel where users can save, load, and manage export configurations.
+ */
+export function openExportPresetsPanel() {
+    const panelId = 'exportPresetsPanel';
+    let win = localAppServices.getWindowByIdState ? localAppServices.getWindowByIdState(panelId) : null;
+    
+    if (win) {
+        win.bringToFront();
+        return;
+    }
+    
+    win = new SnugWindow({
+        id: panelId,
+        title: 'Export Presets',
+        width: 450,
+        height: 500,
+        x: 200,
+        y: 100,
+        minWidth: 350,
+        minHeight: 300,
+        onCloseCallback: () => {
+            if (localAppServices.removeWindowFromStoreState) {
+                localAppServices.removeWindowFromStoreState(panelId);
+            }
+        }
+    });
+    
+    if (localAppServices.addWindowToStoreState) {
+        localAppServices.addWindowToStoreState(panelId, win);
+    }
+    
+    renderExportPresetsContent(win.contentArea);
+}
+
+/**
+ * Renders the content of the Export Presets panel.
+ */
+function renderExportPresetsContent(container) {
+    const presetNames = localAppServices.getExportPresetNames ? localAppServices.getExportPresetNames() : [];
+    
+    container.innerHTML = `
+        <div class="p-4 h-full flex flex-col">
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Current Export Settings</h3>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Format:</span>
+                        <select id="exportFormat" class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1">
+                            <option value="wav">WAV</option>
+                            <option value="mp3">MP3 (coming soon)</option>
+                        </select>
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Sample Rate:</span>
+                        <select id="exportSampleRate" class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1">
+                            <option value="44100">44.1 kHz</option>
+                            <option value="48000">48 kHz</option>
+                            <option value="96000">96 kHz</option>
+                        </select>
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Bit Depth:</span>
+                        <select id="exportBitDepth" class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1">
+                            <option value="16">16-bit</option>
+                            <option value="24" selected>24-bit</option>
+                            <option value="32">32-bit float</option>
+                        </select>
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Normalize:</span>
+                        <input type="checkbox" id="exportNormalize" class="rounded">
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Dither:</span>
+                        <input type="checkbox" id="exportDither" class="rounded">
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="w-20">Tail (sec):</span>
+                        <input type="number" id="exportTail" value="2" min="0" max="10" step="0.5" class="w-16 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1">
+                    </label>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Save New Preset</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="newPresetName" placeholder="Preset name..." class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs">
+                    <button id="savePresetBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Saved Presets</h3>
+                <div id="presetList" class="space-y-1">
+                    ${presetNames.length === 0 ? '<p class="text-xs text-slate-500 italic">No presets saved yet.</p>' : 
+                        presetNames.map(name => `
+                            <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-700 rounded px-2 py-1">
+                                <span class="text-xs">${escapeHtml(name)}</span>
+                                <div class="flex gap-1">
+                                    <button class="load-preset-btn px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-preset="${escapeHtml(name)}">Load</button>
+                                    <button class="export-preset-btn px-2 py-0.5 text-xs bg-purple-500 text-white rounded hover:bg-purple-600" data-preset="${escapeHtml(name)}">Export</button>
+                                    <button class="delete-preset-btn px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-preset="${escapeHtml(name)}">Delete</button>
+                                </div>
+                            </div>
+                        `).join('')
+                    }
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-2 border-t border-slate-200 dark:border-slate-600 flex gap-2">
+                <button id="exportNowBtn" class="flex-1 px-3 py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 font-semibold">Export Now</button>
+                <button id="exportStemsBtn" class="flex-1 px-3 py-2 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600">Export Stems</button>
+            </div>
+        </div>
+    `;
+    
+    // Attach event listeners
+    const saveBtn = container.querySelector('#savePresetBtn');
+    const exportNowBtn = container.querySelector('#exportNowBtn');
+    const exportStemsBtn = container.querySelector('#exportStemsBtn');
+    
+    saveBtn?.addEventListener('click', () => {
+        const nameInput = container.querySelector('#newPresetName');
+        const presetName = nameInput?.value.trim();
+        if (!presetName) {
+            localAppServices.showNotification?.('Please enter a preset name.', 2000);
+            return;
+        }
+        
+        const presetData = collectExportSettings(container);
+        localAppServices.saveExportPreset?.(presetName, presetData);
+        nameInput.value = '';
+        renderExportPresetsContent(container);
+    });
+    
+    exportNowBtn?.addEventListener('click', () => {
+        const settings = collectExportSettings(container);
+        localAppServices.exportWithSettings?.(settings);
+    });
+    
+    exportStemsBtn?.addEventListener('click', () => {
+        localAppServices.showStemExportDialog?.();
+    });
+    
+    // Preset buttons
+    container.querySelectorAll('.load-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const presetName = btn.dataset.preset;
+            const preset = localAppServices.getExportPreset?.(presetName);
+            if (preset) {
+                applyExportSettings(container, preset);
+                localAppServices.showNotification?.(`Loaded preset "${presetName}"`, 1500);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.export-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const presetName = btn.dataset.preset;
+            const preset = localAppServices.getExportPreset?.(presetName);
+            if (preset) {
+                localAppServices.exportWithSettings?.(preset);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.delete-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const presetName = btn.dataset.preset;
+            if (confirm(`Delete preset "${presetName}"?`)) {
+                localAppServices.deleteExportPreset?.(presetName);
+                renderExportPresetsContent(container);
+            }
+        });
+    });
+}
+
+/**
+ * Collects the current export settings from the UI.
+ */
+function collectExportSettings(container) {
+    return {
+        format: container.querySelector('#exportFormat')?.value || 'wav',
+        sampleRate: parseInt(container.querySelector('#exportSampleRate')?.value || '44100'),
+        bitDepth: parseInt(container.querySelector('#exportBitDepth')?.value || '24'),
+        normalize: container.querySelector('#exportNormalize')?.checked || false,
+        dither: container.querySelector('#exportDither')?.checked || false,
+        tailSeconds: parseFloat(container.querySelector('#exportTail')?.value || '2'),
+        timestamp: Date.now()
+    };
+}
+
+/**
+ * Applies export settings to the UI.
+ */
+function applyExportSettings(container, preset) {
+    if (preset.format) {
+        const formatSelect = container.querySelector('#exportFormat');
+        if (formatSelect) formatSelect.value = preset.format;
+    }
+    if (preset.sampleRate) {
+        const sampleRateSelect = container.querySelector('#exportSampleRate');
+        if (sampleRateSelect) sampleRateSelect.value = preset.sampleRate.toString();
+    }
+    if (preset.bitDepth) {
+        const bitDepthSelect = container.querySelector('#exportBitDepth');
+        if (bitDepthSelect) bitDepthSelect.value = preset.bitDepth.toString();
+    }
+    if (preset.normalize !== undefined) {
+        const normalizeCheck = container.querySelector('#exportNormalize');
+        if (normalizeCheck) normalizeCheck.checked = preset.normalize;
+    }
+    if (preset.dither !== undefined) {
+        const ditherCheck = container.querySelector('#exportDither');
+        if (ditherCheck) ditherCheck.checked = preset.dither;
+    }
+    if (preset.tailSeconds !== undefined) {
+        const tailInput = container.querySelector('#exportTail');
+        if (tailInput) tailInput.value = preset.tailSeconds.toString();
+    }
+}
