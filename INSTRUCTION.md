@@ -4,7 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-*Queue is empty - generating new features*
+1. **Scale Hint Overlay** - Show scale notes highlighted on piano roll/sequencer
+2. **Tempo Tap Button** - Tap rhythmically to set tempo
+3. **Track Grouping** - Group tracks for collective mute/solo/volume control
+4. **Clip Fade Handles** - Drag handles on timeline clips to adjust fades visually
+5. **MIDI File Export** - Export sequencer patterns as .mid files
+6. **Drum Pattern Templates** - Save/load drum patterns as templates
+7. **Sample Browser Favorites** - Mark sounds as favorites for quick access
+8. **CPU Meter** - Show current CPU usage indicator
+9. **Track Solo Exclusive** - Shift+click solo to solo only that track
+10. **Audio Quality Selection** - Choose recording quality (128/256/320 kbps)
 
 ## Workflow
 
@@ -65,18 +74,3 @@ Output as numbered list and update this instruction.
 ## Context Files
 - Repo: `/home/workspace/app-repaired`
 - Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
-
-## New Feature Ideas (generated 2026-04-20)
-
-Based on SnugOS being a browser-based DAW with Tone.js audio engine, multi-track timeline, effects rack, sequencer mode, and MIDI support:
-
-1. **Track Color Coding** - Assign custom colors to tracks for visual grouping in the mixer and timeline
-2. **MIDI Learn / Mapping** - Map MIDI CC messages to any track or master parameter
-3. **Audio Clip Normalization** - Right-click audio clips to normalize their volume
-4. **Step Sequencer Copy/Paste** - Copy and paste patterns between steps or tracks
-5. **Track Freeze** - Freeze a track to audio to reduce CPU usage
-6. **Tempo Tap Button** - Tap to set tempo rhythmically
-7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
-8. **Track Grouping** - Group tracks together for collective mute/solo/volume control
-9. **MIDI File Export** - Export sequencer patterns as .mid files
-10. **Keyboard Shortcuts Panel** - Press ? to view all keyboard shortcuts
