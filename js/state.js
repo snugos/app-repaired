@@ -700,6 +700,24 @@ export function removeTrackFromStateInternal(trackId) {
     }
 }
 
+export function reorderTrackInState(trackId, newIndex) {
+    const oldIndex = tracks.findIndex(t => t.id === trackId);
+    if (oldIndex === -1) {
+        console.warn(`[State reorderTrackInState] Track ID ${trackId} not found.`);
+        return;
+    }
+    if (oldIndex === newIndex || newIndex < 0 || newIndex >= tracks.length) {
+        return;
+    }
+    captureStateForUndoInternal(`Reorder Track`);
+    const [trackToMove] = tracks.splice(oldIndex, 1);
+    tracks.splice(newIndex, 0, trackToMove);
+    console.log(`[State reorderTrackInState] Moved track "${trackToMove.name}" from index ${oldIndex} to ${newIndex}`);
+    if (appServices.updateMixerWindow) appServices.updateMixerWindow();
+    if (appServices.renderTimeline) appServices.renderTimeline();
+}
+
+
 /**
  * Duplicates a track with all its settings, sequences, and effects.
  * @param {number} sourceTrackId - The ID of the track to duplicate
