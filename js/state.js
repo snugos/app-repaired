@@ -53,7 +53,7 @@ let recordingStartTime = 0;
 
 let globalPlaybackMode = 'sequencer'; // 'sequencer' or 'timeline'
 
-// MODIFICATION: Add Loop Region State
+// --- Loop Region State ---
 let loopRegionEnabled = false;
 let loopRegionStart = 0; // in seconds
 let loopRegionEnd = 16; // in seconds
@@ -151,6 +151,52 @@ export function setTempoRampsState(ramps) {
         curve: r.curve || 'linear'
     })) : [];
     tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+}
+
+// --- Scale Hint Overlay State ---
+let scaleHintEnabled = false;
+let scaleHintRoot = 'C';
+let scaleHintType = 'major';
+const SCALE_TYPES = ['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian', 'pentatonic_major', 'pentatonic_minor', 'blues', 'chromatic'];
+
+// Scale intervals (semitones from root)
+const SCALE_INTERVALS = {
+    'major': [0, 2, 4, 5, 7, 9, 11],
+    'minor': [0, 2, 3, 5, 7, 8, 10],
+    'dorian': [0, 2, 3, 5, 7, 9, 10],
+    'phrygian': [0, 1, 3, 5, 7, 8, 10],
+    'lydian': [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'locrian': [0, 1, 3, 5, 6, 8, 10],
+    'pentatonic_major': [0, 2, 4, 7, 9],
+    'pentatonic_minor': [0, 3, 5, 7, 10],
+    'blues': [0, 3, 5, 6, 7, 10],
+    'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+};
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+export function getScaleHintEnabled() { return scaleHintEnabled; }
+export function setScaleHintEnabled(enabled) { scaleHintEnabled = !!enabled; }
+export function getScaleHintRoot() { return scaleHintRoot; }
+export function setScaleHintRoot(root) { scaleHintRoot = root || 'C'; }
+export function getScaleHintType() { return scaleHintType; }
+export function setScaleHintType(type) { scaleHintType = type || 'major'; }
+export function getScaleTypes() { return [...SCALE_TYPES]; }
+
+export function getScaleNotes(root, type) {
+    const rootNote = root || scaleHintRoot;
+    const scaleType = type || scaleHintType;
+    const rootIndex = NOTE_NAMES.indexOf(rootNote);
+    const intervals = SCALE_INTERVALS[scaleType] || SCALE_INTERVALS.major;
+    return intervals.map(i => NOTE_NAMES[(rootIndex + i) % 12]);
+}
+
+export function isNoteInScale(midiNote, root, type) {
+    const noteIndex = midiNote % 12;
+    const scaleNotes = getScaleNotes(root, type);
+    const noteName = NOTE_NAMES[noteIndex];
+    return scaleNotes.includes(noteName);
 }
 
 // Undo/Redo
