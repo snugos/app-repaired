@@ -956,6 +956,7 @@ export function openGlobalControlsWindow(onReadyCallback, savedState = null) {
             recordBtnGlobal: newWindow.element.querySelector('#recordBtnGlobal'),
             stopBtnGlobal: newWindow.element.querySelector('#stopBtnGlobal'), // MODIFICATION: Include stop button
             tempoGlobalInput: newWindow.element.querySelector('#tempoGlobalInput'),
+            tapBtnGlobal: newWindow.element.querySelector('#tapBtnGlobal'), // Tap Tempo button
             midiInputSelectGlobal: newWindow.element.querySelector('#midiInputSelectGlobal'),
             masterMeterContainerGlobal: newWindow.element.querySelector('#masterMeterContainerGlobal'),
             masterMeterBarGlobal: newWindow.element.querySelector('#masterMeterBarGlobal'),
