@@ -2654,3 +2654,107 @@ export function importTimelineMarkers(markersData) {
 export function exportTimelineMarkers() {
     return JSON.parse(JSON.stringify(timelineMarkers));
 }
+
+// --- Track Freeze State Management ---
+/**
+ * Freeze a track - render to audio and disable real-time processing.
+ * @param {number} trackId - The track ID to freeze
+ * @param {Object} options - Freeze options
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function freezeTrack(trackId, options = {}) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        console.error(`[State freezeTrack] Track ${trackId} not found.`);
+        return false;
+    }
+
+    if (track.frozen) {
+        console.log(`[State freezeTrack] Track ${trackId} already frozen.`);
+        return true;
+    }
+
+    try {
+        const result = await track.freeze(options.startBar, options.endBar);
+        
+        if (result && appServices.captureStateForUndo) {
+            appServices.captureStateForUndo(`Froze track ${track.name}`);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error(`[State freezeTrack] Error:`, error);
+        return false;
+    }
+}
+
+/**
+ * Unfreeze a track - restore real-time processing.
+ * @param {number} trackId - The track ID to unfreeze
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function unfreezeTrack(trackId) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        console.error(`[State unfreezeTrack] Track ${trackId} not found.`);
+        return false;
+    }
+
+    if (!track.frozen) {
+        console.log(`[State unfreezeTrack] Track ${trackId} not frozen.`);
+        return true;
+    }
+
+    try {
+        const result = await track.unfreeze();
+        
+        if (result && appServices.captureStateForUndo) {
+            appServices.captureStateForUndo(`Unfroze track ${track.name}`);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error(`[State unfreezeTrack] Error:`, error);
+        return false;
+    }
+}
+
+/**
+ * Get frozen state for a track.
+ * @param {number} trackId - The track ID
+ * @returns {Object|null} Frozen state info or null
+ */
+export function getTrackFrozenState(trackId) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        return null;
+    }
+
+    return track.getFrozenInfo ? track.getFrozenInfo() : { frozen: track.frozen || false };
+}
+
+/**
+ * Check if a track is frozen.
+ * @param {number} trackId - The track ID
+ * @returns {boolean} True if frozen
+ */
+export function isTrackFrozen(trackId) {
+    const tracks = getTracksState();
+    const track = tracks.find(t => t.id === trackId);
+    return track ? (track.frozen || false) : false;
+}
+
+/**
+ * Get all frozen tracks.
+ * @returns {Array} Array of frozen track IDs
+ */
+export function getFrozenTracks() {
+    const tracks = getTracksState();
+    return tracks.filter(t => t.frozen).map(t => t.id);
+}

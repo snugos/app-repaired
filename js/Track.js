@@ -205,6 +205,14 @@ export class Track {
         // Audio Track specific
         this.inputChannel = null;
         this.clipPlayers = new Map(); 
+        
+        // --- Freeze State ---
+        this.frozen = initialData?.frozen || false;
+        this.frozenAudioBlob = null; // Stores the frozen audio
+        this.frozenAudioDbKey = initialData?.frozenAudioDbKey || null; // DB key for frozen audio
+        this.frozenPlayer = null; // Tone.Player for playing frozen audio
+        this.frozenDuration = initialData?.frozenDuration || 0; // Duration of frozen audio
+        this.timelinePlaybackRate = initialData?.timelinePlaybackRate || 1.0; // Playback rate for timeline clips (1.0 = normal)
     }
 /**
      * Loads a sample to a specific drum pad and saves it to IndexedDB.
@@ -1649,7 +1657,10 @@ export class Track {
 
                                         tempPlayer.start(time, sliceData.offset, sliceData.loop ? undefined : playDurationPart);
                                         tempEnv.triggerAttack(time);
-                                        if (!sliceData.loop) tempEnv.triggerRelease(time + playDurationPart * 0.95);
+                                        if (!sliceData.loop) {
+                                            const releaseTime = time + playDurationPart - (sliceData.envelope.release * 0.05); 
+                                            tempEnv.triggerRelease(Math.max(time, releaseTime));
+                                        }
                                         Tone.Transport.scheduleOnce(() => {
                                             try { if(tempPlayer && !tempPlayer.disposed) tempPlayer.dispose(); } catch(e){}
                                             try { if(tempEnv && !tempEnv.disposed) tempEnv.dispose(); } catch(e){}
@@ -2171,6 +2182,221 @@ export class Track {
     _writeString(view, offset, string) {
         for (let i = 0; i < string.length; i++) {
             view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
+    // --- Track Freeze Methods ---
+    /**
+     * Freeze the track - render to audio and disable real-time processing.
+     * @param {number} startBar - Start bar for freeze (default 0)
+     * @param {number} endBar - End bar for freeze (default: project length)
+     * @returns {Promise<boolean>} True if freeze was successful
+     */
+    async freeze(startBar = 0, endBar = null) {
+        if (this.frozen) {
+            console.log(`[Track ${this.id}] Already frozen.`);
+            return true;
+        }
+
+        console.log(`[Track ${this.id}] Starting freeze process...`);
+        
+        try {
+            // Use bounce functionality to render track to audio
+            if (!this.appServices.bounceTrackToAudio) {
+                console.error(`[Track ${this.id}] bounceTrackToAudio not available for freeze.`);
+                if (this.appServices.showNotification) {
+                    this.appServices.showNotification('Cannot freeze: audio system not ready.', 3000);
+                }
+                return false;
+            }
+
+            // Bounce without downloading or creating new track
+            const result = await this.appServices.bounceTrackToAudio(this.id, {
+                download: false,
+                createNewTrack: false,
+                startBar: startBar,
+                endBar: endBar,
+                returnBlob: true // Request blob to be returned
+            });
+
+            if (!result || !result.blob) {
+                console.error(`[Track ${this.id}] Freeze failed: no audio rendered.`);
+                if (this.appServices.showNotification) {
+                    this.appServices.showNotification('Freeze failed: no audio rendered.', 3000);
+                }
+                return false;
+            }
+
+            // Store the frozen audio
+            this.frozenAudioBlob = result.blob;
+            this.frozenDuration = result.duration || 0;
+
+            // Store in IndexedDB
+            const dbKey = `frozen_${this.id}_${Date.now()}`;
+            const audioData = await this.frozenAudioBlob.arrayBuffer();
+            await storeAudio(dbKey, audioData);
+            this.frozenAudioDbKey = dbKey;
+            console.log(`[Track ${this.id}] Frozen audio stored with key: ${dbKey}`);
+
+            // Create frozen player
+            await this._initFrozenPlayer();
+
+            // Set frozen state
+            this.frozen = true;
+
+            // Capture undo state
+            if (this.appServices.captureStateForUndo) {
+                this.appServices.captureStateForUndo(`Froze track ${this.name}`);
+            }
+
+            // Update UI
+            if (this.appServices.updateTrackUI) {
+                this.appServices.updateTrackUI(this.id, 'frozen');
+            }
+
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Track "${this.name}" frozen.`, 2000);
+            }
+
+            console.log(`[Track ${this.id}] Freeze complete.`);
+            return true;
+        } catch (error) {
+            console.error(`[Track ${this.id}] Freeze error:`, error);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Freeze failed: ${error.message}`, 3000);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Unfreeze the track - restore real-time processing.
+     * @returns {Promise<boolean>} True if unfreeze was successful
+     */
+    async unfreeze() {
+        if (!this.frozen) {
+            console.log(`[Track ${this.id}] Not frozen, nothing to unfreeze.`);
+            return true;
+        }
+
+        console.log(`[Track ${this.id}] Unfreezing...`);
+
+        try {
+            // Dispose frozen player
+            if (this.frozenPlayer && !this.frozenPlayer.disposed) {
+                this.frozenPlayer.dispose();
+            }
+            this.frozenPlayer = null;
+
+            // Clear frozen state
+            this.frozen = false;
+            this.frozenAudioBlob = null;
+            // Keep dbKey for potential re-freeze
+
+            // Capture undo state
+            if (this.appServices.captureStateForUndo) {
+                this.appServices.captureStateForUndo(`Unfroze track ${this.name}`);
+            }
+
+            // Update UI
+            if (this.appServices.updateTrackUI) {
+                this.appServices.updateTrackUI(this.id, 'unfrozen');
+            }
+
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Track "${this.name}" unfrozen.`, 2000);
+            }
+
+            console.log(`[Track ${this.id}] Unfreeze complete.`);
+            return true;
+        } catch (error) {
+            console.error(`[Track ${this.id}] Unfreeze error:`, error);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Unfreeze failed: ${error.message}`, 3000);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Initialize the frozen audio player.
+     * @returns {Promise<boolean>} True if successful
+     */
+    async _initFrozenPlayer() {
+        try {
+            if (!this.frozenAudioBlob && !this.frozenAudioDbKey) {
+                console.error(`[Track ${this.id}] No frozen audio to initialize player.`);
+                return false;
+            }
+
+            // Load audio from blob or DB
+            let audioUrl;
+            if (this.frozenAudioBlob) {
+                audioUrl = URL.createObjectURL(this.frozenAudioBlob);
+            } else if (this.frozenAudioDbKey) {
+                const audioData = await getAudio(this.frozenAudioDbKey);
+                if (!audioData) {
+                    console.error(`[Track ${this.id}] Failed to load frozen audio from DB.`);
+                    return false;
+                }
+                const blob = new Blob([audioData], { type: 'audio/wav' });
+                audioUrl = URL.createObjectURL(blob);
+            }
+
+            // Create Tone.Player
+            this.frozenPlayer = new Tone.Player({
+                url: audioUrl,
+                loop: false,
+                onload: () => {
+                    console.log(`[Track ${this.id}] Frozen player loaded.`);
+                }
+            });
+
+            // Connect to output
+            if (this.gainNode && !this.gainNode.disposed) {
+                this.frozenPlayer.connect(this.gainNode);
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`[Track ${this.id}] Error initializing frozen player:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Check if the track is frozen.
+     * @returns {boolean} True if frozen
+     */
+    isFrozen() {
+        return this.frozen;
+    }
+
+    /**
+     * Get frozen state info.
+     * @returns {Object} Frozen state info
+     */
+    getFrozenInfo() {
+        return {
+            frozen: this.frozen,
+            frozenAudioDbKey: this.frozenAudioDbKey,
+            frozenDuration: this.frozenDuration
+        };
+    }
+
+    /**
+     * Set frozen state from saved data (for project recovery).
+     * @param {Object} frozenData - Frozen state data
+     */
+    async setFrozenState(frozenData) {
+        if (!frozenData) return;
+
+        this.frozen = frozenData.frozen || false;
+        this.frozenAudioDbKey = frozenData.frozenAudioDbKey || null;
+        this.frozenDuration = frozenData.frozenDuration || 0;
+
+        if (this.frozen && this.frozenAudioDbKey) {
+            await this._initFrozenPlayer();
         }
     }
 

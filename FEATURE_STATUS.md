@@ -367,8 +367,8 @@ New Feature Queue:
 2. **Effect Bypass Toggle** - Quick bypass button for each effect ✅ COMPLETED
 3. **Audio Normalization** - Auto-normalize recorded or imported audio ✅ COMPLETED
 4. **Project Export Presets** - Save/load project export configurations ✅ COMPLETED
-5. **Tempo Ramps** - Automation lane for tempo changes over time
-6. **Marker System** - Add named markers on timeline for navigation
+5. **Tempo Ramps** - Automation lane for tempo changes over time ✅ COMPLETED (already implemented in audio.js/state.js/ui.js)
+6. **Marker System** - Add named markers on timeline for navigation ✅ COMPLETED (already implemented in state.js/main.js)
 7. **Audio Stretching** - Adjust audio clip tempo without changing pitch
 8. **Track Freeze** - Freeze a track to audio to save CPU
 9. **Clip Gain Envelope** - Draw volume automation on audio clips
