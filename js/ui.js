@@ -616,15 +616,17 @@ function buildModularEffectsRackDOM(owner, ownerType = 'track') {
     const ownerId = (ownerType === 'track' && owner) ? owner.id : 'master';
     const ownerName = (ownerType === 'track' && owner) ? owner.name : 'Master Bus';
     let presetSectionHTML = '';
-    if (ownerType === 'track' && owner) {
+    const showPresets = (ownerType === 'track' && owner) || (ownerType === 'master');
+    if (showPresets) {
+        const presetId = ownerType === 'track' ? owner.id : 'master';
         presetSectionHTML = `
         <div class="mt-2 pt-2 border-t dark:border-slate-600">
             <h4 class="text-xs font-semibold dark:text-slate-200 mb-1">Effect Presets</h4>
             <div class="flex gap-1 mb-1">
-                <button id="saveEffectPresetBtn-${owner.id}" class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">Save Preset</button>
-                <button id="loadEffectPresetBtn-${owner.id}" class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">Load Preset</button>
+                <button id="saveEffectPresetBtn-${presetId}" class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">Save Preset</button>
+                <button id="loadEffectPresetBtn-${presetId}" class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">Load Preset</button>
             </div>
-            <div id="presetList-${owner.id}" class="text-xs max-h-24 overflow-y-auto border rounded p-1 bg-gray-50 dark:bg-slate-700 dark:border-slate-600">
+            <div id="presetList-${presetId}" class="text-xs max-h-24 overflow-y-auto border rounded p-1 bg-gray-50 dark:bg-slate-700 dark:border-slate-600">
                 <p class="text-gray-500 dark:text-slate-400 italic">No presets saved</p>
             </div>
         </div>`;
@@ -3095,6 +3097,88 @@ function setupTimelineEventListeners(content, tracks) {
             }));
         });
 
+
+        // Fade handle drag interaction for audio clips
+        content.querySelectorAll('.fade-handle').forEach(handle => {
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const clipId = handle.dataset.clipId;
+                const fadeType = handle.dataset.fadeType; // 'in' or 'out'
+                
+                // Find track and clip
+                let track = null, clipData = null;
+                for (const t of tracks) {
+                    if (t.type === 'Audio' && t.timelineClips) {
+                        const found = t.timelineClips.find(c => c.id === clipId);
+                        if (found) { track = t; clipData = found; break; }
+                    }
+                }
+                if (!track || !clipData) return;
+
+                const startX = e.clientX;
+                const pixelsPerSecond = timelineState.pixelsPerSecond;
+                const startFadeIn = clipData.fadeIn || 0;
+                const startFadeOut = clipData.fadeOut || 0;
+
+                function onMouseMove(moveEvent) {
+                    const deltaX = moveEvent.clientX - startX;
+                    const deltaTime = deltaX / pixelsPerSecond;
+                    let newFadeIn = startFadeIn;
+                    let newFadeOut = startFadeOut;
+                    if (fadeType === 'in') {
+                        newFadeIn = Math.max(0, startFadeIn + deltaTime);
+                    } else {
+                        newFadeOut = Math.max(0, startFadeOut - deltaTime);
+                    }
+                    // Live preview - update handle visual
+                    const clipEl = content.querySelector(`.timeline-clip[data-clip-id="${clipId}"]`);
+                    if (clipEl) {
+                        const clipWidth = clipEl.offsetWidth;
+                        if (fadeType === 'in') {
+                            const w = Math.min(newFadeIn * pixelsPerSecond, clipWidth * 0.5);
+                            const overlay = clipEl.querySelector('.fade-handle-in');
+                            if (overlay) {
+                                overlay.style.width = `${w}px`;
+                                overlay.nextSibling?.remove();
+                                const ind = document.createElement('div');
+                                ind.className = 'absolute top-0 left-0 pointer-events-none z-10';
+                                ind.style = `width: ${w}px; height: ${clipEl.offsetHeight}px; background: linear-gradient(to right, rgba(0,0,0,0.4), transparent);`;
+                                clipEl.insertBefore(ind, clipEl.firstChild);
+                            }
+                        } else {
+                            const w = Math.min(newFadeOut * pixelsPerSecond, clipWidth * 0.5);
+                            const overlay = clipEl.querySelector('.fade-handle-out');
+                            if (overlay) {
+                                overlay.style.width = `${w}px`;
+                            }
+                        }
+                    }
+                }
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    const deltaX = e.clientX - startX;
+                    const deltaTime = deltaX / pixelsPerSecond;
+                    let newFadeIn = startFadeIn;
+                    let newFadeOut = startFadeOut;
+                    if (fadeType === 'in') {
+                        newFadeIn = Math.max(0, startFadeIn + deltaTime);
+                    } else {
+                        newFadeOut = Math.max(0, startFadeOut - deltaTime);
+                    }
+                    if (track.setClipFade) {
+                        track.setClipFade(clipId, newFadeIn, newFadeOut);
+                        if (localAppServices.captureStateForUndo) {
+                            localAppServices.captureStateForUndo(`Set fade ${fadeType === 'in' ? 'in' : 'out'} for clip`);
+                        }
+                    }
+                    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+                }
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        });
         // Clip context menu for fade editing (audio clips only)
         clip.addEventListener('contextmenu', (e) => {
             e.preventDefault();
