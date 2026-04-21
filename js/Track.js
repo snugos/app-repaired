@@ -149,6 +149,12 @@ export class Track {
         this.sendLevels = initialData?.sendLevels || { reverb: 0, delay: 0 };
         this.sendGainNodes = {}; // Tone.Gain nodes for each send bus
         
+        // --- Delay Compensation ---
+        // Manual delay compensation for latency-inducing effects
+        this.delayCompensationMs = initialData?.delayCompensationMs || 0; // Manual offset in ms
+        this.delayCompensationNode = null; // Tone.Delay node for compensation
+        this.autoDelayCompensation = initialData?.autoDelayCompensation !== undefined ? initialData.autoDelayCompensation : true; // Auto-calculate from effects
+
         // --- Sidechain ---
         this.sidechainSource = initialData?.sidechainSource || null; // Track ID that this track triggers
         this.sidechainDestination = initialData?.sidechainDestination || null; // Track ID that ducks this track
@@ -319,6 +325,7 @@ export class Track {
         try {
             if (this.gainNode && !this.gainNode.disposed) try { this.gainNode.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old gainNode:`, e.message)}
             if (this.panNode && !this.panNode.disposed) try { this.panNode.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old panNode:`, e.message)}
+            if (this.delayCompensationNode && !this.delayCompensationNode.disposed) try { this.delayCompensationNode.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old delayCompensationNode:`, e.message)}
             if (this.trackMeter && !this.trackMeter.disposed) try { this.trackMeter.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old trackMeter:`, e.message)}
             if (this.inputChannel && !this.inputChannel.disposed && this.type === 'Audio') {
                 try { this.inputChannel.dispose(); } catch(e) {console.warn(`[Track ${this.id}] Error disposing old inputChannel:`, e.message)}
@@ -331,6 +338,7 @@ export class Track {
 
             this.gainNode = new Tone.Gain(this.isMuted ? 0 : this.previousVolumeBeforeMute);
             this.panNode = new Tone.Panner(this.pan); // Stereo panner
+            this.delayCompensationNode = new Tone.Delay(this.delayCompensationMs / 1000); // Delay node for compensation
             this.trackMeter = new Tone.Meter({ smoothing: 0.8 });
             this.outputNode = this.panNode; // Output is now through panNode
 
@@ -440,22 +448,39 @@ export class Track {
             }
         }
 
-        if (this.gainNode && !this.gainNode.disposed && this.trackMeter && !this.trackMeter.disposed) {
-            // Chain: gainNode -> panNode -> trackMeter
+        // Signal chain: gainNode -> panNode -> delayCompensationNode -> trackMeter
+        if (this.gainNode && !this.gainNode.disposed) {
             if (this.panNode && !this.panNode.disposed) {
                 try { 
                     this.gainNode.connect(this.panNode); 
-                    this.panNode.connect(this.trackMeter); 
-                    console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode -> panNode -> trackMeter.`); 
-                } catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode->panNode->trackMeter:`, e); }
+                    // Connect panNode to delayCompensationNode, then to trackMeter
+                    if (this.delayCompensationNode && !this.delayCompensationNode.disposed) {
+                        this.panNode.connect(this.delayCompensationNode);
+                        this.delayCompensationNode.connect(this.trackMeter);
+                        console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode -> panNode -> delayCompensationNode -> trackMeter.`); 
+                    } else {
+                        // Fallback if delay node not available
+                        this.panNode.connect(this.trackMeter);
+                        console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode -> panNode -> trackMeter (no delay node).`); 
+                    }
+                } catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode->panNode->delayCompensationNode->trackMeter:`, e); }
             } else {
-                try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter.`); }
-                catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to trackMeter:`, e); }
+                // Fallback without panNode
+                if (this.delayCompensationNode && !this.delayCompensationNode.disposed) {
+                    try { 
+                        this.gainNode.connect(this.delayCompensationNode); 
+                        this.delayCompensationNode.connect(this.trackMeter);
+                        console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode -> delayCompensationNode -> trackMeter.`); 
+                    } catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode->delayCompensationNode->trackMeter:`, e); }
+                } else {
+                    try { this.gainNode.connect(this.trackMeter); console.log(`[Track ${this.id} rebuildEffectChain] Connected gainNode to trackMeter.`); }
+                    catch (e) { console.error(`[Track ${this.id}] Error connecting gainNode to trackMeter:`, e); }
+                }
             }
         }
 
         const masterBusInput = this.appServices.getMasterEffectsBusInputNode ? this.appServices.getMasterEffectsBusInputNode() : null;
-        const finalTrackOutput = (this.trackMeter && !this.trackMeter.disposed) ? this.trackMeter : (this.panNode && !this.panNode.disposed ? this.panNode : this.gainNode);
+        const finalTrackOutput = (this.trackMeter && !this.trackMeter.disposed) ? this.trackMeter : (this.delayCompensationNode && !this.delayCompensationNode.disposed ? this.delayCompensationNode : (this.panNode && !this.panNode.disposed ? this.panNode : this.gainNode));
 
         if (finalTrackOutput && !finalTrackOutput.disposed && masterBusInput && !masterBusInput.disposed) {
             try { finalTrackOutput.connect(masterBusInput); console.log(`[Track ${this.id} rebuildEffectChain] Connected final track output to masterBusInput.`); }
@@ -3446,6 +3471,114 @@ export class Track {
         }
     }
 
+    // ==================== Delay Compensation Methods ====================
+
+    /**
+     * Set delay compensation for this track.
+     * @param {number} delayMs - Delay in milliseconds (positive = delay the track to compensate for other tracks' latency)
+     */
+    setDelayCompensation(delayMs) {
+        if (typeof delayMs !== 'number' || delayMs < 0) {
+            console.warn(`[Track ${this.id}] Invalid delay compensation value: ${delayMs}. Must be a non-negative number.`);
+            return;
+        }
+        
+        this.delayCompensationMs = delayMs;
+        
+        if (this.delayCompensationNode && !this.delayCompensationNode.disposed) {
+            try {
+                this.delayCompensationNode.delayTime.value = delayMs / 1000;
+                console.log(`[Track ${this.id}] Set delay compensation to ${delayMs}ms`);
+            } catch (e) {
+                console.error(`[Track ${this.id}] Error setting delay compensation:`, e);
+            }
+        }
+    }
+
+    /**
+     * Get current delay compensation value.
+     * @returns {number} Delay in milliseconds
+     */
+    getDelayCompensation() {
+        return this.delayCompensationMs;
+    }
+
+    /**
+     * Calculate latency from effects on this track.
+     * Returns estimated latency in milliseconds based on known effect types.
+     * @returns {number} Estimated latency in ms
+     */
+    calculateEffectLatency() {
+        let totalLatencyMs = 0;
+        
+        const effectLatencyMap = {
+            'Compressor': 0,       // Usually no latency
+            'Limiter': 0,          // No lookahead latency in Tone.js implementation
+            'MultibandCompressor': 0,
+            'Reverb': 0,           // Pre-delay is intentional, not latency
+            'Delay': 0,            // Intentional delay
+            'PingPongDelay': 0,
+            'FeedbackDelay': 0,
+            'Chorus': 0,           // Usually minimal
+            'Phaser': 0,
+            'Flanger': 0,
+            'Tremolo': 0,
+            'Vibrato': 0,
+            'AutoFilter': 0,
+            'AutoPanner': 0,
+            'AutoWah': 0,
+            'Distortion': 0,
+            'Chebyshev': 0,
+            'BitCrusher': 0,
+            'PitchShift': 5.8,    // ~5.8ms typical window-based pitch shift latency
+            'FrequencyShifter': 5.8,
+            'StereoWidener': 0,
+            'EQ3': 0,
+            'Filter': 0,
+            'Convolver': 0,        // Depends on impulse, usually intentional
+            'JCReverb': 0,
+            'Freeverb': 0
+        };
+        
+        for (const effect of this.activeEffects) {
+            if (effect && effect.type) {
+                const latency = effectLatencyMap[effect.type] || 0;
+                totalLatencyMs += latency;
+            }
+        }
+        
+        return totalLatencyMs;
+    }
+
+    /**
+     * Set auto delay compensation mode.
+     * When enabled, delay compensation is automatically calculated from effects.
+     * @param {boolean} enabled - Whether to enable auto compensation
+     */
+    setAutoDelayCompensation(enabled) {
+        this.autoDelayCompensation = enabled;
+        if (enabled) {
+            const calculatedLatency = this.calculateEffectLatency();
+            this.setDelayCompensation(calculatedLatency);
+        }
+        console.log(`[Track ${this.id}] Auto delay compensation ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    /**
+     * Get delay compensation info for UI display.
+     * @returns {Object} { manual: number, calculated: number, auto: boolean, total: number }
+     */
+    getDelayCompensationInfo() {
+        const calculated = this.calculateEffectLatency();
+        const total = this.autoDelayCompensation ? calculated : this.delayCompensationMs;
+        return {
+            manual: this.delayCompensationMs,
+            calculated: calculated,
+            auto: this.autoDelayCompensation,
+            total: total
+        };
+    }
+
     dispose() {
         const trackNameForLog = this.name || `Track ${this.id}`; 
         console.log(`[Track Dispose START ${this.id}] Starting disposal for track: "${trackNameForLog}"`);
@@ -3503,6 +3636,12 @@ export class Track {
         this.inspectorControls = {};
         this.waveformCanvasCtx = null;
         this.instrumentWaveformCanvasCtx = null;
+
+        // Dispose delay compensation node
+        if (this.delayCompensationNode && !this.delayCompensationNode.disposed) {
+            try { this.delayCompensationNode.dispose(); } catch(e){ console.warn(`[Track Dispose ${this.id}] Error disposing delayCompensationNode:`, e.message); }
+        }
+        this.delayCompensationNode = null;
 
         console.log(`[Track Dispose END ${this.id}] Finished disposal for track: "${trackNameForLog}"`);
     }
