@@ -284,7 +284,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -321,8 +321,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -427,7 +427,7 @@ import {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
