@@ -165,6 +165,14 @@ export class Track {
         this.sequences = [];
         this.activeSequenceId = null;
         this.groovePreset = initialData?.groovePreset || 'none';
+        
+        // --- Pattern Chains ---
+        // Array of pattern chains, each chain is an array of { sequenceId, repeatCount }
+        this.patternChains = initialData?.patternChains || [];
+        this.activePatternChainId = initialData?.activePatternChainId || null;
+        this.patternChainPlaybackIndex = 0; // Current position in chain during playback
+        this.patternChainRepeatCounter = 0; // Current repeat count for the current pattern in chain
+        
         this.timelineClips = initialData?.timelineClips ? JSON.parse(JSON.stringify(initialData.timelineClips)) : [];
 
 
@@ -431,6 +439,323 @@ export class Track {
     getGroovePreset() {
         return this.groovePreset || 'none';
     }
+
+    // ==================== Pattern Chain Methods ====================
+
+    /**
+     * Create a new pattern chain.
+     * @param {string} name - Name for the chain
+     * @returns {Object} The newly created chain
+     */
+    createPatternChain(name = 'New Chain') {
+        if (this.type === 'Audio') {
+            console.warn(`[Track ${this.id}] Cannot create pattern chain on Audio track.`);
+            return null;
+        }
+
+        const chainId = `chain_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const newChain = {
+            id: chainId,
+            name: name,
+            patterns: [], // Array of { sequenceId, repeatCount }
+            loopEnabled: true // Whether to loop the chain
+        };
+
+        this.patternChains.push(newChain);
+        console.log(`[Track ${this.id}] Created pattern chain "${name}" with ID ${chainId}.`);
+        return newChain;
+    }
+
+    /**
+     * Delete a pattern chain.
+     * @param {string} chainId - The ID of the chain to delete
+     * @returns {boolean} True if deleted, false if not found
+     */
+    deletePatternChain(chainId) {
+        const index = this.patternChains.findIndex(c => c.id === chainId);
+        if (index === -1) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        this.patternChains.splice(index, 1);
+
+        // If the deleted chain was active, clear it
+        if (this.activePatternChainId === chainId) {
+            this.activePatternChainId = null;
+            this.patternChainPlaybackIndex = 0;
+            this.patternChainRepeatCounter = 0;
+        }
+
+        console.log(`[Track ${this.id}] Deleted pattern chain ${chainId}.`);
+        return true;
+    }
+
+    /**
+     * Rename a pattern chain.
+     * @param {string} chainId - The ID of the chain to rename
+     * @param {string} newName - The new name
+     * @returns {boolean} True if renamed, false if not found
+     */
+    renamePatternChain(chainId, newName) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        chain.name = newName;
+        console.log(`[Track ${this.id}] Renamed pattern chain ${chainId} to "${newName}".`);
+        return true;
+    }
+
+    /**
+     * Set the active pattern chain.
+     * @param {string} chainId - The ID of the chain to activate
+     * @returns {boolean} True if activated, false if not found
+     */
+    setActivePatternChain(chainId) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        this.activePatternChainId = chainId;
+        this.patternChainPlaybackIndex = 0;
+        this.patternChainRepeatCounter = 0;
+        console.log(`[Track ${this.id}] Active pattern chain set to "${chain.name}" (${chainId}).`);
+        return true;
+    }
+
+    /**
+     * Get the active pattern chain.
+     * @returns {Object|null} The active chain or null
+     */
+    getActivePatternChain() {
+        if (!this.activePatternChainId) return null;
+        return this.patternChains.find(c => c.id === this.activePatternChainId) || null;
+    }
+
+    /**
+     * Add a sequence to a pattern chain.
+     * @param {string} chainId - The ID of the chain
+     * @param {string} sequenceId - The ID of the sequence to add
+     * @param {number} repeatCount - Number of times to repeat this pattern (default 1)
+     * @param {number} position - Position to insert at (default: end)
+     * @returns {boolean} True if added, false if not found
+     */
+    addSequenceToChain(chainId, sequenceId, repeatCount = 1, position = -1) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        // Verify sequence exists
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found.`);
+            return false;
+        }
+
+        const patternEntry = {
+            sequenceId: sequenceId,
+            sequenceName: sequence.name,
+            repeatCount: Math.max(1, repeatCount)
+        };
+
+        if (position >= 0 && position < chain.patterns.length) {
+            chain.patterns.splice(position, 0, patternEntry);
+        } else {
+            chain.patterns.push(patternEntry);
+        }
+
+        console.log(`[Track ${this.id}] Added sequence "${sequence.name}" to chain "${chain.name}" with ${repeatCount} repeat(s).`);
+        return true;
+    }
+
+    /**
+     * Remove a sequence from a pattern chain.
+     * @param {string} chainId - The ID of the chain
+     * @param {number} position - Position in the chain to remove
+     * @returns {boolean} True if removed, false if not found
+     */
+    removeSequenceFromChain(chainId, position) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        if (position < 0 || position >= chain.patterns.length) {
+            console.warn(`[Track ${this.id}] Invalid position ${position} for chain "${chain.name}".`);
+            return false;
+        }
+
+        const removed = chain.patterns.splice(position, 1);
+        console.log(`[Track ${this.id}] Removed "${removed[0].sequenceName}" from chain "${chain.name}" at position ${position}.`);
+        return true;
+    }
+
+    /**
+     * Reorder patterns within a chain.
+     * @param {string} chainId - The ID of the chain
+     * @param {number} fromPosition - Original position
+     * @param {number} toPosition - New position
+     * @returns {boolean} True if reordered, false if not found
+     */
+    reorderChainPattern(chainId, fromPosition, toPosition) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        if (fromPosition < 0 || fromPosition >= chain.patterns.length ||
+            toPosition < 0 || toPosition >= chain.patterns.length) {
+            console.warn(`[Track ${this.id}] Invalid positions for reorder in chain "${chain.name}".`);
+            return false;
+        }
+
+        const [moved] = chain.patterns.splice(fromPosition, 1);
+        chain.patterns.splice(toPosition, 0, moved);
+        console.log(`[Track ${this.id}] Reordered pattern in chain "${chain.name}" from ${fromPosition} to ${toPosition}.`);
+        return true;
+    }
+
+    /**
+     * Set repeat count for a pattern in a chain.
+     * @param {string} chainId - The ID of the chain
+     * @param {number} position - Position in the chain
+     * @param {number} repeatCount - New repeat count
+     * @returns {boolean} True if updated, false if not found
+     */
+    setPatternRepeatCount(chainId, position, repeatCount) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        if (position < 0 || position >= chain.patterns.length) {
+            console.warn(`[Track ${this.id}] Invalid position ${position} for chain "${chain.name}".`);
+            return false;
+        }
+
+        chain.patterns[position].repeatCount = Math.max(1, repeatCount);
+        console.log(`[Track ${this.id}] Set repeat count for "${chain.patterns[position].sequenceName}" to ${repeatCount}.`);
+        return true;
+    }
+
+    /**
+     * Set loop enabled for a chain.
+     * @param {string} chainId - The ID of the chain
+     * @param {boolean} loopEnabled - Whether to loop the chain
+     * @returns {boolean} True if updated, false if not found
+     */
+    setChainLoopEnabled(chainId, loopEnabled) {
+        const chain = this.patternChains.find(c => c.id === chainId);
+        if (!chain) {
+            console.warn(`[Track ${this.id}] Pattern chain ${chainId} not found.`);
+            return false;
+        }
+
+        chain.loopEnabled = loopEnabled;
+        console.log(`[Track ${this.id}] Chain "${chain.name}" loop ${loopEnabled ? 'enabled' : 'disabled'}.`);
+        return true;
+    }
+
+    /**
+     * Get the current sequence in the active chain for playback.
+     * Returns null if no chain is active or chain is empty.
+     * @returns {Object|null} { sequence, chain, index, repeat, totalRepeats } or null
+     */
+    getCurrentChainSequence() {
+        const chain = this.getActivePatternChain();
+        if (!chain || chain.patterns.length === 0) return null;
+
+        const currentPattern = chain.patterns[this.patternChainPlaybackIndex];
+        if (!currentPattern) return null;
+
+        const sequence = this.sequences.find(s => s.id === currentPattern.sequenceId);
+        if (!sequence) return null;
+
+        return {
+            sequence: sequence,
+            chain: chain,
+            index: this.patternChainPlaybackIndex,
+            repeat: this.patternChainRepeatCounter,
+            totalRepeats: currentPattern.repeatCount
+        };
+    }
+
+    /**
+     * Advance to the next pattern in the chain.
+     * Called when the current pattern finishes.
+     * @returns {Object|null} The next sequence info, or null if chain ended
+     */
+    advanceChainPattern() {
+        const chain = this.getActivePatternChain();
+        if (!chain || chain.patterns.length === 0) return null;
+
+        const currentPattern = chain.patterns[this.patternChainPlaybackIndex];
+        if (!currentPattern) return null;
+
+        // Check if we need to repeat the current pattern
+        if (this.patternChainRepeatCounter < currentPattern.repeatCount - 1) {
+            this.patternChainRepeatCounter++;
+            return this.getCurrentChainSequence();
+        }
+
+        // Move to next pattern
+        this.patternChainPlaybackIndex++;
+        this.patternChainRepeatCounter = 0;
+
+        // Check if we've reached the end of the chain
+        if (this.patternChainPlaybackIndex >= chain.patterns.length) {
+            if (chain.loopEnabled) {
+                // Loop back to the beginning
+                this.patternChainPlaybackIndex = 0;
+                console.log(`[Track ${this.id}] Pattern chain "${chain.name}" looping back to start.`);
+            } else {
+                // Chain finished
+                console.log(`[Track ${this.id}] Pattern chain "${chain.name}" playback finished.`);
+                return null;
+            }
+        }
+
+        return this.getCurrentChainSequence();
+    }
+
+    /**
+     * Reset chain playback to the beginning.
+     */
+    resetChainPlayback() {
+        this.patternChainPlaybackIndex = 0;
+        this.patternChainRepeatCounter = 0;
+        console.log(`[Track ${this.id}] Pattern chain playback reset.`);
+    }
+
+    /**
+     * Get info about all pattern chains for UI display.
+     * @returns {Array} Array of chain info objects
+     */
+    getPatternChainsInfo() {
+        return this.patternChains.map(chain => ({
+            id: chain.id,
+            name: chain.name,
+            patternCount: chain.patterns.length,
+            loopEnabled: chain.loopEnabled,
+            patterns: chain.patterns.map(p => ({
+                sequenceId: p.sequenceId,
+                sequenceName: p.sequenceName,
+                repeatCount: p.repeatCount
+            })),
+            isActive: this.activePatternChainId === chain.id
+        }));
+    }
+
     getDefaultSynthParams() {
         // MODIFICATION: Change default oscillator type, decay, and sustain
         return {
