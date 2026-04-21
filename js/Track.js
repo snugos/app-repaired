@@ -2494,6 +2494,11 @@ export class Track {
                                 for (let rowIdx = 0; rowIdx < sourceSequence.data.length; rowIdx++) {
                                     const stepData = sourceSequence.data[rowIdx]?.[stepIdx];
                                     if (stepData?.active) {
+                                        // Check probability - skip note if random roll fails
+                                        const probability = stepData.probability ?? 1.0;
+                                        if (probability < 1.0 && Math.random() > probability) {
+                                            continue; // Skip this note based on probability
+                                        }
                                         let noteValue;
                                         let noteDuration = "16n"; 
                                         if (this.type === 'Synth' || this.type === 'InstrumentSampler') {

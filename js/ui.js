@@ -2617,6 +2617,165 @@ export function openTrackSequencerWindow(trackId, forceRedraw = false, savedStat
                 }
             });
         }
+        
+        // Handle probability lane toggle and reset buttons
+        const toggleProbLaneBtn = sequencerWindow.element.querySelector(`#toggleProbabilityLane-${track.id}`);
+        const clearAllProbBtn = sequencerWindow.element.querySelector(`#clearAllProbabilities-${track.id}`);
+        const probLaneContent = sequencerWindow.element.querySelector(`#probabilityLaneContent-${track.id}`);
+        
+        if (toggleProbLaneBtn && probLaneContent) {
+            toggleProbLaneBtn.addEventListener('click', () => {
+                if (probLaneContent.style.display === 'none') {
+                    probLaneContent.style.display = 'block';
+                    toggleProbLaneBtn.textContent = 'Hide';
+                } else {
+                    probLaneContent.style.display = 'none';
+                    toggleProbLaneBtn.textContent = 'Show';
+                }
+            });
+        }
+        
+        if (clearAllProbBtn) {
+            clearAllProbBtn.addEventListener('click', () => {
+                if (localAppServices.showConfirmationDialog) {
+                    localAppServices.showConfirmationDialog('Reset All Probabilities', 'Reset all step probabilities to 100%?', () => {
+                        const currentActiveSeq = track.getActiveSequence();
+                        if (!currentActiveSeq || !currentActiveSeq.data) return;
+                        currentActiveSeq.data.forEach((row, rowIdx) => {
+                            if (row) {
+                                row.forEach((cell, colIdx) => {
+                                    if (cell?.active) {
+                                        currentActiveSeq.data[rowIdx][colIdx] = { ...cell, probability: 1.0 };
+                                    }
+                                });
+                            }
+                        });
+                        openTrackSequencerWindow(trackId, true);
+                        if (localAppServices.showNotification) localAppServices.showNotification('All probabilities reset to 100%.', 1500);
+                    });
+                }
+            });
+        }
+        
+        // Handle probability lane cell clicks for direct probability editing
+        const probGrid = sequencerWindow.element.querySelector(`#probabilityLaneContent-${track.id} .probability-grid`);
+        if (probGrid) {
+            probGrid.addEventListener('click', (e) => {
+                const probCell = e.target.closest('.probability-cell');
+                if (!probCell) return;
+                
+                const row = parseInt(probCell.dataset.row, 10);
+                const col = parseInt(probCell.dataset.col, 10);
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+                
+                const stepData = currentActiveSeq.data[row][col];
+                if (!stepData?.active) return;
+                
+                // Cycle probability on click: 25%, 50%, 75%, 100%
+                const probabilities = [0.25, 0.5, 0.75, 1.0];
+                const currentProb = stepData.probability ?? 1.0;
+                const idx = probabilities.findIndex(p => Math.abs(p - currentProb) < 0.05);
+                const nextProb = idx >= 0 ? probabilities[(idx + 1) % probabilities.length] : 1.0;
+                currentActiveSeq.data[row][col] = { ...stepData, probability: nextProb };
+                
+                if (localAppServices.captureStateForUndo) {
+                    localAppServices.captureStateForUndo(`Set probability to ${Math.round(nextProb * 100)}% for step (${row + 1},${col + 1}) on ${track.name}`);
+                }
+                
+                // Update probability bar in lane
+                const probRow = probGrid.querySelector(`.probability-row[data-row="${row}"]`);
+                if (probRow) {
+                    const cell = probRow.querySelector(`.probability-cell[data-col="${col}"]`);
+                    if (cell) {
+                        const probHeight = Math.round(nextProb * 12);
+                        const probBar = cell.querySelector('.probability-bar');
+                        if (probBar) {
+                            probBar.style.height = `${probHeight}px`;
+                            // Color based on probability
+                            const probColor = nextProb < 0.5 ? `rgba(239, 68, 68, ${0.5 + nextProb * 0.5})` : (nextProb < 1.0 ? `rgba(234, 179, 8, ${0.5 + nextProb * 0.5})` : `rgba(34, 197, 94, ${0.7 + nextProb * 0.3})`);
+                            probBar.style.background = probColor;
+                            probBar.title = `Prob: ${Math.round(nextProb * 100)}%${nextProb < 1.0 ? ' (may not play)' : ''}`;
+                        }
+                    }
+                }
+                
+                // Update the main grid cell title to reflect new probability
+                const gridCell = sequencerWindow.element.querySelector(`.sequencer-step-cell[data-row="${row}"][data-col="${col}"]`);
+                if (gridCell) {
+                    const probText = nextProb < 1.0 ? `, Prob: ${Math.round(nextProb * 100)}%` : '';
+                    gridCell.title = `Row ${row + 1}, Step ${col + 1}, Vel: ${Math.round((stepData.velocity || 0.7) * 100)}%${probText}`;
+                }
+            });
+            
+            // Right-click on probability cell for fine-grained slider popup
+            probGrid.addEventListener('contextmenu', (e) => {
+                const probCell = e.target.closest('.probability-cell');
+                if (!probCell) return;
+                
+                const row = parseInt(probCell.dataset.row, 10);
+                const col = parseInt(probCell.dataset.col, 10);
+                const currentActiveSeq = track.getActiveSequence();
+                if (!currentActiveSeq || !currentActiveSeq.data || !currentActiveSeq.data[row]) return;
+                
+                const stepData = currentActiveSeq.data[row][col];
+                if (!stepData?.active) return;
+                
+                e.preventDefault();
+                
+                const probability = stepData.probability ?? 1.0;
+                const popup = document.createElement('div');
+                popup.className = 'probability-popup fixed bg-gray-100 dark:bg-slate-800 border border-slate-400 dark:border-slate-600 rounded shadow-lg p-2 z-[9999]';
+                popup.style.left = `${e.clientX}px`;
+                popup.style.top = `${e.clientY}px`;
+                popup.innerHTML = `
+                    <div class="text-xs font-semibold mb-1 dark:text-slate-200">Probability</div>
+                    <input type="range" min="0.05" max="1" step="0.05" value="${probability}" class="w-32" id="probSlider">
+                    <div class="text-xs text-center mt-1 dark:text-slate-300" id="probLabel">${Math.round(probability * 100)}%</div>
+                    <div class="text-xs text-center mt-1 text-gray-500">Right-click to close</div>
+                `;
+                document.body.appendChild(popup);
+                
+                const slider = popup.querySelector('#probSlider');
+                const label = popup.querySelector('#probLabel');
+                slider.addEventListener('input', () => {
+                    const p = parseFloat(slider.value);
+                    label.textContent = `${Math.round(p * 100)}%`;
+                    currentActiveSeq.data[row][col] = { ...stepData, probability: p };
+                    
+                    // Update bar in lane
+                    const probRow = probGrid.querySelector(`.probability-row[data-row="${row}"]`);
+                    if (probRow) {
+                        const cell = probRow.querySelector(`.probability-cell[data-col="${col}"]`);
+                        if (cell) {
+                            const probHeight = Math.round(p * 12);
+                            const probBar = cell.querySelector('.probability-bar');
+                            if (probBar) {
+                                probBar.style.height = `${probHeight}px`;
+                                const probColor = p < 0.5 ? `rgba(239, 68, 68, ${0.5 + p * 0.5})` : (p < 1.0 ? `rgba(234, 179, 8, ${0.5 + p * 0.5})` : `rgba(34, 197, 94, ${0.7 + p * 0.3})`);
+                                probBar.style.background = probColor;
+                                probBar.title = `Prob: ${Math.round(p * 100)}%${p < 1.0 ? ' (may not play)' : ''}`;
+                            }
+                        }
+                    }
+                });
+                
+                slider.addEventListener('change', () => {
+                    if (localAppServices.captureStateForUndo) {
+                        localAppServices.captureStateForUndo(`Set probability for step (${row + 1},${col + 1}) on ${track.name}`);
+                    }
+                    popup.remove();
+                });
+                
+                const closePopup = (ev) => {
+                    if (!popup.contains(ev.target)) {
+                        popup.remove();
+                        document.removeEventListener('click', closePopup);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closePopup), 10);
+            });
+        }
 
     }
     return sequencerWindow;

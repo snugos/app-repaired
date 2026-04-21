@@ -341,6 +341,8 @@ function updateCcVisualizerBars() {
         if (key) existingBars.set(key, wrapper);
     });
     
+    let barCache = new Map();
+    
     displayKeys.forEach(key => {
         const value = ccValues[key] || 0;
         let wrapper = existingBars.get(key);
