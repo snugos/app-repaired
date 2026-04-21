@@ -1203,14 +1203,11 @@ export function handleTrackArm(trackId) {
 
         const newArmedTrack = getTrackById(getArmedTrackId()); 
         const notificationMessage = newArmedTrack ? `${newArmedTrack.name} armed for input.` : "All tracks disarmed.";
-        if (localAppServices.showNotification) localAppServices.showNotification(notificationMessage, 1500);
-        else showNotification(notificationMessage, 1500); 
-
-        const tracks = getTracks();
-        if (tracks && Array.isArray(tracks)) {
-            tracks.forEach(t => {
-                if (t && localAppServices.updateTrackUI) localAppServices.updateTrackUI(t.id, 'armChanged');
-            });
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(notificationMessage, 1500);
+        }
+        if (localAppServices.updateTrackUI) {
+            localAppServices.updateTrackUI(trackId, 'armChanged');
         }
     } catch (error) { console.error(`[EventHandlers handleTrackArm] Error for track ${trackId}:`, error); }
 }
