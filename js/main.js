@@ -63,6 +63,10 @@ import {
     getScaleHintEnabled, setScaleHintEnabled, getScaleHintRoot, setScaleHintRoot,
     getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
     isNoteInScale, isNoteNameInScale,
+    // Scale Lock
+    getScaleLockEnabled, setScaleLockEnabled, getScaleLockRoot, setScaleLockRoot,
+    getScaleLockType, setScaleLockType, getScaleLockMode, setScaleLockMode,
+    quantizeNoteToScale, isNoteInScaleLock, applyScaleLockToNote,
     // Groove Templates
     getGroovePresets, getGroovePresetById, getGrooveSwingAmount,
     // Track Groups
@@ -106,6 +110,7 @@ import {
     openTrackGroupsPanel,
     openArpeggiatorPanel,
     openGrooveTemplatesPanel,
+    openScaleLockPanel,
     
     // Groove Templates
     getGroovePresets,
@@ -629,7 +634,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -666,7 +671,7 @@ const appServices = {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -759,6 +764,7 @@ const appServices = {
     openTrackGroupsPanel,
     openArpeggiatorPanel,
     openGrooveTemplatesPanel,
+    openScaleLockPanel,
     
     // Groove Templates
     getGroovePresets,
