@@ -1073,6 +1073,9 @@ export function openSoundBrowserWindow(savedState = null) {
             </select>
             <button id="upDirectoryBtn" class="px-2 py-1 border rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 dark:border-slate-500" title="Up Directory">↑</button>
         </div>
+        <div class="flex items-center mb-1">
+            <input type="text" id="soundBrowserSearch" placeholder="Search sounds..." class="flex-1 p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+        </div>
         <div id="currentPathDisplay" class="text-xs text-gray-600 dark:text-slate-400 truncate mb-1">/</div>
         <div id="soundBrowserList" class="min-h-[100px] border rounded p-1 bg-gray-100 dark:bg-slate-700 dark:border-slate-600 overflow-y-auto" style="max-height: 200px;">
             <p class="text-gray-500 dark:text-slate-400 italic">Select a library to browse sounds.</p>
@@ -1131,6 +1134,21 @@ export function openSoundBrowserWindow(savedState = null) {
                 if (localAppServices.renderSoundBrowserDirectory) localAppServices.renderSoundBrowserDirectory(newPath, localAppServices.getCurrentSoundFileTree ? localAppServices.getCurrentSoundFileTree() : null);
             }
         });
+
+        // Sound browser search filter
+        const searchInput = browserWindow.element.querySelector('#soundBrowserSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const listDiv = browserWindow.element.querySelector('#soundBrowserList');
+                if (!listDiv) return;
+                const items = listDiv.querySelectorAll('[data-file-name]');
+                items.forEach(item => {
+                    const name = (item.dataset.fileName || item.textContent || '').toLowerCase();
+                    item.style.display = name.includes(query) ? '' : 'none';
+                });
+            });
+        }
 
         browserWindow.element.querySelector('#previewSoundBtn').addEventListener('click', () => {
             const selectedSound = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : null;
