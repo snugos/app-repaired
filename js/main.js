@@ -57,6 +57,9 @@ import {
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
     gatherProjectDataInternal, reconstructDAWInternal, saveProjectInternal,
     saveProjectTemplate, loadProjectTemplate, getProjectTemplateNames, getProjectTemplate, deleteProjectTemplate,
+    
+    // Track Templates
+    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate,
     loadProjectInternal, handleProjectFileLoadInternal, exportToWavInternal,
     exportToMidiInternal,
     // Scale Hint
@@ -470,6 +473,9 @@ const appServices = {
 
     exportToMidi: exportToMidiInternal,
     saveProjectTemplate, loadProjectTemplate, getProjectTemplateNames, getProjectTemplate, deleteProjectTemplate,
+    
+    // Track Templates
+    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate,
 
     // Event Handler Passthroughs
     selectMIDIInput: eventSelectMIDIInput, 
