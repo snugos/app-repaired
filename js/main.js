@@ -74,7 +74,7 @@ import {
     addTrackToGroup, removeTrackFromGroup, setTrackGroupVolume, setTrackGroupMute,
     setTrackGroupSolo, toggleTrackGroupMute, toggleTrackGroupSolo, clearAllTrackGroups,
     // Track Templates
-    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate
+    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,

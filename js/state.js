@@ -706,6 +706,27 @@ export function deleteTrackTemplate(templateName) {
     return false;
 }
 
+export function renameTrackTemplate(oldName, newName) {
+    if (!trackTemplates[oldName]) {
+        console.warn(`[State] Track template "${oldName}" not found`);
+        return false;
+    }
+    if (trackTemplates[newName]) {
+        console.warn(`[State] Track template "${newName}" already exists`);
+        return false;
+    }
+    if (!newName || newName.trim() === '') {
+        console.warn(`[State] Invalid template name`);
+        return false;
+    }
+    
+    trackTemplates[newName] = trackTemplates[oldName];
+    trackTemplates[newName].name = newName;
+    delete trackTemplates[oldName];
+    console.log(`[State] Renamed track template "${oldName}" to "${newName}"`);
+    return true;
+}
+
 export function getTrackTemplate(templateName) {
     if (trackTemplates[templateName]) {
         return JSON.parse(JSON.stringify(trackTemplates[templateName]));
