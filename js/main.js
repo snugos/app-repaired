@@ -117,6 +117,7 @@ import {
     openGrooveTemplatesPanel,
     openScaleLockPanel,
     openTrackTemplatesPanel,
+    openAutomationLanesPanel,
     
     // Groove Templates
     getGroovePresets,
@@ -775,6 +776,7 @@ const appServices = {
     openGrooveTemplatesPanel,
     openScaleLockPanel,
     openTrackTemplatesPanel,
+    openAutomationLanesPanel,
     
     // Groove Templates
     getGroovePresets,

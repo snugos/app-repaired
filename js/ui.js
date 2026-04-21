@@ -4192,7 +4192,7 @@ function renderScaleHintPanelContent() {
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Root Note</label>
             <div class="grid grid-cols-6 gap-1">
                 ${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(n => `
-                    <button class="root-note-btn px-2 py-1.5 text-xs rounded border ${root === n ? 'bg-blue-500 text-white border-blue-600' : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300'}" data-root="${n}">
+                    <button class="root-note-btn px-2 py-1.5 text-xs rounded border ${root === n ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300'}" data-root="${n}">
                         ${n}
                     </button>
                 `).join('')}
@@ -7737,5 +7737,253 @@ export function updateTrackTemplatesPanel() {
     const container = document.getElementById('trackTemplatesContent');
     if (container) {
         renderTrackTemplatesContent();
+    }
+}
+
+// --- Automation Lanes Panel ---
+export function openAutomationLanesPanel(savedState = null) {
+    const windowId = 'automationLanes';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderAutomationLanesContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'automationLanesContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 600, 
+        height: 500, 
+        minWidth: 400, 
+        minHeight: 300,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Automation Lanes', contentContainer, options);
+    
+    if (win?.element) {
+        renderAutomationLanesContent();
+    }
+    
+    return win;
+}
+
+function renderAutomationLanesContent() {
+    const container = document.getElementById('automationLanesContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    const activeTrackId = localAppServices.getActiveSequencerTrackIdState ? localAppServices.getActiveSequencerTrackIdState() : null;
+    const track = tracks.find(t => t.id === activeTrackId);
+    
+    const automationParams = [
+        { id: 'volume', name: 'Volume', min: 0, max: 1 },
+        { id: 'pan', name: 'Pan', min: -1, max: 1 },
+        { id: 'filterFreq', name: 'Filter Freq', min: 0, max: 1 },
+        { id: 'filterRes', name: 'Filter Res', min: 0, max: 1 }
+    ];
+
+    let html = `
+        <div class="mb-3 flex justify-between items-center">
+            <div>
+                <select id="automationTrackSelect" class="p-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600">
+                    <option value="">Select Track...</option>
+                    ${tracks.map(t => `<option value="${t.id}" ${t.id === activeTrackId ? 'selected' : ''}>${t.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <select id="automationParamSelect" class="p-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600">
+                    ${automationParams.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                </select>
+                <button id="clearAutomationBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">
+                    Clear All
+                </button>
+            </div>
+        </div>
+        <div id="automationCanvasContainer" class="bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 relative" style="height: 300px;">
+            <canvas id="automationCanvas" class="w-full h-full"></canvas>
+        </div>
+        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Click to add points. Right-click to remove. Drag points to edit.
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Track selection handler
+    const trackSelect = document.getElementById('automationTrackSelect');
+    if (trackSelect) {
+        trackSelect.addEventListener('change', (e) => {
+            if (localAppServices.setActiveSequencerTrackIdState) {
+                localAppServices.setActiveSequencerTrackIdState(parseInt(e.target.value) || null);
+            }
+            renderAutomationLanesContent();
+        });
+    }
+
+    // Clear automation button
+    const clearBtn = document.getElementById('clearAutomationBtn');
+    if (clearBtn && track) {
+        clearBtn.addEventListener('click', () => {
+            const param = document.getElementById('automationParamSelect')?.value || 'volume';
+            if (track.clearAutomation) {
+                track.clearAutomation(param);
+                drawAutomationLane(track, param);
+            }
+        });
+    }
+
+    // Canvas click handling
+    const canvas = document.getElementById('automationCanvas');
+    if (canvas && track) {
+        const param = document.getElementById('automationParamSelect')?.value || 'volume';
+        setupAutomationCanvas(canvas, track, param);
+    }
+}
+
+function setupAutomationCanvas(canvas, track, param) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    let isDragging = false;
+    let selectedPointIndex = -1;
+
+    function draw() {
+        const automation = track?.automation?.[param] || [];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (i / 4) * canvas.height;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Draw automation line
+        if (automation.length > 0) {
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            automation.forEach((point, idx) => {
+                const x = (point.time / 60) * canvas.width;
+                const y = canvas.height - (point.value * canvas.height);
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Draw points
+            automation.forEach((point, idx) => {
+                const x = (point.time / 60) * canvas.width;
+                const y = canvas.height - (point.value * canvas.height);
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = idx === selectedPointIndex ? '#ec4899' : '#8b5cf6';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+    }
+
+    draw();
+
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const automation = track?.automation?.[param] || [];
+
+        // Check if clicking on existing point
+        selectedPointIndex = -1;
+        automation.forEach((point, idx) => {
+            const x = (point.time / 60) * canvas.width;
+            const y = canvas.height - (point.value * canvas.height);
+            const dist = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+            if (dist < 10) selectedPointIndex = idx;
+        });
+
+        if (e.button === 2 && selectedPointIndex >= 0) {
+            // Right-click: remove point
+            const point = automation[selectedPointIndex];
+            if (track.removeAutomationPoint) {
+                track.removeAutomationPoint(param, point.time);
+            }
+            selectedPointIndex = -1;
+            draw();
+        } else if (selectedPointIndex < 0) {
+            // Left-click on empty area: add point
+            const time = (mouseX / canvas.width) * 60;
+            const value = 1 - (mouseY / canvas.height);
+            if (track.addAutomationPoint) {
+                track.addAutomationPoint(param, time, Math.max(0, Math.min(1, value)), 'linear');
+            }
+            draw();
+        } else {
+            isDragging = true;
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging || selectedPointIndex < 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const automation = track?.automation?.[param] || [];
+        const point = automation[selectedPointIndex];
+        if (point) {
+            const time = Math.max(0, Math.min(60, (mouseX / canvas.width) * 60));
+            const value = Math.max(0, Math.min(1, 1 - (mouseY / canvas.height)));
+            point.time = time;
+            point.value = value;
+            draw();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Param select change handler
+    const paramSelect = document.getElementById('automationParamSelect');
+    if (paramSelect) {
+        paramSelect.addEventListener('change', (e) => {
+            setupAutomationCanvas(canvas, track, e.target.value);
+        });
+    }
+}
+
+export function updateAutomationLanesPanel() {
+    const container = document.getElementById('automationLanesContent');
+    if (container) {
+        renderAutomationLanesContent();
     }
 }
