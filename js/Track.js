@@ -1428,7 +1428,17 @@ export class Track {
         }
     }
 
+    // ==================== Undo Capture Helper ====================
+    _captureUndoState(description) {
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(description);
+        } else {
+            console.warn(`[Track ${this.id}] captureStateForUndo service not available.`);
+        }
+    }
+
     setVolume(volume, fromInteraction = false) { 
+        if (!fromInteraction) this._captureUndoState(`Set volume on ${this.name}`);
         this.previousVolumeBeforeMute = Math.max(0, Math.min(parseFloat(volume) || 0, 1.5)); 
         if (this.gainNode && !this.gainNode.disposed && !this.isMuted) {
             try {
@@ -1529,6 +1539,136 @@ export class Track {
         if (this.midiChannel === 0) return true;
         // Otherwise, check if channel matches
         return this.midiChannel === midiChannel;
+    }
+
+    // ==================== Slice Setters ====================
+    setSliceVolume(sliceIndex, volume) {
+        this._captureUndoState(`Set slice ${sliceIndex+1} volume on ${this.name}`);
+        if (this.slices && this.slices[sliceIndex]) this.slices[sliceIndex].volume = parseFloat(volume);
+    }
+    setSlicePitchShift(sliceIndex, semitones) {
+        this._captureUndoState(`Set slice ${sliceIndex+1} pitch on ${this.name}`);
+        if (this.slices && this.slices[sliceIndex]) this.slices[sliceIndex].pitchShift = parseInt(semitones);
+    }
+    setSliceLoop(sliceIndex, loop) {
+        this._captureUndoState(`Set slice ${sliceIndex+1} loop on ${this.name}`);
+        if (this.slices && this.slices[sliceIndex]) this.slices[sliceIndex].loop = !!loop;
+    }
+    setSliceReverse(sliceIndex, reverse) {
+        this._captureUndoState(`Set slice ${sliceIndex+1} reverse on ${this.name}`);
+        if (this.slices && this.slices[sliceIndex]) this.slices[sliceIndex].reverse = !!reverse;
+    }
+    setSliceEnvelopeParam(sliceIndex, param, value) {
+        this._captureUndoState(`Set slice ${sliceIndex+1} envelope on ${this.name}`);
+        if (this.slices && this.slices[sliceIndex] && this.slices[sliceIndex].envelope) {
+            this.slices[sliceIndex].envelope[param] = parseFloat(value);
+        }
+    }
+
+    // ==================== Drum Sampler Pad Setters ====================
+    setDrumSamplerPadVolume(padIndex, volume) {
+        this._captureUndoState(`Set pad ${padIndex+1} volume on ${this.name}`);
+        if (this.drumSamplerPads && this.drumSamplerPads[padIndex]) this.drumSamplerPads[padIndex].volume = parseFloat(volume);
+    }
+    setDrumSamplerPadPitch(padIndex, pitch) {
+        this._captureUndoState(`Set pad ${padIndex+1} pitch on ${this.name}`);
+        if (this.drumSamplerPads && this.drumSamplerPads[padIndex]) this.drumSamplerPads[padIndex].pitchShift = parseInt(pitch);
+    }
+    setDrumSamplerPadEnv(padIndex, param, value) {
+        this._captureUndoState(`Set pad ${padIndex+1} envelope on ${this.name}`);
+        if (this.drumSamplerPads && this.drumSamplerPads[padIndex] && this.drumSamplerPads[padIndex].envelope) {
+            this.drumSamplerPads[padIndex].envelope[param] = parseFloat(value);
+        }
+    }
+
+    // ==================== Instrument Sampler Setters ====================
+    setInstrumentSamplerRootNote(noteName) {
+        this._captureUndoState(`Set root note on ${this.name}`);
+        if (this.instrumentSamplerSettings) {
+            this.instrumentSamplerSettings.rootNote = noteName;
+            this.setupToneSampler();
+        }
+    }
+    setInstrumentSamplerLoop(loop) {
+        this._captureUndoState(`Toggle loop on ${this.name}`);
+        if (this.instrumentSamplerSettings) {
+            this.instrumentSamplerSettings.loop = !!loop;
+            if (this.toneSampler && !this.toneSampler.disposed) this.toneSampler.loop = this.instrumentSamplerSettings.loop;
+        }
+    }
+    setInstrumentSamplerLoopStart(time) {
+        this._captureUndoState(`Set loop start on ${this.name}`);
+        if (this.instrumentSamplerSettings) {
+            this.instrumentSamplerSettings.loopStart = parseFloat(time) || 0;
+            if (this.toneSampler && !this.toneSampler.disposed) this.toneSampler.loopStart = this.instrumentSamplerSettings.loopStart;
+        }
+    }
+    setInstrumentSamplerLoopEnd(time) {
+        this._captureUndoState(`Set loop end on ${this.name}`);
+        if (this.instrumentSamplerSettings) {
+            this.instrumentSamplerSettings.loopEnd = parseFloat(time) || 0;
+            if (this.toneSampler && !this.toneSampler.disposed) this.toneSampler.loopEnd = this.instrumentSamplerSettings.loopEnd;
+        }
+    }
+    setInstrumentSamplerEnv(param, value) {
+        this._captureUndoState(`Set ${param} envelope on ${this.name}`);
+        if (this.instrumentSamplerSettings && this.instrumentSamplerSettings.envelope) {
+            this.instrumentSamplerSettings.envelope[param] = parseFloat(value);
+            if (this.toneSampler && !this.toneSampler.disposed) {
+                if (param === 'attack' && typeof this.toneSampler.attack !== 'undefined') this.toneSampler.attack = value;
+                if (param === 'release' && typeof this.toneSampler.release !== 'undefined') this.toneSampler.release = value;
+            }
+        }
+    }
+
+    // ==================== Synth Setters ====================
+    setSynthParam(paramPath, value) {
+        this._captureUndoState(`Set ${paramPath} on ${this.name}`);
+        if (!this.instrument || this.instrument.disposed) {
+            console.warn(`[Track ${this.id} setSynthParam] Synth instrument not available or disposed for param "${paramPath}".`);
+            return;
+        }
+        try {
+            const keys = paramPath.split('.');
+            let target = this.instrument;
+            let paramsTarget = this.synthParams;
+
+            for (let i = 0; i < keys.length - 1; i++) {
+                if (target && typeof target[keys[i]] !== 'undefined') {
+                    target = target[keys[i]];
+                } else {
+                    console.warn(`[Track ${this.id} setSynthParam] Path part "${keys[i]}" not found on Tone instrument for "${paramPath}".`);
+                    return; 
+                }
+                paramsTarget[keys[i]] = paramsTarget[keys[i]] || {};
+                paramsTarget = paramsTarget[keys[i]];
+            }
+            const finalKey = keys[keys.length - 1];
+
+            paramsTarget[finalKey] = value; 
+
+            if (target && typeof target[finalKey] !== 'undefined') {
+                if (target[finalKey] && typeof target[finalKey].setValueAtTime === 'function') {
+                    target[finalKey].setValueAtTime(value, Tone.now());
+                } else if (target[finalKey] && typeof target[finalKey].value !== 'undefined') {
+                     target[finalKey].value = value;
+                } else {
+                    target[finalKey] = value;
+                }
+            } else if (target && typeof target.set === 'function') {
+                const setObj = {};
+                let currentLevel = setObj;
+                keys.forEach((k, idx) => {
+                    if (idx === keys.length -1) currentLevel[k] = value;
+                    else { currentLevel[k] = {}; currentLevel = currentLevel[k];}
+                });
+                target.set(setObj);
+            } else {
+                 console.warn(`[Track ${this.id} setSynthParam] Could not set param "${finalKey}" on Tone instrument target for path "${paramPath}". Target:`, target);
+            }
+        } catch (e) {
+            console.error(`[Track ${this.id} setSynthParam] Error setting synth param "${paramPath}" to ${value}:`, e);
+        }
     }
 
     // --- Send Level Methods ---

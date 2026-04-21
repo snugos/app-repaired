@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.2.0"; // Added application version
+export const APP_VERSION = "0.2.1"; // Bumped for undo capture additions and setter methods
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
