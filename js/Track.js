@@ -2171,6 +2171,290 @@ export class Track {
     }
 
     /**
+     * Convert an audio clip to MIDI notes using pitch detection.
+     * Creates a new Synth track with the detected melody.
+     * @param {string} clipId - The clip ID to convert
+     * @param {Object} options - Options for conversion
+     * @param {number} options.sensitivity - Detection sensitivity (0-1, default 0.5)
+     * @param {number} options.minNoteDuration - Minimum note duration in seconds (default 0.1)
+     * @param {string} options.targetTrackId - Optional target track ID for the MIDI output
+     * @returns {Object|null} Object with newTrackId and noteCount, or null if failed
+     */
+    convertAudioToMidi(clipId, options = {}) {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] convertAudioToMidi only works on Audio tracks.`);
+            return null;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return null;
+        }
+
+        // Get audio buffer from the clip
+        let audioBuffer = null;
+        if (clip.audioBuffer) {
+            audioBuffer = clip.audioBuffer;
+        } else if (clip.dbKey && this.appServices?.getAudioBufferFromDb) {
+            audioBuffer = this.appServices.getAudioBufferFromDb(clip.dbKey);
+        }
+
+        if (!audioBuffer) {
+            console.warn(`[Track ${this.id}] No audio buffer available for clip ${clipId}.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification('Audio buffer not loaded. Play the clip first.', 2000);
+            }
+            return null;
+        }
+
+        const sensitivity = options.sensitivity ?? 0.5;
+        const minNoteDuration = options.minNoteDuration ?? 0.1;
+
+        console.log(`[Track ${this.id}] Converting audio clip "${clip.name}" to MIDI. Sensitivity: ${sensitivity}, Min note duration: ${minNoteDuration}s`);
+
+        // Get BPM for timing calculation
+        const bpm = this.appServices?.getBPM ? this.appServices.getBPM() : 120;
+        const secondsPerBeat = 60 / bpm;
+        const stepsPerBar = Constants.STEPS_PER_BAR || 16;
+        const secondsPerStep = secondsPerBeat * 4 / stepsPerBar;
+
+        // Perform pitch detection
+        const detectedNotes = this._detectPitchesFromAudio(audioBuffer, {
+            sensitivity,
+            minNoteDuration,
+            secondsPerStep,
+            clipStartTime: clip.startTime
+        });
+
+        if (detectedNotes.length === 0) {
+            console.warn(`[Track ${this.id}] No notes detected in audio clip.`);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification('No clear melody detected in audio.', 2000);
+            }
+            return null;
+        }
+
+        console.log(`[Track ${this.id}] Detected ${detectedNotes.length} notes from audio.`);
+
+        // Create a new Synth track for the MIDI output
+        const targetTrackId = options.targetTrackId || null;
+        let newTrackId = targetTrackId;
+
+        if (!targetTrackId && this.appServices?.createTrack) {
+            const newTrack = this.appServices.createTrack('Synth', null, `${clip.name} (MIDI)`);
+            if (newTrack) {
+                newTrackId = newTrack.id;
+            }
+        }
+
+        if (!newTrackId) {
+            console.warn(`[Track ${this.id}] Could not create target track for MIDI output.`);
+            return null;
+        }
+
+        const targetTrack = this.appServices?.getTrackById ? this.appServices.getTrackById(newTrackId) : null;
+        if (!targetTrack) {
+            console.warn(`[Track ${this.id}] Target track ${newTrackId} not found.`);
+            return null;
+        }
+
+        const activeSeq = targetTrack.getActiveSequence ? targetTrack.getActiveSequence() : null;
+        if (!activeSeq || !activeSeq.data) {
+            console.warn(`[Track ${this.id}] Target track has no active sequence.`);
+            return null;
+        }
+
+        // Clear existing sequence data
+        const numRows = activeSeq.data.length;
+        const totalSteps = activeSeq.length;
+        activeSeq.data = Array(numRows).fill(null).map(() => Array(totalSteps).fill(null));
+
+        // Add detected notes to sequence
+        let noteCount = 0;
+        for (const note of detectedNotes) {
+            const stepIndex = Math.floor(note.time / secondsPerStep);
+            const durationSteps = Math.max(1, Math.round(note.duration / secondsPerStep));
+            const midiNote = note.midiNote;
+            const middleRow = Math.floor(numRows / 2);
+            const rowIndex = Math.max(0, Math.min(numRows - 1, middleRow - (midiNote - 60)));
+
+            if (stepIndex >= 0 && stepIndex < totalSteps && rowIndex >= 0 && rowIndex < numRows) {
+                if (!activeSeq.data[rowIndex]) {
+                    activeSeq.data[rowIndex] = Array(totalSteps).fill(null);
+                }
+                activeSeq.data[rowIndex][stepIndex] = {
+                    active: true,
+                    velocity: note.velocity,
+                    duration: durationSteps
+                };
+                noteCount++;
+            }
+        }
+
+        if (targetTrack.recreateToneSequence) {
+            targetTrack.recreateToneSequence(true);
+        }
+
+        console.log(`[Track ${this.id}] Added ${noteCount} notes to track ${newTrackId}.`);
+
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Converted to MIDI: ${noteCount} notes detected`, 3000);
+        }
+
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(newTrackId, 'sequencerContentChanged');
+        }
+
+        return { newTrackId, noteCount, detectedNotes };
+    }
+
+    /**
+     * Internal method to detect pitches from audio buffer using autocorrelation.
+     */
+    _detectPitchesFromAudio(audioBuffer, options = {}) {
+        const sensitivity = options.sensitivity ?? 0.5;
+        const minNoteDuration = options.minNoteDuration ?? 0.1;
+        const secondsPerStep = options.secondsPerStep ?? 0.125;
+        const clipStartTime = options.clipStartTime ?? 0;
+
+        let channelData, sampleRate, duration;
+        if (audioBuffer.getChannelData) {
+            channelData = audioBuffer.getChannelData(0);
+            sampleRate = audioBuffer.sampleRate;
+            duration = audioBuffer.duration;
+        } else if (audioBuffer._buffer) {
+            const buffer = audioBuffer._buffer;
+            channelData = buffer.getChannelData(0);
+            sampleRate = buffer.sampleRate;
+            duration = buffer.duration;
+        } else {
+            console.warn('[Pitch Detection] Invalid audio buffer format.');
+            return [];
+        }
+
+        const fftSize = 4096;
+        const hopSize = Math.floor(fftSize / 4);
+        const minFrequency = 80;
+        const maxFrequency = 1200;
+        const amplitudeThreshold = 0.01 + (1 - sensitivity) * 0.05;
+
+        const detectedNotes = [];
+        let currentNote = null, currentNoteStart = 0, currentNoteVelocitySum = 0, currentNoteSampleCount = 0;
+
+        const numFrames = Math.floor((channelData.length - fftSize) / hopSize);
+
+        for (let frameIndex = 0; frameIndex < numFrames; frameIndex++) {
+            const startSample = frameIndex * hopSize;
+            const frameTime = startSample / sampleRate;
+
+            let rms = 0;
+            for (let i = 0; i < fftSize; i++) {
+                const sample = channelData[startSample + i] || 0;
+                rms += sample * sample;
+            }
+            rms = Math.sqrt(rms / fftSize);
+
+            if (rms < amplitudeThreshold) {
+                if (currentNote !== null) {
+                    const noteDuration = frameTime - currentNoteStart;
+                    if (noteDuration >= minNoteDuration) {
+                        detectedNotes.push({
+                            midiNote: currentNote,
+                            time: currentNoteStart + clipStartTime,
+                            duration: noteDuration,
+                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                        });
+                    }
+                    currentNote = null;
+                }
+                continue;
+            }
+
+            const frequency = this._autocorrelationPitch(channelData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+
+            if (frequency > 0) {
+                const midiNote = Math.round(12 * Math.log2(frequency / 440) + 69);
+                const clampedMidiNote = Math.max(24, Math.min(96, midiNote));
+
+                if (currentNote === clampedMidiNote) {
+                    currentNoteVelocitySum += rms;
+                    currentNoteSampleCount++;
+                } else {
+                    if (currentNote !== null) {
+                        const noteDuration = frameTime - currentNoteStart;
+                        if (noteDuration >= minNoteDuration) {
+                            detectedNotes.push({
+                                midiNote: currentNote,
+                                time: currentNoteStart + clipStartTime,
+                                duration: noteDuration,
+                                velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                            });
+                        }
+                    }
+                    currentNote = clampedMidiNote;
+                    currentNoteStart = frameTime;
+                    currentNoteVelocitySum = rms;
+                    currentNoteSampleCount = 1;
+                }
+            } else {
+                if (currentNote !== null) {
+                    const noteDuration = frameTime - currentNoteStart;
+                    if (noteDuration >= minNoteDuration) {
+                        detectedNotes.push({
+                            midiNote: currentNote,
+                            time: currentNoteStart + clipStartTime,
+                            duration: noteDuration,
+                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                        });
+                    }
+                    currentNote = null;
+                }
+            }
+        }
+
+        if (currentNote !== null) {
+            const noteDuration = duration - currentNoteStart;
+            if (noteDuration >= minNoteDuration) {
+                detectedNotes.push({
+                    midiNote: currentNote,
+                    time: currentNoteStart + clipStartTime,
+                    duration: noteDuration,
+                    velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                });
+            }
+        }
+
+        return detectedNotes;
+    }
+
+    /**
+     * Autocorrelation-based pitch detection.
+     */
+    _autocorrelationPitch(audioData, startSample, windowSize, sampleRate, minFreq, maxFreq) {
+        const minPeriod = Math.floor(sampleRate / maxFreq);
+        const maxPeriod = Math.floor(sampleRate / minFreq);
+        let bestCorrelation = 0, bestPeriod = 0;
+
+        for (let period = minPeriod; period <= maxPeriod && period < windowSize / 2; period++) {
+            let correlation = 0, norm = 0;
+            for (let i = 0; i < windowSize - period; i++) {
+                const sample = audioData[startSample + i] || 0;
+                const delayedSample = audioData[startSample + i + period] || 0;
+                correlation += sample * delayedSample;
+                norm += sample * sample;
+            }
+            if (norm > 0) correlation /= norm;
+            if (correlation > bestCorrelation && correlation > 0.5) {
+                bestCorrelation = correlation;
+                bestPeriod = period;
+            }
+        }
+
+        return bestPeriod > 0 ? sampleRate / bestPeriod : 0;
+    }
+
+    /**
      * Shift all notes in the active sequence up or down by semitones.
      * @param {number} semitones - Number of semitones to shift (positive = up, negative = down)
      * @returns {number} Number of notes shifted

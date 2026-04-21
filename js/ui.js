@@ -3873,6 +3873,38 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`No adjacent clip found for crossfade`, 2000);
                     }
                 }},
+                { separator: true },
+                { label: '🎵 Convert to MIDI', action: () => {} },
+                { label: '  Detect Melody (Normal)', action: () => {
+                    if (typeof track.convertAudioToMidi === 'function') {
+                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.5, minNoteDuration: 0.1 });
+                        if (result && result.newTrackId) {
+                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
+                        }
+                    } else {
+                        showNotification(`Audio to MIDI conversion not available`, 2000);
+                    }
+                }},
+                { label: '  Detect Melody (High Sensitivity)', action: () => {
+                    if (typeof track.convertAudioToMidi === 'function') {
+                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.8, minNoteDuration: 0.05 });
+                        if (result && result.newTrackId) {
+                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
+                        }
+                    } else {
+                        showNotification(`Audio to MIDI conversion not available`, 2000);
+                    }
+                }},
+                { label: '  Detect Melody (Low Sensitivity)', action: () => {
+                    if (typeof track.convertAudioToMidi === 'function') {
+                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.3, minNoteDuration: 0.2 });
+                        if (result && result.newTrackId) {
+                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
+                        }
+                    } else {
+                        showNotification(`Audio to MIDI conversion not available`, 2000);
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);
@@ -4237,6 +4269,113 @@ export function updateUndoHistoryPanel() {
     const win = localAppServices.getWindowById ? localAppServices.getWindowById('undoHistory') : null;
     if (!win?.element || win.isMinimized) return;
     renderUndoHistoryContent();
+}
+
+// --- Keyboard Shortcuts Panel ---
+export function openKeyboardShortcutsPanel(savedState = null) {
+    const windowId = 'keyboardShortcuts';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderKeyboardShortcutsContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'keyboardShortcutsContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 420, 
+        height: 500, 
+        minWidth: 350, 
+        minHeight: 300,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Keyboard Shortcuts', contentContainer, options);
+    
+    if (win?.element) {
+        renderKeyboardShortcutsContent();
+    }
+    
+    return win;
+}
+
+function renderKeyboardShortcutsContent() {
+    const container = document.getElementById('keyboardShortcutsContent');
+    if (!container) return;
+
+    const shortcuts = [
+        { category: 'Transport', items: [
+            { key: 'Space', desc: 'Play / Pause' },
+            { key: 'Enter', desc: 'Toggle Record Arm' },
+            { key: 'Escape', desc: 'Stop All / Close Windows' },
+            { key: 'L', desc: 'Toggle Loop Region' },
+            { key: 'M', desc: 'Toggle Metronome' },
+        ]},
+        { category: 'Tempo', items: [
+            { key: '←', desc: 'Decrease Tempo by 0.1 BPM' },
+            { key: '→', desc: 'Increase Tempo by 0.1 BPM' },
+            { key: 'Shift+←', desc: 'Decrease Tempo by 1 BPM' },
+            { key: 'Shift+→', desc: 'Increase Tempo by 1 BPM' },
+        ]},
+        { category: 'Octave (Piano Keyboard)', items: [
+            { key: 'Z', desc: 'Octave Down' },
+            { key: 'X', desc: 'Octave Up' },
+        ]},
+        { category: 'Track Controls', items: [
+            { key: 'S', desc: 'Solo Selected Track' },
+            { key: 'R', desc: 'Arm Selected Track for Recording' },
+        ]},
+        { category: 'Undo/Redo', items: [
+            { key: 'Ctrl+Z', desc: 'Undo' },
+            { key: 'Ctrl+Y', desc: 'Redo' },
+        ]},
+        { category: 'General', items: [
+            { key: '?', desc: 'Show this Shortcuts Panel' },
+            { key: 'Ctrl+S', desc: 'Save Project' },
+            { key: 'Ctrl+O', desc: 'Load Project' },
+            { key: 'F', desc: 'Toggle Fullscreen' },
+        ]},
+    ];
+
+    let html = `<div class="space-y-4">`;
+    shortcuts.forEach(section => {
+        html += `
+            <div class="bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 overflow-hidden">
+                <div class="bg-gray-50 dark:bg-slate-600 px-3 py-2 border-b border-gray-200 dark:border-slate-500">
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200">${section.category}</h3>
+                </div>
+                <div class="p-2 space-y-1">`;
+        section.items.forEach(item => {
+            html += `
+                    <div class="flex items-center justify-between py-1 px-2 hover:bg-gray-50 dark:hover:bg-slate-600 rounded">
+                        <span class="text-xs text-gray-600 dark:text-gray-300">${item.desc}</span>
+                        <kbd class="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-500 rounded shadow-sm">${item.key}</kbd>
+                    </div>`;
+        });
+        html += `</div></div>`;
+    });
+    html += `</div>`;
+
+    container.innerHTML = html;
 }
 
 /**

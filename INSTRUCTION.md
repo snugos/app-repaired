@@ -8,9 +8,18 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 2. **MIDI Multi-Channel** - Support multiple MIDI channels per track ✅ COMPLETED
 3. **Session Templates** - Save/load full session configurations ✅ COMPLETED
 4. **Step Sequencer Probability** - Per-step chance of note triggering ✅ COMPLETED
-5. **Clip Gain Envelope** - Draw volume automation directly on audio clips
-6. **Audio Reverse** - Reverse audio clips with a button
-7. **Tempo Nudge** - Fine tempo adjustment with arrow keys
+5. **Clip Gain Envelope** - Draw volume automation directly on audio clips ✅ COMPLETED
+6. **Audio Reverse** - Reverse audio clips with a button ✅ COMPLETED
+7. **Tempo Nudge** - Fine tempo adjustment with arrow keys ✅ COMPLETED
+
+## When Queue is Empty - New Feature Ideas
+
+New Feature Queue:
+1. **MIDI Learn Panel** - Visual panel to configure MIDI CC mappings for all parameters
+2. **Sample Browser Search** - Search/filter sounds in the sound browser by name
+3. **Export Stems** - Export each track as a separate audio file
+4. **Track Color Picker** - Change track colors from a color palette
+5. **Keyboard Shortcuts Panel** - Press `?` to show all keyboard shortcuts
 
 ## Workflow
 
