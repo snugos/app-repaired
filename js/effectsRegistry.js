@@ -1,5 +1,33 @@
 // js/effectsRegistry.js - Definitions for modular effects
 
+// Sidechain Compressor - Compressor with external sidechain input
+class SidechainCompressor extends Tone.Compressor {
+    constructor(initialParams = {}) {
+        super({
+            threshold: initialParams.threshold !== undefined ? initialParams.threshold : -24,
+            ratio: initialParams.ratio !== undefined ? initialParams.ratio : 4,
+            knee: initialParams.knee !== undefined ? initialParams.knee : 30,
+            attack: initialParams.attack !== undefined ? initialParams.attack : 0.003,
+            release: initialParams.release !== undefined ? initialParams.release : 0.25
+        });
+        this._sidechainGain = new Tone.Gain(1);
+        this._sidechainGain.connect(this.sidetone);
+    }
+
+    getSidechainInput() {
+        return this._sidechainGain;
+    }
+
+    dispose() {
+        this._sidechainGain.dispose();
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.SidechainCompressor = SidechainCompressor;
+}
+
 // Multi-band Compressor - 3-band dynamics processor
 class MultibandCompressor extends Tone.Gain {
     constructor(initialParams = {}) {
@@ -357,6 +385,17 @@ export const AVAILABLE_EFFECTS = {
             { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.003, decimals: 3, displaySuffix: 's', isSignal: true },
             { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.001, defaultValue: 0.25, decimals: 3, displaySuffix: 's', isSignal: true },
             { key: 'sidechain', label: 'Sidechain', type: 'select', options: ['off', 'track'], defaultValue: 'off', isSignal: false },
+        ]
+    },
+    SidechainCompressor: {
+        displayName: 'Sidechain Comp',
+        toneClass: 'SidechainCompressor',
+        params: [ 
+            { key: 'threshold', label: 'Threshold', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: true },
+            { key: 'ratio', label: 'Ratio', type: 'knob', min: 1, max: 20, step: 0.1, defaultValue: 4, decimals: 1, isSignal: true },
+            { key: 'knee', label: 'Knee', type: 'knob', min: 0, max: 40, step: 1, defaultValue: 30, decimals: 0, displaySuffix: 'dB', isSignal: true },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.003, decimals: 3, displaySuffix: 's', isSignal: true },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.001, defaultValue: 0.25, decimals: 3, displaySuffix: 's', isSignal: true },
         ]
     },
     EQ3: {
