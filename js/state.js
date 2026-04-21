@@ -163,7 +163,9 @@ export function getTempoRampsState() { return tempoRampsState; }
 
 export function addTempoRampPoint(barPosition, bpm, curve = 'linear') {
     const id = `tempoRamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    tempoRampsState.push({ id, barPosition: parseFloat(barPosition) || 0, bpm: parseFloat(bpm) || 120, curve });
+    const validCurves = ['linear', 'exponential', 'stepped'];
+    const curveType = validCurves.includes(curve) ? curve : 'linear';
+    tempoRampsState.push({ id, barPosition: parseFloat(barPosition) || 0, bpm: parseFloat(bpm) || 120, curve: curveType });
     tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
     console.log(`[State] Added tempo ramp point at bar ${barPosition}: ${bpm} BPM`);
     return id;

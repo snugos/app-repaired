@@ -5434,6 +5434,7 @@ function renderTempoAutomationContent() {
                             <select class="tempo-curve-select p-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200" data-id="${ramp.id}">
                                 <option value="linear" ${ramp.curve === 'linear' ? 'selected' : ''}>Linear</option>
                                 <option value="exponential" ${ramp.curve === 'exponential' ? 'selected' : ''}>Exponential</option>
+                                <option value="stepped" ${ramp.curve === 'stepped' ? 'selected' : ''}>Stepped</option>
                             </select>
                         </div>
                     </div>

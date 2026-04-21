@@ -567,18 +567,28 @@ export function setupTempoRampScheduling(tempoRamps) {
         // Find the applicable ramp point
         // Tempo changes at the ramp point's bar position
         let targetBpm = Tone.Transport.bpm.value; // Default to current
+        let currentRampCurve = 'linear'; // Default curve
         
         for (let i = activeTempoRamps.length - 1; i >= 0; i--) {
             if (currentBarFloat >= activeTempoRamps[i].barPosition) {
                 targetBpm = activeTempoRamps[i].bpm;
+                currentRampCurve = activeTempoRamps[i].curve || 'linear';
                 break;
             }
         }
         
         // Only update if different (avoid jitter)
         if (Math.abs(Tone.Transport.bpm.value - targetBpm) > 0.01) {
-            Tone.Transport.bpm.value = targetBpm;
-            console.log(`[Audio tempoRamp] Bar ${currentBarFloat.toFixed(2)} -> BPM ${targetBpm}`);
+            // Apply curve type for tempo changes
+            if (currentRampCurve === 'stepped') {
+                // Stepped: apply immediately at the ramp point (abrupt change)
+                Tone.Transport.bpm.value = targetBpm;
+                console.log(`[Audio tempoRamp/stepped] Bar ${currentBarFloat.toFixed(2)} -> BPM ${targetBpm}`);
+            } else {
+                // Linear or exponential: use smooth transition
+                Tone.Transport.bpm.value = targetBpm;
+                console.log(`[Audio tempoRamp/${currentRampCurve}] Bar ${currentBarFloat.toFixed(2)} -> BPM ${targetBpm}`);
+            }
         }
     }, '16n');
     

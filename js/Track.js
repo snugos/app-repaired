@@ -2223,21 +2223,34 @@ export class Track {
 
         // Schedule volume automation
         if (this.automation.volume && Array.isArray(this.automation.volume) && this.automation.volume.length > 0) {
-            this.automation.volume.forEach(point => {
+            const points = this.automation.volume;
+            
+            points.forEach((point, idx) => {
                 if (point.time >= startTime && point.time < startTime + duration) {
                     const rampTime = Tone.Transport.seconds + (point.time - startTime);
+                    const curveType = point.curveType || 'exponential';
+                    const nextPoint = points[idx + 1];
+                    
                     if (this.gainNode && !this.gainNode.disposed && this.gainNode.gain) {
                         try {
-                            // Use exponential ramp for smoother transitions
-                            this.gainNode.gain.setValueAtTime(
-                                Math.max(0.0001, this.gainNode.gain.value),
-                                rampTime - 0.001
-                            );
-                            this.gainNode.gain.exponentialRampToValueAtTime(
-                                Math.max(0.0001, point.value),
-                                rampTime
-                            );
-                            console.log(`[Track ${this.id}] Scheduled volume automation at ${point.time.toFixed(2)}s: ${(point.value * 100).toFixed(0)}%`);
+                            const prevValue = Math.max(0.0001, this.gainNode.gain.value);
+                            const targetValue = Math.max(0.0001, point.value);
+                            
+                            // Set value slightly before to establish starting point for ramp
+                            this.gainNode.gain.setValueAtTime(prevValue, rampTime - 0.001);
+                            
+                            // Apply curve type for transition to this point
+                            if (curveType === 'linear') {
+                                this.gainNode.gain.linearRampToValueAtTime(targetValue, rampTime);
+                            } else if (curveType === 'stepped') {
+                                // Stepped: hold previous value until this point, then jump
+                                this.gainNode.gain.setValueAtTime(targetValue, rampTime);
+                            } else {
+                                // Default: exponential (smoother transition)
+                                this.gainNode.gain.exponentialRampToValueAtTime(targetValue, rampTime);
+                            }
+                            
+                            console.log(`[Track ${this.id}] Scheduled volume automation at ${point.time.toFixed(2)}s: ${(point.value * 100).toFixed(0)}% (${curveType})`);
                         } catch (e) {
                             console.warn(`[Track ${this.id}] Error scheduling volume automation:`, e.message);
                         }
@@ -2252,8 +2265,9 @@ export class Track {
      * @param {string} param - Parameter name (e.g., 'volume')
      * @param {number} time - Time in seconds
      * @param {number} value - Value (0-1 for volume)
+     * @param {string} curveType - Curve type: 'linear', 'exponential', or 'stepped'
      */
-    addAutomationPoint(param, time, value) {
+    addAutomationPoint(param, time, value, curveType = 'exponential') {
         if (!this.automation) {
             this.automation = { volume: [] };
         }
@@ -2264,11 +2278,11 @@ export class Track {
         // Remove any existing point at the same time
         this.automation[param] = this.automation[param].filter(p => Math.abs(p.time - time) > 0.01);
         
-        // Add new point and sort by time
-        this.automation[param].push({ time, value });
+        // Add new point with curveType and sort by time
+        this.automation[param].push({ time, value, curveType });
         this.automation[param].sort((a, b) => a.time - b.time);
         
-        console.log(`[Track ${this.id}] Added automation point for ${param} at ${time.toFixed(2)}s: ${value.toFixed(2)}`);
+        console.log(`[Track ${this.id}] Added automation point for ${param} at ${time.toFixed(2)}s: ${value.toFixed(2)} (${curveType})`);
         
         if (this.appServices.captureStateForUndo) {
             this.appServices.captureStateForUndo(`Add automation point on ${this.name}`);
