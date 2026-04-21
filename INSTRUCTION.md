@@ -2,27 +2,22 @@
 
 You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Current Feature Queue
+## Current Feature Queue (2026-04-21 21:00 UTC)
 
-1. **Automation Lanes** - Visual automation editor for all parameters
-2. **Pattern Length Per Track** - Variable pattern lengths per track
-3. **Stem Export** - Export each track as a separate audio file
-4. **Sample Browser Search** - Search/filter sounds in the sound browser by name
-5. **MIDI Output Device Selection** - Select MIDI output device for external gear
+All previous feature queues are COMPLETE. The following new features were generated through brainstorming:
 
-## When Queue is Empty - New Feature Ideas
+### New Feature Queue (2026-04-21 21:00 UTC)
 
-New Feature Queue:
-1. **MIDI Learn Panel** - Visual panel to configure MIDI CC mappings for all parameters
-2. **Keyboard Shortcuts Panel** - Press `?` to show all keyboard shortcuts
-3. **Track Color Picker** - Change track colors from a color palette
-4. **Note Length Editing** - Edit individual note lengths in piano roll
-5. **Audio Normalization** - Auto-normalize recorded or imported audio
-6. **Ruler Selection** - Click and drag on ruler to select time range
-7. **Copy/Paste Patterns** - Copy and paste sequence patterns between tracks
-8. **MIDI File Export** - Export sequences to standard .mid files
-9. **Audio Resample** - Resample audio at different quality/bitrate
-10. **Track Icon** - Assign icons to tracks for visual identification
+1. **Export Stems** - Export individual tracks as separate audio files
+2. **CPU Monitor Panel** - Show detailed CPU usage per track
+3. **MIDI Drum Map Editor** - Visual drum kit mapping editor
+4. **Random Pattern Generator** - Generate random patterns within musical constraints
+5. **Adaptive Metronome** - Metronome that adapts to user's timing偏差
+6. **Custom Key Bindings** - Allow users to customize keyboard shortcuts
+7. **Project Notes** - Add text notes/comments to projects
+8. **Audio Export Dialog** - Comprehensive export with format/bitrate options
+9. **Track Lane Reordering** - Drag and drop to reorder tracks
+10. **Multi-select & Group Edit** - Select and edit multiple clips/notes at once
 
 ## Workflow
 
