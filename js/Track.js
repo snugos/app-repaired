@@ -44,6 +44,7 @@ export class Track {
         this.color = initialData?.color || getRandomTrackColor();
 
         this.isMuted = initialData?.isMuted || false;
+        this.isArchived = initialData?.isArchived || false;
         this.isMonitoringEnabled = initialData?.isMonitoringEnabled !== undefined ? initialData.isMonitoringEnabled : (this.type === 'Audio'); 
 
         const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
