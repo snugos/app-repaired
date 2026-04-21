@@ -981,6 +981,24 @@ document.addEventListener('keydown', (event) => {
             if (localAppServices.showNotification) localAppServices.showNotification('Closed all windows', 800);
             return;
         }
+        if (key === 'arrowleft') {
+            const currentTempo = Tone.Transport.bpm.value;
+            const newTempo = Math.max(Constants.MIN_TEMPO, currentTempo - 0.1);
+            Tone.Transport.bpm.value = newTempo;
+            if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
+            const input = localAppServices.uiElementsCache?.tempoGlobalInput;
+            if (input) input.value = newTempo.toFixed(1);
+            return;
+        }
+        if (key === 'arrowright') {
+            const currentTempo = Tone.Transport.bpm.value;
+            const newTempo = Math.min(Constants.MAX_TEMPO, currentTempo + 0.1);
+            Tone.Transport.bpm.value = newTempo;
+            if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
+            const input = localAppServices.uiElementsCache?.tempoGlobalInput;
+            if (input) input.value = newTempo.toFixed(1);
+            return;
+        }
         if (key === 'm' && !(event.ctrlKey || event.metaKey)) {
             if (localAppServices.toggleMute) localAppServices.toggleMute(-1);
             return;
@@ -1138,7 +1156,7 @@ export function handleTrackSoloExclusive(trackId) {
                     }
                 });
             }
-            if (localAppServices.showNotification) localAppServices.showNotification('All tracks unsoloed', 1500);
+            if (localAppServices.showNotification) localAppServices.showNotification('All tracks unsoloed.', 1500);
         }
     } catch (error) { console.error(`[EventHandlers handleTrackSoloExclusive] Error for track ${trackId}:`, error); }
 }
