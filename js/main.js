@@ -343,6 +343,7 @@ function updateCcVisualizerBars() {
             const label = document.createElement('span');
             label.className = 'text-[9px] text-gray-500 dark:text-slate-400';
             // Parse CC number and channel from key
+            // Format: "ccNN_channelMM" → displays CC number only (NN)
             const match = key.match(/cc(\d+)_channel(\d+)/);
             if (match) {
                 label.textContent = `${match[1]}`;
