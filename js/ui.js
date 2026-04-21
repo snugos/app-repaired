@@ -2023,6 +2023,46 @@ function buildSequencerContentDOM(track, rows, rowLabels, numBars) {
     html += `</div>`;
     html += `</div>`; // End note length lane section
     
+    // Probability Lane Section
+    html += `<div class="probability-lane-section mt-1" id="probabilityLaneSection-${track.id}">`;
+    html += `<div class="probability-lane-header flex items-center justify-between bg-gray-300 dark:bg-slate-700 p-1 border-t border-b dark:border-slate-600">`;
+    html += `<span class="text-xs font-semibold">Probability Lane</span>`;
+    html += `<div class="flex items-center gap-2">`;
+    html += `<button id="toggleProbabilityLane-${track.id}" class="text-xs px-2 py-0.5 bg-slate-500 text-white rounded hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500">Hide</button>`;
+    html += `<button id="clearAllProbabilities-${track.id}" class="text-xs px-2 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">Reset All</button>`;
+    html += `</div>`;
+    html += `</div>`;
+    html += `<div class="probability-lane-content overflow-auto" id="probabilityLaneContent-${track.id}" style="max-height: 60px;">`;
+    html += `<div class="flex">`;
+    // Row labels spacer
+    html += `<div style="width: ${labelWidth}px; flex-shrink: 0;"></div>`;
+    // Probability bars grid
+    html += `<div class="probability-grid" style="display: flex; flex-direction: column;">`;
+    for (let r = 0; r < rows; r++) {
+        const pitchName = rowLabels[r] || '';
+        html += `<div class="probability-row" data-row="${r}" style="display: flex; height: 12px; background: #252525; border-bottom: 1px solid #333;">`;
+        for (let c = 0; c < totalSteps; c++) {
+            const stepData = activeSequence && activeSequence.data && activeSequence.data[r] ? activeSequence.data[r][c] : null;
+            const isActive = stepData && stepData.active;
+            const probability = stepData?.probability ?? 1.0; // Default 100%
+            const isBarLine = (c % stepsPerBar) === 0;
+            const isBeatLine = (c % 4) === 0 && !isBarLine;
+            const borderStyle = isBarLine ? 'border-left: 2px solid #0066aa;' : (isBeatLine ? 'border-left: 1px solid #555;' : 'border-left: 1px solid #333;');
+            // Color based on probability: orange/red for low, green for high
+            const probColor = probability < 0.5 ? `rgba(239, 68, 68, ${0.5 + probability * 0.5})` : (probability < 1.0 ? `rgba(234, 179, 8, ${0.5 + probability * 0.5})` : `rgba(34, 197, 94, ${0.7 + probability * 0.3})`);
+            const probHeight = isActive ? Math.round(probability * 12) : 0;
+            html += `<div class="probability-cell" data-row="${r}" data-col="${c}" style="width: ${colWidth}px; height: 100%; flex-shrink: 0; ${borderStyle} cursor: pointer; position: relative; overflow: visible;">`;
+            if (isActive) {
+                html += `<div class="probability-bar" style="position: absolute; top: 2px; left: 0; right: 0; height: ${probHeight}px; background: ${probColor}; border-radius: 2px; transition: height 0.1s, background 0.1s;" title="Prob: ${Math.round(probability * 100)}%${probability < 1.0 ? ' (may not play)' : ''}"></div>`;
+            }
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+    html += `</div>`; // End probability lane section
+    
     return html;
 }
 
