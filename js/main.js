@@ -105,7 +105,15 @@ import {
     openChordMemoryPanel,
     openTrackGroupsPanel,
     openArpeggiatorPanel,
-    openGrooveTemplatesPanel
+    openGrooveTemplatesPanel,
+    
+    // Groove Templates
+    getGroovePresets,
+    getGroovePresetById,
+    getGrooveSwingAmount,
+
+    // Pattern Chains
+    openPatternChainsPanel
 } from './ui.js';
 
 console.log(`SCRIPT EXECUTION STARTED - SnugOS (main.js - Version ${Constants.APP_VERSION})`);
@@ -753,7 +761,10 @@ const appServices = {
     // Groove Templates
     getGroovePresets,
     getGroovePresetById,
-    getGrooveSwingAmount
+    getGrooveSwingAmount,
+
+    // Pattern Chains
+    openPatternChainsPanel
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
