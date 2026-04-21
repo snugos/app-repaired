@@ -284,7 +284,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -304,8 +304,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -321,7 +321,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -413,7 +413,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -453,6 +453,18 @@ import {
     triggerCustomBackgroundUpload: () => {
         if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
         else console.warn("Custom background input element not found in cache.");
+    },
+    removeCustomDesktopBackground: async function() {
+        try {
+            localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
+            localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
+            await appServices.bgDb.remove('desktopVideo');
+            await appServices.applyDesktopBackground(null, null);
+            appServices.showSafeNotification("Custom background removed.", 2000);
+        } catch (error) {
+            console.error("Error removing background from storage:", error);
+            appServices.showSafeNotification("Could not remove background from storage.", 3000);
+        }
     },
     onPlaybackModeChange: (newMode) => {
         console.log(`[Main appServices.onPlaybackModeChange] Called with newMode: ${newMode}`);
