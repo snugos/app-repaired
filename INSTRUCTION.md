@@ -4,7 +4,28 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Grouping** - Group tracks for collective control
+1. **Track Grouping** ✅ ALREADY COMPLETED - Implemented with UI panel, state management, and full group control (volume, mute, solo)
+
+## When Queue is Empty
+
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+
+New Feature Queue:
+1. **Send Effects Routing** - Create dedicated reverb/delay send buses with per-track send levels
+2. **Sidechain Compression** - Easy sidechain input selector for compressor effect
+3. **Track Color Themes** - Multiple color schemes for the UI
+4. **Automation Curves** - Different curve types (linear, exponential, stepped) for automation
+5. **Audio Stretching** - Elastique-style audio time stretching without pitch change
+6. **Track Archiving** - Mute/unmute archive tracks to save CPU
+7. **MIDI Multi-Channel** - Support multiple MIDI channels per track
+8. **Session Templates** - Save/load full session configurations
+9. **Step Sequencer Probability** - Per-step chance of note triggering
+10. **Track Lane Solo** - Solo individual lanes within a track
 
 ## Workflow
 
@@ -33,26 +54,6 @@ After successfully implementing a feature:
 - Remove it from the queue
 - Renumber the remaining features
 - Update this instruction with new queue
-
-## When Queue is Empty
-
-Run this brainstorming process:
-
-```
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-
-Generate 10 NEW feature ideas that are:
-1. Achievable in a single session
-2. Complement existing features
-3. Enhance creative workflow
-
-Output as numbered list and update this instruction.
-```
 
 ## Rules
 
