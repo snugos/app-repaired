@@ -46,10 +46,11 @@ export class Track {
         this.isMuted = initialData?.isMuted || false;
         this.isArchived = initialData?.isArchived || false;
         this.isMonitoringEnabled = initialData?.isMonitoringEnabled !== undefined ? initialData.isMonitoringEnabled : (this.type === 'Audio'); 
-
         const currentSoloedId = this.appServices.getSoloedTrackId ? this.appServices.getSoloedTrackId() : null;
         this.isSoloed = currentSoloedId === this.id;
         this.previousVolumeBeforeMute = initialData?.volume ?? 0.7;
+        // MIDI channel for multi-channel MIDI support (1-16, 0 = omni/all channels)
+        this.midiChannel = initialData?.midiChannel ?? 0;
 
         // Synth specific
         if (this.type === 'Synth') {
@@ -1486,6 +1487,48 @@ export class Track {
         if (this.appServices.updateTrackUI) {
             this.appServices.updateTrackUI(this.id, 'colorChanged');
         }
+    }
+
+    /**
+     * Set the MIDI channel for this track.
+     * @param {number} channel - MIDI channel (1-16, or 0 for omni/all channels)
+     * @param {boolean} fromInteraction - Whether this is from a user interaction
+     */
+    setMidiChannel(channel, fromInteraction = false) {
+        // Clamp channel value to valid range (0 = omni, 1-16 = specific channel)
+        this.midiChannel = Math.max(0, Math.min(16, parseInt(channel) || 0));
+        console.log(`[Track ${this.id}] Set MIDI channel to ${this.midiChannel === 0 ? 'Omni (All)' : this.midiChannel}`);
+        
+        // Capture undo state if from user interaction
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            const chDisplay = this.midiChannel === 0 ? 'Omni (All)' : `Ch ${this.midiChannel}`;
+            this.appServices.captureStateForUndo(`Set ${this.name} MIDI channel to ${chDisplay}`);
+        }
+        
+        // Update UI if available
+        if (this.appServices.updateTrackUI) {
+            this.appServices.updateTrackUI(this.id, 'midiChannelChanged');
+        }
+    }
+
+    /**
+     * Get the MIDI channel for this track.
+     * @returns {number} MIDI channel (0 = omni, 1-16 = specific channel)
+     */
+    getMidiChannel() {
+        return this.midiChannel;
+    }
+
+    /**
+     * Check if a MIDI message matches this track's channel.
+     * @param {number} midiChannel - MIDI channel from incoming message (1-16)
+     * @returns {boolean} True if message should be processed by this track
+     */
+    matchesMidiChannel(midiChannel) {
+        // If track is set to omni (0), it accepts all channels
+        if (this.midiChannel === 0) return true;
+        // Otherwise, check if channel matches
+        return this.midiChannel === midiChannel;
     }
 
     // --- Send Level Methods ---

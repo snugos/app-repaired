@@ -204,6 +204,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openGrooveTemplatesPanel?.();
                 } catch(e) { console.error('[Menu] Groove Templates error:', e); }
             },
+            menuPatternChains: () => {
+                console.log('[Menu] Pattern Chains clicked');
+                try {
+                    services.openPatternChainsPanel?.();
+                } catch(e) { console.error('[Menu] Pattern Chains error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
@@ -819,6 +825,12 @@ function handleMIDIMessage(message) {
 
         // Handle Note On/Off for armed track
         if (!armedTrack) return;
+
+        // Check MIDI channel filtering for armed track
+        if (armedTrack.midiChannel !== 0 && armedTrack.midiChannel !== (channel + 1)) {
+            // Track is set to a specific MIDI channel, but this message is on a different channel
+            return;
+        }
 
         const isNoteOn = command === 144 && velocity > 0;
         const isNoteOff = command === 128 || (command === 144 && velocity === 0);
