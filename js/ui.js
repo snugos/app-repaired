@@ -3151,12 +3151,79 @@ let timelineState = {
     scrollX: 0,
     scrollY: 0,
     playheadPosition: 0,
-    selectedClipId: null,
+    selectedClipId: null, // Kept for backward compat, primary selection is selectedClipIds
+    selectedClipIds: [], // Array of selected clip IDs for multi-select
     isDraggingClip: false,
     dragStartX: 0,
     dragClipStartX: 0,
     selectedTempoRampId: null
 };
+
+// Helper to get selected clip IDs as a Set for O(1) lookup
+function getSelectedClipIdSet() {
+    return new Set(timelineState.selectedClipIds);
+}
+
+// Helper to check if a clip is selected
+function isClipSelected(clipId) {
+    return timelineState.selectedClipIds.includes(clipId);
+}
+
+// Toggle clip selection state
+function toggleClipSelection(clipId, addToSelection = false) {
+    const idx = timelineState.selectedClipIds.indexOf(clipId);
+    if (idx !== -1) {
+        // Already selected - remove it
+        timelineState.selectedClipIds.splice(idx, 1);
+    } else {
+        // Not selected - add it
+        timelineState.selectedClipIds.push(clipId);
+    }
+}
+
+// Clear all clip selections
+function clearClipSelections() {
+    timelineState.selectedClipIds = [];
+    timelineState.selectedClipId = null;
+}
+
+// Select a single clip (clearing others unless addToSelection is true)
+function selectClip(clipId, addToSelection = false) {
+    if (addToSelection) {
+        toggleClipSelection(clipId);
+    } else {
+        timelineState.selectedClipIds = [clipId];
+        timelineState.selectedClipId = clipId;
+    }
+}
+
+// Select clips in a range (for shift+click)
+function selectClipRange(clips, clickedClipId, clipsContainer) {
+    const clickedIdx = clips.findIndex(c => c.id === clickedClipId);
+    if (clickedIdx === -1) return;
+    
+    // Find the anchor (first selected clip or clicked if none)
+    const anchorClip = clips[0];
+    const anchorIdx = clips.findIndex(c => timelineState.selectedClipIds.includes(c.id));
+    
+    if (anchorIdx === -1) {
+        selectClip(clickedClipId);
+        return;
+    }
+    
+    const startIdx = Math.min(anchorIdx, clickedIdx);
+    const endIdx = Math.max(anchorIdx, clickedIdx);
+    
+    timelineState.selectedClipIds = [];
+    for (let i = startIdx; i <= endIdx; i++) {
+        if (clips[i]) {
+            timelineState.selectedClipIds.push(clips[i].id);
+        }
+    }
+    if (timelineState.selectedClipIds.length > 0) {
+        timelineState.selectedClipId = timelineState.selectedClipIds[0];
+    }
+}
 
 // --- Timeline Functions (Stubs) ---
 
@@ -3312,6 +3379,7 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
     let html = '';
     const clipHeight = laneHeight - 8;
     const clipY = 4;
+    const selectedSet = getSelectedClipIdSet();
 
     track.timelineClips.forEach(clip => {
         const x = clip.startTime * pixelsPerSecond;
@@ -3321,8 +3389,9 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
         if (clip.type === 'audio') bgColor = 'bg-green-500';
         else if (clip.type === 'sequence') bgColor = 'bg-purple-500';
         
-        const isSelected = timelineState.selectedClipId === clip.id;
-        const selectedClass = isSelected ? 'ring-2 ring-white ring-offset-1' : '';
+        const isSelected = selectedSet.has(clip.id);
+        const selectedClass = isSelected ? 'ring-2 ring-white ring-offset-2' : '';
+        const multiSelectedCount = timelineState.selectedClipIds.length;
 
         // For audio clips, include a canvas for waveform visualization
         let waveformHtml = '';
@@ -3341,12 +3410,17 @@ function renderTrackClips(track, pixelsPerSecond, laneHeight) {
             `;
         }
 
+        // Show selection count badge if multi-selected
+        const multiSelectBadge = isSelected && multiSelectedCount > 1 ? 
+            `<span class="absolute -top-1 -right-1 bg-white text-xs font-bold text-gray-800 rounded-full w-5 h-5 flex items-center justify-center z-30">${multiSelectedCount}</span>` : '';
+
         html += `
             <div class="timeline-clip absolute rounded cursor-move ${bgColor} ${selectedClass} hover:opacity-90 transition-opacity overflow-hidden"
                  data-clip-id="${clip.id}"
                  data-track-id="${track.id}"
                  style="left: ${x}px; top: ${clipY}px; width: ${width}px; height: ${clipHeight}px;"
                  draggable="true">
+                ${multiSelectBadge}
                 ${waveformHtml}
                 ${fadeHandlesHtml}
                 <div class="clip-content h-full flex items-center px-1 overflow-hidden relative z-10">
