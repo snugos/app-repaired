@@ -4236,6 +4236,182 @@ function renderScaleHintPanelContent() {
     });
 }
 
+// --- Scale Lock Panel ---
+// Scale Lock forces all notes to stay within a musical scale
+export function openScaleLockPanel(savedState = null) {
+    const windowId = 'scaleLock';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderScaleLockPanelContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'scaleLockContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 320, 
+        height: 300, 
+        minWidth: 280, 
+        minHeight: 250,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Scale Lock', contentContainer, options);
+    
+    if (win?.element) {
+        renderScaleLockPanelContent();
+    }
+    
+    return win;
+}
+
+function renderScaleLockPanelContent() {
+    const container = document.getElementById('scaleLockContent');
+    if (!container) return;
+    
+    const enabled = localAppServices.getScaleLockEnabled?.() ?? false;
+    const root = localAppServices.getScaleLockRoot?.() ?? 'C';
+    const type = localAppServices.getScaleLockType?.() ?? 'major';
+    const mode = localAppServices.getScaleLockMode?.() ?? 'snap';
+    const scaleNotes = localAppServices.getScaleNotes?.(root, type) ?? [];
+    const scaleTypes = localAppServices.getScaleTypes?.() ?? ['major', 'minor'];
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    const html = `
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium dark:text-slate-200">Scale Lock</span>
+                <button id="scaleLockToggleBtn" class="px-3 py-1 text-xs rounded font-medium ${enabled ? 'bg-blue-500 text-white' : 'bg-gray-400 text-gray-800'}">
+                    ${enabled ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            
+            <p class="text-xs text-gray-600 dark:text-slate-400">
+                Forces all notes to stay within the selected scale. Out-of-scale notes are snapped or blocked.
+            </p>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Mode</label>
+                <div class="flex gap-2 mt-1">
+                    <button id="modeSnapBtn" class="flex-1 px-2 py-1 text-xs rounded ${mode === 'snap' ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-600 dark:text-slate-200'}">
+                        Snap
+                    </button>
+                    <button id="modeBlockBtn" class="flex-1 px-2 py-1 text-xs rounded ${mode === 'block' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-slate-600 dark:text-slate-200'}">
+                        Block
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-slate-500 mt-1">
+                    ${mode === 'snap' ? 'Snap: Out-of-scale notes move to nearest in-scale note' : 'Block: Out-of-scale notes are prevented'}
+                </p>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Root Note</label>
+                <div class="grid grid-cols-6 gap-1 mt-1">
+                    ${noteNames.map(n => `
+                        <button class="root-note-btn px-1 py-0.5 text-xs rounded ${root === n ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-slate-600 dark:text-slate-200'}" data-root="${n}">
+                            ${n}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Scale Type</label>
+                <select id="scaleLockTypeSelect" class="w-full mt-1 p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                    ${scaleTypes.map(t => `
+                        <option value="${t}" ${type === t ? 'selected' : ''}>${t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                    `).join('')}
+                </select>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Scale Notes: ${root} ${type.replace(/_/g, ' ')}</label>
+                <div class="flex flex-wrap gap-1 mt-1">
+                    ${scaleNotes.map(n => `
+                        <span class="px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900 dark:text-green-200 rounded">${n}</span>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <button id="syncFromHintBtn" class="w-full px-2 py-1 text-xs rounded bg-purple-500 text-white hover:bg-purple-600">
+                    Sync from Scale Hint Settings
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Toggle button
+    container.querySelector('#scaleLockToggleBtn')?.addEventListener('click', () => {
+        const newEnabled = !enabled;
+        localAppServices.setScaleLockEnabled?.(newEnabled);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(`Scale Lock ${newEnabled ? 'enabled' : 'disabled'}`, 1500);
+        }
+        renderScaleLockPanelContent();
+    });
+    
+    // Mode buttons
+    container.querySelector('#modeSnapBtn')?.addEventListener('click', () => {
+        localAppServices.setScaleLockMode?.('snap');
+        renderScaleLockPanelContent();
+    });
+    
+    container.querySelector('#modeBlockBtn')?.addEventListener('click', () => {
+        localAppServices.setScaleLockMode?.('block');
+        renderScaleLockPanelContent();
+    });
+    
+    // Root note buttons
+    container.querySelectorAll('.root-note-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            localAppServices.setScaleLockRoot?.(btn.dataset.root);
+            renderScaleLockPanelContent();
+        });
+    });
+    
+    // Scale type select
+    container.querySelector('#scaleLockTypeSelect')?.addEventListener('change', (e) => {
+        localAppServices.setScaleLockType?.(e.target.value);
+        renderScaleLockPanelContent();
+    });
+    
+    // Sync from hint button
+    container.querySelector('#syncFromHintBtn')?.addEventListener('click', () => {
+        const hintRoot = localAppServices.getScaleHintRoot?.() ?? 'C';
+        const hintType = localAppServices.getScaleHintType?.() ?? 'major';
+        localAppServices.setScaleLockRoot?.(hintRoot);
+        localAppServices.setScaleLockType?.(hintType);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(`Synced to ${hintRoot} ${hintType}`, 1500);
+        }
+        renderScaleLockPanelContent();
+    });
+}
+
 // --- Undo/Redo History Panel ---
 export function openUndoHistoryPanel(savedState = null) {
     const windowId = 'undoHistory';

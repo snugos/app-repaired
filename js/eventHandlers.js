@@ -198,6 +198,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openScaleHintPanel?.();
                 } catch(e) { console.error('[Menu] Scale Hint Overlay error:', e); }
             },
+            menuScaleLock: () => {
+                console.log('[Menu] Scale Lock clicked');
+                try {
+                    services.openScaleLockPanel?.();
+                } catch(e) { console.error('[Menu] Scale Lock error:', e); }
+            },
             menuGrooveTemplates: () => {
                 console.log('[Menu] Groove Templates clicked');
                 try {
