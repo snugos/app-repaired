@@ -321,8 +321,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -426,7 +426,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -713,6 +713,104 @@ async function initializeSnugOS() {
             body.innerHTML = `<div style="padding: 20px; text-align: center; font-family: sans-serif; color: #ccc; background-color: #101010; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;"><h1>Initialization Error</h1><p>SnugOS could not start due to a critical error. Please check the console for details and try refreshing the page.</p><p style="font-size: 0.8em; margin-top: 20px;">Error: ${initError.message}</p></div>`;
         }
     }
+}
+
+// Performance monitoring state
+let lastFrameTime = performance.now();
+let frameCount = 0;
+let fpsValue = 60;
+let cpuHistory = [];
+const CPU_HISTORY_MAX_LENGTH = 50;
+
+function updatePerformanceStats() {
+    const now = performance.now();
+    frameCount++;
+    
+    // Calculate FPS every second
+    const elapsed = now - lastFrameTime;
+    if (elapsed >= 1000) {
+        fpsValue = Math.round((frameCount * 1000) / elapsed);
+        frameCount = 0;
+        lastFrameTime = now;
+        
+        // Update FPS display
+        const fpsEl = document.getElementById('statusFpsValue');
+        if (fpsEl) {
+            fpsEl.textContent = fpsValue;
+            // Color coding
+            if (fpsValue >= 50) {
+                fpsEl.className = 'text-green-400';
+            } else if (fpsValue >= 30) {
+                fpsEl.className = 'text-yellow-400';
+            } else {
+                fpsEl.className = 'text-red-400';
+            }
+        }
+        
+        // Estimate CPU load (rough approximation based on frame time)
+        const cpuLoad = Math.min(100, Math.max(0, 100 - (fpsValue / 60 * 100)));
+        cpuHistory.push(cpuLoad);
+        if (cpuHistory.length > CPU_HISTORY_MAX_LENGTH) {
+            cpuHistory.shift();
+        }
+        
+        // Update CPU display
+        const cpuEl = document.getElementById('statusCpuValue');
+        if (cpuEl) {
+            cpuEl.textContent = `${Math.round(cpuLoad)}%`;
+            // Color coding
+            if (cpuLoad <= 30) {
+                cpuEl.className = 'text-green-400';
+            } else if (cpuLoad <= 60) {
+                cpuEl.className = 'text-yellow-400';
+            } else {
+                cpuEl.className = 'text-red-400';
+            }
+        }
+        
+        // Update CPU history sparkline
+        updateCpuHistorySparkline();
+        
+        // Update memory display (if available)
+        if (performance.memory) {
+            const memEl = document.getElementById('statusMemValue');
+            if (memEl) {
+                const usedMB = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
+                memEl.textContent = `${usedMB} MB`;
+            }
+        }
+    }
+}
+
+function updateCpuHistorySparkline() {
+    const container = document.getElementById('statusCpuHistory');
+    if (!container) return;
+    
+    container.innerHTML = cpuHistory.map(val => {
+        const height = Math.max(1, Math.min(12, Math.round((val / 100) * 12)));
+        const color = val <= 30 ? 'bg-green-400' : (val <= 60 ? 'bg-yellow-400' : 'bg-red-400');
+        return `<div class="${color}" style="width: 2px; height: ${height}px;"></div>`;
+    }).join('');
+}
+
+function getCpuMonitorData() {
+    return {
+        fps: fpsValue,
+        cpuHistory: [...cpuHistory],
+        currentCpu: cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1] : 0,
+        memory: performance.memory ? {
+            used: performance.memory.usedJSHeapSize,
+            total: performance.memory.totalJSHeapSize,
+            limit: performance.memory.jsHeapSizeLimit
+        } : null,
+        tracks: getTracksState ? getTracksState().map(t => ({
+            id: t.id,
+            name: t.name,
+            type: t.type,
+            isPlaying: t.isPlaying,
+            hasActiveSequence: t.activeSequenceId !== null
+        })) : []
+    };
 }
 
 function updateMetersLoop() {
