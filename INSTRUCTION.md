@@ -4,12 +4,12 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Send Effects Routing** - Create dedicated reverb/delay send buses with per-track send levels
+1. **Send Effects Routing** - Create dedicated reverb/delay send buses with per-track send levels ✅ COMPLETED
+2. **Sidechain Compression** - Easy sidechain input selector for compressor effect
 
 ## When Queue is Empty
 
 New Feature Queue:
-2. **Sidechain Compression** - Easy sidechain input selector for compressor effect
 3. **Automation Curves** - Different curve types (linear, exponential, stepped) for automation lanes
 4. **Track Archive** - Archive tracks to save CPU without deleting
 5. **MIDI Multi-Channel** - Support multiple MIDI channels per track
