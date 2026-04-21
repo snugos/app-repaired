@@ -1135,119 +1135,20 @@ export function openSoundBrowserWindow(savedState = null) {
             }
         });
 
-        // Sound Browser Search functionality
-        browserWindow.element.querySelector('#soundBrowserSearch').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const currentPath = localAppServices.getCurrentSoundBrowserPath ? localAppServices.getCurrentSoundBrowserPath() : [];
-            const currentTree = localAppServices.getCurrentSoundFileTree ? localAppServices.getCurrentSoundFileTree() : null;
-            const currentLibName = localAppServices.getCurrentLibraryName ? localAppServices.getCurrentLibraryName() : '';
-            
-            if (!currentTree) return;
-            
-            // Navigate to the tree node for current path
-            let treeNode = currentTree;
-            for (const pathPart of currentPath) {
-                if (treeNode[pathPart]?.children) {
-                    treeNode = treeNode[pathPart].children;
-                } else {
-                    return;
-                }
-            }
-            
-            const browserWindowEl = localAppServices.getWindowById ? localAppServices.getWindowById('soundBrowser')?.element : null;
-            const listDiv = browserWindowEl?.querySelector('#soundBrowserList');
-            if (!listDiv) return;
-            
-            listDiv.innerHTML = '';
-            
-            if (query === '') {
-                // Show normal directory contents
-                renderSoundBrowserDirectory(currentPath, currentTree);
-                return;
-            }
-            
-            // Search through all items recursively
-            const matches = [];
-            function searchNode(node, path) {
-                for (const name in node) {
-                    if (node[name]?.type === 'folder') {
-                        searchNode(node[name].children, [...path, name]);
-                    } else if (node[name]?.type === 'file') {
-                        if (name.toLowerCase().includes(query)) {
-                            matches.push({ name, nodeData: node[name], path });
-                        }
-                    }
-                }
-            }
-            searchNode(treeNode, currentPath);
-            
-            if (matches.length === 0) {
-                listDiv.innerHTML = `<p class="text-gray-500 dark:text-slate-400 italic p-2">No sounds matching "${query}"</p>`;
-                return;
-            }
-            
-            matches.forEach(({ name, nodeData, path }) => {
-                const listItem = document.createElement('div');
-                listItem.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
-                listItem.draggable = true;
-                const icon = document.createElement('span');
-                icon.className = 'mr-1.5';
-                icon.textContent = '🎵';
-                listItem.appendChild(icon);
-                const text = document.createElement('span');
-                text.textContent = name;
-                listItem.appendChild(text);
-                
-                // Highlight matching portion
-                const matchIdx = name.toLowerCase().indexOf(query);
-                if (matchIdx >= 0) {
-                    text.innerHTML = name.substring(0, matchIdx) + '<mark class="bg-yellow-300 dark:bg-yellow-600">' + name.substring(matchIdx, matchIdx + query.length) + '</mark>' + name.substring(matchIdx + query.length);
-                }
-                
-                const fullPath = path.length > 0 ? path.join('/') + '/' + name : name;
-                const pathDisplay = browserWindowEl?.querySelector('#currentPathDisplay');
-                if (pathDisplay) pathDisplay.textContent = `/${currentLibName}/ SEARCH: "${query}"`;
-                
-                listItem.addEventListener('click', async () => {
-                    listDiv.querySelectorAll('.bg-blue-200,.dark\\:bg-purple-500').forEach(el => el.classList.remove('bg-blue-200', 'dark:bg-purple-500'));
-                    listItem.classList.add('bg-blue-200', 'dark:bg-purple-500');
-                    const soundToSelect = { fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName };
-                    if (localAppServices.setSelectedSoundForPreview) localAppServices.setSelectedSoundForPreview(soundToSelect);
-                    const previewBtn = browserWindowEl?.querySelector('#previewSoundBtn');
-                    if (previewBtn) previewBtn.disabled = false;
-                    const fileNameDisplay = browserWindowEl?.querySelector('#previewFileName');
-                    if (fileNameDisplay) fileNameDisplay.textContent = name;
-                    
-                    // Load and display waveform
-                    const waveformCanvas = browserWindowEl?.querySelector('#waveformCanvas');
-                    if (waveformCanvas && localAppServices.decodeAudioBlob && localAppServices.setWaveformPreviewCanvas && localAppServices.setWaveformPreviewBuffer) {
-                        const loadedZips = localAppServices.getLoadedZipFiles ? localAppServices.getLoadedZipFiles() : {};
-                        if (loadedZips?.[currentLibName] && loadedZips[currentLibName] !== "loading") {
-                            const zipEntry = loadedZips[currentLibName].file(nodeData.fullPath);
-                            if (zipEntry) {
-                                try {
-                                    const blob = await zipEntry.async("blob");
-                                    const audioBuffer = await localAppServices.decodeAudioBlob(blob);
-                                    if (audioBuffer) {
-                                        localAppServices.setWaveformPreviewCanvas(waveformCanvas);
-                                        localAppServices.setWaveformPreviewBuffer(audioBuffer);
-                                    }
-                                } catch (err) {
-                                    console.error('[UI SoundBrowser Search] Error loading waveform:', err);
-                                }
-                            }
-                        }
-                    }
+        // Sound browser search filter
+        const searchInput = browserWindow.element.querySelector('#soundBrowserSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const listDiv = browserWindow.element.querySelector('#soundBrowserList');
+                if (!listDiv) return;
+                const items = listDiv.querySelectorAll('[data-file-name]');
+                items.forEach(item => {
+                    const name = (item.dataset.fileName || item.textContent || '').toLowerCase();
+                    item.style.display = name.includes(query) ? '' : 'none';
                 });
-                
-                listItem.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData("application/json", JSON.stringify({ fileName: name, fullPath: nodeData.fullPath, libraryName: currentLibName, type: 'sound-browser-item' }));
-                    e.dataTransfer.effectAllowed = "copy";
-                });
-                
-                listDiv.appendChild(listItem);
             });
-        });
+        }
 
         browserWindow.element.querySelector('#previewSoundBtn').addEventListener('click', () => {
             const selectedSound = localAppServices.getSelectedSoundForPreview ? localAppServices.getSelectedSoundForPreview() : null;
@@ -1527,6 +1428,7 @@ export function renderSoundBrowserDirectory(pathArray, treeNode) {
         const {name, nodeData} = itemObj; const listItem = document.createElement('div');
         listItem.className = 'p-1 hover:bg-purple-200 dark:hover:bg-purple-600 cursor-pointer border-b dark:border-slate-600 text-xs flex items-center';
         listItem.draggable = nodeData.type === 'file';
+        listItem.dataset.fileName = name; // For search filter
         const icon = document.createElement('span'); icon.className = 'mr-1.5'; icon.textContent = nodeData.type === 'folder' ? '📁' : '🎵'; listItem.appendChild(icon);
         const text = document.createElement('span'); text.textContent = name; listItem.appendChild(text);
         if (nodeData.type === 'folder') {
