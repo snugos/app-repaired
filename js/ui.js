@@ -4789,7 +4789,7 @@ export function openGainEnvelopeEditor(track, clipId, clipData) {
                     </span>
                     <div class="flex gap-2">
                         <button id="clearEnvelopeBtn" class="px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500 rounded">Clear All</button>
-                        <button id="closeEnvelopeBtn" class="px-3 py-1 text-xs bg-purple-500 text-white hover:bg-purple-600 rounded">Done</button>
+                        <button id="closeEnvelopeBtn" class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 rounded">Done</button>
                     </div>
                 </div>
             </div>
@@ -7996,5 +7996,228 @@ export function updateAutomationLanesPanel() {
     const container = document.getElementById('automationLanesContent');
     if (container) {
         renderAutomationLanesContent();
+    }
+}
+
+// --- Micro Tuning Panel ---
+export function openMicroTuningPanel(savedState = null) {
+    const windowId = 'microTuning';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderMicroTuningPanelContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'microTuningContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 400, 
+        height: 500, 
+        minWidth: 350, 
+        minHeight: 400,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Micro Tuning', contentContainer, options);
+    
+    if (win?.element) {
+        renderMicroTuningPanelContent();
+    }
+    
+    return win;
+}
+
+function renderMicroTuningPanelContent() {
+    const container = document.getElementById('microTuningContent');
+    if (!container) return;
+    
+    const enabled = localAppServices.getMicroTuningEnabled?.() ?? false;
+    const currentPreset = localAppServices.getMicroTuningPreset?.() ?? 'equal';
+    const currentCents = localAppServices.getMicroTuningCents?.() ?? Array(12).fill(0);
+    const presets = localAppServices.getMicroTuningPresets?.() ?? [];
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    const html = `
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium dark:text-slate-200">Micro Tuning</span>
+                <button id="microTuningToggleBtn" class="px-3 py-1 text-xs rounded font-medium ${enabled ? 'bg-blue-500 text-white' : 'bg-gray-400 text-gray-800'}">
+                    ${enabled ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            
+            <p class="text-xs text-gray-600 dark:text-slate-400">
+                Custom tuning tables for non-standard scales (microtonal, just intonation, etc.).
+                Each semitone can be adjusted in cents (1/100 of a semitone).
+            </p>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Tuning Preset</label>
+                <select id="microTuningPresetSelect" class="w-full mt-1 p-1 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200">
+                    ${presets.map(p => `
+                        <option value="${p.id}" ${currentPreset === p.id ? 'selected' : ''}>${p.name}</option>
+                    `).join('')}
+                </select>
+                <p class="text-xs text-gray-500 dark:text-slate-500 mt-1" id="presetDescription">
+                    ${presets.find(p => p.id === currentPreset)?.description || ''}
+                </p>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Custom Tuning (Cents Deviation from Equal Temperament)</label>
+                <p class="text-xs text-gray-500 dark:text-slate-500 mb-1">
+                    Adjust each semitone's pitch in cents. 0 = equal temperament. Positive = higher, Negative = lower.
+                </p>
+                <div class="grid grid-cols-12 gap-0.5" id="centsEditor">
+                    ${noteNames.map((note, i) => `
+                        <div class="flex flex-col items-center">
+                            <span class="text-xs font-medium dark:text-slate-400 mb-0.5">${note}</span>
+                            <input type="number" class="cents-input w-full p-0.5 text-center text-xs border rounded bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                   data-index="${i}" value="${currentCents[i].toFixed(0)}" 
+                                   min="-100" max="100" step="1">
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="flex gap-2 mt-2">
+                    <button id="resetCentsBtn" class="flex-1 px-2 py-1 text-xs rounded bg-gray-300 dark:bg-slate-600 dark:text-slate-200 hover:bg-gray-400 dark:hover:bg-slate-500">
+                        Reset to 0
+                    </button>
+                    <button id="randomizeCentsBtn" class="flex-1 px-2 py-1 text-xs rounded bg-gray-300 dark:bg-slate-600 dark:text-slate-200 hover:bg-gray-400 dark:hover:bg-slate-500">
+                        Randomize ±25
+                    </button>
+                </div>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Current Tuning Table</label>
+                <div class="mt-1 p-2 bg-gray-200 dark:bg-slate-700 rounded text-xs font-mono dark:text-slate-200 overflow-x-auto">
+                    <div class="flex gap-1">
+                        ${noteNames.map((note, i) => `
+                            <span class="flex-shrink-0 px-1 ${currentCents[i] !== 0 ? 'bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-100' : ''}">
+                                ${note}:${currentCents[i] >= 0 ? '+' : ''}${currentCents[i].toFixed(0)}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <label class="text-xs font-medium dark:text-slate-300">Tuning Preview</label>
+                <p class="text-xs text-gray-500 dark:text-slate-500 mb-1">
+                    Hear how C4 (MIDI 60) sounds with the current tuning applied.
+                </p>
+                <div class="flex gap-2">
+                    <button id="previewNoteBtn" class="flex-1 px-2 py-1 text-xs rounded bg-green-500 text-white hover:bg-green-600">
+                        ▶ Preview C4
+                    </button>
+                    <button id="previewScaleBtn" class="flex-1 px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600">
+                        ▶ Play Scale
+                    </button>
+                </div>
+            </div>
+            
+            <div class="border-t dark:border-slate-600 pt-2">
+                <div class="text-xs text-gray-500 dark:text-slate-500">
+                    <p><strong>Note:</strong> Micro tuning affects all synths and samplers.</p>
+                    <p>External MIDI output uses the tuned frequencies.</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Toggle button
+    container.querySelector('#microTuningToggleBtn')?.addEventListener('click', () => {
+        const newEnabled = !enabled;
+        localAppServices.setMicroTuningEnabled?.(newEnabled);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(`Micro Tuning ${newEnabled ? 'enabled' : 'disabled'}`, 1500);
+        }
+        renderMicroTuningPanelContent();
+    });
+    
+    // Preset select
+    container.querySelector('#microTuningPresetSelect')?.addEventListener('change', (e) => {
+        localAppServices.setMicroTuningPreset?.(e.target.value);
+        renderMicroTuningPanelContent();
+    });
+    
+    // Cents inputs
+    container.querySelectorAll('.cents-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const value = parseFloat(e.target.value) || 0;
+            const newCents = [...currentCents];
+            newCents[index] = Math.max(-100, Math.min(100, value));
+            localAppServices.setMicroTuningCents?.(newCents);
+            renderMicroTuningPanelContent();
+        });
+    });
+    
+    // Reset button
+    container.querySelector('#resetCentsBtn')?.addEventListener('click', () => {
+        localAppServices.setMicroTuningCents?.(Array(12).fill(0));
+        renderMicroTuningPanelContent();
+    });
+    
+    // Randomize button
+    container.querySelector('#randomizeCentsBtn')?.addEventListener('click', () => {
+        const randomCents = Array(12).fill(0).map(() => Math.round((Math.random() * 50 - 25) * 2) / 2);
+        localAppServices.setMicroTuningCents?.(randomCents);
+        renderMicroTuningPanelContent();
+    });
+    
+    // Preview note button
+    container.querySelector('#previewNoteBtn')?.addEventListener('click', () => {
+        // Use Tone.js to play a preview note
+        if (typeof Tone !== 'undefined' && Tone.context.state === 'running') {
+            const freq = localAppServices.midiNoteToFrequencyWithMicroTuning?.(60) ?? 261.63;
+            const synth = new Tone.Synth().toDestination();
+            synth.triggerAttackRelease(freq, '8n');
+        } else if (localAppServices.showNotification) {
+            localAppServices.showNotification('Click anywhere to enable audio first', 2000);
+        }
+    });
+    
+    // Preview scale button
+    container.querySelector('#previewScaleBtn')?.addEventListener('click', () => {
+        if (typeof Tone !== 'undefined' && Tone.context.state === 'running') {
+            // Play a one-octave chromatic scale with micro tuning
+            const now = Tone.now();
+            for (let i = 0; i < 12; i++) {
+                const freq = localAppServices.midiNoteToFrequencyWithMicroTuning?.(60 + i) ?? 261.63 * Math.pow(2, i/12);
+                const synth = new Tone.Synth().toDestination();
+                synth.triggerAttackRelease(freq, '16n', now + i * 0.15);
+            }
+        } else if (localAppServices.showNotification) {
+            localAppServices.showNotification('Click anywhere to enable audio first', 2000);
+        }
+    });
+}
+
+export function updateMicroTuningPanel() {
+    const container = document.getElementById('microTuningContent');
+    if (container) {
+        renderMicroTuningPanelContent();
     }
 }

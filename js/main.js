@@ -71,6 +71,10 @@ import {
     getScaleLockEnabled, setScaleLockEnabled, getScaleLockRoot, setScaleLockRoot,
     getScaleLockType, setScaleLockType, getScaleLockMode, setScaleLockMode,
     quantizeNoteToScale, isNoteInScaleLock, applyScaleLockToNote,
+    // Micro Tuning
+    getMicroTuningEnabled, setMicroTuningEnabled, getMicroTuningPreset, setMicroTuningPreset,
+    getMicroTuningCents, setMicroTuningCents, getMicroTuningRootNote, setMicroTuningRootNote,
+    getMicroTuningPresets, getMicroTuningPresetById, midiNoteToFrequencyWithMicroTuning, getMicroTuningFrequencyRatio,
     // Groove Templates
     getGroovePresets, getGroovePresetById, getGrooveSwingAmount,
     // Track Groups
@@ -117,7 +121,7 @@ import {
     openScaleLockPanel,
     openTrackTemplatesPanel,
     openAutomationLanesPanel,
-
+    
     // Pattern Chains
     openPatternChainsPanel
 } from './ui.js';
@@ -715,7 +719,7 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -784,7 +788,13 @@ const appServices = {
     openAutomationLanesPanel,
     
     // Pattern Chains
-    openPatternChainsPanel
+    openPatternChainsPanel,
+    
+    // Micro Tuning
+    getMicroTuningEnabled, setMicroTuningEnabled, getMicroTuningPreset, setMicroTuningPreset,
+    getMicroTuningCents, setMicroTuningCents, getMicroTuningRootNote, setMicroTuningRootNote,
+    getMicroTuningPresets, getMicroTuningPresetById, midiNoteToFrequencyWithMicroTuning, getMicroTuningFrequencyRatio,
+    openMicroTuningPanel
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

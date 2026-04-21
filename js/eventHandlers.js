@@ -204,6 +204,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openScaleLockPanel?.();
                 } catch(e) { console.error('[Menu] Scale Lock error:', e); }
             },
+            menuMicroTuning: () => {
+                console.log('[Menu] Micro Tuning clicked');
+                try {
+                    services.openMicroTuningPanel?.();
+                } catch(e) { console.error('[Menu] Micro Tuning error:', e); }
+            },
             menuGrooveTemplates: () => {
                 console.log('[Menu] Groove Templates clicked');
                 try {
