@@ -3375,6 +3375,66 @@ export class Track {
     }
 
     /**
+     * Multiply/duplicate a timeline clip a specified number of times.
+     * Copies are placed sequentially after the original clip.
+     * @param {string} clipId - The clip ID to multiply
+     * @param {number} count - Number of times to repeat the clip (1-16)
+     * @param {boolean} fromInteraction - Whether this is from user interaction (for undo)
+     * @returns {Array} Array of new clip IDs created
+     */
+    multiplyClip(clipId, count = 2, fromInteraction = false) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found for multiply.`);
+            return [];
+        }
+
+        const repeatCount = Math.max(1, Math.min(16, parseInt(count) || 2));
+        
+        if (fromInteraction && this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Multiply clip "${clip.name}" x${repeatCount}`);
+        }
+
+        const newClipIds = [];
+        let lastEndTime = clip.startTime + clip.duration;
+
+        for (let i = 0; i < repeatCount; i++) {
+            const newClipId = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const newClip = {
+                id: newClipId,
+                type: clip.type,
+                sourceId: clip.sourceId,
+                startTime: lastEndTime,
+                duration: clip.duration,
+                name: `${clip.name} (×${i + 2})`,
+                fadeIn: clip.fadeIn || 0,
+                fadeOut: clip.fadeOut || 0,
+                pitchShift: clip.pitchShift || 0,
+                gainEnvelope: clip.gainEnvelope ? JSON.parse(JSON.stringify(clip.gainEnvelope)) : undefined,
+            };
+
+            this.timelineClips.push(newClip);
+            newClipIds.push(newClipId);
+            lastEndTime = newClip.startTime + newClip.duration;
+
+            console.log(`[Track ${this.id}] Created multiply copy ${i + 2}/${repeatCount}: "${newClip.name}" at ${newClip.startTime.toFixed(2)}s`);
+        }
+
+        // Sort clips by start time
+        this.timelineClips.sort((a, b) => a.startTime - b.startTime);
+
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Created ${repeatCount} copies of "${clip.name}"`, 2000);
+        }
+
+        if (this.appServices.renderTimeline) {
+            this.appServices.renderTimeline();
+        }
+
+        return newClipIds;
+    }
+
+    /**
      * Get interpolated gain value at a specific time within a clip.
      * @param {string} clipId - The clip ID
      * @param {number} time - Time in seconds (relative to clip start)
