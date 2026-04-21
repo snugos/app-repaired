@@ -3502,6 +3502,49 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`Reverse not available`, 1500);
                     }
                 }},
+                { label: '🎵 Transpose Clip', action: () => {} },
+                { label: '  -12 st (Octave Down)', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, -12);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
+                { label: '  -5 st', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, -5);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
+                { label: '  -2 st', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, -2);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
+                { label: '  +2 st', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, 2);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
+                { label: '  +5 st', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, 5);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
+                { label: '  +12 st (Octave Up)', action: () => {
+                    if (typeof track.transposeAudioClip === 'function') {
+                        track.transposeAudioClip(clipId, 12);
+                    } else {
+                        showNotification(`Transpose not available`, 1500);
+                    }
+                }},
                 { separator: true },
                 { label: '📏 Quantize Clip', action: () => {} },
                 { label: '  Snap to 1/4 (Quarter)', action: () => {

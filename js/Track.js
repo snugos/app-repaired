@@ -2945,6 +2945,93 @@ export class Track {
         }
     }
 
+    /**
+     * Transpose an audio clip by semitones (creates a new audio buffer with pitch shifted).
+     * @param {string} clipId - The clip ID to transpose
+     * @param {number} semitones - Number of semitones to shift (positive = up, negative = down)
+     * @returns {Promise<boolean>} True if successful
+     */
+    async transposeAudioClip(clipId, semitones = 0) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || clip.type !== 'audio') {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found or not audio clip.`);
+            return false;
+        }
+        if (semitones === 0) return true;
+
+        console.log(`[Track ${this.id}] Transposing audio clip "${clip.name}" by ${semitones} semitones...`);
+        try {
+            const originalBlob = await getAudio(clip.sourceId);
+            if (!originalBlob) {
+                console.error(`[Track ${this.id}] Audio data not found for clip ${clipId}`);
+                if (this.appServices.showNotification) {
+                    this.appServices.showNotification('Audio data not found for this clip.', 3000);
+                }
+                return false;
+            }
+
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await originalBlob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            // Pitch shift via playback rate (simple approach: change rate, then resample)
+            // For true pitch shift we need a phase vocoder; here we use detune (cents)
+            const rate = Math.pow(2, semitones / 12);
+            const numberOfChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const length = audioBuffer.length;
+            const transposedBuffer = audioContext.createBuffer(numberOfChannels, length, sampleRate);
+
+            for (let ch = 0; ch < numberOfChannels; ch++) {
+                const originalData = audioBuffer.getChannelData(ch);
+                const transposedData = transposedBuffer.getChannelData(ch);
+                for (let i = 0; i < length; i++) {
+                    const srcIdx = i * rate;
+                    const idx = Math.floor(srcIdx);
+                    const frac = srcIdx - idx;
+                    if (idx + 1 < length) {
+                        transposedData[i] = originalData[idx] * (1 - frac) + originalData[idx + 1] * frac;
+                    } else {
+                        transposedData[i] = originalData[Math.min(idx, length - 1)];
+                    }
+                }
+            }
+
+            const transposedBlob = await this._audioBufferToWav(transposedBuffer);
+            await audioContext.close();
+
+            const newDbKey = `audioclip_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}_transposed`;
+            const newAudioData = await transposedBlob.arrayBuffer();
+            await storeAudio(newDbKey, newAudioData);
+
+            const oldSourceId = clip.sourceId;
+            clip.sourceId = newDbKey;
+
+            if (clip.audioBuffer) {
+                if (clip.audioBuffer.disposed === false) {
+                    try { clip.audioBuffer.dispose(); } catch(e) {}
+                }
+                clip.audioBuffer = null;
+            }
+
+            this._captureUndoState(`Transpose clip "${clip.name}" on ${this.name} by ${semitones} st`);
+
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            if (this.appServices.updateTrackUI) this.appServices.updateTrackUI(this.id, 'audioClipTransposed');
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Audio transposed ${semitones > 0 ? '+' : ''}${semitones} semitones.`, 2000);
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`[Track ${this.id}] Error transposing audio clip:`, error);
+            if (this.appServices.showNotification) {
+                this.appServices.showNotification(`Error transposing audio: ${error.message}`, 3000);
+            }
+            return false;
+        }
+    }
+
     // --- Track Freeze Methods ---
     /**
      * Freeze the track - render to audio and disable real-time processing.
