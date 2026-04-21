@@ -389,6 +389,98 @@ export function getCcVisualizerValues() { return { ...ccVisualizerValues }; }
 export function updateCcVisualizerValue(ccNumber, channel, value) {
     const key = `cc${ccNumber}_channel${channel}`;
     ccVisualizerValues[key] = Math.max(0, Math.min(1, value));
+// --- MIDI Output ---
+let activeMidiOutputGlobal = null; // Currently selected MIDI output device
+
+export function setActiveMidiOutputState(output) { activeMidiOutputGlobal = output; }
+export function getActiveMidiOutputState() { return activeMidiOutputGlobal; }
+
+export function getMidiOutputDevices() {
+    if (!midiAccessGlobal || !midiAccessGlobal.outputs) return [];
+    const outputs = [];
+    midiAccessGlobal.outputs.forEach((output) => {
+        outputs.push({ id: output.id, name: output.name || `MIDI Device ${output.id.slice(-4)}` });
+    });
+    return outputs;
+}
+
+// Send MIDI note on message
+export function sendMidiNoteOn(note, velocity = 127, channel = 0) {
+    if (!activeMidiOutputGlobal) {
+        console.warn('[MIDI Output] No active MIDI output device selected');
+        return false;
+    }
+    try {
+        const noteOnMessage = [0x90 | (channel & 0x0F), note & 0x7F, velocity & 0x7F];
+        activeMidiOutputGlobal.send(noteOnMessage);
+        return true;
+    } catch (e) {
+        console.error('[MIDI Output] Error sending Note On:', e);
+        return false;
+    }
+}
+
+// Send MIDI note off message
+export function sendMidiNoteOff(note, channel = 0) {
+    if (!activeMidiOutputGlobal) {
+        console.warn('[MIDI Output] No active MIDI output device selected');
+        return false;
+    }
+    try {
+        const noteOffMessage = [0x80 | (channel & 0x0F), note & 0x7F, 0];
+        activeMidiOutputGlobal.send(noteOffMessage);
+        return true;
+    } catch (e) {
+        console.error('[MIDI Output] Error sending Note Off:', e);
+        return false;
+    }
+}
+
+// Send MIDI CC message
+export function sendMidiCC(cc, value, channel = 0) {
+    if (!activeMidiOutputGlobal) {
+        console.warn('[MIDI Output] No active MIDI output device selected');
+        return false;
+    }
+    try {
+        const ccMessage = [0xB0 | (channel & 0x0F), cc & 0x7F, value & 0x7F];
+        activeMidiOutputGlobal.send(ccMessage);
+        return true;
+    } catch (e) {
+        console.error('[MIDI Output] Error sending CC:', e);
+        return false;
+    }
+}
+
+// Select MIDI output device
+export function selectMidiOutput(deviceId) {
+    if (!midiAccessGlobal || !midiAccessGlobal.outputs) {
+        console.warn('[MIDI Output] MIDI not available');
+        return;
+    }
+    
+    if (activeMidiOutputGlobal && typeof activeMidiOutputGlobal.close === 'function') {
+        try { activeMidiOutputGlobal.close(); } catch (e) {}
+    }
+    
+    if (deviceId) {
+        const output = midiAccessGlobal.outputs.get(deviceId);
+        if (output) {
+            output.open().then((port) => {
+                setActiveMidiOutputState(port);
+                console.log(`[MIDI Output] Output selected: ${port.name}`);
+            }).catch(err => {
+                console.error(`[MIDI Output] Error opening output:`, err);
+                setActiveMidiOutputState(null);
+            });
+        } else {
+            setActiveMidiOutputState(null);
+        }
+    } else {
+        setActiveMidiOutputState(null);
+    }
+}
+
 }
 
 // --- Project Export Presets ---
