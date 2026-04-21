@@ -4,20 +4,25 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Multiplication** - Repeat clips with optional variations
-2. **Note Probability** - Set probability for each note (random playback)
-3. **Scale Lock** - Force all notes to stay within a musical scale
-4. **Micro Tuning** - Custom tuning tables for non-standard scales
-5. **MIDI Output** - Send MIDI to external devices via Web MIDI API
+1. **Track Templates** - Save/load track configurations as presets
+2. **Automation Lanes** - Visual automation editor for all parameters
+3. **Pattern Length Per Track** - Variable pattern lengths per track
+4. **Stem Export** - Export each track as a separate audio file
+5. **Sample Browser Search** - Search/filter sounds in the sound browser by name
 
 ## When Queue is Empty - New Feature Ideas
 
 New Feature Queue:
 1. **MIDI Learn Panel** - Visual panel to configure MIDI CC mappings for all parameters
-2. **Sample Browser Search** - Search/filter sounds in the sound browser by name
-3. **Export Stems** - Export each track as a separate audio file
-4. **Track Color Picker** - Change track colors from a color palette
-5. **Keyboard Shortcuts Panel** - Press `?` to show all keyboard shortcuts
+2. **Keyboard Shortcuts Panel** - Press `?` to show all keyboard shortcuts
+3. **Track Color Picker** - Change track colors from a color palette
+4. **Note Length Editing** - Edit individual note lengths in piano roll
+5. **Audio Normalization** - Auto-normalize recorded or imported audio
+6. **Ruler Selection** - Click and drag on ruler to select time range
+7. **Copy/Paste Patterns** - Copy and paste sequence patterns between tracks
+8. **MIDI File Export** - Export sequences to standard .mid files
+9. **Audio Resample** - Resample audio at different quality/bitrate
+10. **Track Icon** - Assign icons to tracks for visual identification
 
 ## Workflow
 
@@ -46,6 +51,26 @@ After successfully implementing a feature:
 - Remove it from the queue
 - Renumber the remaining features
 - Update this instruction with new queue
+
+## When Queue is Empty
+
+Run this brainstorming process:
+
+```
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+
+Generate 10 NEW feature ideas that are:
+1. Achievable in a single session
+2. Complement existing features
+3. Enhance creative workflow
+
+Output as numbered list and update this instruction.
+```
 
 ## Rules
 
