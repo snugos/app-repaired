@@ -5140,6 +5140,216 @@ export function openExportPresetsPanel() {
     }
     
     renderExportPresetsContent(win.contentArea);
+
+// ============================================
+// TRACK TEMPLATES
+// ============================================
+
+/**
+ * Opens the Track Templates panel where users can save, load, and manage track templates.
+ */
+export function openTrackTemplatesPanel() {
+    const panelId = 'trackTemplatesPanel';
+    let win = localAppServices.getWindowByIdState ? localAppServices.getWindowByIdState(panelId) : null;
+    
+    if (win) {
+        win.bringToFront();
+        return;
+    }
+    
+    win = new SnugWindow({
+        id: panelId,
+        title: 'Track Templates',
+        width: 500,
+        height: 550,
+        x: 200,
+        y: 100,
+        minWidth: 350,
+        minHeight: 300,
+        onCloseCallback: () => {
+            if (localAppServices.removeWindowFromStoreState) {
+                localAppServices.removeWindowFromStoreState(panelId);
+            }
+        }
+    });
+    
+    if (localAppServices.addWindowToStoreState) {
+        localAppServices.addWindowToStoreState(panelId, win);
+    }
+    
+    renderTrackTemplatesContent(win.contentArea);
+}
+
+/**
+ * Renders the content of the Track Templates panel.
+ */
+function renderTrackTemplatesContent(container) {
+    const templateNames = localAppServices.getTrackTemplateNames ? localAppServices.getTrackTemplateNames() : [];
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    
+    container.innerHTML = `
+        <div class="p-4 h-full flex flex-col">
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Save Track as Template</h3>
+                <div class="mb-2">
+                    <label class="text-xs text-slate-600 dark:text-slate-400 block mb-1">Select Track:</label>
+                    <select id="trackTemplateTrackSelect" class="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs">
+                        <option value="">-- Select a track --</option>
+                        ${tracks.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="newTrackTemplateName" placeholder="Template name..." class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs">
+                    <button id="saveTrackTemplateBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">Saved Templates</h3>
+                <div id="trackTemplateList" class="space-y-1">
+                    ${templateNames.length === 0 ? '<p class="text-xs text-slate-500 italic">No track templates saved yet.</p>' : 
+                        templateNames.map(name => {
+                            const template = localAppServices.getTrackTemplate ? localAppServices.getTrackTemplate(name) : null;
+                            return `
+                            <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-700 rounded px-2 py-2">
+                                <div class="flex-1">
+                                    <span class="text-xs font-medium">${escapeHtml(name)}</span>
+                                    ${template ? `<div class="text-xs text-slate-500 dark:text-slate-400">${template.type}${template.synthEngineType ? ` (${template.synthEngineType})` : ''} • ${template.activeEffects?.length || 0} effects</div>` : ''}
+                                </div>
+                                <div class="flex gap-1">
+                                    <button class="apply-track-template-btn px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-template="${escapeHtml(name)}">Apply</button>
+                                    <button class="delete-track-template-btn px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-template="${escapeHtml(name)}">Delete</button>
+                                </div>
+                            </div>
+                        `}).join('')
+                    }
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-2 border-t border-slate-200 dark:border-slate-600">
+                <p class="text-xs text-slate-500 dark:text-slate-400 italic">Tip: Track templates save the current settings of a track including effects, synth params, and more.</p>
+            </div>
+        </div>
+    `;
+    
+    const saveBtn = document.getElementById('saveTrackTemplateBtn');
+    const trackSelect = document.getElementById('trackTemplateTrackSelect');
+    const nameInput = document.getElementById('newTrackTemplateName');
+    
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const trackId = parseInt(trackSelect.value, 10);
+            const templateName = nameInput.value.trim();
+            
+            if (!trackId) {
+                showNotification('Please select a track first.', 2000);
+                return;
+            }
+            if (!templateName) {
+                showNotification('Please enter a template name.', 2000);
+                return;
+            }
+            
+            const track = tracks.find(t => t.id === trackId);
+            if (!track) {
+                showNotification('Track not found.', 2000);
+                return;
+            }
+            
+            const trackData = {
+                type: track.type,
+                name: track.name,
+                volume: track.volume,
+                pan: track.pan,
+                color: track.color,
+                synthEngineType: track.synthEngineType,
+                synthParams: track.synthParams,
+                activeEffects: track.activeEffects,
+                drumSamplerPads: track.drumSamplerPads,
+                instrumentSamplerSettings: track.instrumentSamplerSettings,
+                slices: track.slices
+            };
+            
+            if (localAppServices.saveTrackTemplate) {
+                localAppServices.saveTrackTemplate(templateName, trackData);
+                showNotification(`Template "${templateName}" saved!`, 2000);
+                renderTrackTemplatesContent(container);
+            }
+        });
+    }
+    
+    container.querySelectorAll('.delete-track-template-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const templateName = e.target.dataset.template;
+            if (confirm(`Delete template "${templateName}"?`)) {
+                if (localAppServices.deleteTrackTemplate) {
+                    localAppServices.deleteTrackTemplate(templateName);
+                    showNotification(`Template "${templateName}" deleted.`, 2000);
+                    renderTrackTemplatesContent(container);
+                }
+            }
+        });
+    });
+    
+    container.querySelectorAll('.apply-track-template-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const templateName = e.target.dataset.template;
+            const tracksForApply = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+            if (tracksForApply.length === 0) {
+                showNotification('No tracks available. Create a track first.', 2000);
+                return;
+            }
+            
+            const trackOptions = tracksForApply.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join('');
+            const dialogHtml = `
+                <div class="p-4">
+                    <h3 class="text-sm font-semibold mb-2">Apply Template "${escapeHtml(templateName)}"</h3>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mb-2">Select a track to apply this template to:</p>
+                    <select id="applyTemplateTrackSelect" class="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs mb-3">
+                        ${trackOptions}
+                    </select>
+                    <div class="flex gap-2 justify-end">
+                        <button id="cancelApplyTemplate" class="px-3 py-1 text-xs bg-gray-300 dark:bg-slate-600 rounded hover:bg-gray-400 dark:hover:bg-slate-500">Cancel</button>
+                        <button id="confirmApplyTemplate" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Apply</button>
+                    </div>
+                </div>
+            `;
+            
+            showCustomModal(dialogHtml, 300);
+            
+            document.getElementById('cancelApplyTemplate')?.addEventListener('click', () => {
+                document.getElementById('customModal')?.remove();
+            });
+            
+            document.getElementById('confirmApplyTemplate')?.addEventListener('click', () => {
+                const targetTrackId = parseInt(document.getElementById('applyTemplateTrackSelect').value, 10);
+                const targetTrack = tracksForApply.find(t => t.id === targetTrackId);
+                
+                if (targetTrack && localAppServices.applyTrackTemplate) {
+                    localAppServices.applyTrackTemplate(templateName, targetTrack);
+                    showNotification(`Template applied to "${targetTrack.name}"!`, 2000);
+                    
+                    if (localAppServices.updateTrackUI) {
+                        localAppServices.updateTrackUI(targetTrackId);
+                    }
+                }
+                
+                document.getElementById('customModal')?.remove();
+            });
+        });
+    });
+}
+
+export function updateTrackTemplatesPanel() {
+    const container = document.getElementById('trackTemplatesContent');
+    if (container) {
+        renderTrackTemplatesContent(container);
+    }
+}
+
+// --- End Track Templates ---
+
+
 }
 
 /**

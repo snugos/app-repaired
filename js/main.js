@@ -72,7 +72,9 @@ import {
     // Track Groups
     getTrackGroups, getTrackGroupById, addTrackGroup, removeTrackGroup, updateTrackGroup,
     addTrackToGroup, removeTrackFromGroup, setTrackGroupVolume, setTrackGroupMute,
-    setTrackGroupSolo, toggleTrackGroupMute, toggleTrackGroupSolo, clearAllTrackGroups
+    setTrackGroupSolo, toggleTrackGroupMute, toggleTrackGroupSolo, clearAllTrackGroups,
+    // Track Templates
+    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -111,6 +113,7 @@ import {
     openArpeggiatorPanel,
     openGrooveTemplatesPanel,
     openScaleLockPanel,
+    openTrackTemplatesPanel,
     
     // Groove Templates
     getGroovePresets,
@@ -765,6 +768,7 @@ const appServices = {
     openArpeggiatorPanel,
     openGrooveTemplatesPanel,
     openScaleLockPanel,
+    openTrackTemplatesPanel,
     
     // Groove Templates
     getGroovePresets,
