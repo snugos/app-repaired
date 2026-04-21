@@ -527,6 +527,9 @@ function buildTrackInspectorContentDOM(track) {
         monitorButtonHTML = `<button id="monitorBtn-${track.id}" title="Toggle Input Monitoring" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isMonitoringEnabled ? 'active' : ''}">Monitor</button>`;
     }
 
+    const midiChannelValue = track.getMidiChannel ? track.getMidiChannel() : 0;
+    const midiChannelDisplay = midiChannelValue === 0 ? 'Omni (All)' : `Ch ${midiChannelValue}`;
+
     return `
         <div class="track-inspector-content p-1 space-y-1 text-xs text-gray-700 dark:text-slate-300 overflow-y-auto h-full">
             <div class="common-controls grid ${track.type === 'Audio' ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-1">
@@ -534,6 +537,28 @@ function buildTrackInspectorContentDOM(track) {
                 <button id="soloBtn-${track.id}" title="Solo Track" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${track.isSoloed ? 'soloed' : ''}">${track.isSoloed ? 'Unsolo' : 'Solo'}</button>
                 ${monitorButtonHTML}
                 <button id="armInputBtn-${track.id}" title="Arm for MIDI/Keyboard Input or Audio Recording" class="px-1 py-0.5 border rounded dark:border-slate-500 dark:hover:bg-slate-600 ${armedTrackId === track.id ? 'armed' : ''}">Arm</button>
+            </div>
+            <div id="midiChannelRow-${track.id}" class="flex items-center gap-1 mb-1">
+                <label for="midiChannelSelect-${track.id}" class="text-xs dark:text-slate-400 whitespace-nowrap">MIDI Ch:</label>
+                <select id="midiChannelSelect-${track.id}" class="flex-1 p-0.5 border rounded text-xs bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 cursor-pointer">
+                    <option value="0" ${midiChannelValue === 0 ? 'selected' : ''}>Omni (All)</option>
+                    <option value="1" ${midiChannelValue === 1 ? 'selected' : ''}>Ch 1</option>
+                    <option value="2" ${midiChannelValue === 2 ? 'selected' : ''}>Ch 2</option>
+                    <option value="3" ${midiChannelValue === 3 ? 'selected' : ''}>Ch 3</option>
+                    <option value="4" ${midiChannelValue === 4 ? 'selected' : ''}>Ch 4</option>
+                    <option value="5" ${midiChannelValue === 5 ? 'selected' : ''}>Ch 5</option>
+                    <option value="6" ${midiChannelValue === 6 ? 'selected' : ''}>Ch 6</option>
+                    <option value="7" ${midiChannelValue === 7 ? 'selected' : ''}>Ch 7</option>
+                    <option value="8" ${midiChannelValue === 8 ? 'selected' : ''}>Ch 8</option>
+                    <option value="9" ${midiChannelValue === 9 ? 'selected' : ''}>Ch 9</option>
+                    <option value="10" ${midiChannelValue === 10 ? 'selected' : ''}>Ch 10</option>
+                    <option value="11" ${midiChannelValue === 11 ? 'selected' : ''}>Ch 11</option>
+                    <option value="12" ${midiChannelValue === 12 ? 'selected' : ''}>Ch 12</option>
+                    <option value="13" ${midiChannelValue === 13 ? 'selected' : ''}>Ch 13</option>
+                    <option value="14" ${midiChannelValue === 14 ? 'selected' : ''}>Ch 14</option>
+                    <option value="15" ${midiChannelValue === 15 ? 'selected' : ''}>Ch 15</option>
+                    <option value="16" ${midiChannelValue === 16 ? 'selected' : ''}>Ch 16</option>
+                </select>
             </div>
             <div id="volumeKnob-${track.id}-placeholder" class="mb-1"></div>
             <div id="trackMeterContainer-${track.id}" class="h-3 w-full bg-gray-200 dark:bg-slate-600 rounded border border-gray-300 dark:border-slate-500 overflow-hidden my-1">
@@ -579,6 +604,17 @@ function initializeCommonInspectorControls(track, winEl) {
     winEl.querySelector(`#muteBtn-${track.id}`)?.addEventListener('click', () => handleTrackMute(track.id));
     winEl.querySelector(`#soloBtn-${track.id}`)?.addEventListener('click', () => handleTrackSolo(track.id));
     winEl.querySelector(`#armInputBtn-${track.id}`)?.addEventListener('click', () => handleTrackArm(track.id));
+
+    // MIDI Channel selector
+    const midiChannelSelect = winEl.querySelector(`#midiChannelSelect-${track.id}`);
+    if (midiChannelSelect && track.setMidiChannel) {
+        midiChannelSelect.addEventListener('change', (e) => {
+            const channel = parseInt(e.target.value, 10);
+            track.setMidiChannel(channel, true);
+            const display = channel === 0 ? 'Omni (All)' : `Ch ${channel}`;
+            showNotification(`${track.name} MIDI channel: ${display}`, 1500);
+        });
+    }
 
     const monitorBtn = winEl.querySelector(`#monitorBtn-${track.id}`);
     if (monitorBtn) {
