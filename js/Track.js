@@ -292,6 +292,134 @@ export class Track {
         return activeSeq ? activeSeq.length : Constants.defaultStepsPerBar;
     }
 
+    // --- Sequence Management ---
+
+    /**
+     * Creates a new sequence for this track.
+     * @param {string} name - The name of the sequence.
+     * @param {number} length - Number of steps in the sequence.
+     * @param {boolean} setActive - Whether to set this as the active sequence.
+     * @returns {Object} The created sequence object.
+     */
+    createNewSequence(name = "New Sequence", length = Constants.defaultStepsPerBar, setActive = false) {
+        const sequenceId = `seq_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        
+        // Determine number of rows based on track type
+        let numRows;
+        if (this.type === 'DrumSampler') {
+            numRows = Constants.numDrumSamplerPads; // 8 pads
+        } else {
+            numRows = Constants.synthPitches.length; // 72 pitches for synths
+        }
+        
+        // Create empty sequence data (2D array of nulls)
+        const data = Array(numRows).fill(null).map(() => Array(length).fill(null));
+        
+        const newSequence = {
+            id: sequenceId,
+            name: name,
+            data: data,
+            length: length
+        };
+        
+        this.sequences.push(newSequence);
+        
+        if (setActive) {
+            this.activeSequenceId = sequenceId;
+        }
+        
+        console.log(`[Track ${this.id}] Created new sequence "${name}" with ID ${sequenceId}, ${numRows} rows × ${length} steps.`);
+        
+        return newSequence;
+    }
+
+    /**
+     * Deletes a sequence by ID.
+     * @param {string} sequenceId - The ID of the sequence to delete.
+     * @returns {boolean} True if deleted, false if not found.
+     */
+    deleteSequence(sequenceId) {
+        if (this.sequences.length <= 1) {
+            console.warn(`[Track ${this.id}] Cannot delete the last sequence.`);
+            return false;
+        }
+        
+        const index = this.sequences.findIndex(s => s.id === sequenceId);
+        if (index === -1) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found.`);
+            return false;
+        }
+        
+        this.sequences.splice(index, 1);
+        
+        // If the deleted sequence was active, switch to the first one
+        if (this.activeSequenceId === sequenceId) {
+            this.activeSequenceId = this.sequences[0] ? this.sequences[0].id : null;
+        }
+        
+        console.log(`[Track ${this.id}] Deleted sequence ${sequenceId}.`);
+        return true;
+    }
+
+    /**
+     * Sets the active sequence by ID.
+     * @param {string} sequenceId - The ID of the sequence to activate.
+     * @returns {boolean} True if activated, false if not found.
+     */
+    setActiveSequence(sequenceId) {
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found.`);
+            return false;
+        }
+        
+        this.activeSequenceId = sequenceId;
+        console.log(`[Track ${this.id}] Active sequence set to "${sequence.name}" (${sequenceId}).`);
+        return true;
+    }
+
+    /**
+     * Renames a sequence.
+     * @param {string} sequenceId - The ID of the sequence to rename.
+     * @param {string} newName - The new name for the sequence.
+     * @returns {boolean} True if renamed, false if not found.
+     */
+    renameSequence(sequenceId, newName) {
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found.`);
+            return false;
+        }
+        
+        sequence.name = newName;
+        console.log(`[Track ${this.id}] Renamed sequence ${sequenceId} to "${newName}".`);
+        return true;
+    }
+
+    /**
+     * Duplicates a sequence.
+     * @param {string} sequenceId - The ID of the sequence to duplicate.
+     * @returns {Object|null} The new duplicated sequence, or null if not found.
+     */
+    duplicateSequence(sequenceId) {
+        const sourceSequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sourceSequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found for duplication.`);
+            return null;
+        }
+        
+        const newSequence = {
+            id: `seq_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: `${sourceSequence.name} (copy)`,
+            data: JSON.parse(JSON.stringify(sourceSequence.data)),
+            length: sourceSequence.length
+        };
+        
+        this.sequences.push(newSequence);
+        console.log(`[Track ${this.id}] Duplicated sequence "${sourceSequence.name}" to "${newSequence.name}".`);
+        return newSequence;
+    }
+
     // --- Synth Specific ---
 
     // --- Groove Template ---
