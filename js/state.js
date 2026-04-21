@@ -2176,6 +2176,284 @@ export async function exportToWavInternal() {
  * @param {boolean} settings.dither - Whether to apply dithering
  * @param {number} settings.tailSeconds - Seconds of tail to add after last note
  */
+
+/**
+ * Shows the stem export dialog UI.
+ * Lets users select which tracks to export as separate audio files.
+ */
+export function showStemExportDialogInternal() {
+    if (!appServices?.showNotification) {
+        console.error("[State showStemStemExportDialogInternal] appServices not available.");
+        return;
+    }
+
+    const tracks = getTracksState();
+    if (!tracks || tracks.length === 0) {
+        appServices.showNotification("No tracks to export.", 3000);
+        return;
+    }
+
+    const trackOptionsHtml = tracks.map((track, i) => {
+        const isMuted = track.isMuted ? 'opacity-50' : '';
+        return `
+            <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer ${isMuted}">
+                <input type="checkbox" class="stem-track-checkbox rounded" data-track-id="${track.id}" ${track.isMuted ? '' : 'checked'}>
+                <span class="w-4 h-4 rounded" style="background-color: ${track.color || '#666'}"></span>
+                <span class="text-sm">${escapeHtml(track.name)}</span>
+                <span class="text-xs text-slate-500 ml-auto">${escapeHtml(track.type)}</span>
+            </label>
+        `;
+    }).join('');
+
+    const dialogHtml = `
+        <div id="stemExportDialog" class="p-4 space-y-4 max-w-md">
+            <p class="text-sm text-slate-600 dark:text-slate-300">
+                Select tracks to export as separate audio files (stems).
+            </p>
+            
+            <div class="max-h-64 overflow-y-auto border rounded dark:border-slate-600">
+                <div class="p-2 space-y-1">
+                    ${trackOptionsHtml}
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="stemSelectAll" class="rounded" checked>
+                <label for="stemSelectAll" class="text-sm">Select All</label>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Sample Rate</label>
+                    <select id="stemSampleRate" class="w-full p-2 border rounded text-sm dark:bg-slate-700 dark:border-slate-600">
+                        <option value="44100">44.1 kHz</option>
+                        <option value="48000" selected>48 kHz</option>
+                        <option value="96000">96 kHz</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Format</label>
+                    <select id="stemFormat" class="w-full p-2 border rounded text-sm dark:bg-slate-700 dark:border-slate-600">
+                        <option value="wav">WAV</option>
+                        <option value="webm">WebM (Opus)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="stemIncludeMaster" class="rounded">
+                <label for="stemIncludeMaster" class="text-sm">Include master output as extra stem</label>
+            </div>
+            
+            <p class="text-xs text-slate-500">
+                Selected tracks will be exported with their effects and mixer settings applied.
+            </p>
+        </div>
+    `;
+
+    if (typeof showCustomModal === 'function') {
+        const modal = showCustomModal('Export Stems', dialogHtml, [
+            { text: 'Cancel', action: null, closesModal: true },
+            { text: 'Export Selected', action: () => {
+                const checkboxes = document.querySelectorAll('.stem-track-checkbox:checked');
+                const selectedTrackIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.trackId));
+                
+                if (selectedTrackIds.length === 0) {
+                    appServices.showNotification("No tracks selected for export.", 2000);
+                    return;
+                }
+                
+                const sampleRate = parseInt(document.getElementById('stemSampleRate')?.value || '48000');
+                const format = document.getElementById('stemFormat')?.value || 'wav';
+                const includeMaster = document.getElementById('stemIncludeMaster')?.checked || false;
+                
+                exportStemsInternal(selectedTrackIds, { sampleRate, format, includeMaster });
+            }, closesModal: true }
+        ], 'stem-export-dialog');
+        
+        const selectAllCheckbox = document.getElementById('stemSelectAll');
+        const trackCheckboxes = document.querySelectorAll('.stem-track-checkbox');
+        
+        selectAllCheckbox?.addEventListener('change', (e) => {
+            trackCheckboxes.forEach(cb => { cb.checked = e.target.checked; });
+        });
+    } else {
+        appServices.showNotification("Dialog system not available.", 2000);
+    }
+}
+
+/**
+ * Exports selected tracks as separate audio files (stems).
+ * @param {number[]} trackIds - Array of track IDs to export
+ * @param {Object} options - Export options { sampleRate, format, includeMaster }
+ */
+export async function exportStemsInternal(trackIds, options = {}) {
+    const { sampleRate = 48000, format = 'wav', includeMaster = false } = options;
+    
+    if (!appServices?.showNotification || !appServices?.getActualMasterGainNode) {
+        console.error("[State exportStemsInternal] Required appServices not available.");
+        return;
+    }
+
+    if (!trackIds || trackIds.length === 0) {
+        appServices.showNotification("No tracks selected for stem export.", 2000);
+        return;
+    }
+
+    try {
+        const audioReady = await audioInitAudioContextAndMasterMeter(true);
+        if (!audioReady) {
+            appServices.showNotification("Audio system not ready for export.", 3000);
+            return;
+        }
+
+        const allTracks = getTracksState();
+        const tracksToExport = trackIds.map(id => allTracks.find(t => t.id === id)).filter(Boolean);
+        
+        if (tracksToExport.length === 0) {
+            appServices.showNotification("No valid tracks to export.", 2000);
+            return;
+        }
+
+        let maxDuration = 0;
+        const currentPlaybackMode = getPlaybackModeState();
+        
+        if (currentPlaybackMode === 'timeline') {
+            tracksToExport.forEach(track => {
+                track.timelineClips?.forEach(clip => {
+                    if (clip?.startTime !== undefined && clip?.duration !== undefined) {
+                        maxDuration = Math.max(maxDuration, clip.startTime + clip.duration);
+                    }
+                });
+            });
+        } else {
+            tracksToExport.forEach(track => {
+                const activeSeq = track.getActiveSequence();
+                if (activeSeq?.length > 0) {
+                    const sixteenthNoteTime = Tone.Time("16n").toSeconds();
+                    maxDuration = Math.max(maxDuration, activeSeq.length * sixteenthNoteTime);
+                }
+            });
+        }
+
+        if (maxDuration === 0) maxDuration = 10;
+        maxDuration = Math.min(maxDuration + 2, 600);
+
+        appServices.showNotification(`Exporting ${tracksToExport.length} stems...`, 3000);
+
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+        tracksToExport.forEach(t => t.stopPlayback?.());
+        await new Promise(r => setTimeout(r, 100));
+
+        for (let i = 0; i < tracksToExport.length; i++) {
+            const track = tracksToExport[i];
+            
+            if (track.isMuted) {
+                console.log(`[Stems] Skipping muted track: ${track.name}`);
+                continue;
+            }
+
+            appServices.showNotification(`Exporting stem ${i + 1}/${tracksToExport.length}: ${track.name}`, 5000);
+
+            try {
+                const offlineContext = new Tone.OfflineContext(({ channels: 2, sampleRate: sampleRate, length: sampleRate * maxDuration }));
+                const trackGain = new Tone.Gain(track.volume || 0.7).toDestination();
+                
+                if (track.instrument && !track.instrument.disposed) {
+                    track.instrument.connect(trackGain);
+                } else if (track.gainNode && !track.gainNode.disposed) {
+                    track.gainNode.connect(trackGain);
+                }
+                
+                await track.schedulePlayback?.(0, maxDuration);
+                const buffer = await offlineContext.render();
+                const blob = buffer.export(format === 'webm' ? 'webm' : 'wav');
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeName = track.name.replace(/[^a-z0-9]/gi, '_');
+                a.download = `stem_${safeName}_${new Date().toISOString().slice(0, 10)}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                trackGain.dispose();
+                console.log(`[Stems] Exported: ${track.name}`);
+                
+            } catch (trackError) {
+                console.error(`[Stems] Error exporting track ${track.name}:`, trackError);
+            }
+
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        if (includeMaster) {
+            appServices.showNotification("Exporting master mix...", 3000);
+            
+            const recorder = new Tone.Recorder();
+            const masterGain = appServices.getActualMasterGainNode();
+            
+            if (masterGain && !masterGain.disposed) {
+                masterGain.connect(recorder);
+                
+                Tone.Transport.position = 0;
+                for (const track of tracksToExport) {
+                    if (track?.schedulePlayback) {
+                        await track.schedulePlayback(0, maxDuration);
+                    }
+                }
+                
+                await recorder.start();
+                Tone.Transport.start();
+                
+                await new Promise(resolve => setTimeout(resolve, maxDuration * 1000 + 500));
+                
+                const masterRecording = await recorder.stop();
+                
+                Tone.Transport.stop();
+                Tone.Transport.cancel(0);
+                tracksToExport.forEach(t => t.stopPlayback?.());
+                
+                if (masterRecording && masterRecording.size > 1000) {
+                    const url = URL.createObjectURL(masterRecording);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `stem_master_${new Date().toISOString().slice(0, 10)}.wav`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                
+                masterGain.disconnect(recorder);
+                recorder.dispose();
+            }
+        }
+
+        appServices.showNotification(`Stem export complete! ${tracksToExport.length} files exported.`, 5000);
+        console.log("[Stems] All stems exported successfully.");
+
+    } catch (error) {
+        console.error("[State exportStemsInternal] Error:", error);
+        appServices.showNotification(`Stem export error: ${error.message}`, 5000);
+        Tone.Transport.stop();
+        Tone.Transport.cancel(0);
+    }
+}
+
+/**
+ * Escapes HTML special characters in a string.
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 export async function exportWithSettingsInternal(settings = {}) {
     const defaults = {
         format: 'wav',

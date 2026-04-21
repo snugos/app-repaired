@@ -284,8 +284,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -304,8 +304,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -322,7 +322,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -343,59 +343,72 @@ import {
     },
 
     // --- Custom Background Functions ---
-    async handleCustomBackgroundUpload(event) {
-        if (!event?.target?.files?.[0]) return;
-        const file = event.target.files[0];
-        const isVideo = file.type.startsWith('video/');
-        const isImage = file.type.startsWith('image/');
-
-        if (!isVideo && !isImage) {
-            appServices.showSafeNotification("Invalid file type. Please select an image or video.", 3000);
-            return;
-        }
-
-        try {
-            if (isImage) {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const dataURL = e.target.result;
-                    localStorage.setItem(appServices.DESKTOP_BACKGROUND_KEY, dataURL);
-                    localStorage.setItem(appServices.DESKTOP_BG_TYPE_KEY, 'image');
-                    await appServices.bgDb.save('desktopVideo', file);
-                    await appServices.applyDesktopBackground(dataURL, 'image');
-                    appServices.showSafeNotification("Image background applied.", 2000);
+    DESKTOP_BACKGROUND_KEY: 'snugosDesktopBackground',
+    DESKTOP_BG_TYPE_KEY: 'snugosDesktopBgType',
+    bgDb: {
+        db: null,
+        async init() {
+            if (this.db) return this.db;
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('SnugOSBackgrounds', 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => { this.db = request.result; resolve(this.db); };
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('backgrounds')) {
+                        db.createObjectStore('backgrounds');
+                    }
                 };
-                reader.readAsDataURL(file);
-            } else if (isVideo) {
-                appServices.showSafeNotification("Processing video background...", 2000);
-                await appServices.bgDb.save('desktopVideo', file);
-                localStorage.setItem(appServices.DESKTOP_BG_TYPE_KEY, 'video');
-                localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
-                const objectUrl = URL.createObjectURL(file);
-                await appServices.applyDesktopBackground(objectUrl, 'video');
-                appServices.showSafeNotification("Video background applied.", 2000);
-            }
-        } catch (error) {
-            console.error("Error saving background:", error);
-            appServices.showSafeNotification("Could not save background: " + error.message, 4000);
+            });
+        },
+        async save(key, blob) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readwrite');
+                const store = tx.objectStore('backgrounds');
+                store.put(blob, key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+        async get(key) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readonly');
+                const store = tx.objectStore('backgrounds');
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        },
+        async remove(key) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readwrite');
+                const store = tx.objectStore('backgrounds');
+                store.delete(key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
         }
-
-        if (event.target) event.target.value = null;
     },
 
-    async removeCustomDesktopBackground() {
+    removeCustomDesktopBackground: async () => {
         try {
             localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
             localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
             await appServices.bgDb.remove('desktopVideo');
-            await appServices.applyDesktopBackground(null, null);
-            appServices.showSafeNotification("Custom background removed.", 2000);
-        } catch (error) {
-            console.error("Error removing background from storage:", error);
-            appServices.showSafeNotification("Could not remove background from storage.", 3000);
+            applyDesktopBackground(null, null);
+            appServices.showSafeNotification("Background removed.", 2000);
+        } catch (e) {
+            console.error("Error removing custom background:", e);
+            appServices.showSafeNotification("Could not remove background.", 2000);
         }
     },
-
+    triggerCustomBackgroundUpload: () => {
+        if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
+        else console.warn("Custom background input element not found in cache.");
+    },
     showSafeNotification(message, duration) {
         if (typeof utilShowNotification === 'function') {
             utilShowNotification(message, duration);
@@ -449,22 +462,6 @@ import {
                 } else { console.warn("Master effects rack UI elements not found for update."); }
             }
         } catch (error) { console.warn("[Main updateMasterEffectsRackUI] Error:", error); }
-    },
-    triggerCustomBackgroundUpload: () => {
-        if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
-        else console.warn("Custom background input element not found in cache.");
-    },
-    removeCustomDesktopBackground: async function() {
-        try {
-            localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
-            localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
-            await appServices.bgDb.remove('desktopVideo');
-            await appServices.applyDesktopBackground(null, null);
-            appServices.showSafeNotification("Custom background removed.", 2000);
-        } catch (error) {
-            console.error("Error removing background from storage:", error);
-            appServices.showSafeNotification("Could not remove background from storage.", 3000);
-        }
     },
     onPlaybackModeChange: (newMode) => {
         console.log(`[Main appServices.onPlaybackModeChange] Called with newMode: ${newMode}`);
