@@ -62,7 +62,11 @@ import {
     getScaleHintType, setScaleHintType, getScaleTypes, getScaleNotes,
     isNoteInScale, isNoteNameInScale,
     // Groove Templates
-    getGroovePresets, getGroovePresetById, getGrooveSwingAmount
+    getGroovePresets, getGroovePresetById, getGrooveSwingAmount,
+    // Track Groups
+    getTrackGroups, getTrackGroupById, addTrackGroup, removeTrackGroup, updateTrackGroup,
+    addTrackToGroup, removeTrackFromGroup, setTrackGroupVolume, setTrackGroupMute,
+    setTrackGroupSolo, toggleTrackGroupMute, toggleTrackGroupSolo, clearAllTrackGroups
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -677,7 +681,7 @@ const appServices = {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },

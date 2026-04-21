@@ -4,14 +4,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Groove Template** - Apply swing/groove patterns to sequences
-2. **Clip Loop Mode** - Set clips to loop within a region
-3. **Crossfade Between Clips** - Smooth transitions between overlapping clips
-4. **Chord Detection** - Detect and display chords in piano roll
-5. **Arpeggiator** - Arpeggiate held notes in real-time
-6. **Note Velocity Randomization** - Add humanization to velocities
-7. **Delay Compensation** - Automatic delay compensation for effects
-8. **Track Grouping** - Group tracks for collective control
+1. **Track Grouping** - Group tracks for collective control
 
 ## Workflow
 
