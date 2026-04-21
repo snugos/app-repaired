@@ -4,12 +4,11 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Automation Lanes** - Visual automation editor for all parameters
-2. **Clip Multiplication** - Repeat clips with optional variations
-3. **Note Probability** - Set probability for each note (random playback)
-4. **Scale Lock** - Force all notes to stay within a musical scale
-5. **Micro Tuning** - Custom tuning tables for non-standard scales
-6. **MIDI Output** - Send MIDI to external devices via Web MIDI API
+1. **Clip Multiplication** - Repeat clips with optional variations
+2. **Note Probability** - Set probability for each note (random playback)
+3. **Scale Lock** - Force all notes to stay within a musical scale
+4. **Micro Tuning** - Custom tuning tables for non-standard scales
+5. **MIDI Output** - Send MIDI to external devices via Web MIDI API
 
 ## When Queue is Empty - New Feature Ideas
 
