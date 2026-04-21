@@ -26,6 +26,18 @@
 **Issue:** Function was called but never defined, causing silent failures
 **Fix:** Added complete implementation of `updateSequencerCellUI()` function
 **Impact:** Sequencer cells now update visually when toggled, velocities changed, or selection modified
+### Bug 4: Missing `createNewSequence` Method - ✅ FIXED (2026-04-21 04:25 UTC)
+**File:** `js/Track.js`
+**Severity:** Critical — New track creation broken
+**Issue:** Method `createNewSequence()` was called from Track constructor (line 176) but never defined
+**Fix:** Added complete implementation of `createNewSequence()` method with:
+- Unique sequence ID generation
+- Correct number of rows based on track type (72 for Synth, 8 for DrumSampler)
+- Empty 2D array of nulls for sequence data
+- Optional activation flag to set as active sequence
+- Also added helper methods: `deleteSequence`, `setActiveSequence`, `renameSequence`, `duplicateSequence`
+**Impact:** New tracks can now be created with default sequences properly initialized
+
 
 ---
 
