@@ -3930,6 +3930,17 @@ function setupTimelineEventListeners(content, tracks) {
                         showNotification(`Audio to MIDI conversion not available`, 2000);
                     }
                 }},
+                { label: 'Multiply Clip', action: () => {
+                    const countStr = prompt('Number of copies (1-16):', '2');
+                    if (countStr !== null) {
+                        const count = parseInt(countStr) || 2;
+                        if (typeof track.multiplyClip === 'function') {
+                            track.multiplyClip(clipId, count, true);
+                        } else {
+                            showNotification(`Multiply not available`, 1500);
+                        }
+                    }
+                }},
                 { label: 'Delete Clip', action: () => {
                     showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
                         const idx = track.timelineClips.findIndex(c => c.id === clipId);

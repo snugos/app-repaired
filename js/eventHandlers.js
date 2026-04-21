@@ -216,6 +216,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openPatternChainsPanel?.();
                 } catch(e) { console.error('[Menu] Pattern Chains error:', e); }
             },
+            menuAutomationLanes: () => {
+                console.log('[Menu] Automation Lanes clicked');
+                try {
+                    services.openAutomationLanesPanel?.();
+                } catch(e) { console.error('[Menu] Automation Lanes error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
