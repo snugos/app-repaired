@@ -99,6 +99,57 @@ import {
         return null;
     },
 
+    // --- Custom Background Helpers ---
+    DESKTOP_BACKGROUND_KEY: 'snugosDesktopBackground',
+    DESKTOP_BG_TYPE_KEY: 'snugosDesktopBgType',
+    bgDb: {
+        db: null,
+        async init() {
+            if (this.db) return this.db;
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('SnugOSBackgrounds', 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => { this.db = request.result; resolve(this.db); };
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('backgrounds')) {
+                        db.createObjectStore('backgrounds');
+                    }
+                };
+            });
+        },
+        async save(key, blob) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readwrite');
+                const store = tx.objectStore('backgrounds');
+                store.put(blob, key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+        async get(key) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readonly');
+                const store = tx.objectStore('backgrounds');
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        },
+        async remove(key) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readwrite');
+                const store = tx.objectStore('backgrounds');
+                store.delete(key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+    },
+
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
@@ -290,6 +341,69 @@ import {
             } else { console.warn("Master gain node or its gain property not available."); }
         } else { console.warn("getActualMasterGainNodeFromAudio service missing."); }
     },
+
+    // --- Custom Background Functions ---
+    async handleCustomBackgroundUpload(event) {
+        if (!event?.target?.files?.[0]) return;
+        const file = event.target.files[0];
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
+
+        if (!isVideo && !isImage) {
+            appServices.showSafeNotification("Invalid file type. Please select an image or video.", 3000);
+            return;
+        }
+
+        try {
+            if (isImage) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const dataURL = e.target.result;
+                    localStorage.setItem(appServices.DESKTOP_BACKGROUND_KEY, dataURL);
+                    localStorage.setItem(appServices.DESKTOP_BG_TYPE_KEY, 'image');
+                    await appServices.bgDb.save('desktopVideo', file);
+                    await appServices.applyDesktopBackground(dataURL, 'image');
+                    appServices.showSafeNotification("Image background applied.", 2000);
+                };
+                reader.readAsDataURL(file);
+            } else if (isVideo) {
+                appServices.showSafeNotification("Processing video background...", 2000);
+                await appServices.bgDb.save('desktopVideo', file);
+                localStorage.setItem(appServices.DESKTOP_BG_TYPE_KEY, 'video');
+                localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
+                const objectUrl = URL.createObjectURL(file);
+                await appServices.applyDesktopBackground(objectUrl, 'video');
+                appServices.showSafeNotification("Video background applied.", 2000);
+            }
+        } catch (error) {
+            console.error("Error saving background:", error);
+            appServices.showSafeNotification("Could not save background: " + error.message, 4000);
+        }
+
+        if (event.target) event.target.value = null;
+    },
+
+    async removeCustomDesktopBackground() {
+        try {
+            localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
+            localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
+            await appServices.bgDb.remove('desktopVideo');
+            await appServices.applyDesktopBackground(null, null);
+            appServices.showSafeNotification("Custom background removed.", 2000);
+        } catch (error) {
+            console.error("Error removing background from storage:", error);
+            appServices.showSafeNotification("Could not remove background from storage.", 3000);
+        }
+    },
+
+    showSafeNotification(message, duration) {
+        if (typeof utilShowNotification === 'function') {
+            utilShowNotification(message, duration);
+        } else {
+            console.warn("showNotification utility not available, logging to console:", message);
+        }
+    },
+
     // Master Effect Presets
     saveMasterEffectPreset,
     loadMasterEffectPreset,
@@ -299,8 +413,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -340,7 +454,6 @@ import {
         if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
         else console.warn("Custom background input element not found in cache.");
     },
-    removeCustomDesktopBackground: removeCustomDesktopBackground,
     onPlaybackModeChange: (newMode) => {
         console.log(`[Main appServices.onPlaybackModeChange] Called with newMode: ${newMode}`);
         if (uiElementsCache.playbackModeToggleBtnGlobal) {
