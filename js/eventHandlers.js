@@ -1286,6 +1286,43 @@ export function handleTrackFreeze(trackId) {
     } catch (error) { console.error(`[EventHandlers handleTrackFreeze] Error for track ${trackId}:`, error); }
 }
 
+export function handleTrackArchive(trackId) {
+    try {
+        const track = getTrackById(trackId);
+        if (!track) {
+            console.warn(`[EventHandlers] Archive: Track ${trackId} not found.`);
+            return;
+        }
+        
+        captureStateForUndo(`Toggle Archive for ${track.name}`);
+        track.isArchived = !track.isArchived;
+        
+        if (track.isArchived) {
+            // Stop playback and mute the track when archiving
+            if (typeof track.stopPlayback === 'function') {
+                track.stopPlayback();
+            }
+            if (!track.isMuted) {
+                track.isMuted = true;
+                track.applyMuteState();
+            }
+            console.log(`[EventHandlers] Archived track ${track.name}`);
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification(`Archived track: ${track.name}`, 2000);
+            }
+        } else {
+            console.log(`[EventHandlers] Unarchived track ${track.name}`);
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification(`Unarchived track: ${track.name}`, 2000);
+            }
+        }
+        
+        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(trackId, 'archiveChanged');
+        if (localAppServices.updateMixerWindow) localAppServices.updateMixerWindow();
+        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
+    } catch (error) { console.error(`[EventHandlers handleTrackArchive] Error for track ${trackId}:`, error); }
+}
+
 export function handleOpenTrackInspector(trackId) {
     if (localAppServices.openTrackInspectorWindow) {
         localAppServices.openTrackInspectorWindow(trackId);

@@ -6306,3 +6306,363 @@ export function updateGrooveTemplatesPanel() {
         renderGrooveTemplatesContent();
     }
 }
+
+// ==========================================
+// PATTERN CHAINS PANEL
+// ==========================================
+
+/**
+ * Opens the Pattern Chains panel for managing sequence chains on tracks.
+ */
+export function openPatternChainsPanel(savedState = null) {
+    const windowId = 'patternChains';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderPatternChainsContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'patternChainsContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 500, 
+        height: 600, 
+        minWidth: 400, 
+        minHeight: 450,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Pattern Chains', contentContainer, options);
+    
+    if (win?.element) {
+        renderPatternChainsContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the pattern chains content.
+ */
+function renderPatternChainsContent() {
+    const container = document.getElementById('patternChainsContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    const sequencerTracks = tracks.filter(t => t.type !== 'Audio');
+    
+    let html = `
+        <div class="mb-3 p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Pattern Chains</strong> let you chain multiple sequences together for longer arrangements. 
+                Each pattern can repeat multiple times before moving to the next.
+            </div>
+        </div>
+    `;
+    
+    if (sequencerTracks.length === 0) {
+        html += `
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                No sequencer tracks available. Create a Synth or DrumSampler track first.
+            </div>
+        `;
+        container.innerHTML = html;
+        return;
+    }
+
+    // Track selector
+    html += `
+        <div class="mb-3">
+            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Select Track</label>
+            <select id="patternChainTrackSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded">
+                ${sequencerTracks.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join('')}
+            </select>
+        </div>
+        
+        <div id="patternChainTrackContent" class="space-y-3">
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Add event listener for track selection
+    const trackSelect = document.getElementById('patternChainTrackSelect');
+    if (trackSelect) {
+        trackSelect.addEventListener('change', () => {
+            renderPatternChainTrackContent();
+        });
+        // Trigger initial render
+        renderPatternChainTrackContent();
+    }
+}
+
+/**
+ * Renders the pattern chain content for a specific track.
+ */
+function renderPatternChainTrackContent() {
+    const container = document.getElementById('patternChainTrackContent');
+    const trackSelect = document.getElementById('patternChainTrackSelect');
+    if (!container || !trackSelect) return;
+
+    const trackId = parseInt(trackSelect.value, 10);
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        container.innerHTML = '<div class="text-center py-4 text-gray-500 dark:text-gray-400">Track not found</div>';
+        return;
+    }
+
+    const chains = track.patternChains || [];
+    const sequences = track.sequences || [];
+    
+    let html = `
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Pattern Chains</h3>
+            <button id="createChainBtn" class="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                + New Chain
+            </button>
+        </div>
+    `;
+    
+    if (chains.length === 0) {
+        html += `
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded">
+                No pattern chains yet. Click "New Chain" to create one.
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-2">`;
+        
+        chains.forEach((chain, chainIndex) => {
+            const isActive = track.activePatternChainId === chain.id;
+            
+            html += `
+                <div class="p-2 bg-white dark:bg-slate-700 rounded border ${isActive ? 'border-purple-400 dark:border-purple-600' : 'border-gray-200 dark:border-slate-600'}" data-chain-id="${chain.id}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <input type="text" class="chain-name-input px-2 py-1 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded w-32" 
+                                value="${chain.name}" data-chain-id="${chain.id}">
+                            ${isActive ? '<span class="text-xs px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Active</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button class="activate-chain-btn px-2 py-1 text-xs ${isActive ? 'bg-gray-400' : 'bg-purple-500'} text-white rounded hover:bg-purple-600" 
+                                data-chain-id="${chain.id}" ${isActive ? 'disabled' : ''}>
+                                ${isActive ? 'Active' : 'Activate'}
+                            </button>
+                            <button class="delete-chain-btn px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-chain-id="${chain.id}">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <input type="checkbox" class="chain-loop-checkbox" data-chain-id="${chain.id}" ${chain.loopEnabled ? 'checked' : ''}>
+                            Loop chain
+                        </label>
+                    </div>
+                    
+                    <div class="chain-patterns mb-2" data-chain-id="${chain.id}">
+            `;
+            
+            if (chain.patterns && chain.patterns.length > 0) {
+                chain.patterns.forEach((pattern, patternIndex) => {
+                    html += `
+                        <div class="flex items-center gap-1 mb-1 p-1 bg-gray-50 dark:bg-slate-600 rounded text-xs" data-pattern-index="${patternIndex}">
+                            <span class="text-gray-400">${patternIndex + 1}.</span>
+                            <select class="pattern-sequence-select flex-1 p-1 bg-white dark:bg-slate-500 border border-gray-200 dark:border-slate-400 rounded text-xs"
+                                data-chain-id="${chain.id}" data-pattern-index="${patternIndex}">
+                                ${sequences.map(s => `<option value="${s.id}" ${s.id === pattern.sequenceId ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                            <span class="text-gray-400">×</span>
+                            <input type="number" class="pattern-repeat-input w-12 p-1 bg-white dark:bg-slate-500 border border-gray-200 dark:border-slate-400 rounded text-xs text-center"
+                                value="${pattern.repeatCount}" min="1" max="16" data-chain-id="${chain.id}" data-pattern-index="${patternIndex}">
+                            <button class="remove-pattern-btn text-red-500 hover:text-red-700" data-chain-id="${chain.id}" data-pattern-index="${patternIndex}">
+                                ✕
+                            </button>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `
+                    <div class="text-center py-2 text-gray-400 text-xs">
+                        No patterns in chain. Add patterns below.
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <select class="add-pattern-sequence-select flex-1 p-1 text-xs bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded" 
+                            data-chain-id="${chain.id}">
+                            ${sequences.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                        </select>
+                        <button class="add-pattern-btn px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-chain-id="${chain.id}">
+                            Add Pattern
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Add event listeners
+    attachPatternChainEventListeners(track, container);
+}
+
+/**
+ * Attaches event listeners for pattern chain UI elements.
+ */
+function attachPatternChainEventListeners(track, container) {
+    // Create new chain button
+    const createBtn = document.getElementById('createChainBtn');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            if (typeof track.createPatternChain === 'function') {
+                const newChain = track.createPatternChain(`Chain ${(track.patternChains?.length || 0) + 1}`);
+                if (newChain) {
+                    showNotification(`Created "${newChain.name}"`, 1500);
+                    renderPatternChainTrackContent();
+                }
+            }
+        });
+    }
+    
+    // Chain name inputs
+    container.querySelectorAll('.chain-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const newName = e.target.value;
+            if (typeof track.renamePatternChain === 'function') {
+                track.renamePatternChain(chainId, newName);
+            }
+        });
+    });
+    
+    // Activate chain buttons
+    container.querySelectorAll('.activate-chain-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chainId = e.target.dataset.chainId;
+            if (typeof track.setActivePatternChain === 'function') {
+                track.setActivePatternChain(chainId);
+                showNotification(`Chain activated`, 1500);
+                renderPatternChainTrackContent();
+            }
+        });
+    });
+    
+    // Delete chain buttons
+    container.querySelectorAll('.delete-chain-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chainId = e.target.dataset.chainId;
+            if (typeof track.deletePatternChain === 'function') {
+                if (confirm('Delete this pattern chain?')) {
+                    track.deletePatternChain(chainId);
+                    showNotification(`Chain deleted`, 1500);
+                    renderPatternChainTrackContent();
+                }
+            }
+        });
+    });
+    
+    // Loop checkboxes
+    container.querySelectorAll('.chain-loop-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const loopEnabled = e.target.checked;
+            if (typeof track.setChainLoopEnabled === 'function') {
+                track.setChainLoopEnabled(chainId, loopEnabled);
+            }
+        });
+    });
+    
+    // Pattern sequence selects
+    container.querySelectorAll('.pattern-sequence-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const patternIndex = parseInt(e.target.dataset.patternIndex, 10);
+            const sequenceId = e.target.value;
+            // Remove current and add new at position
+            if (typeof track.removeSequenceFromChain === 'function' && typeof track.addSequenceToChain === 'function') {
+                track.removeSequenceFromChain(chainId, patternIndex);
+                track.addSequenceToChain(chainId, sequenceId, 1, patternIndex);
+            }
+        });
+    });
+    
+    // Pattern repeat inputs
+    container.querySelectorAll('.pattern-repeat-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const patternIndex = parseInt(e.target.dataset.patternIndex, 10);
+            const repeatCount = parseInt(e.target.value, 10) || 1;
+            if (typeof track.setPatternRepeatCount === 'function') {
+                track.setPatternRepeatCount(chainId, patternIndex, repeatCount);
+            }
+        });
+    });
+    
+    // Remove pattern buttons
+    container.querySelectorAll('.remove-pattern-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const patternIndex = parseInt(e.target.dataset.patternIndex, 10);
+            if (typeof track.removeSequenceFromChain === 'function') {
+                track.removeSequenceFromChain(chainId, patternIndex);
+                showNotification(`Pattern removed`, 1500);
+                renderPatternChainTrackContent();
+            }
+        });
+    });
+    
+    // Add pattern buttons
+    container.querySelectorAll('.add-pattern-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chainId = e.target.dataset.chainId;
+            const select = container.querySelector(`.add-pattern-sequence-select[data-chain-id="${chainId}"]`);
+            if (select && typeof track.addSequenceToChain === 'function') {
+                const sequenceId = select.value;
+                track.addSequenceToChain(chainId, sequenceId, 1);
+                showNotification(`Pattern added`, 1500);
+                renderPatternChainTrackContent();
+            }
+        });
+    });
+}
+
+/**
+ * Updates the pattern chains panel with current data.
+ */
+export function updatePatternChainsPanel() {
+    const container = document.getElementById('patternChainsContent');
+    if (container) {
+        renderPatternChainsContent();
+    }
+}
