@@ -4,11 +4,11 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Templates** - Save/load track configurations as presets
-2. **Automation Lanes** - Visual automation editor for all parameters
-3. **Pattern Length Per Track** - Variable pattern lengths per track
-4. **Stem Export** - Export each track as a separate audio file
-5. **Sample Browser Search** - Search/filter sounds in the sound browser by name
+1. **Automation Lanes** - Visual automation editor for all parameters
+2. **Pattern Length Per Track** - Variable pattern lengths per track
+3. **Stem Export** - Export each track as a separate audio file
+4. **Sample Browser Search** - Search/filter sounds in the sound browser by name
+5. **MIDI Output Device Selection** - Select MIDI output device for external gear
 
 ## When Queue is Empty - New Feature Ideas
 
