@@ -4,27 +4,13 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Send Effects Routing** - Create dedicated reverb/delay send buses with per-track send levels ✅ COMPLETED
-2. **Sidechain Compression** - Easy sidechain input selector for compressor effect ✅ COMPLETED
-3. **Automation Curves** - Different curve types (linear, exponential, stepped) for automation lanes ✅ COMPLETED
-
-## When Queue is Empty - New Feature Ideas
-
-New Feature Queue:
-4. **Track Archive** - Archive tracks to save CPU without deleting
-5. **MIDI Multi-Channel** - Support multiple MIDI channels per track
-6. **Session Templates** - Save/load full session configurations
-7. **Step Sequencer Probability** - Per-step chance of note triggering
-8. **Clip Gain Envelope** - Draw volume automation directly on audio clips
-9. **Audio Reverse** - Reverse audio clips with a button
-10. **Tempo Nudge** - Fine tempo adjustment with arrow keys
-4. **Track Archive** - Archive tracks to save CPU without deleting
-5. **MIDI Multi-Channel** - Support multiple MIDI channels per track
-6. **Session Templates** - Save/load full session configurations
-7. **Step Sequencer Probability** - Per-step chance of note triggering
-8. **Clip Gain Envelope** - Draw volume automation directly on audio clips
-9. **Audio Reverse** - Reverse audio clips with a button
-10. **Tempo Nudge** - Fine tempo adjustment with arrow keys
+1. **Track Archive** - Archive tracks to save CPU without deleting ✅ COMPLETED
+2. **MIDI Multi-Channel** - Support multiple MIDI channels per track
+3. **Session Templates** - Save/load full session configurations
+4. **Step Sequencer Probability** - Per-step chance of note triggering
+5. **Clip Gain Envelope** - Draw volume automation directly on audio clips
+6. **Audio Reverse** - Reverse audio clips with a button
+7. **Tempo Nudge** - Fine tempo adjustment with arrow keys
 
 ## Workflow
 
