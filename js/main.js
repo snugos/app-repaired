@@ -76,8 +76,6 @@ import {
     getTrackGroups, getTrackGroupById, addTrackGroup, removeTrackGroup, updateTrackGroup,
     addTrackToGroup, removeTrackFromGroup, setTrackGroupVolume, setTrackGroupMute,
     setTrackGroupSolo, toggleTrackGroupMute, toggleTrackGroupSolo, clearAllTrackGroups,
-    // Track Templates
-    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate
 } from './state.js';
 import {
     initializeAudioModule, initAudioContextAndMasterMeter, updateMeters, fetchSoundLibrary,
@@ -118,11 +116,6 @@ import {
     openScaleLockPanel,
     openTrackTemplatesPanel,
     openAutomationLanesPanel,
-    
-    // Groove Templates
-    getGroovePresets,
-    getGroovePresetById,
-    getGrooveSwingAmount,
 
     // Pattern Chains
     openPatternChainsPanel
@@ -475,9 +468,6 @@ const appServices = {
     exportToMidi: exportToMidiInternal,
     saveProjectTemplate, loadProjectTemplate, getProjectTemplateNames, getProjectTemplate, deleteProjectTemplate,
     
-    // Track Templates
-    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate,
-
     // Event Handler Passthroughs
     selectMIDIInput: eventSelectMIDIInput, 
     handleTrackMute: eventHandleTrackMute,
@@ -644,7 +634,7 @@ const appServices = {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -710,7 +700,7 @@ const appServices = {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    getIsReconstructingingDAW: () => appServices._isReconstructingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
@@ -778,11 +768,6 @@ const appServices = {
     openTrackTemplatesPanel,
     openAutomationLanesPanel,
     
-    // Groove Templates
-    getGroovePresets,
-    getGroovePresetById,
-    getGrooveSwingAmount,
-
     // Pattern Chains
     openPatternChainsPanel
 };
