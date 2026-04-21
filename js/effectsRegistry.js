@@ -356,6 +356,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'knee', label: 'Knee', type: 'knob', min: 0, max: 40, step: 1, defaultValue: 30, decimals: 0, displaySuffix: 'dB', isSignal: true },
             { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.003, decimals: 3, displaySuffix: 's', isSignal: true },
             { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.001, defaultValue: 0.25, decimals: 3, displaySuffix: 's', isSignal: true },
+            { key: 'sidechain', label: 'Sidechain', type: 'select', options: ['off', 'track'], defaultValue: 'off', isSignal: false },
         ]
     },
     EQ3: {
