@@ -6052,3 +6052,191 @@ export function updateTrackGroupsPanel() {
         renderTrackGroupsContent();
     }
 }
+
+// ==========================================
+// GROOVE TEMPLATES PANEL
+// ==========================================
+
+/**
+ * Opens the Groove Templates panel for applying swing/groove to tracks.
+ */
+export function openGrooveTemplatesPanel(savedState = null) {
+    const windowId = 'grooveTemplates';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateGrooveTemplatesPanelContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'grooveTemplatesContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
+    const options = { 
+        width: 450, 
+        height: 500, 
+        minWidth: 350, 
+        minHeight: 400,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Groove Templates', contentContainer, options);
+    
+    if (win?.element) {
+        renderGrooveTemplatesContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the groove templates content.
+ */
+function renderGrooveTemplatesContent() {
+    const container = document.getElementById('grooveTemplatesContent');
+    if (!container) return;
+
+    const presets = localAppServices.getGroovePresets ? localAppServices.getGroovePresets() : [];
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    
+    let html = `
+        <div class="mb-3 p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Groove Templates</strong> apply swing/shuffle timing to sequencer notes. 
+                Even-numbered 16th notes are delayed for a swung feel.
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Available Presets</h3>
+            <div class="grid grid-cols-1 gap-1">
+    `;
+    
+    presets.forEach(preset => {
+        const swingPercent = Math.round(preset.swingAmount * 100);
+        html += `
+            <div class="p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 flex justify-between items-center">
+                <div>
+                    <span class="font-medium text-sm text-gray-800 dark:text-gray-200">${preset.name}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(${swingPercent}% swing)</span>
+                </div>
+                <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">${preset.id}</span>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Apply to Track</h3>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Select a track and groove preset below:
+            </div>
+        </div>
+    `;
+    
+    if (tracks.length === 0) {
+        html += `
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                No tracks available. Create a track first.
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-2">`;
+        
+        tracks.forEach(track => {
+            if (track.type === 'Audio') return; // Skip audio tracks
+            
+            const currentGroove = track.groovePreset || 'none';
+            const currentPreset = presets.find(p => p.id === currentGroove);
+            const currentName = currentPreset ? currentPreset.name : 'None';
+            
+            html += `
+                <div class="p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium text-sm text-gray-800 dark:text-gray-200">${track.name}</span>
+                        <span class="text-xs px-2 py-0.5 rounded ${currentGroove === 'none' ? 'bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-400' : 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'}">
+                            ${currentName}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select class="groove-select flex-1 p-1 text-xs bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200" 
+                            data-track-id="${track.id}">
+                            ${presets.map(p => `<option value="${p.id}" ${p.id === currentGroove ? 'selected' : ''}>${p.name}</option>`).join('')}
+                        </select>
+                        <button class="apply-groove-btn px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600" data-track-id="${track.id}">
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Add event listeners for apply buttons
+    container.querySelectorAll('.apply-groove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const select = container.querySelector(`.groove-select[data-track-id="${trackId}"]`);
+            if (select) {
+                const grooveId = select.value;
+                const track = tracks.find(t => t.id === trackId);
+                if (track && typeof track.setGroovePreset === 'function') {
+                    track.setGroovePreset(grooveId);
+                    showNotification(`Groove "${grooveId}" applied to ${track.name}`, 1500);
+                    renderGrooveTemplatesContent();
+                } else {
+                    showNotification('Could not apply groove', 1500);
+                }
+            }
+        });
+    });
+    
+    // Add event listeners for select changes (auto-apply on change)
+    container.querySelectorAll('.groove-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const grooveId = e.target.value;
+            const track = tracks.find(t => t.id === trackId);
+            if (track && typeof track.setGroovePreset === 'function') {
+                track.setGroovePreset(grooveId);
+                showNotification(`Groove "${grooveId}" applied to ${track.name}`, 1500);
+                renderGrooveTemplatesContent();
+            }
+        });
+    });
+}
+
+/**
+ * Updates the groove templates panel with current data.
+ */
+export function updateGrooveTemplatesPanel() {
+    const container = document.getElementById('grooveTemplatesContent');
+    if (container) {
+        renderGrooveTemplatesContent();
+    }
+}

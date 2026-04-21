@@ -198,6 +198,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openScaleHintPanel?.();
                 } catch(e) { console.error('[Menu] Scale Hint Overlay error:', e); }
             },
+            menuGrooveTemplates: () => {
+                console.log('[Menu] Groove Templates clicked');
+                try {
+                    services.openGrooveTemplatesPanel?.();
+                } catch(e) { console.error('[Menu] Groove Templates error:', e); }
+            },
             menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
             menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
             menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
