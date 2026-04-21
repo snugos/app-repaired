@@ -5,7 +5,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 ## Current Feature Queue
 
 1. **Track Archive** - Archive tracks to save CPU without deleting ✅ COMPLETED
-2. **MIDI Multi-Channel** - Support multiple MIDI channels per track
+2. **MIDI Multi-Channel** - Support multiple MIDI channels per track ✅ COMPLETED
 3. **Session Templates** - Save/load full session configurations
 4. **Step Sequencer Probability** - Per-step chance of note triggering
 5. **Clip Gain Envelope** - Draw volume automation directly on audio clips
