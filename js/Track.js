@@ -492,6 +492,14 @@ export class Track {
             console.error(`[Track ${this.id} rebuildEffectChain] CRITICAL: Final track output node is invalid or master bus is unavailable. No output connection made.`);
         }
 
+        // Connect send buses
+        const sendBusIds = this.appServices.getAvailableSendBuses ? this.appServices.getAvailableSendBuses() : ['reverb', 'delay'];
+        sendBusIds.forEach(busId => {
+            if (this.sendLevels[busId] && this.sendLevels[busId] > 0) {
+                this.connectToSendBus(busId);
+            }
+        });
+
         this.applyMuteState();
         this.applySoloState();
         console.log(`[Track ${this.id} rebuildEffectChain] Mute/Solo states applied. Chain rebuild finished for "${this.name}".`);
