@@ -4,13 +4,13 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Archive** - Archive tracks to save CPU without deleting ✅ COMPLETED
-2. **MIDI Multi-Channel** - Support multiple MIDI channels per track ✅ COMPLETED
-3. **Session Templates** - Save/load full session configurations ✅ COMPLETED
-4. **Step Sequencer Probability** - Per-step chance of note triggering ✅ COMPLETED
-5. **Clip Gain Envelope** - Draw volume automation directly on audio clips ✅ COMPLETED
-6. **Audio Reverse** - Reverse audio clips with a button ✅ COMPLETED
-7. **Tempo Nudge** - Fine tempo adjustment with arrow keys ✅ COMPLETED
+1. **Track Templates** - Save/load track configurations as presets
+2. **Automation Lanes** - Visual automation editor for all parameters
+3. **Clip Multiplication** - Repeat clips with optional variations
+4. **Note Probability** - Set probability for each note (random playback)
+5. **Scale Lock** - Force all notes to stay within a musical scale
+6. **Micro Tuning** - Custom tuning tables for non-standard scales
+7. **MIDI Output** - Send MIDI to external devices via Web MIDI API
 
 ## When Queue is Empty - New Feature Ideas
 
