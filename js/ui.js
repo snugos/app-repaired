@@ -8131,3 +8131,635 @@ async function handleAudioExport() {
         progressContainer?.classList.add('hidden');
     }
 }
+
+// --- Random Pattern Generator UI ---
+export function openRandomPatternGeneratorPanel() {
+    const winId = 'randomPatternGeneratorWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.bringWindowToFront?.(existingWin);
+        return;
+    }
+    
+    const presets = localAppServices.getRandomPatternPresets?.() || {};
+    const scaleTypes = localAppServices.getScaleTypes?.() || ['major', 'minor'];
+    const currentSettings = localAppServices.getRandomPatternGeneratorSettings?.() || {};
+    
+    const html = `
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Random Pattern Generator</h3>
+                <button id="closeRandomPatternBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Preset:</label>
+                    <select id="randomPatternPreset" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                        ${Object.entries(presets).map(([id, preset]) => 
+                            `<option value="${id}" ${currentSettings.preset === id ? 'selected' : ''}>${preset.name}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Scale:</label>
+                        <select id="randomPatternScale" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            ${scaleTypes.map(type => 
+                                `<option value="${type}" ${currentSettings.scale === type ? 'selected' : ''}>${type.charAt(0).toUpperCase() + type.slice(1)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Root Note:</label>
+                        <select id="randomPatternRoot" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            ${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(note => 
+                                `<option value="${note}" ${currentSettings.rootNote === note ? 'selected' : ''}>${note}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Density: <span id="densityValue">${(currentSettings.density || 0.5) * 100}%</span></label>
+                    <input type="range" id="randomPatternDensity" min="0" max="1" step="0.05" value="${currentSettings.density || 0.5}" 
+                        class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Variation: <span id="variationValue">${(currentSettings.variation || 0.3) * 100}%</span></label>
+                    <input type="range" id="randomPatternVariation" min="0" max="1" step="0.05" value="${currentSettings.variation || 0.3}" 
+                        class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="randomPatternUseScaleLock" ${currentSettings.useScaleLock ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
+                    <label for="randomPatternUseScaleLock" class="text-xs text-gray-600 dark:text-gray-400">Use Scale Lock</label>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="randomPatternUseSwing" ${currentSettings.useSwing ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
+                    <label for="randomPatternUseSwing" class="text-xs text-gray-600 dark:text-gray-400">Apply Swing</label>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="generateRandomPatternBtn" class="flex-1 px-3 py-2 bg-purple-500 text-white text-sm font-semibold rounded hover:bg-purple-600 transition-colors">
+                    Generate Pattern
+                </button>
+                <button id="applyToTrackBtn" class="px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors">
+                    Apply to Track
+                </button>
+            </div>
+            
+            <div id="generatedPatternPreview" class="hidden mt-4 p-3 bg-gray-100 dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Generated Pattern Preview</h4>
+                <div id="patternPreviewGrid" class="grid grid-cols-16 gap-0.5 max-h-32 overflow-y-auto"></div>
+            </div>
+        </div>
+    `;
+    
+    localAppServices.openWindowWithContent?.(winId, 'Random Pattern Generator', html, { width: 400, height: 500 });
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (win?.element) {
+            const container = win.element.querySelector('.window-content') || win.element;
+            
+            // Density slider
+            const densitySlider = container.querySelector('#randomPatternDensity');
+            const densityValue = container.querySelector('#densityValue');
+            densitySlider?.addEventListener('input', (e) => {
+                densityValue.textContent = `${Math.round(e.target.value * 100)}%`;
+            });
+            
+            // Variation slider
+            const variationSlider = container.querySelector('#randomPatternVariation');
+            const variationValue = container.querySelector('#variationValue');
+            variationSlider?.addEventListener('input', (e) => {
+                variationValue.textContent = `${Math.round(e.target.value * 100)}%`;
+            });
+            
+            // Generate button
+            container.querySelector('#generateRandomPatternBtn')?.addEventListener('click', () => {
+                const settings = {
+                    preset: container.querySelector('#randomPatternPreset')?.value || 'drums_basic',
+                    scale: container.querySelector('#randomPatternScale')?.value || 'major',
+                    rootNote: container.querySelector('#randomPatternRoot')?.value || 'C',
+                    density: parseFloat(container.querySelector('#randomPatternDensity')?.value || 0.5),
+                    variation: parseFloat(container.querySelector('#randomPatternVariation')?.value || 0.3),
+                    useScaleLock: container.querySelector('#randomPatternUseScaleLock')?.checked || false,
+                    useSwing: container.querySelector('#randomPatternUseSwing')?.checked || false
+                };
+                
+                localAppServices.setRandomPatternGeneratorSettings?.(settings);
+                
+                const tracks = localAppServices.getTracksState?.() || [];
+                const activeTrackId = localAppServices.getActiveSequencerTrackIdState?.();
+                if (activeTrackId) {
+                    const pattern = localAppServices.generateRandomPattern?.(activeTrackId, settings);
+                    if (pattern) {
+                        localAppServices.showNotification?.(`Generated ${pattern.length} notes`, 1500);
+                        const previewContainer = container.querySelector('#generatedPatternPreview');
+                        const previewGrid = container.querySelector('#patternPreviewGrid');
+                        if (previewContainer && previewGrid) {
+                            previewContainer.classList.remove('hidden');
+                            previewGrid.innerHTML = pattern.slice(0, 64).map(note => 
+                                `<div class="w-2 h-2 rounded-sm ${note.velocity > 0.7 ? 'bg-purple-500' : 'bg-purple-300'}" title="Step ${note.step}: Note ${note.pitch}"></div>`
+                            ).join('');
+                        }
+                    }
+                } else {
+                    localAppServices.showNotification?.('Please select a track first', 2000);
+                }
+            });
+            
+            // Close button
+            container.querySelector('#closeRandomPatternBtn')?.addEventListener('click', () => {
+                localAppServices.closeWindow?.(winId);
+            });
+        }
+    }, 100);
+}
+
+// --- CPU Monitor Panel UI ---
+export function openCpuMonitorPanel() {
+    const winId = 'cpuMonitorWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.bringWindowToFront?.(existingWin);
+        return;
+    }
+    
+    const html = `
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">CPU Monitor</h3>
+                <button id="closeCpuMonitorBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div id="cpuMonitorStatus" class="w-3 h-3 rounded-full bg-gray-400"></div>
+                    <span class="text-xs text-gray-600 dark:text-gray-400">Monitoring</span>
+                </div>
+                <button id="toggleCpuMonitorBtn" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Start
+                </button>
+            </div>
+            
+            <div class="p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Total CPU Usage</h4>
+                <div class="flex items-center gap-3">
+                    <div id="totalCpuBar" class="flex-1 h-4 bg-gray-200 dark:bg-slate-600 rounded overflow-hidden">
+                        <div id="totalCpuFill" class="h-full bg-green-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <span id="totalCpuValue" class="text-sm font-mono text-gray-700 dark:text-gray-300">0%</span>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300">Per Track CPU Usage</h4>
+                <div id="trackCpuList" class="space-y-2 max-h-48 overflow-y-auto">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">No tracks loaded</div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="refreshCpuMonitorBtn" class="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
+                    Refresh
+                </button>
+                <button id="clearCpuHistoryBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                    Clear History
+                </button>
+            </div>
+        </div>
+    `;
+    
+    localAppServices.openWindowWithContent?.(winId, 'CPU Monitor', html, { width: 350, height: 400 });
+    
+    let monitorInterval = null;
+    
+    const updateCpuDisplay = () => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (!win?.element) return;
+        
+        const container = win.element.querySelector('.window-content') || win.element;
+        const history = localAppServices.getCpuUsageHistory?.() || [];
+        const perTrackUsage = localAppServices.getCpuUsagePerTrack?.() || {};
+        const tracks = localAppServices.getTracksState?.() || [];
+        
+        if (history.length > 0) {
+            const latest = history[history.length - 1];
+            const totalCpuFill = container.querySelector('#totalCpuFill');
+            const totalCpuValue = container.querySelector('#totalCpuValue');
+            const totalPercent = Math.round((latest.total || 0) * 100);
+            
+            if (totalCpuFill) {
+                totalCpuFill.style.width = `${Math.min(100, totalPercent)}%`;
+                totalCpuFill.className = `h-full transition-all duration-300 ${totalPercent > 80 ? 'bg-red-500' : totalPercent > 50 ? 'bg-yellow-500' : 'bg-green-500'}`;
+            }
+            if (totalCpuValue) totalCpuValue.textContent = `${totalPercent}%`;
+            
+            const trackCpuList = container.querySelector('#trackCpuList');
+            if (trackCpuList && tracks.length > 0) {
+                trackCpuList.innerHTML = tracks.map(track => {
+                    const usage = perTrackUsage[track.id] || { average: 0, peak: 0 };
+                    const avgPercent = Math.round(usage.average * 100);
+                    return `
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                            <span class="text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">${track.name || 'Track ' + track.id}</span>
+                            <div class="w-20 h-2 bg-gray-200 dark:bg-slate-500 rounded overflow-hidden">
+                                <div class="h-full bg-blue-500" style="width: ${Math.min(100, avgPercent)}%"></div>
+                            </div>
+                            <span class="text-xs font-mono text-gray-600 dark:text-gray-400 w-8">${avgPercent}%</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    };
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (win?.element) {
+            const container = win.element.querySelector('.window-content') || win.element;
+            
+            const toggleBtn = container.querySelector('#toggleCpuMonitorBtn');
+            const statusDot = container.querySelector('#cpuMonitorStatus');
+            
+            toggleBtn?.addEventListener('click', () => {
+                const isEnabled = localAppServices.getCpuMonitorEnabled?.() || false;
+                if (isEnabled) {
+                    localAppServices.setCpuMonitorEnabled?.(false);
+                    if (monitorInterval) clearInterval(monitorInterval);
+                    toggleBtn.textContent = 'Start';
+                    toggleBtn.className = 'px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors';
+                    statusDot.className = 'w-3 h-3 rounded-full bg-gray-400';
+                } else {
+                    localAppServices.setCpuMonitorEnabled?.(true);
+                    monitorInterval = setInterval(updateCpuDisplay, 500);
+                    toggleBtn.textContent = 'Stop';
+                    toggleBtn.className = 'px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors';
+                    statusDot.className = 'w-3 h-3 rounded-full bg-green-500';
+                }
+            });
+            
+            container.querySelector('#refreshCpuMonitorBtn')?.addEventListener('click', updateCpuDisplay);
+            
+            container.querySelector('#clearCpuHistoryBtn')?.addEventListener('click', () => {
+                localAppServices.clearAllCpuUsageHistory?.();
+                updateCpuDisplay();
+            });
+            
+            container.querySelector('#closeCpuMonitorBtn')?.addEventListener('click', () => {
+                localAppServices.setCpuMonitorEnabled?.(false);
+                if (monitorInterval) clearInterval(monitorInterval);
+                localAppServices.closeWindow?.(winId);
+            });
+        }
+    }, 100);
+}
+
+// --- Custom Key Bindings Panel UI ---
+export function openKeyBindingsPanel() {
+    const winId = 'keyBindingsWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.bringWindowToFront?.(existingWin);
+        return;
+    }
+    
+    const currentBindings = localAppServices.getCustomKeyBindings?.() || {};
+    
+    const html = `
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Keyboard Shortcuts</h3>
+                <button id="closeKeyBindingsBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button id="resetKeyBindingsBtn" class="px-3 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors">
+                    Reset to Defaults
+                </button>
+                <button id="exportKeyBindingsBtn" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Export
+                </button>
+            </div>
+            
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+                <div class="grid grid-cols-3 gap-2 text-xs font-semibold text-gray-600 dark:text-gray-400 p-2 bg-gray-100 dark:bg-slate-600 rounded">
+                    <span>Action</span>
+                    <span>Key</span>
+                    <span>Modifiers</span>
+                </div>
+                ${Object.entries(currentBindings).map(([action, binding]) => `
+                    <div class="grid grid-cols-3 gap-2 text-xs p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 items-center">
+                        <span class="text-gray-700 dark:text-gray-300" title="${binding.description || action}">${binding.description || action}</span>
+                        <span class="font-mono bg-gray-100 dark:bg-slate-600 px-2 py-1 rounded text-center">${binding.key}</span>
+                        <span class="text-gray-500 dark:text-gray-400">${(binding.modifiers || []).join(' + ') || 'None'}</span>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="p-3 bg-blue-50 dark:bg-slate-600 rounded border border-blue-200 dark:border-slate-500">
+                <p class="text-xs text-blue-700 dark:text-blue-300">
+                    <strong>Tip:</strong> Click on a binding to customize it. Use Ctrl/Meta, Shift, and Alt as modifiers.
+                </p>
+            </div>
+        </div>
+    `;
+    
+    localAppServices.openWindowWithContent?.(winId, 'Keyboard Shortcuts', html, { width: 450, height: 500 });
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (win?.element) {
+            const container = win.element.querySelector('.window-content') || win.element;
+            
+            container.querySelector('#resetKeyBindingsBtn')?.addEventListener('click', () => {
+                localAppServices.resetAllKeyBindings?.();
+                localAppServices.showNotification?.('Key bindings reset to defaults', 2000);
+                localAppServices.closeWindow?.(winId);
+                openKeyBindingsPanel();
+            });
+            
+            container.querySelector('#exportKeyBindingsBtn')?.addEventListener('click', () => {
+                const bindings = localAppServices.getCustomKeyBindings?.() || {};
+                const json = JSON.stringify(bindings, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'snugos-keybindings.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                localAppServices.showNotification?.('Key bindings exported', 1500);
+            });
+            
+            container.querySelector('#closeKeyBindingsBtn')?.addEventListener('click', () => {
+                localAppServices.closeWindow?.(winId);
+            });
+        }
+    }, 100);
+}
+
+// --- Project Notes Panel UI ---
+export function openProjectNotesPanel() {
+    const winId = 'projectNotesWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.bringWindowToFront?.(existingWin);
+        return;
+    }
+    
+    const notes = localAppServices.getProjectNotes?.() || [];
+    
+    const html = `
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Project Notes</h3>
+                <button id="closeProjectNotesBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="addNoteBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                    + Add Note
+                </button>
+                <button id="clearAllNotesBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                    Clear All
+                </button>
+            </div>
+            
+            <div id="notesList" class="space-y-2 max-h-80 overflow-y-auto">
+                ${notes.length === 0 ? '<div class="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No notes yet. Click "Add Note" to create one.</div>' : ''}
+                ${notes.map(note => `
+                    <div class="p-3 bg-white dark:bg-slate-700 rounded border-l-4 shadow-sm" style="border-left-color: ${note.color || '#3b82f6'}">
+                        <div class="flex items-start justify-between">
+                            <p class="text-xs text-gray-700 dark:text-gray-300 flex-1">${note.content || 'Empty note'}</p>
+                            <button class="delete-note-btn text-gray-400 hover:text-red-500 text-xs ml-2" data-note-id="${note.id}">🗑</button>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">${new Date(note.timestamp).toLocaleString()}</div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div id="addNoteForm" class="hidden space-y-2 p-3 bg-gray-50 dark:bg-slate-600 rounded">
+                <textarea id="newNoteContent" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-500 rounded resize-none" rows="3" placeholder="Enter your note..."></textarea>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-600 dark:text-gray-400">Color:</label>
+                    <input type="color" id="newNoteColor" value="#3b82f6" class="w-8 h-6 rounded cursor-pointer">
+                </div>
+                <div class="flex gap-2">
+                    <button id="saveNoteBtn" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+                    <button id="cancelNoteBtn" class="px-3 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    localAppServices.openWindowWithContent?.(winId, 'Project Notes', html, { width: 400, height: 450 });
+    localAppServices.setProjectNotesPanelOpen?.(true);
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (win?.element) {
+            const container = win.element.querySelector('.window-content') || win.element;
+            
+            const addNoteForm = container.querySelector('#addNoteForm');
+            const addNoteBtn = container.querySelector('#addNoteBtn');
+            const saveNoteBtn = container.querySelector('#saveNoteBtn');
+            const cancelNoteBtn = container.querySelector('#cancelNoteBtn');
+            const newNoteContent = container.querySelector('#newNoteContent');
+            const newNoteColor = container.querySelector('#newNoteColor');
+            
+            addNoteBtn?.addEventListener('click', () => {
+                addNoteForm.classList.remove('hidden');
+                newNoteContent?.focus();
+            });
+            
+            cancelNoteBtn?.addEventListener('click', () => {
+                addNoteForm.classList.add('hidden');
+                if (newNoteContent) newNoteContent.value = '';
+            });
+            
+            saveNoteBtn?.addEventListener('click', () => {
+                const content = newNoteContent?.value?.trim();
+                if (content) {
+                    localAppServices.addProjectNote?.(content, { color: newNoteColor?.value || '#3b82f6' });
+                    localAppServices.showNotification?.('Note added', 1500);
+                    localAppServices.closeWindow?.(winId);
+                    openProjectNotesPanel();
+                }
+            });
+            
+            container.querySelector('#clearAllNotesBtn')?.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all notes?')) {
+                    localAppServices.clearAllProjectNotes?.();
+                    localAppServices.closeWindow?.(winId);
+                    openProjectNotesPanel();
+                }
+            });
+            
+            container.querySelectorAll('.delete-note-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const noteId = btn.dataset.noteId;
+                    if (noteId) {
+                        localAppServices.deleteProjectNote?.(noteId);
+                        localAppServices.closeWindow?.(winId);
+                        openProjectNotesPanel();
+                    }
+                });
+            });
+            
+            container.querySelector('#closeProjectNotesBtn')?.addEventListener('click', () => {
+                localAppServices.setProjectNotesPanelOpen?.(false);
+                localAppServices.closeWindow?.(winId);
+            });
+        }
+    }, 100);
+}
+
+// --- MIDI Drum Map Editor UI ---
+export function openDrumMapEditorPanel() {
+    const winId = 'drumMapEditorWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.bringWindowToFront?.(existingWin);
+        return;
+    }
+    
+    const defaultMap = localAppServices.getDefaultDrumMap?.() || {};
+    const customMaps = localAppServices.getCustomDrumMaps?.() || {};
+    const activeMapId = localAppServices.getActiveDrumMapId?.() || 'default';
+    
+    const html = `
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">MIDI Drum Map Editor</h3>
+                <button id="closeDrumMapEditorBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-600 dark:text-gray-400">Active Map:</label>
+                <select id="activeDrumMapSelect" class="flex-1 p-1 text-xs bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                    <option value="default" ${activeMapId === 'default' ? 'selected' : ''}>Default (GM)</option>
+                    ${Object.entries(customMaps).map(([id, map]) => 
+                        `<option value="${id}" ${activeMapId === id ? 'selected' : ''}>${map.name}</option>`
+                    ).join('')}
+                </select>
+                <button id="createNewMapBtn" class="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">+ New</button>
+            </div>
+            
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div class="grid grid-cols-4 gap-2 text-xs font-semibold text-gray-600 dark:text-gray-400 p-2 bg-gray-100 dark:bg-slate-600 rounded">
+                    <span>Pad Name</span>
+                    <span>MIDI Note</span>
+                    <span>Color</span>
+                    <span>Actions</span>
+                </div>
+                <div id="drumPadsList">
+                    ${Object.entries(defaultMap).map(([padId, pad]) => `
+                        <div class="grid grid-cols-4 gap-2 text-xs p-2 bg-white dark:bg-slate-700 rounded items-center" data-pad-id="${padId}">
+                            <input type="text" value="${pad.name}" class="pad-name-input p-1 bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-xs" />
+                            <input type="number" value="${pad.note}" min="0" max="127" class="pad-note-input p-1 bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-xs w-16" />
+                            <input type="color" value="${pad.color}" class="pad-color-input w-8 h-6 rounded cursor-pointer" />
+                            <button class="play-pad-btn px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs" data-note="${pad.note}">▶</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="importDrumMapBtn" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Import Map
+                </button>
+                <button id="exportDrumMapBtn" class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                    Export Map
+                </button>
+            </div>
+            
+            <div class="p-3 bg-yellow-50 dark:bg-slate-600 rounded border border-yellow-200 dark:border-slate-500">
+                <p class="text-xs text-yellow-700 dark:text-yellow-300">
+                    <strong>Note:</strong> Changes to the default map apply globally. Create a custom map for project-specific mappings.
+                </p>
+            </div>
+        </div>
+    `;
+    
+    localAppServices.openWindowWithContent?.(winId, 'Drum Map Editor', html, { width: 450, height: 500 });
+    localAppServices.setDrumMapEditorOpen?.(true);
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowByIdState?.(winId);
+        if (win?.element) {
+            const container = win.element.querySelector('.window-content') || win.element;
+            
+            const activeMapSelect = container.querySelector('#activeDrumMapSelect');
+            activeMapSelect?.addEventListener('change', (e) => {
+                localAppServices.setActiveDrumMapId?.(e.target.value);
+                localAppServices.showNotification?.(`Switched to ${e.target.value === 'default' ? 'Default' : 'Custom'} drum map`, 1500);
+            });
+            
+            container.querySelector('#createNewMapBtn')?.addEventListener('click', () => {
+                const name = prompt('Enter name for new drum map:');
+                if (name) {
+                    const mapId = localAppServices.createDrumMap?.(name);
+                    if (mapId) {
+                        localAppServices.showNotification?.(`Created drum map: ${name}`, 1500);
+                        localAppServices.closeWindow?.(winId);
+                        openDrumMapEditorPanel();
+                    }
+                }
+            });
+            
+            container.querySelectorAll('.play-pad-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const note = parseInt(btn.dataset.note);
+                    if (typeof Tone !== 'undefined') {
+                        const synth = new Tone.Synth().toDestination();
+                        synth.triggerAttackRelease(Tone.Frequency(note, 'midi'), '8n');
+                    }
+                });
+            });
+            
+            container.querySelectorAll('.pad-name-input, .pad-note-input, .pad-color-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const row = e.target.closest('[data-pad-id]');
+                    const padId = row?.dataset.padId;
+                    const activeMap = activeMapSelect?.value || 'default';
+                    
+                    const nameInput = row.querySelector('.pad-name-input');
+                    const noteInput = row.querySelector('.pad-note-input');
+                    const colorInput = row.querySelector('.pad-color-input');
+                    
+                    localAppServices.updateDrumMapPad?.(activeMap, padId, {
+                        name: nameInput?.value,
+                        note: parseInt(noteInput?.value) || 36,
+                        color: colorInput?.value
+                    });
+                });
+            });
+            
+            container.querySelector('#exportDrumMapBtn')?.addEventListener('click', () => {
+                const activeMap = localAppServices.getActiveDrumMap?.() || {};
+                const json = JSON.stringify(activeMap, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'snugos-drummap.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                localAppServices.showNotification?.('Drum map exported', 1500);
+            });
+            
+            container.querySelector('#closeDrumMapEditorBtn')?.addEventListener('click', () => {
+                localAppServices.setDrumMapEditorOpen?.(false);
+                localAppServices.closeWindow?.(winId);
+            });
+        }
+    }, 100);
+}

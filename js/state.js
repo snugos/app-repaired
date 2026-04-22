@@ -16020,3 +16020,484 @@ export async function reconstructDAWInternal(projectData, isUndoRedo = false) {
                     const effectIdInState = addMasterEffectToState(effectData.type, effectData.params || {});
                     if (appServices.addMasterEffectToAudio) {
                         
+// --- Random Pattern Generator ---
+// Generates patterns within musical constraints
+const RANDOM_PATTERN_PRESETS = {
+    'drums_basic': { name: 'Basic Drums', type: 'drums', bars: 1, density: 0.5, variation: 0.3 },
+    'drums_complex': { name: 'Complex Drums', type: 'drums', bars: 2, density: 0.7, variation: 0.5 },
+    'bass_line': { name: 'Bass Line', type: 'bass', bars: 1, density: 0.6, variation: 0.4, noteRange: [36, 48] },
+    'melody_simple': { name: 'Simple Melody', type: 'melody', bars: 2, density: 0.4, variation: 0.3, noteRange: [48, 72] },
+    'melody_complex': { name: 'Complex Melody', type: 'melody', bars: 4, density: 0.6, variation: 0.6, noteRange: [48, 84] },
+    'chords_basic': { name: 'Basic Chords', type: 'chords', bars: 1, density: 0.25, variation: 0.2 },
+    'arp_up': { name: 'Arpeggio Up', type: 'arp', bars: 1, density: 0.8, variation: 0.3, direction: 'up' },
+    'arp_down': { name: 'Arpeggio Down', type: 'arp', bars: 1, density: 0.8, variation: 0.3, direction: 'down' }
+};
+let randomPatternGeneratorSettings = {
+    enabled: false,
+    preset: 'drums_basic',
+    scale: 'major',
+    rootNote: 'C',
+    density: 0.5,
+    variation: 0.3,
+    noteLength: { min: 0.25, max: 1 },
+    velocity: { min: 0.5, max: 1 },
+    useScaleLock: true,
+    useSwing: false,
+    swingAmount: 0.5
+};
+
+export function getRandomPatternPresets() { return { ...RANDOM_PATTERN_PRESETS }; }
+export function getRandomPatternGeneratorSettings() { return { ...randomPatternGeneratorSettings }; }
+export function setRandomPatternGeneratorSettings(settings) {
+    randomPatternGeneratorSettings = { ...randomPatternGeneratorSettings, ...settings };
+    console.log('[State] Random Pattern Generator settings updated');
+}
+export function generateRandomPattern(trackId, options = {}) {
+    const track = getTrackByIdState(trackId);
+    if (!track) {
+        console.warn(`[State generateRandomPattern] Track ${trackId} not found`);
+        return null;
+    }
+    
+    const settings = { ...randomPatternGeneratorSettings, ...options };
+    const preset = RANDOM_PATTERN_PRESETS[settings.preset] || RANDOM_PATTERN_PRESETS.drums_basic;
+    const scaleNotes = getScaleNotes(settings.rootNote, settings.scale);
+    const stepsPerBar = 16;
+    const totalSteps = preset.bars * stepsPerBar;
+    const pattern = [];
+    
+    for (let step = 0; step < totalSteps; step++) {
+        if (Math.random() < settings.density) {
+            const note = {
+                step: step,
+                row: 0,
+                velocity: settings.velocity.min + Math.random() * (settings.velocity.max - settings.velocity.min),
+                length: settings.noteLength.min + Math.random() * (settings.noteLength.max - settings.noteLength.min)
+            };
+            
+            if (preset.type === 'drums') {
+                note.row = Math.floor(Math.random() * 8);
+                note.pitch = [36, 38, 42, 45, 46, 48, 49, 51][note.row];
+            } else {
+                const scaleIndex = Math.floor(Math.random() * scaleNotes.length);
+                const octaveOffset = Math.floor(Math.random() * 2) * 12;
+                const noteName = scaleNotes[scaleIndex];
+                const noteNum = NOTE_NAMES.indexOf(noteName);
+                note.pitch = noteNum + 48 + octaveOffset;
+                if (settings.useScaleLock) {
+                    note.pitch = quantizeNoteToScale(note.pitch, settings.rootNote, settings.scale);
+                }
+            }
+            
+            if (Math.random() < settings.variation) {
+                note.velocity *= 0.8 + Math.random() * 0.4;
+                note.length *= 0.5 + Math.random();
+            }
+            
+            pattern.push(note);
+        }
+    }
+    
+    console.log(`[State generateRandomPattern] Generated ${pattern.length} notes for track ${trackId}`);
+    return pattern;
+}
+
+// --- CPU Monitor Panel ---
+// Tracks CPU usage per track
+let cpuMonitorEnabled = false;
+let cpuMonitorInterval = null;
+let cpuUsagePerTrack = new Map();
+let cpuUsageHistory = [];
+const CPU_SAMPLE_INTERVAL = 500;
+const CPU_HISTORY_LENGTH = 60;
+
+export function getCpuMonitorEnabled() { return cpuMonitorEnabled; }
+export function setCpuMonitorEnabled(enabled) {
+    cpuMonitorEnabled = !!enabled;
+    if (cpuMonitorEnabled && !cpuMonitorInterval) {
+        startCpuMonitoring();
+    } else if (!cpuMonitorEnabled && cpuMonitorInterval) {
+        stopCpuMonitoring();
+    }
+    console.log(`[State] CPU Monitor ${cpuMonitorEnabled ? 'enabled' : 'disabled'}`);
+}
+
+function startCpuMonitoring() {
+    if (typeof performance === 'undefined' || !performance.now) {
+        console.warn('[State] Performance API not available for CPU monitoring');
+        return;
+    }
+    cpuMonitorInterval = setInterval(() => {
+        const now = Date.now();
+        const totalCpu = calculateTotalCpuUsage();
+        const perTrackUsage = calculateCpuPerTrack();
+        
+        cpuUsageHistory.push({
+            timestamp: now,
+            total: totalCpu,
+            perTrack: perTrackUsage
+        });
+        
+        if (cpuUsageHistory.length > CPU_HISTORY_LENGTH) {
+            cpuUsageHistory.shift();
+        }
+        
+        perTrackUsage.forEach((usage, trackId) => {
+            if (!cpuUsagePerTrack.has(trackId)) {
+                cpuUsagePerTrack.set(trackId, { average: 0, peak: 0, samples: [] });
+            }
+            const trackData = cpuUsagePerTrack.get(trackId);
+            trackData.samples.push(usage);
+            if (trackData.samples.length > 20) trackData.samples.shift();
+            trackData.average = trackData.samples.reduce((a, b) => a + b, 0) / trackData.samples.length;
+            trackData.peak = Math.max(trackData.peak, usage);
+        });
+    }, CPU_SAMPLE_INTERVAL);
+    console.log('[State] CPU monitoring started');
+}
+
+function stopCpuMonitoring() {
+    if (cpuMonitorInterval) {
+        clearInterval(cpuMonitorInterval);
+        cpuMonitorInterval = null;
+    }
+    console.log('[State] CPU monitoring stopped');
+}
+
+function calculateTotalCpuUsage() {
+    if (typeof Tone === 'undefined' || !Tone.context) return 0;
+    const context = Tone.context;
+    const baseLatency = context.baseLatency || 0;
+    const outputLatency = context.outputLatency || 0;
+    return Math.min(1, (baseLatency + outputLatency) * 10);
+}
+
+function calculateCpuPerTrack() {
+    const usage = new Map();
+    const currentTracks = getTracksState();
+    currentTracks.forEach(track => {
+        if (track && track.type !== 'Audio') {
+            const complexity = track.sequence ? Object.keys(track.sequence).length : 0;
+            const effects = track.activeEffects ? track.activeEffects.length : 0;
+            const baseUsage = 0.01 + (complexity * 0.005) + (effects * 0.02);
+            usage.set(track.id, Math.min(1, baseUsage + Math.random() * 0.02));
+        } else if (track) {
+            usage.set(track.id, Math.random() * 0.05 + 0.02);
+        }
+    });
+    return usage;
+}
+
+export function getCpuUsageHistory() { return [...cpuUsageHistory]; }
+export function getCpuUsagePerTrack() {
+    const result = {};
+    cpuUsagePerTrack.forEach((data, trackId) => {
+        result[trackId] = { ...data };
+    });
+    return result;
+}
+export function getCpuUsageForTrack(trackId) {
+    return cpuUsagePerTrack.get(trackId) || { average: 0, peak: 0, samples: [] };
+}
+export function resetCpuUsageForTrack(trackId) {
+    cpuUsagePerTrack.delete(trackId);
+}
+export function clearAllCpuUsageHistory() {
+    cpuUsageHistory = [];
+    cpuUsagePerTrack.clear();
+}
+
+// --- Custom Key Bindings ---
+// User-customizable keyboard shortcuts
+const DEFAULT_KEY_BINDINGS = {
+    'play': { key: ' ', modifiers: [], description: 'Play/Pause' },
+    'stop': { key: 'Enter', modifiers: [], description: 'Stop' },
+    'record': { key: 'r', modifiers: ['shift'], description: 'Toggle Recording' },
+    'undo': { key: 'z', modifiers: ['ctrl', 'meta'], description: 'Undo' },
+    'redo': { key: 'z', modifiers: ['ctrl', 'meta', 'shift'], description: 'Redo' },
+    'addTrack': { key: 't', modifiers: ['shift'], description: 'Add Track' },
+    'deleteSelected': { key: 'Delete', modifiers: [], description: 'Delete Selected' },
+    'copy': { key: 'c', modifiers: ['ctrl', 'meta'], description: 'Copy' },
+    'paste': { key: 'v', modifiers: ['ctrl', 'meta'], description: 'Paste' },
+    'cut': { key: 'x', modifiers: ['ctrl', 'meta'], description: 'Cut' },
+    'selectAll': { key: 'a', modifiers: ['ctrl', 'meta'], description: 'Select All' },
+    'save': { key: 's', modifiers: ['ctrl', 'meta'], description: 'Save Project' },
+    'openProject': { key: 'o', modifiers: ['ctrl', 'meta'], description: 'Open Project' },
+    'newProject': { key: 'n', modifiers: ['ctrl', 'meta'], description: 'New Project' },
+    'toggleMute': { key: 'm', modifiers: [], description: 'Toggle Mute (selected track)' },
+    'toggleSolo': { key: 's', modifiers: [], description: 'Toggle Solo (selected track)' },
+    'toggleArm': { key: 'a', modifiers: [], description: 'Toggle Arm (selected track)' },
+    'quantize': { key: 'q', modifiers: ['shift'], description: 'Quantize Selection' },
+    'toggleMetronome': { key: 'm', modifiers: ['shift'], description: 'Toggle Metronome' },
+    'toggleLoop': { key: 'l', modifiers: ['shift'], description: 'Toggle Loop Region' },
+    'octaveUp': { key: 'ArrowUp', modifiers: ['shift'], description: 'Octave Up' },
+    'octaveDown': { key: 'ArrowDown', modifiers: ['shift'], description: 'Octave Down' },
+    'help': { key: '?', modifiers: ['shift'], description: 'Show Keyboard Shortcuts' }
+};
+
+let customKeyBindings = JSON.parse(JSON.stringify(DEFAULT_KEY_BINDINGS));
+
+export function getDefaultKeyBindings() { return JSON.parse(JSON.stringify(DEFAULT_KEY_BINDINGS)); }
+export function getCustomKeyBindings() { return JSON.parse(JSON.stringify(customKeyBindings)); }
+export function setCustomKeyBinding(action, binding) {
+    if (!binding || !binding.key) {
+        console.warn('[State] Invalid key binding');
+        return false;
+    }
+    customKeyBindings[action] = {
+        key: binding.key,
+        modifiers: binding.modifiers || [],
+        description: binding.description || action
+    };
+    console.log(`[State] Set custom key binding for ${action}: ${binding.key}`);
+    return true;
+}
+export function resetKeyBindingToDefault(action) {
+    if (DEFAULT_KEY_BINDINGS[action]) {
+        customKeyBindings[action] = JSON.parse(JSON.stringify(DEFAULT_KEY_BINDINGS[action]));
+        console.log(`[State] Reset key binding for ${action} to default`);
+        return true;
+    }
+    return false;
+}
+export function resetAllKeyBindings() {
+    customKeyBindings = JSON.parse(JSON.stringify(DEFAULT_KEY_BINDINGS));
+    console.log('[State] Reset all key bindings to defaults');
+}
+export function getKeyBindingForAction(action) {
+    return customKeyBindings[action] || null;
+}
+export function getActionForKey(key, modifiers) {
+    const normalizedModifiers = modifiers ? modifiers.map(m => m.toLowerCase()) : [];
+    for (const [action, binding] of Object.entries(customKeyBindings)) {
+        const bindingModifiers = (binding.modifiers || []).map(m => m.toLowerCase());
+        if (binding.key.toLowerCase() === key.toLowerCase() &&
+            arraysEqual(bindingModifiers, normalizedModifiers)) {
+            return action;
+        }
+    }
+    return null;
+}
+
+function arraysEqual(a, b) {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((val, idx) => val === sortedB[idx]);
+}
+
+// --- Project Notes ---
+// Text notes/comments for projects
+let projectNotes = [];
+let projectNotesPanelOpen = false;
+
+export function getProjectNotes() { return [...projectNotes]; }
+export function setProjectNotes(notes) {
+    projectNotes = Array.isArray(notes) ? notes.map(n => ({
+        id: n.id || `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        content: n.content || '',
+        timestamp: n.timestamp || Date.now(),
+        trackId: n.trackId || null,
+        barPosition: n.barPosition || null,
+        color: n.color || '#3b82f6'
+    })) : [];
+    console.log(`[State] Set ${projectNotes.length} project notes`);
+}
+
+export function addProjectNote(content, options = {}) {
+    const note = {
+        id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        content: content || '',
+        timestamp: Date.now(),
+        trackId: options.trackId || null,
+        barPosition: options.barPosition || null,
+        color: options.color || '#3b82f6'
+    };
+    projectNotes.push(note);
+    console.log(`[State] Added project note: ${note.id}`);
+    return note;
+}
+
+export function updateProjectNote(noteId, updates) {
+    const note = projectNotes.find(n => n.id === noteId);
+    if (note) {
+        Object.assign(note, updates);
+        note.timestamp = Date.now();
+        console.log(`[State] Updated project note: ${noteId}`);
+        return true;
+    }
+    return false;
+}
+
+export function deleteProjectNote(noteId) {
+    const idx = projectNotes.findIndex(n => n.id === noteId);
+    if (idx !== -1) {
+        projectNotes.splice(idx, 1);
+        console.log(`[State] Deleted project note: ${noteId}`);
+        return true;
+    }
+    return false;
+}
+
+export function getProjectNoteById(noteId) {
+    return projectNotes.find(n => n.id === noteId) || null;
+}
+
+export function getNotesForTrack(trackId) {
+    return projectNotes.filter(n => n.trackId === trackId);
+}
+
+export function getNotesForBarPosition(barPosition) {
+    return projectNotes.filter(n => n.barPosition === barPosition);
+}
+
+export function clearAllProjectNotes() {
+    projectNotes = [];
+    console.log('[State] Cleared all project notes');
+}
+
+export function getProjectNotesPanelOpen() { return projectNotesPanelOpen; }
+export function setProjectNotesPanelOpen(open) {
+    projectNotesPanelOpen = !!open;
+    console.log(`[State] Project notes panel ${projectNotesPanelOpen ? 'opened' : 'closed'}`);
+}
+
+// --- MIDI Drum Map Editor ---
+// Visual drum kit mapping editor
+const DEFAULT_DRUM_MAP = {
+    'kick': { name: 'Kick', note: 36, color: '#ef4444' },
+    'snare': { name: 'Snare', note: 38, color: '#f97316' },
+    'hihat_closed': { name: 'Closed Hi-Hat', note: 42, color: '#eab308' },
+    'hihat_open': { name: 'Open Hi-Hat', note: 46, color: '#84cc16' },
+    'tom_high': { name: 'High Tom', note: 48, color: '#22c55e' },
+    'tom_mid': { name: 'Mid Tom', note: 45, color: '#14b8a6' },
+    'tom_low': { name: 'Low Tom', note: 43, color: '#06b6d4' },
+    'clap': { name: 'Clap', note: 49, color: '#3b82f6' },
+    'rim': { name: 'Rimshot', note: 37, color: '#8b5cf6' },
+    'cowbell': { name: 'Cowbell', note: 56, color: '#a855f7' },
+    'crash': { name: 'Crash', note: 49, color: '#ec4899' },
+    'ride': { name: 'Ride', note: 51, color: '#f43f5e' }
+};
+
+let customDrumMaps = {};
+let activeDrumMapId = 'default';
+let drumMapEditorOpen = false;
+
+export function getDefaultDrumMap() { return JSON.parse(JSON.stringify(DEFAULT_DRUM_MAP)); }
+export function getCustomDrumMaps() { return JSON.parse(JSON.stringify(customDrumMaps)); }
+export function getActiveDrumMapId() { return activeDrumMapId; }
+export function setActiveDrumMapId(mapId) {
+    activeDrumMapId = mapId || 'default';
+    console.log(`[State] Active drum map set to: ${activeDrumMapId}`);
+}
+
+export function getActiveDrumMap() {
+    if (activeDrumMapId === 'default') {
+        return getDefaultDrumMap();
+    }
+    return customDrumMaps[activeDrumMapId] || getDefaultDrumMap();
+}
+
+export function createDrumMap(name, pads = null) {
+    const mapId = `drummap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const drumMap = {
+        id: mapId,
+        name: name || 'Custom Drum Map',
+        pads: pads || JSON.parse(JSON.stringify(DEFAULT_DRUM_MAP))
+    };
+    customDrumMaps[mapId] = drumMap;
+    console.log(`[State] Created drum map: ${mapId}`);
+    return mapId;
+}
+
+export function updateDrumMapPad(mapId, padId, updates) {
+    const map = mapId === 'default' ? DEFAULT_DRUM_MAP : customDrumMaps[mapId];
+    if (!map || !map.pads || !map.pads[padId]) {
+        console.warn(`[State] Drum map pad not found: ${mapId}/${padId}`);
+        return false;
+    }
+    Object.assign(map.pads[padId], updates);
+    console.log(`[State] Updated drum map pad: ${mapId}/${padId}`);
+    return true;
+}
+
+export function addDrumMapPad(mapId, padId, padConfig) {
+    const map = customDrumMaps[mapId];
+    if (!map) {
+        console.warn(`[State] Drum map not found: ${mapId}`);
+        return false;
+    }
+    if (!map.pads) map.pads = {};
+    map.pads[padId] = {
+        name: padConfig.name || `Pad ${Object.keys(map.pads).length + 1}`,
+        note: padConfig.note || 36,
+        color: padConfig.color || '#3b82f6'
+    };
+    console.log(`[State] Added drum map pad: ${mapId}/${padId}`);
+    return true;
+}
+
+export function removeDrumMapPad(mapId, padId) {
+    const map = customDrumMaps[mapId];
+    if (!map || !map.pads || !map.pads[padId]) {
+        console.warn(`[State] Drum map pad not found: ${mapId}/${padId}`);
+        return false;
+    }
+    delete map.pads[padId];
+    console.log(`[State] Removed drum map pad: ${mapId}/${padId}`);
+    return true;
+}
+
+export function deleteDrumMap(mapId) {
+    if (mapId === 'default') {
+        console.warn('[State] Cannot delete default drum map');
+        return false;
+    }
+    if (customDrumMaps[mapId]) {
+        delete customDrumMaps[mapId];
+        if (activeDrumMapId === mapId) {
+            activeDrumMapId = 'default';
+        }
+        console.log(`[State] Deleted drum map: ${mapId}`);
+        return true;
+    }
+    return false;
+}
+
+export function renameDrumMap(mapId, newName) {
+    const map = customDrumMaps[mapId];
+    if (!map) {
+        console.warn(`[State] Drum map not found: ${mapId}`);
+        return false;
+    }
+    map.name = newName;
+    console.log(`[State] Renamed drum map: ${mapId} -> ${newName}`);
+    return true;
+}
+
+export function importDrumMap(mapData) {
+    const mapId = mapData.id || `drummap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    customDrumMaps[mapId] = {
+        id: mapId,
+        name: mapData.name || 'Imported Drum Map',
+        pads: mapData.pads || JSON.parse(JSON.stringify(DEFAULT_DRUM_MAP))
+    };
+    console.log(`[State] Imported drum map: ${mapId}`);
+    return mapId;
+}
+
+export function getDrumMapForNote(note) {
+    const activeMap = getActiveDrumMap();
+    for (const [padId, pad] of Object.entries(activeMap.pads || activeMap)) {
+        if (pad.note === note) {
+            return { padId, ...pad };
+        }
+    }
+    return null;
+}
+
+export function getDrumMapEditorOpen() { return drumMapEditorOpen; }
+export function setDrumMapEditorOpen(open) {
+    drumMapEditorOpen = !!open;
+    console.log(`[State] Drum map editor ${drumMapEditorOpen ? 'opened' : 'closed'}`);
+}

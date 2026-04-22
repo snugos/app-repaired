@@ -280,11 +280,15 @@ import {
         if (typeof renderTimeline === 'function') renderTimeline();
     },
     createWindow: (id, title, content, options) => new SnugWindow(id, title, content, options, appServices),
+    openWindowWithContent: (id, title, contentHTML, options) => {
+        const win = new SnugWindow(id, title, contentHTML, options, appServices);
+        return win;
+    },
     uiElementsCache: uiElementsCache, 
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -305,7 +309,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -321,8 +325,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -395,8 +399,8 @@ import {
 
     removeCustomDesktopBackground: async () => {
         try {
-            localStorage.removeItem(DESKTOP_BACKGROUND_KEY);
-            localStorage.removeItem(DESKTOP_BG_TYPE_KEY);
+            localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
+            localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
             await this.bgDb.remove('desktopVideo');
             applyDesktopBackground(null, null);
             showSafeNotification("Background removed.", 2000);
@@ -426,8 +430,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
+    _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -880,11 +884,11 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
 
 // Restore background on load
 async function restoreDesktopBackground() {
-    const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
+    const bgType = localStorage.getItem(appServices.DESKTOP_BG_TYPE_KEY);
     
     if (bgType === 'video') {
         try {
-            const videoBlob = await bgDb.get('desktopVideo');
+            const videoBlob = await appServices.bgDb.get('desktopVideo');
             if (videoBlob) {
                 const objectUrl = URL.createObjectURL(videoBlob);
                 applyDesktopBackground(objectUrl, 'video');
@@ -894,7 +898,7 @@ async function restoreDesktopBackground() {
             console.warn("Could not restore video background:", e);
         }
     } else if (bgType === 'image' || !bgType) {
-        const imageUrl = localStorage.getItem(DESKTOP_BACKGROUND_KEY);
+        const imageUrl = localStorage.getItem(appServices.DESKTOP_BACKGROUND_KEY);
         if (imageUrl) {
             applyDesktopBackground(imageUrl, 'image');
         }
