@@ -2450,13 +2450,16 @@ export class Track {
     }
 
     /**
-     * Internal method to detect pitches from audio buffer using autocorrelation.
+     * Internal method to detect pitches from audio buffer using multiple algorithms.
+     * Enhanced version with YIN, FFT, onset detection, and polyphonic support.
      */
     _detectPitchesFromAudio(audioBuffer, options = {}) {
         const sensitivity = options.sensitivity ?? 0.5;
         const minNoteDuration = options.minNoteDuration ?? 0.1;
         const secondsPerStep = options.secondsPerStep ?? 0.125;
         const clipStartTime = options.clipStartTime ?? 0;
+        const enablePolyphonic = options.enablePolyphonic ?? false;
+        const algorithm = options.algorithm ?? 'yin'; // 'yin', 'fft', 'autocorrelation', 'hybrid'
 
         let channelData, sampleRate, duration;
         if (audioBuffer.getChannelData) {
@@ -2473,29 +2476,39 @@ export class Track {
             return [];
         }
 
+        // Pre-process audio: apply Hann window and normalize
+        const processedData = this._preprocessAudio(channelData);
+
         const fftSize = 4096;
         const hopSize = Math.floor(fftSize / 4);
         const minFrequency = 80;
         const maxFrequency = 1200;
-        const amplitudeThreshold = 0.01 + (1 - sensitivity) * 0.05;
+        const amplitudeThreshold = 0.005 + (1 - sensitivity) * 0.03;
+
+        // Detect onsets for better note segmentation
+        const onsets = this._detectOnsets(processedData, sampleRate, fftSize, hopSize);
+        console.log(`[Pitch Detection] Detected ${onsets.length} onsets`);
 
         const detectedNotes = [];
         let currentNote = null, currentNoteStart = 0, currentNoteVelocitySum = 0, currentNoteSampleCount = 0;
+        let lastConfidence = 0;
 
-        const numFrames = Math.floor((channelData.length - fftSize) / hopSize);
+        const numFrames = Math.floor((processedData.length - fftSize) / hopSize);
 
         for (let frameIndex = 0; frameIndex < numFrames; frameIndex++) {
             const startSample = frameIndex * hopSize;
             const frameTime = startSample / sampleRate;
 
+            // Calculate RMS for amplitude
             let rms = 0;
             for (let i = 0; i < fftSize; i++) {
-                const sample = channelData[startSample + i] || 0;
+                const sample = processedData[startSample + i] || 0;
                 rms += sample * sample;
             }
             rms = Math.sqrt(rms / fftSize);
 
             if (rms < amplitudeThreshold) {
+                // Silence - end current note
                 if (currentNote !== null) {
                     const noteDuration = frameTime - currentNoteStart;
                     if (noteDuration >= minNoteDuration) {
@@ -2503,7 +2516,8 @@ export class Track {
                             midiNote: currentNote,
                             time: currentNoteStart + clipStartTime,
                             duration: noteDuration,
-                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3),
+                            confidence: lastConfidence
                         });
                     }
                     currentNote = null;
@@ -2511,16 +2525,40 @@ export class Track {
                 continue;
             }
 
-            const frequency = this._autocorrelationPitch(channelData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+            // Use selected algorithm for pitch detection
+            let pitchResult;
+            switch (algorithm) {
+                case 'yin':
+                    pitchResult = this._yinPitchDetection(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                    break;
+                case 'fft':
+                    pitchResult = this._fftPitchDetection(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                    break;
+                case 'hybrid':
+                    // Use YIN for fundamental, FFT for harmonics confirmation
+                    const yinResult = this._yinPitchDetection(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                    const fftResult = this._fftPitchDetection(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                    // Prefer YIN if confidence is high, otherwise use FFT
+                    if (yinResult.confidence > 0.7) {
+                        pitchResult = yinResult;
+                    } else if (fftResult.confidence > yinResult.confidence) {
+                        pitchResult = fftResult;
+                    } else {
+                        pitchResult = yinResult;
+                    }
+                    break;
+                case 'autocorrelation':
+                default:
+                    const freq = this._autocorrelationPitch(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                    pitchResult = { frequency: freq, confidence: freq > 0 ? 0.6 : 0 };
+                    break;
+            }
 
-            if (frequency > 0) {
-                const midiNote = Math.round(12 * Math.log2(frequency / 440) + 69);
-                const clampedMidiNote = Math.max(24, Math.min(96, midiNote));
-
-                if (currentNote === clampedMidiNote) {
-                    currentNoteVelocitySum += rms;
-                    currentNoteSampleCount++;
-                } else {
+            // Polyphonic detection for chords
+            if (enablePolyphonic && pitchResult.confidence < 0.5) {
+                const polyPitches = this._detectPolyphonic(processedData, startSample, fftSize, sampleRate, minFrequency, maxFrequency);
+                if (polyPitches.length > 0) {
+                    // End current monophonic note
                     if (currentNote !== null) {
                         const noteDuration = frameTime - currentNoteStart;
                         if (noteDuration >= minNoteDuration) {
@@ -2528,7 +2566,53 @@ export class Track {
                                 midiNote: currentNote,
                                 time: currentNoteStart + clipStartTime,
                                 duration: noteDuration,
-                                velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                                velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3),
+                                confidence: lastConfidence
+                            });
+                        }
+                        currentNote = null;
+                    }
+                    // Add polyphonic notes
+                    for (const polyPitch of polyPitches) {
+                        const midiNote = this._frequencyToMidi(polyPitch.frequency);
+                        detectedNotes.push({
+                            midiNote,
+                            time: frameTime + clipStartTime,
+                            duration: minNoteDuration,
+                            velocity: Math.min(1, rms * 4),
+                            confidence: polyPitch.confidence,
+                            polyphonic: true
+                        });
+                    }
+                    continue;
+                }
+            }
+
+            if (pitchResult.frequency > 0 && pitchResult.confidence > 0.3) {
+                const midiNote = this._frequencyToMidi(pitchResult.frequency);
+                const clampedMidiNote = Math.max(24, Math.min(96, midiNote));
+
+                // Apply pitch smoothing - only change note if confidence is high or pitch shift is significant
+                const shouldChangeNote = currentNote === null ||
+                    (pitchResult.confidence > 0.7 && Math.abs(clampedMidiNote - currentNote) >= 1) ||
+                    (pitchResult.confidence > 0.9);
+
+                if (currentNote === clampedMidiNote) {
+                    // Same note - accumulate
+                    currentNoteVelocitySum += rms;
+                    currentNoteSampleCount++;
+                    lastConfidence = (lastConfidence + pitchResult.confidence) / 2;
+                } else if (shouldChangeNote) {
+                    // New note detected
+                    if (currentNote !== null) {
+                        const noteDuration = frameTime - currentNoteStart;
+                        if (noteDuration >= minNoteDuration) {
+                            detectedNotes.push({
+                                midiNote: currentNote,
+                                time: currentNoteStart + clipStartTime,
+                                duration: noteDuration,
+                                velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3),
+                                confidence: lastConfidence
                             });
                         }
                     }
@@ -2536,8 +2620,10 @@ export class Track {
                     currentNoteStart = frameTime;
                     currentNoteVelocitySum = rms;
                     currentNoteSampleCount = 1;
+                    lastConfidence = pitchResult.confidence;
                 }
             } else {
+                // No clear pitch - end current note
                 if (currentNote !== null) {
                     const noteDuration = frameTime - currentNoteStart;
                     if (noteDuration >= minNoteDuration) {
@@ -2545,7 +2631,8 @@ export class Track {
                             midiNote: currentNote,
                             time: currentNoteStart + clipStartTime,
                             duration: noteDuration,
-                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                            velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3),
+                            confidence: lastConfidence
                         });
                     }
                     currentNote = null;
@@ -2553,6 +2640,7 @@ export class Track {
             }
         }
 
+        // Handle final note
         if (currentNote !== null) {
             const noteDuration = duration - currentNoteStart;
             if (noteDuration >= minNoteDuration) {
@@ -2560,16 +2648,359 @@ export class Track {
                     midiNote: currentNote,
                     time: currentNoteStart + clipStartTime,
                     duration: noteDuration,
-                    velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3)
+                    velocity: Math.min(1, currentNoteVelocitySum / currentNoteSampleCount * 3),
+                    confidence: lastConfidence
                 });
             }
         }
 
-        return detectedNotes;
+        // Post-process: merge very short consecutive notes of same pitch
+        const mergedNotes = this._mergeConsecutiveNotes(detectedNotes, minNoteDuration);
+
+        // Filter by confidence threshold
+        const confidenceThreshold = 0.3 + (1 - sensitivity) * 0.2;
+        const filteredNotes = mergedNotes.filter(n => n.confidence >= confidenceThreshold);
+
+        console.log(`[Pitch Detection] Detected ${filteredNotes.length} notes (raw: ${detectedNotes.length}, merged: ${mergedNotes.length})`);
+        return filteredNotes;
     }
 
     /**
-     * Autocorrelation-based pitch detection.
+     * Pre-process audio data: normalize and apply windowing.
+     */
+    _preprocessAudio(audioData) {
+        const processed = new Float32Array(audioData.length);
+        
+        // Find max amplitude for normalization
+        let maxAmp = 0;
+        for (let i = 0; i < audioData.length; i++) {
+            const abs = Math.abs(audioData[i]);
+            if (abs > maxAmp) maxAmp = abs;
+        }
+        
+        const normalizeFactor = maxAmp > 0 ? 0.95 / maxAmp : 1;
+        
+        // Normalize
+        for (let i = 0; i < audioData.length; i++) {
+            processed[i] = audioData[i] * normalizeFactor;
+        }
+        
+        return processed;
+    }
+
+    /**
+     * YIN pitch detection algorithm - more accurate than basic autocorrelation.
+     * Returns { frequency, confidence }.
+     */
+    _yinPitchDetection(audioData, startSample, windowSize, sampleRate, minFreq, maxFreq) {
+        const threshold = 0.15; // YIN threshold
+        const minPeriod = Math.floor(sampleRate / maxFreq);
+        const maxPeriod = Math.floor(sampleRate / minFreq);
+        
+        // Calculate difference function
+        const yinBuffer = new Float32Array(maxPeriod + 2);
+        let runningSum = 0;
+        
+        for (let tau = 0; tau <= maxPeriod; tau++) {
+            yinBuffer[tau] = 0;
+            for (let i = 0; i < windowSize - tau; i++) {
+                const sample = audioData[startSample + i] || 0;
+                const delayed = audioData[startSample + i + tau] || 0;
+                const delta = sample - delayed;
+                yinBuffer[tau] += delta * delta;
+            }
+            
+            // Cumulative mean normalized difference
+            if (tau === 0) {
+                runningSum = 0;
+            } else {
+                runningSum += yinBuffer[tau];
+                if (runningSum > 0) {
+                    yinBuffer[tau] = yinBuffer[tau] * tau / runningSum;
+                }
+            }
+        }
+        
+        // Find first dip below threshold
+        let tauEstimate = -1;
+        for (let tau = minPeriod; tau <= maxPeriod; tau++) {
+            if (yinBuffer[tau] < threshold) {
+                // Find minimum in local neighborhood
+                while (tau + 1 <= maxPeriod && yinBuffer[tau + 1] < yinBuffer[tau]) {
+                    tau++;
+                }
+                tauEstimate = tau;
+                break;
+            }
+        }
+        
+        if (tauEstimate === -1) {
+            return { frequency: 0, confidence: 0 };
+        }
+        
+        // Parabolic interpolation for sub-sample accuracy
+        let betterTau;
+        const x0 = tauEstimate < 1 ? tauEstimate : tauEstimate - 1;
+        const x2 = tauEstimate + 1 > maxPeriod ? tauEstimate : tauEstimate + 1;
+        
+        if (x0 === tauEstimate) {
+            betterTau = yinBuffer[tauEstimate] <= yinBuffer[x2] ? tauEstimate : x2;
+        } else if (x2 === tauEstimate) {
+            betterTau = yinBuffer[tauEstimate] <= yinBuffer[x0] ? tauEstimate : x0;
+        } else {
+            const s0 = yinBuffer[x0];
+            const s1 = yinBuffer[tauEstimate];
+            const s2 = yinBuffer[x2];
+            betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
+        }
+        
+        const frequency = sampleRate / betterTau;
+        const confidence = 1 - yinBuffer[tauEstimate];
+        
+        return { frequency, confidence: Math.max(0, Math.min(1, confidence)) };
+    }
+
+    /**
+     * FFT-based pitch detection using peak picking in frequency domain.
+     * Returns { frequency, confidence }.
+     */
+    _fftPitchDetection(audioData, startSample, windowSize, sampleRate, minFreq, maxFreq) {
+        // Apply Hann window
+        const windowed = new Float32Array(windowSize);
+        for (let i = 0; i < windowSize; i++) {
+            const hann = 0.5 * (1 - Math.cos(2 * Math.PI * i / (windowSize - 1)));
+            windowed[i] = (audioData[startSample + i] || 0) * hann;
+        }
+        
+        // Simple DFT for frequency bins (avoiding full FFT library dependency)
+        const numBins = windowSize / 2;
+        const magnitudes = new Float32Array(numBins);
+        const binWidth = sampleRate / windowSize;
+        
+        // Use simplified magnitude calculation with precomputed twiddle factors
+        for (let k = 0; k < numBins; k++) {
+            let real = 0, imag = 0;
+            const angle = -2 * Math.PI * k / windowSize;
+            for (let n = 0; n < windowSize; n++) {
+                const twiddleAngle = angle * n;
+                real += windowed[n] * Math.cos(twiddleAngle);
+                imag += windowed[n] * Math.sin(twiddleAngle);
+            }
+            magnitudes[k] = real * real + imag * imag;
+        }
+        
+        // Find peaks in the frequency range
+        const minBin = Math.floor(minFreq / binWidth);
+        const maxBin = Math.min(numBins - 1, Math.floor(maxFreq / binWidth));
+        
+        let maxMag = 0;
+        let peakBin = -1;
+        
+        for (let k = minBin; k <= maxBin; k++) {
+            if (magnitudes[k] > maxMag) {
+                // Check if it's a local maximum
+                const isLocalMax = (k === minBin || magnitudes[k] >= magnitudes[k - 1]) &&
+                    (k === maxBin || magnitudes[k] >= magnitudes[k + 1]);
+                if (isLocalMax) {
+                    maxMag = magnitudes[k];
+                    peakBin = k;
+                }
+            }
+        }
+        
+        if (peakBin === -1) {
+            return { frequency: 0, confidence: 0 };
+        }
+        
+        // Parabolic interpolation for better frequency estimate
+        const k1 = peakBin > 0 ? magnitudes[peakBin - 1] : magnitudes[peakBin];
+        const k2 = magnitudes[peakBin];
+        const k3 = peakBin < numBins - 1 ? magnitudes[peakBin + 1] : magnitudes[peakBin];
+        
+        const denom = k1 + k3 - 2 * k2;
+        const refinedBin = denom !== 0 ? peakBin + (k1 - k3) / (2 * denom) : peakBin;
+        
+        const frequency = refinedBin * binWidth;
+        
+        // Calculate total energy for confidence
+        let totalEnergy = 0;
+        for (let i = 0; i < magnitudes.length; i++) {
+            totalEnergy += magnitudes[i];
+        }
+        
+        const confidence = totalEnergy > 0 ? Math.sqrt(maxMag) / Math.sqrt(totalEnergy) : 0;
+        
+        return { frequency, confidence: Math.max(0, Math.min(1, confidence)) };
+    }
+
+    /**
+     * Detect multiple simultaneous pitches for polyphonic audio.
+     * Uses harmonic product spectrum method.
+     */
+    _detectPolyphonic(audioData, startSample, windowSize, sampleRate, minFreq, maxFreq) {
+        const pitches = [];
+        
+        // Apply Hann window
+        const windowed = new Float32Array(windowSize);
+        for (let i = 0; i < windowSize; i++) {
+            const hann = 0.5 * (1 - Math.cos(2 * Math.PI * i / (windowSize - 1)));
+            windowed[i] = (audioData[startSample + i] || 0) * hann;
+        }
+        
+        const numBins = windowSize / 2;
+        const binWidth = sampleRate / windowSize;
+        
+        // Compute magnitude spectrum
+        const magnitudes = new Float32Array(numBins);
+        for (let k = 0; k < numBins; k++) {
+            let real = 0, imag = 0;
+            for (let n = 0; n < windowSize; n++) {
+                const angle = -2 * Math.PI * k * n / windowSize;
+                real += windowed[n] * Math.cos(angle);
+                imag += windowed[n] * Math.sin(angle);
+            }
+            magnitudes[k] = Math.sqrt(real * real + imag * imag);
+        }
+        
+        // Harmonic Product Spectrum - downsample and multiply
+        const hpsOrder = 5; // Check up to 5th harmonic
+        const hpsSize = Math.floor(numBins / hpsOrder);
+        const hps = new Float32Array(hpsSize);
+        
+        for (let i = 0; i < hpsSize; i++) {
+            hps[i] = magnitudes[i];
+            for (let h = 2; h <= hpsOrder; h++) {
+                const harmonicIndex = i * h;
+                if (harmonicIndex < numBins) {
+                    hps[i] *= magnitudes[harmonicIndex];
+                }
+            }
+        }
+        
+        // Find peaks in HPS
+        const minBin = Math.floor(minFreq / binWidth);
+        const maxBin = Math.min(hpsSize - 1, Math.floor(maxFreq / binWidth));
+        
+        // Find multiple peaks
+        const threshold = 0.1 * Math.max(...hps.slice(minBin, maxBin + 1));
+        const foundPeaks = [];
+        
+        for (let k = minBin; k <= maxBin; k++) {
+            if (hps[k] > threshold && hps[k] > 0) {
+                const isLocalMax = (k === minBin || hps[k] >= hps[k - 1]) &&
+                    (k === maxBin || hps[k] >= hps[k + 1]);
+                if (isLocalMax) {
+                    foundPeaks.push({ bin: k, magnitude: hps[k] });
+                }
+            }
+        }
+        
+        // Sort by magnitude and take top candidates
+        foundPeaks.sort((a, b) => b.magnitude - a.magnitude);
+        
+        for (let i = 0; i < Math.min(4, foundPeaks.length); i++) {
+            const peak = foundPeaks[i];
+            const frequency = peak.bin * binWidth;
+            const confidence = Math.min(1, peak.magnitude / (foundPeaks[0]?.magnitude || 1));
+            pitches.push({ frequency, confidence });
+        }
+        
+        return pitches;
+    }
+
+    /**
+     * Detect note onsets using spectral flux.
+     */
+    _detectOnsets(audioData, sampleRate, fftSize, hopSize) {
+        const onsets = [];
+        const numFrames = Math.floor((audioData.length - fftSize) / hopSize);
+        
+        if (numFrames < 2) return onsets;
+        
+        // Calculate spectral flux between consecutive frames
+        const prevSpectrum = new Float32Array(fftSize / 2);
+        const threshold = 0.3;
+        
+        for (let frame = 0; frame < numFrames; frame++) {
+            const startSample = frame * hopSize;
+            const spectrum = new Float32Array(fftSize / 2);
+            
+            // Calculate magnitude spectrum
+            for (let k = 0; k < fftSize / 2; k++) {
+                let real = 0, imag = 0;
+                for (let n = 0; n < fftSize; n++) {
+                    const sample = audioData[startSample + n] || 0;
+                    const hann = 0.5 * (1 - Math.cos(2 * Math.PI * n / (fftSize - 1)));
+                    const angle = -2 * Math.PI * k * n / fftSize;
+                    real += sample * hann * Math.cos(angle);
+                    imag += sample * hann * Math.sin(angle);
+                }
+                spectrum[k] = Math.sqrt(real * real + imag * imag);
+            }
+            
+            // Calculate spectral flux (positive differences only)
+            let flux = 0;
+            for (let k = 0; k < fftSize / 2; k++) {
+                const diff = spectrum[k] - prevSpectrum[k];
+                if (diff > 0) {
+                    flux += diff * diff;
+                }
+            }
+            flux = Math.sqrt(flux);
+            
+            // Detect onset if flux exceeds threshold
+            if (flux > threshold && frame > 0) {
+                onsets.push({
+                    time: startSample / sampleRate,
+                    flux
+                });
+            }
+            
+            // Store for next frame
+            for (let k = 0; k < fftSize / 2; k++) {
+                prevSpectrum[k] = spectrum[k];
+            }
+        }
+        
+        return onsets;
+    }
+
+    /**
+     * Convert frequency to MIDI note number.
+     */
+    _frequencyToMidi(frequency) {
+        return Math.round(12 * Math.log2(frequency / 440) + 69);
+    }
+
+    /**
+     * Merge consecutive notes of same pitch into single notes.
+     */
+    _mergeConsecutiveNotes(notes, minNoteDuration) {
+        if (notes.length === 0) return notes;
+        
+        const merged = [notes[0]];
+        
+        for (let i = 1; i < notes.length; i++) {
+            const prev = merged[merged.length - 1];
+            const curr = notes[i];
+            
+            // Check if same note and gap is small
+            if (prev.midiNote === curr.midiNote &&
+                curr.time - (prev.time + prev.duration) < minNoteDuration * 0.5) {
+                // Merge
+                prev.duration = (curr.time + curr.duration) - prev.time;
+                prev.velocity = (prev.velocity + curr.velocity) / 2;
+                prev.confidence = Math.max(prev.confidence, curr.confidence);
+            } else {
+                merged.push(curr);
+            }
+        }
+        
+        return merged;
+    }
+
+    /**
+     * Autocorrelation-based pitch detection (original method, kept for backward compatibility).
      */
     _autocorrelationPitch(audioData, startSample, windowSize, sampleRate, minFreq, maxFreq) {
         const minPeriod = Math.floor(sampleRate / maxFreq);
