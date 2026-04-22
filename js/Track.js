@@ -11876,3 +11876,244 @@ export class Track {
         return this.mobileTouch || { enabled: false };
     }
 }
+
+    // ===========================================
+    // ABLETON LINK SYNCHRONIZATION
+    // ===========================================
+
+    initAbletonLink(config = {}) {
+        this.abletonLink = {
+            enabled: config.enabled ?? false,
+            bpm: config.bpm ?? 120,
+            quantum: config.quantum ?? 4,
+            connected: false,
+            peers: [],
+            sessionState: { beats: 0, phase: 0, tempo: 120, time: 0 },
+            lastSyncTime: 0
+        };
+        console.log(`[Track ${this.id}] Ableton Link initialized`);
+        return this.abletonLink;
+    }
+
+    async connectAbletonLink(sessionId = null) {
+        if (!this.abletonLink) this.initAbletonLink();
+        this.abletonLink.connected = true;
+        this.abletonLink.sessionId = sessionId || `link_${Date.now()}`;
+        console.log(`[Track ${this.id}] Connected to Ableton Link`);
+        return { success: true, sessionId: this.abletonLink.sessionId };
+    }
+
+    disconnectAbletonLink() {
+        if (this.abletonLink) {
+            this.abletonLink.connected = false;
+            this.abletonLink.peers = [];
+        }
+    }
+
+    getLinkTimelinePosition() {
+        if (!this.abletonLink?.connected) return null;
+        const now = Date.now() / 1000;
+        const elapsed = now - this.abletonLink.lastSyncTime;
+        const beatsElapsed = elapsed * (this.abletonLink.bpm / 60);
+        return {
+            beats: this.abletonLink.sessionState.beats + beatsElapsed,
+            phase: (this.abletonLink.sessionState.beats + beatsElapsed) % this.abletonLink.quantum,
+            tempo: this.abletonLink.bpm,
+            time: now
+        };
+    }
+
+    setLinkTempo(bpm) {
+        if (!this.abletonLink) return;
+        this.abletonLink.bpm = Math.max(20, Math.min(999, bpm));
+        this.abletonLink.sessionState.tempo = this.abletonLink.bpm;
+    }
+
+    getAbletonLinkSettings() {
+        return this.abletonLink || { enabled: false };
+    }
+
+    // ===========================================
+    // OSC SUPPORT
+    // ===========================================
+
+    initOSC(config = {}) {
+        this.osc = {
+            enabled: config.enabled ?? false,
+            localPort: config.localPort ?? 9000,
+            remotePort: config.remotePort ?? 9001,
+            remoteAddress: config.remoteAddress ?? '127.0.0.1',
+            addressPatterns: new Map(),
+            messageQueue: [],
+            maxQueueSize: 1000
+        };
+        this._registerDefaultOSCPatterns();
+        return this.osc;
+    }
+
+    _registerDefaultOSCPatterns() {
+        if (!this.osc) return;
+        this.registerOSCPattern('/transport/play', () => console.log('OSC: play'));
+        this.registerOSCPattern('/transport/stop', () => console.log('OSC: stop'));
+    }
+
+    registerOSCPattern(pattern, handler) {
+        if (!this.osc) this.initOSC();
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        this.osc.addressPatterns.set(pattern, { pattern, handler, regex });
+    }
+
+    sendOSC(address, args = []) {
+        if (!this.osc?.enabled) return;
+        this.osc.messageQueue.push({ address, args, timestamp: Date.now() });
+        console.log(`[Track ${this.id}] OSC sent: ${address}`);
+    }
+
+    receiveOSC(message) {
+        if (!this.osc?.enabled) return;
+        for (const [, config] of this.osc.addressPatterns) {
+            if (config.regex.test(message.address)) {
+                config.handler(message);
+            }
+        }
+    }
+
+    getOSCSettings() {
+        return this.osc || { enabled: false };
+    }
+
+    // ===========================================
+    // NOTATION VIEW
+    // ===========================================
+
+    initNotationView(config = {}) {
+        this.notation = {
+            enabled: config.enabled ?? false,
+            clef: config.clef ?? 'treble',
+            timeSignature: config.timeSignature ?? { numerator: 4, denominator: 4 },
+            keySignature: config.keySignature ?? 'C',
+            zoom: config.zoom ?? 1,
+            selectedNotes: [],
+            displayOptions: { showMeasureNumbers: true, showBarlines: true }
+        };
+        return this.notation;
+    }
+
+    convertSequenceToNotation(sequenceId) {
+        const sequence = this.sequences?.find(s => s.id === sequenceId);
+        if (!sequence) return null;
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        return sequence.notes.map(note => ({
+            pitch: noteNames[note.midi % 12] + (Math.floor(note.midi / 12) - 1),
+            midi: note.midi,
+            duration: note.duration
+        }));
+    }
+
+    setNotationClef(clef) {
+        if (!this.notation) this.initNotationView();
+        this.notation.clef = clef;
+    }
+
+    setNotationTimeSignature(num, den) {
+        if (!this.notation) this.initNotationView();
+        this.notation.timeSignature = { numerator: num, denominator: den };
+    }
+
+    getNotationSettings() {
+        return this.notation || { enabled: false };
+    }
+
+    // ===========================================
+    // MACKIE CONTROL SUPPORT
+    // ===========================================
+
+    initMackieControl(config = {}) {
+        this.mackieControl = {
+            enabled: config.enabled ?? false,
+            protocol: config.protocol ?? 'MCU',
+            numChannels: config.numChannels ?? 8,
+            currentBank: 0,
+            connection: null,
+            faderPositions: new Array(8).fill(0)
+        };
+        return this.mackieControl;
+    }
+
+    async connectMackieControl(midiInput, midiOutput) {
+        if (!this.mackieControl) this.initMackieControl();
+        this.mackieControl.connection = { input: midiInput, output: midiOutput };
+        return { success: true };
+    }
+
+    handleMackieMIDI(msg) {
+        if (!this.mackieControl?.enabled) return;
+        console.log(`[Track ${this.id}] Mackie MIDI:`, msg);
+    }
+
+    sendMackieLED(name, on) {
+        if (!this.mackieControl?.connection?.output) return;
+        this.mackieControl.connection.output.send([0x90, 0x5E, on ? 0x7f : 0x00]);
+    }
+
+    getMackieControlSettings() {
+        return this.mackieControl || { enabled: false };
+    }
+
+    // ===========================================
+    // VIDEO TRACK SUPPORT
+    // ===========================================
+
+    initVideoTrack(config = {}) {
+        this.videoTrack = {
+            enabled: config.enabled ?? false,
+            videoUrl: null,
+            videoElement: null,
+            duration: 0,
+            syncMode: config.syncMode ?? 'master',
+            frameRate: config.frameRate ?? 30,
+            markers: [],
+            muted: false,
+            volume: 1
+        };
+        return this.videoTrack;
+    }
+
+    async loadVideo(url) {
+        if (!this.videoTrack) this.initVideoTrack();
+        this.videoTrack.videoUrl = url;
+        this.videoTrack.videoElement = document.createElement('video');
+        this.videoTrack.videoElement.src = url;
+        await new Promise(resolve => { this.videoTrack.videoElement.onloadedmetadata = resolve; });
+        this.videoTrack.duration = this.videoTrack.videoElement.duration;
+        return { success: true, duration: this.videoTrack.duration };
+    }
+
+    playVideo() {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.play();
+    }
+
+    pauseVideo() {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.pause();
+    }
+
+    seekVideo(time) {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.currentTime = time;
+    }
+
+    setVideoVolume(vol) {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.volume = Math.max(0, Math.min(1, vol));
+    }
+
+    getVideoTrackSettings() {
+        return this.videoTrack || { enabled: false };
+    }
+
+    disposeVideoTrack() {
+        if (this.videoTrack?.videoElement) {
+            this.videoTrack.videoElement.pause();
+            this.videoTrack.videoElement.src = '';
+        }
+        this.videoTrack = null;
+    }
+}

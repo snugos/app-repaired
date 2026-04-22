@@ -10351,3 +10351,197 @@ export function getMobileTouchSettings(trackId) {
     
     return track.getMobileTouchSettings?.() || { enabled: false };
 }
+
+// ===========================================
+// ABLETON LINK STATE FUNCTIONS
+// ===========================================
+
+export function initAbletonLink(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.initAbletonLink?.(config) || null;
+}
+
+export async function connectAbletonLink(trackId, sessionId = null) {
+    const track = getTrackById(trackId);
+    if (!track) return { success: false };
+    return track.connectAbletonLink?.(sessionId) || { success: false };
+}
+
+export function disconnectAbletonLink(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.disconnectAbletonLink?.();
+}
+
+export function getLinkTimelinePosition(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.getLinkTimelinePosition?.() || null;
+}
+
+export function setLinkTempo(trackId, bpm) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setLinkTempo?.(bpm);
+}
+
+export function getAbletonLinkSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getAbletonLinkSettings?.() || { enabled: false };
+}
+
+// ===========================================
+// OSC STATE FUNCTIONS
+// ===========================================
+
+export function initOSC(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.initOSC?.(config) || null;
+}
+
+export function registerOSCPattern(trackId, pattern, handler) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.registerOSCPattern?.(pattern, handler);
+}
+
+export function sendOSC(trackId, address, args = []) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.sendOSC?.(address, args);
+}
+
+export function receiveOSC(trackId, message) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.receiveOSC?.(message);
+}
+
+export function getOSCSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getOSCSettings?.() || { enabled: false };
+}
+
+// ===========================================
+// NOTATION VIEW STATE FUNCTIONS
+// ===========================================
+
+export function initNotationView(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.initNotationView?.(config) || null;
+}
+
+export function convertSequenceToNotation(trackId, sequenceId) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.convertSequenceToNotation?.(sequenceId) || null;
+}
+
+export function setNotationClef(trackId, clef) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setNotationClef?.(clef);
+}
+
+export function setNotationTimeSignature(trackId, numerator, denominator) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setNotationTimeSignature?.(numerator, denominator);
+}
+
+export function getNotationSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getNotationSettings?.() || { enabled: false };
+}
+
+// ===========================================
+// MACKIE CONTROL STATE FUNCTIONS
+// ===========================================
+
+export function initMackieControl(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.initMackieControl?.(config) || null;
+}
+
+export async function connectMackieControl(trackId, midiInput, midiOutput) {
+    const track = getTrackById(trackId);
+    if (!track) return { success: false };
+    return track.connectMackieControl?.(midiInput, midiOutput) || { success: false };
+}
+
+export function handleMackieMIDI(trackId, msg) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.handleMackieMIDI?.(msg);
+}
+
+export function sendMackieLED(trackId, name, on) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.sendMackieLED?.(name, on);
+}
+
+export function getMackieControlSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getMackieControlSettings?.() || { enabled: false };
+}
+
+// ===========================================
+// VIDEO TRACK STATE FUNCTIONS
+// ===========================================
+
+export function initVideoTrack(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.initVideoTrack?.(config) || null;
+}
+
+export async function loadVideo(trackId, url) {
+    const track = getTrackById(trackId);
+    if (!track) return { success: false };
+    return track.loadVideo?.(url) || { success: false };
+}
+
+export function playVideo(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.playVideo?.();
+}
+
+export function pauseVideo(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.pauseVideo?.();
+}
+
+export function seekVideo(trackId, time) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.seekVideo?.(time);
+}
+
+export function setVideoVolume(trackId, vol) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setVideoVolume?.(vol);
+}
+
+export function getVideoTrackSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getVideoTrackSettings?.() || { enabled: false };
+}
+
+export function disposeVideoTrack(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.disposeVideoTrack?.();
+}

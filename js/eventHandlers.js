@@ -110,7 +110,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Group Edit Panel", action: () => { if(services.openGroupEditPanel) services.openGroupEditPanel('notes'); } },
                     { separator: true },
                     { label: "Upload Custom Background (Image/Video)", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
-                    { label: "Remove Custom Background", action: () => { if(services.removeCustomDesktopBackground) services.removeCustomDesktopBackground(); } },
+                    { label: "Remove Custom Background", action: () => { if(localAppServices.removeCustomDesktopBackground) localAppServices.removeCustomDesktopBackground(); } },
                     { separator: true },
                     { label: "Toggle Full Screen", action: toggleFullScreen }
                 ];
