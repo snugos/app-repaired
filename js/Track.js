@@ -429,6 +429,531 @@ export class Track {
         return newSequence;
     }
 
+    // ==================== Pattern Variations ====================
+
+    /**
+     * Create a variation of an existing sequence with transformations.
+     * @param {string} sourceSequenceId - The ID of the sequence to vary
+     * @param {Object} options - Variation options
+     * @param {string} options.name - Name for the new variation
+     * @param {string} options.transform - Transformation type: 'shift', 'mirror', 'reverse', 'randomize', 'humanize', 'thin', 'thicken', 'velocity', 'combine'
+     * @param {number} options.shiftAmount - Number of steps to shift (for 'shift')
+     * @param {number} options.amount - Amount/intensity of transformation (0-1)
+     * @param {string} options.direction - Direction for shift: 'left', 'right', 'up', 'down'
+     * @returns {Object|null} The new variation sequence, or null if failed
+     */
+    createPatternVariation(sourceSequenceId, options = {}) {
+        const sourceSequence = this.sequences.find(s => s.id === sourceSequenceId);
+        if (!sourceSequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sourceSequenceId} not found for variation.`);
+            return null;
+        }
+
+        const transform = options.transform || 'shift';
+        const amount = options.amount ?? 0.5;
+        const name = options.name || `${sourceSequence.name} (variation)`;
+
+        // Deep copy the source data
+        const newData = JSON.parse(JSON.stringify(sourceSequence.data));
+
+        // Apply transformation
+        switch (transform) {
+            case 'shift':
+                this._transformShift(newData, options);
+                break;
+            case 'mirror':
+                this._transformMirror(newData);
+                break;
+            case 'reverse':
+                this._transformReverse(newData);
+                break;
+            case 'randomize':
+                this._transformRandomize(newData, amount);
+                break;
+            case 'humanize':
+                this._transformHumanize(newData, amount);
+                break;
+            case 'thin':
+                this._transformThin(newData, amount);
+                break;
+            case 'thicken':
+                this._transformThicken(newData);
+                break;
+            case 'velocity':
+                this._transformVelocity(newData, amount);
+                break;
+            case 'combine':
+                this._transformCombine(newData, sourceSequence.data, amount);
+                break;
+            case 'invert':
+                this._transformInvert(newData);
+                break;
+            case 'retrograde':
+                this._transformRetrograde(newData);
+                break;
+            case 'stretch':
+                this._transformStretch(newData, options.factor || 2);
+                break;
+            default:
+                console.warn(`[Track ${this.id}] Unknown transform type: ${transform}`);
+        }
+
+        // Create the new sequence
+        const newSequence = {
+            id: `seq_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: name,
+            data: newData,
+            length: sourceSequence.length
+        };
+
+        this.sequences.push(newSequence);
+        console.log(`[Track ${this.id}] Created pattern variation "${name}" with transform: ${transform}`);
+        return newSequence;
+    }
+
+    /**
+     * Create multiple variations at once.
+     * @param {string} sourceSequenceId - The source sequence ID
+     * @param {Array<Object>} variations - Array of variation options
+     * @returns {Array<Object>} Array of created sequences
+     */
+    createMultipleVariations(sourceSequenceId, variations) {
+        const created = [];
+        for (const opts of variations) {
+            const seq = this.createPatternVariation(sourceSequenceId, opts);
+            if (seq) created.push(seq);
+        }
+        return created;
+    }
+
+    /**
+     * Apply a transformation in-place to the active sequence.
+     * @param {string} transform - Transformation type
+     * @param {Object} options - Transform options
+     * @returns {boolean} True if applied successfully
+     */
+    applyTransformToActive(transform, options = {}) {
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq) {
+            console.warn(`[Track ${this.id}] No active sequence to transform.`);
+            return false;
+        }
+
+        const transformFn = {
+            'shift': () => this._transformShift(activeSeq.data, options),
+            'mirror': () => this._transformMirror(activeSeq.data),
+            'reverse': () => this._transformReverse(activeSeq.data),
+            'randomize': () => this._transformRandomize(activeSeq.data, options.amount ?? 0.3),
+            'humanize': () => this._transformHumanize(activeSeq.data, options.amount ?? 0.15),
+            'thin': () => this._transformThin(activeSeq.data, options.amount ?? 0.3),
+            'thicken': () => this._transformThicken(activeSeq.data),
+            'velocity': () => this._transformVelocity(activeSeq.data, options.amount ?? 0.2),
+            'invert': () => this._transformInvert(activeSeq.data),
+            'retrograde': () => this._transformRetrograde(activeSeq.data),
+            'stretch': () => this._transformStretch(activeSeq.data, options.factor || 2)
+        };
+
+        if (transformFn[transform]) {
+            this._captureUndoState(`Transform: ${transform}`);
+            transformFn[transform]();
+            console.log(`[Track ${this.id}] Applied transform "${transform}" to active sequence.`);
+            return true;
+        }
+
+        console.warn(`[Track ${this.id}] Unknown transform: ${transform}`);
+        return false;
+    }
+
+    // --- Transform Helper Methods ---
+
+    _transformShift(data, options) {
+        const shiftAmount = options.shiftAmount ?? 1;
+        const direction = options.direction || 'right';
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        if (direction === 'left' || direction === 'right') {
+            const shift = direction === 'right' ? shiftAmount : -shiftAmount;
+            for (let row = 0; row < numRows; row++) {
+                const newRow = new Array(numCols).fill(null);
+                for (let col = 0; col < numCols; col++) {
+                    const newCol = ((col + shift) % numCols + numCols) % numCols;
+                    newRow[newCol] = data[row][col] ? { ...data[row][col] } : null;
+                }
+                data[row] = newRow;
+            }
+        } else if (direction === 'up' || direction === 'down') {
+            const shift = direction === 'down' ? shiftAmount : -shiftAmount;
+            const newData = new Array(numRows).fill(null).map(() => new Array(numCols).fill(null));
+            for (let row = 0; row < numRows; row++) {
+                const newRow = ((row + shift) % numRows + numRows) % numRows;
+                for (let col = 0; col < numCols; col++) {
+                    newData[newRow][col] = data[row][col] ? { ...data[row][col] } : null;
+                }
+            }
+            for (let row = 0; row < numRows; row++) {
+                data[row] = newData[row];
+            }
+        }
+    }
+
+    _transformMirror(data) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        // Mirror horizontally (left-right)
+        for (let row = 0; row < numRows; row++) {
+            data[row].reverse();
+        }
+    }
+
+    _transformReverse(data) {
+        // Reverse the order of steps within each row
+        const numRows = data.length;
+        for (let row = 0; row < numRows; row++) {
+            if (data[row]) {
+                data[row].reverse();
+            }
+        }
+    }
+
+    _transformRandomize(data, amount) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const probability = amount; // Probability to toggle
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (Math.random() < probability) {
+                    if (data[row][col] && data[row][col].active) {
+                        // Note exists - 50% chance to remove
+                        if (Math.random() < 0.5) {
+                            data[row][col] = null;
+                        }
+                    } else {
+                        // No note - add with random velocity
+                        data[row][col] = {
+                            active: true,
+                            velocity: 0.5 + Math.random() * 0.5,
+                            duration: 1
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    _transformHumanize(data, amount) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    // Add random velocity variation
+                    const variation = (Math.random() - 0.5) * 2 * amount;
+                    data[row][col].velocity = Math.max(0.1, Math.min(1, (data[row][col].velocity || 0.8) + variation));
+                    
+                    // Small probability timing variation (handled by playback)
+                    data[row][col].timingOffset = (Math.random() - 0.5) * amount * 0.01;
+                }
+            }
+        }
+    }
+
+    _transformThin(data, amount) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const removalProbability = amount;
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    if (Math.random() < removalProbability) {
+                        data[row][col] = null;
+                    }
+                }
+            }
+        }
+    }
+
+    _transformThicken(data) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    // Add ghost note one step after
+                    if (col + 1 < numCols && !data[row][col + 1]) {
+                        data[row][col + 1] = {
+                            active: true,
+                            velocity: (data[row][col].velocity || 0.8) * 0.5,
+                            duration: 1
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    _transformVelocity(data, amount) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const direction = amount >= 0 ? 1 : -1;
+        const magnitude = Math.abs(amount);
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const currentVel = data[row][col].velocity || 0.8;
+                    const newVel = currentVel + direction * magnitude;
+                    data[row][col].velocity = Math.max(0.1, Math.min(1, newVel));
+                }
+            }
+        }
+    }
+
+    _transformInvert(data) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        // Invert pattern - fill gaps, remove existing notes
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    data[row][col] = null;
+                } else {
+                    data[row][col] = {
+                        active: true,
+                        velocity: 0.7,
+                        duration: 1
+                    };
+                }
+            }
+        }
+    }
+
+    _transformRetrograde(data) {
+        // Reverse the sequence and shift timing
+        const numRows = data.length;
+        for (let row = 0; row < numRows; row++) {
+            if (data[row]) {
+                data[row].reverse();
+                // Adjust duration to maintain pattern feel
+                for (let col = 0; col < data[row].length; col++) {
+                    if (data[row][col] && data[row][col].active) {
+                        // Swap attack characteristics
+                        const vel = data[row][col].velocity || 0.8;
+                        data[row][col].velocity = vel;
+                    }
+                }
+            }
+        }
+    }
+
+    _transformStretch(data, factor) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const newNumCols = Math.floor(numCols * factor);
+
+        for (let row = 0; row < numRows; row++) {
+            const newRow = new Array(newNumCols).fill(null);
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const newCol = Math.floor(col * factor);
+                    if (newCol < newNumCols) {
+                        newRow[newCol] = {
+                            ...data[row][col],
+                            duration: Math.ceil((data[row][col].duration || 1) * factor)
+                        };
+                    }
+                }
+            }
+            data[row] = newRow;
+        }
+    }
+
+    _transformCombine(data, sourceData, amount) {
+        // Combine with another pattern using probability
+        const numRows = Math.min(data.length, sourceData.length);
+        
+        for (let row = 0; row < numRows; row++) {
+            const numCols = Math.min(data[row]?.length || 0, sourceData[row]?.length || 0);
+            for (let col = 0; col < numCols; col++) {
+                if (!data[row][col] && sourceData[row][col] && sourceData[row][col].active) {
+                    if (Math.random() < amount) {
+                        data[row][col] = { ...sourceData[row][col] };
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Generate random variation patterns.
+     * @param {Object} options - Generation options
+     * @param {number} options.steps - Number of steps
+     * @param {number} options.density - Note density (0-1)
+     * @param {string} options.style - Style: 'sparse', 'dense', 'rhythmic', 'melodic'
+     * @returns {Object|null} New sequence with generated pattern
+     */
+    generateRandomPattern(options = {}) {
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq) {
+            console.warn(`[Track ${this.id}] No active sequence for random generation.`);
+            return null;
+        }
+
+        const numSteps = options.steps || activeSeq.length;
+        const density = options.density ?? 0.25;
+        const style = options.style || 'rhythmic';
+
+        this._captureUndoState('Generate Random Pattern');
+
+        const numRows = activeSeq.data.length;
+        const numCols = activeSeq.data[0]?.length || numSteps;
+
+        // Clear existing data
+        for (let row = 0; row < numRows; row++) {
+            activeSeq.data[row] = new Array(numCols).fill(null);
+        }
+
+        // Generate based on style
+        switch (style) {
+            case 'sparse':
+                this._generateSparse(activeSeq.data, density);
+                break;
+            case 'dense':
+                this._generateDense(activeSeq.data, density);
+                break;
+            case 'rhythmic':
+                this._generateRhythmic(activeSeq.data, density);
+                break;
+            case 'melodic':
+                this._generateMelodic(activeSeq.data, density);
+                break;
+            case 'arpeggiated':
+                this._generateArpeggiated(activeSeq.data, density);
+                break;
+            default:
+                this._generateRhythmic(activeSeq.data, density);
+        }
+
+        console.log(`[Track ${this.id}] Generated ${style} pattern with density ${density}`);
+        return activeSeq;
+    }
+
+    _generateSparse(data, density) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const noteCount = Math.floor(numRows * numCols * density * 0.5);
+
+        for (let i = 0; i < noteCount; i++) {
+            const row = Math.floor(Math.random() * numRows);
+            const col = Math.floor(Math.random() * numCols);
+            if (!data[row][col]) {
+                data[row][col] = {
+                    active: true,
+                    velocity: 0.6 + Math.random() * 0.4,
+                    duration: 1 + Math.floor(Math.random() * 2)
+                };
+            }
+        }
+    }
+
+    _generateDense(data, density) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (Math.random() < density) {
+                    data[row][col] = {
+                        active: true,
+                        velocity: 0.5 + Math.random() * 0.5,
+                        duration: 1
+                    };
+                }
+            }
+        }
+    }
+
+    _generateRhythmic(data, density) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        // Emphasize downbeats
+        for (let col = 0; col < numCols; col++) {
+            const isDownbeat = col % 4 === 0;
+            const isUpbeat = col % 4 === 2;
+            
+            for (let row = 0; row < numRows; row++) {
+                let probability = density;
+                if (isDownbeat) probability *= 2;
+                if (isUpbeat) probability *= 0.5;
+                
+                if (Math.random() < probability) {
+                    data[row][col] = {
+                        active: true,
+                        velocity: isDownbeat ? 0.9 : (isUpbeat ? 0.6 : 0.4 + Math.random() * 0.3),
+                        duration: 1
+                    };
+                    break; // One note per step for rhythmic
+                }
+            }
+        }
+    }
+
+    _generateMelodic(data, density) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+        const middleRow = Math.floor(numRows / 2);
+
+        // Generate a simple melody
+        let currentRow = middleRow;
+        for (let col = 0; col < numCols; col++) {
+            if (Math.random() < density) {
+                // Add some melodic movement
+                const movement = Math.floor(Math.random() * 5) - 2; // -2 to +2
+                currentRow = Math.max(0, Math.min(numRows - 1, currentRow + movement));
+                
+                data[currentRow][col] = {
+                    active: true,
+                    velocity: 0.6 + Math.random() * 0.4,
+                    duration: Math.random() > 0.7 ? 2 : 1
+                };
+            }
+        }
+    }
+
+    _generateArpeggiated(data, density) {
+        const numRows = data.length;
+        const numCols = data[0]?.length || 0;
+
+        // Pick a chord (set of rows)
+        const chordSize = 3 + Math.floor(Math.random() * 3);
+        const startRow = Math.floor(Math.random() * (numRows - chordSize));
+        const chordRows = [];
+        for (let i = 0; i < chordSize; i++) {
+            chordRows.push(startRow + i);
+        }
+
+        // Arpeggiate through the chord
+        let noteIndex = 0;
+        for (let col = 0; col < numCols; col++) {
+            if (Math.random() < density) {
+                const row = chordRows[noteIndex % chordRows.length];
+                data[row][col] = {
+                    active: true,
+                    velocity: 0.7,
+                    duration: 1
+                };
+                noteIndex++;
+            }
+        }
+    }
+
     // --- Synth Specific ---
 
     // --- Groove Template ---
