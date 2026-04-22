@@ -1558,7 +1558,7 @@ export async function fetchSoundLibrary(libraryName, zipUrl, isAutofetch = false
         console.log(`[Audio Fetch DEBUG] localAppServices.setSoundLibraryFileTreesState exists:`, !!localAppServices.setSoundLibraryFileTreesState);
         if (localAppServices.setSoundLibraryFileTreesState) {
             console.log(`[Audio Fetch DEBUG] Calling setSoundLibraryFileTreesState for ${libraryName} (soundTrees) with keys:`, Object.keys(latestSoundTrees));
-             if(latestSoundTrees[libraryName]) {
+            if(latestSoundTrees[libraryName]) {
                 console.log(`[Audio Fetch DEBUG] Tree for ${libraryName} being set has children count:`, Object.keys(latestSoundTrees[libraryName]).length);
             }
             localAppServices.setSoundLibraryFileTreesState(latestSoundTrees);
@@ -2610,10 +2610,197 @@ export function encodeWavFromAudioBuffer(buffer, sampleRate) {
 }
 
 /**
+ * Bounce the master mix to a WAV Blob.
+ * Renders all tracks through the master bus including effects.
+ * @param {Array} tracks - Array of all tracks to render
+ * @param {number} duration - Duration in seconds
+ * @param {Object} options - Optional settings { includeMasterEffects: true, sampleRate: 44100 }
+ * @returns {Promise<Blob>} - WAV file as Blob
+ */
+export async function bounceMasterToWav(tracks, duration, options = {}) {
+    console.log(`[Audio bounceMasterToWav] Starting master mix bounce. Duration: ${duration}s, Tracks: ${tracks.length}`);
+    
+    const {
+        includeMasterEffects = true,
+        sampleRate = 44100
+    } = options;
+    
+    try {
+        // Validate inputs
+        if (!tracks || tracks.length === 0) {
+            throw new Error('No tracks to render');
+        }
+        if (duration <= 0) {
+            throw new Error('Invalid duration');
+        }
+        
+        // Use Tone.Offline to render the master output
+        const renderedBuffer = await Tone.Offline(async ({ transport }) => {
+            // Create a master gain for the offline context
+            const offlineMasterGain = new Tone.Gain(1).toDestination();
+            
+            // Store scheduled events for cleanup
+            const scheduledEvents = [];
+            
+            // Process each track
+            for (const track of tracks) {
+                if (!track) continue;
+                
+                // Get the track's output node (if it exists and is connected)
+                const trackOutput = track.outputNode || track.gainNode;
+                
+                // For Synth tracks with sequences
+                if (track.type === 'Synth' && track.sequences && track.sequences.length > 0) {
+                    const activeSeq = track.sequences.find(s => s.id === track.activeSequenceId) || track.sequences[0];
+                    if (activeSeq && activeSeq.data && track.instrument) {
+                        // Schedule all notes in the sequence
+                        activeSeq.data.forEach((step, stepIndex) => {
+                            if (step && step.note) {
+                                const time = (stepIndex / (track.stepsPerBeat || 16)) * (60 / (track.bpm || 120));
+                                if (typeof track.instrument.triggerAttackRelease === 'function') {
+                                    const eventId = transport.schedule(time, () => {
+                                        track.instrument.triggerAttackRelease(
+                                            step.note, 
+                                            step.duration || '8n', 
+                                            time,
+                                            step.velocity || 0.8
+                                        );
+                                    });
+                                    scheduledEvents.push(eventId);
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // For Sampler tracks with sequences
+                if (track.type === 'Sampler' && track.sequences && track.sequences.length > 0) {
+                    const activeSeq = track.sequences.find(s => s.id === track.activeSequenceId) || track.sequences[0];
+                    if (activeSeq && activeSeq.data && track.instrument) {
+                        activeSeq.data.forEach((step, stepIndex) => {
+                            if (step && step.note) {
+                                const time = (stepIndex / (track.stepsPerBeat || 16)) * (60 / (track.bpm || 120));
+                                if (typeof track.instrument.triggerAttackRelease === 'function') {
+                                    const eventId = transport.schedule(time, () => {
+                                        track.instrument.triggerAttackRelease(
+                                            step.note,
+                                            step.duration || '8n',
+                                            time,
+                                            step.velocity || 0.8
+                                        );
+                                    });
+                                    scheduledEvents.push(eventId);
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // For DrumSampler tracks with sequences
+                if (track.type === 'DrumSampler' && track.sequences && track.sequences.length > 0) {
+                    const activeSeq = track.sequences.find(s => s.id === track.activeSequenceId) || track.sequences[0];
+                    if (activeSeq && activeSeq.data && track.drumPads) {
+                        activeSeq.data.forEach((step, stepIndex) => {
+                            if (step && Array.isArray(step.hits)) {
+                                const time = (stepIndex / (track.stepsPerBeat || 16)) * (60 / (track.bpm || 120));
+                                step.hits.forEach(hit => {
+                                    const pad = track.drumPads[hit.padIndex];
+                                    if (pad && pad.player && hit.velocity > 0) {
+                                        const eventId = transport.schedule(time, () => {
+                                            pad.player.start(time);
+                                            pad.player.volume.value = hit.velocity;
+                                        });
+                                        scheduledEvents.push(eventId);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                
+                // For Audio tracks with timeline clips
+                if (track.type === 'Audio' && track.timelineClips && track.timelineClips.length > 0) {
+                    for (const clip of track.timelineClips) {
+                        if (clip.dbKey) {
+                            try {
+                                const audioBuffer = await getTimelineClipAudioBuffer(clip.id, clip.dbKey);
+                                if (audioBuffer) {
+                                    const player = new Tone.Player(audioBuffer).connect(offlineMasterGain);
+                                    const eventId = transport.schedule(clip.startTime || 0, () => {
+                                        player.start(clip.startTime || 0);
+                                    });
+                                    scheduledEvents.push(eventId);
+                                }
+                            } catch (e) {
+                                console.warn(`[Audio bounceMasterToWav] Error loading clip ${clip.id}:`, e);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Start the transport
+            transport.start(0);
+            
+        }, duration, 2, sampleRate);
+        
+        console.log(`[Audio bounceMasterToWav] Render complete. Duration: ${renderedBuffer.duration}s`);
+        
+        // Encode to WAV
+        const audioBuffer = renderedBuffer.get ? renderedBuffer.get() : renderedBuffer;
+        const wavBlob = encodeWavFromAudioBuffer(audioBuffer, sampleRate);
+        
+        console.log(`[Audio bounceMasterToWav] WAV created. Size: ${wavBlob.size} bytes`);
+        return wavBlob;
+        
+    } catch (error) {
+        console.error(`[Audio bounceMasterToWav] Error:`, error);
+        throw error;
+    }
+}
+
+/**
  * Writes a string to a DataView at the specified offset.
  */
 function writeString(view, offset, string) {
     for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+/**
+ * Bounce the master mix with real-time rendering.
+ * Alternative approach that captures the actual audio output.
+ * @param {number} duration - Duration in seconds to record
+ * @returns {Promise<Blob>} - WAV file as Blob
+ */
+export async function recordMasterToWav(duration) {
+    console.log(`[Audio recordMasterToWav] Starting real-time master recording. Duration: ${duration}s`);
+    
+    try {
+        // Create a recorder on the master destination
+        const dest = Tone.Destination;
+        const recorder = new Tone.Recorder();
+        dest.connect(recorder);
+        
+        // Start recording
+        await recorder.start();
+        
+        // Wait for the duration
+        await new Promise(resolve => setTimeout(resolve, duration * 1000));
+        
+        // Stop recording and get the blob
+        const recording = await recorder.stop();
+        
+        // Disconnect and dispose
+        dest.disconnect(recorder);
+        recorder.dispose();
+        
+        console.log(`[Audio recordMasterToWav] Recording complete. Size: ${recording.size} bytes`);
+        return recording;
+        
+    } catch (error) {
+        console.error(`[Audio recordMasterToWav] Error:`, error);
+        throw error;
     }
 }

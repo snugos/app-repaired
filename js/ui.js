@@ -8125,17 +8125,64 @@ async function handleAudioExport() {
                 localAppServices.showNotification(`Exported ${selectedTracks.length} stems successfully!`, 3000);
             }
             
-        } else {
-            // Master mix export
-            statusText.textContent = 'Exporting master mix...';
-            progressBar.style.width = '50%';
+            statusText.textContent = 'Preparing master mix export...';
+            progressBar.style.width = '20%';
             
-            // For master mix, we'd need to bounce the entire master output
-            // This would require implementation in audio.js to render master bus
-            if (localAppServices.showNotification) {
-                localAppServices.showNotification('Master mix export is not yet implemented. Use stem export for now.', 4000);
+            try {
+                // Get all tracks
+                const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+                
+                if (tracks.length === 0) {
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('No tracks to export.', 3000);
+                    }
+                    progressContainer?.classList.add('hidden');
+                    return;
+                }
+                
+                // Calculate duration
+                const beatsPerBar = 4;
+                const bpm = Tone?.Transport?.bpm?.value || 120;
+                const durationSeconds = (endBar * beatsPerBar * 60) / bpm;
+                
+                statusText.textContent = `Rendering ${durationSeconds.toFixed(1)}s master mix...`;
+                progressBar.style.width = '40%';
+                
+                // Use the audio.js bounceMasterToWav function
+                const wavBlob = await localAppServices.bounceMasterToWav?.(tracks, durationSeconds, {
+                    includeMasterEffects: true,
+                    sampleRate: sampleRate
+                });
+                
+                progressBar.style.width = '80%';
+                
+                if (wavBlob) {
+                    // Download the file
+                    const projectName = localAppServices.getProjectName?.() || 'snugos_project';
+                    const url = URL.createObjectURL(wavBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${projectName.replace(/[^a-zA-Z0-9-_]/g, '_')}_master.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    statusText.textContent = 'Export complete!';
+                    progressBar.style.width = '100%';
+                    
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('Master mix exported successfully!', 3000);
+                    }
+                } else {
+                    throw new Error('Failed to create master mix file');
+                }
+            } catch (exportError) {
+                console.error('[UI handleAudioExport] Master mix export error:', exportError);
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification(`Master mix export failed: ${exportError.message}`, 4000);
+                }
             }
-        }
         
         progressContainer?.classList.add('hidden');
         
