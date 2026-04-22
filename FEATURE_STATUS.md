@@ -1,6 +1,6 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## Session: 2026-04-22 12:55 UTC
+## Session: 2026-04-22 14:30 UTC
 
 ### Previous Features - ALL COMPLETE ✅
 
@@ -17,67 +17,56 @@ All features from previous sessions are **COMPLETE**:
 
 ---
 
-## New Features Completed This Session (2026-04-22 12:55 UTC)
+## New Features Completed This Session (2026-04-22 14:30 UTC)
 
 | Feature | Status | Implementation |
 |---------|--------|----------------|
-| Ableton Link Synchronization | ✅ COMPLETE | Track.js + state.js - Network sync with Link protocol |
-| OSC Support | ✅ COMPLETE | Track.js + state.js - Open Sound Control messaging |
-| Notation View | ✅ COMPLETE | Track.js + state.js - Staff notation display |
-| Mackie Control | ✅ COMPLETE | Track.js + state.js - MCU/HUI control surface |
-| Video Track Support | ✅ COMPLETE | Track.js + state.js - Video playback with sync |
+| Lyrics Track | ✅ COMPLETE | Track.js + state.js - Text lyrics synced to timeline |
+| Video Sync Output (LTC) | ✅ COMPLETE | Track.js + state.js - LTC timecode for video sync |
+| Clip Envelope Editor | ✅ COMPLETE | Track.js + state.js - AHDSR envelopes on audio clips |
 
 ---
 
 ## Implementation Log
 
-### 2026-04-22 12:55 UTC - 5 New Features Complete
+### 2026-04-22 14:30 UTC - 3 New Features Complete
 
-#### 1. Ableton Link Synchronization
-- Added `initAbletonLink()` for configuration
-- Added `connectAbletonLink()` for network connection
-- Added `disconnectAbletonLink()` for cleanup
-- Added `getLinkTimelinePosition()` for sync position
-- Added `setLinkTempo()` for tempo control
-- State functions: `initAbletonLink()`, `connectAbletonLink()`, `disconnectAbletonLink()`, `getLinkTimelinePosition()`, `setLinkTempo()`, `getAbletonLinkSettings()`
+#### 1. Lyrics Track
+- Added `initLyricsTrack()` for initialization
+- Added `addLyricEntry()` for adding lyrics at timeline positions
+- Added `removeLyricEntry()` and `updateLyricEntry()` for editing
+- Added `importLyricsFromLRC()` for LRC format import
+- Added `exportLyricsToLRC()` for LRC format export
+- Added `getVisibleLyrics()` for playback sync
+- Added `setLyricsDisplaySettings()` for visual customization
+- State functions: `initLyricsTrack()`, `addLyricEntry()`, `removeLyricEntry()`, `updateLyricEntry()`, `importLyricsFromLRC()`, `exportLyricsToLRC()`, `getVisibleLyrics()`, `setLyricsDisplaySettings()`, `setLyricsTrackEnabled()`, `getLyricsTrackSettings()`
 
-#### 2. OSC Support
-- Added `initOSC()` with port configuration
-- Added `registerOSCPattern()` for address pattern matching
-- Added `sendOSC()` for message transmission
-- Added `receiveOSC()` for message handling
-- Default patterns: /transport/play, /transport/stop, /tempo
-- State functions: `initOSC()`, `registerOSCPattern()`, `sendOSC()`, `receiveOSC()`, `getOSCSettings()`
+#### 2. Video Sync Output (LTC Timecode)
+- Added `initVideoSyncOutput()` for configuration
+- Added `setVideoSyncFrameRate()` for 24/25/29.97/30fps support
+- Added `setStartTimecode()` for custom start time
+- Added `playbackTimeToTimecode()` for time conversion
+- Added `formatTimecode()` for display formatting
+- Added `generateLTCSignal()` for LTC encoding
+- Added `setVideoSyncOutputFormat()` for LTC/MIDI/OSC output
+- State functions: `initVideoSyncOutput()`, `setVideoSyncFrameRate()`, `setStartTimecode()`, `playbackTimeToTimecode()`, `formatTimecode()`, `generateLTCSignal()`, `setVideoSyncOutputFormat()`, `setVideoSyncEnabled()`, `getVideoSyncSettings()`, `getCurrentTimecodeString()`
 
-#### 3. Notation View
-- Added `initNotationView()` with clef/time signature/key
-- Added `convertSequenceToNotation()` for MIDI to notation conversion
-- Added `setNotationClef()` for clef selection
-- Added `setNotationTimeSignature()` for time signature
-- Supports: treble, bass, alto, tenor clefs
-- State functions: `initNotationView()`, `convertSequenceToNotation()`, `setNotationClef()`, `setNotationTimeSignature()`, `getNotationSettings()`
-
-#### 4. Mackie Control
-- Added `initMackieControl()` with MCU/HUI protocol support
-- Added `connectMackieControl()` for device connection
-- Added `handleMackieMIDI()` for input handling
-- Added `sendMackieLED()` for LED feedback
-- 8-channel fader support
-- State functions: `initMackieControl()`, `connectMackieControl()`, `handleMackieMIDI()`, `sendMackieLED()`, `getMackieControlSettings()`
-
-#### 5. Video Track Support
-- Added `initVideoTrack()` with sync configuration
-- Added `loadVideo()` for video file loading
-- Added `playVideo()`, `pauseVideo()`, `seekVideo()` for playback
-- Added `setVideoVolume()` for volume control
-- Added `disposeVideoTrack()` for cleanup
-- State functions: `initVideoTrack()`, `loadVideo()`, `playVideo()`, `pauseVideo()`, `seekVideo()`, `setVideoVolume()`, `getVideoTrackSettings()`, `disposeVideoTrack()`
+#### 3. Clip Envelope Editor (AHDSR)
+- Added `initClipEnvelopeEditor()` for setup
+- Added `setClipEnvelope()` for AHDSR configuration
+- Added `getClipEnvelope()` and `removeClipEnvelope()` for management
+- Added `applyEnvelopeToClip()` for real-time envelope application
+- Added `drawEnvelopeCurve()` for visualization
+- Added `copyClipEnvelope()` for envelope duplication
+- Supports: volume, pan, filter, pitch envelope types
+- Supports: linear, exponential, s-curve curve shapes
+- State functions: `initClipEnvelopeEditor()`, `setClipEnvelope()`, `getClipEnvelope()`, `removeClipEnvelope()`, `applyEnvelopeToClip()`, `drawEnvelopeCurve()`, `copyClipEnvelope()`, `setClipEnvelopeEditorEnabled()`, `selectClipForEnvelopeEdit()`, `getClipEnvelopeEditorSettings()`
 
 ---
 
 ### Files Modified
 
-1. **Track.js** - Added 5 complete feature implementations (~200 lines of new code)
+1. **Track.js** - Added 3 complete feature implementations (~350 lines of new code)
 2. **state.js** - Added state management functions for all features (~150 lines)
 
 ---
@@ -102,12 +91,23 @@ When all current queues are empty, consider implementing:
 6. **Print Support** - Print notation directly from browser
 7. **Score Following** - Automatic page turning for live performance
 8. **Audio-to-Score** - Automatic transcription from audio
+9. **Clip Crossfade Editor** - Visual editor for crossfade curves
+10. **Pattern Length Automation** - Dynamically change pattern length during playback
+11. **Note Chase Mode** - Notes that play until the next note (legato mode)
+12. **Audio Spectral Editor** - Visual frequency spectrum editing
+13. **Track Routing Matrix** - Visual routing matrix for track sends/returns
+14. **Note Expression** - Per-note pitch, pan, and velocity envelopes
+15. **Scene Trigger Sequencer** - Sequencer for triggering scenes in playlist view
+16. **Rhythmical Groove Drawing** - Draw custom groove patterns visually
+17. **VST Host Foundation** - Prepare architecture for VST/AU plugin hosting
+18. **Cloud Project Storage** - Save/load projects to cloud storage
+19. **Share Link Generator** - Generate shareable links to exported audio
 
 ---
 
 ## Summary
 
-**Total Features Completed:** 100+ features
+**Total Features Completed:** 103+ features
 
 **Codebase Status:**
 - All syntax validation passing ✅

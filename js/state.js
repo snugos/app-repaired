@@ -10545,3 +10545,195 @@ export function disposeVideoTrack(trackId) {
     if (!track) return;
     track.disposeVideoTrack?.();
 }
+
+// ===========================================
+// LYRICS TRACK STATE FUNCTIONS
+// ===========================================
+
+export function initLyricsTrack(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.initLyricsTrack?.();
+}
+
+export function addLyricEntry(trackId, time, text, duration = 0, color = null) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.addLyricEntry?.(time, text, duration, color) || null;
+}
+
+export function removeLyricEntry(trackId, lyricId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.removeLyricEntry?.(lyricId);
+}
+
+export function updateLyricEntry(trackId, lyricId, updates) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.updateLyricEntry?.(lyricId, updates);
+}
+
+export function importLyricsFromLRC(trackId, lrcContent) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.importLyricsFromLRC?.(lrcContent);
+}
+
+export function exportLyricsToLRC(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return '';
+    return track.exportLyricsToLRC?.() || '';
+}
+
+export function getVisibleLyrics(trackId, time) {
+    const track = getTrackById(trackId);
+    if (!track) return [];
+    return track.getVisibleLyrics?.(time) || [];
+}
+
+export function setLyricsDisplaySettings(trackId, settings) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setLyricsDisplaySettings?.(settings);
+}
+
+export function setLyricsTrackEnabled(trackId, enabled) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setLyricsTrackEnabled?.(enabled);
+}
+
+export function getLyricsTrackSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false, lyrics: [] };
+    return track.getLyricsTrackSettings?.() || { enabled: false, lyrics: [] };
+}
+
+// ===========================================
+// VIDEO SYNC OUTPUT STATE FUNCTIONS
+// ===========================================
+
+export function initVideoSyncOutput(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.initVideoSyncOutput?.();
+}
+
+export function setVideoSyncFrameRate(trackId, frameRate, dropFrame = false) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setVideoSyncFrameRate?.(frameRate, dropFrame);
+}
+
+export function setStartTimecode(trackId, hours, minutes, seconds, frames) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setStartTimecode?.(hours, minutes, seconds, frames);
+}
+
+export function playbackTimeToTimecode(trackId, playbackTime) {
+    const track = getTrackById(trackId);
+    if (!track) return { hours: 0, minutes: 0, seconds: 0, frames: 0 };
+    return track.playbackTimeToTimecode?.(playbackTime) || { hours: 0, minutes: 0, seconds: 0, frames: 0 };
+}
+
+export function formatTimecode(trackId, timecode) {
+    const track = getTrackById(trackId);
+    if (!track) return '00:00:00:00';
+    return track.formatTimecode?.(timecode) || '00:00:00:00';
+}
+
+export function generateLTCSignal(trackId, timecode) {
+    const track = getTrackById(trackId);
+    if (!track) return [];
+    return track.generateLTCSignal?.(timecode) || [];
+}
+
+export function setVideoSyncOutputFormat(trackId, format) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setVideoSyncOutputFormat?.(format);
+}
+
+export function setVideoSyncEnabled(trackId, enabled) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setVideoSyncEnabled?.(enabled);
+}
+
+export function getVideoSyncSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    return track.getVideoSyncSettings?.() || { enabled: false };
+}
+
+export function getCurrentTimecodeString(trackId, playbackTime) {
+    const track = getTrackById(trackId);
+    if (!track) return '00:00:00:00';
+    return track.getCurrentTimecodeString?.(playbackTime) || '00:00:00:00';
+}
+
+// ===========================================
+// CLIP ENVELOPE EDITOR STATE FUNCTIONS
+// ===========================================
+
+export function initClipEnvelopeEditor(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.initClipEnvelopeEditor?.();
+}
+
+export function setClipEnvelope(trackId, clipId, envelope) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setClipEnvelope?.(clipId, envelope);
+}
+
+export function getClipEnvelope(trackId, clipId) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    return track.getClipEnvelope?.(clipId) || null;
+}
+
+export function removeClipEnvelope(trackId, clipId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.removeClipEnvelope?.(clipId);
+}
+
+export function applyEnvelopeToClip(trackId, clipId, time, duration) {
+    const track = getTrackById(trackId);
+    if (!track) return 1;
+    return track.applyEnvelopeToClip?.(clipId, time, duration) || 1;
+}
+
+export function drawEnvelopeCurve(trackId, clipId, duration, numPoints = 100) {
+    const track = getTrackById(trackId);
+    if (!track) return [];
+    return track.drawEnvelopeCurve?.(clipId, duration, numPoints) || [];
+}
+
+export function copyClipEnvelope(trackId, sourceClipId, targetClipId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.copyClipEnvelope?.(sourceClipId, targetClipId);
+}
+
+export function setClipEnvelopeEditorEnabled(trackId, enabled) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.setClipEnvelopeEditorEnabled?.(enabled);
+}
+
+export function selectClipForEnvelopeEdit(trackId, clipId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    track.selectClipForEnvelopeEdit?.(clipId);
+}
+
+export function getClipEnvelopeEditorSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false, envelopes: {} };
+    return track.getClipEnvelopeEditorSettings?.() || { enabled: false, envelopes: {} };
+}

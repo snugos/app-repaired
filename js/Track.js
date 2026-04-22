@@ -44,6 +44,10 @@ export class Track {
         }
         console.log(`[Track ${this.id} Constructor] Initializing track "${this.name}" of type "${this.type}". InitialData present: ${!!initialData}`);
 
+        // --- Lyrics Track Data ---
+        // Each lyric entry: { id, time (seconds), text, duration (seconds) }
+        this.lyrics = initialData?.lyrics ? JSON.parse(JSON.stringify(initialData.lyrics)) : [];
+
         // Track color for visual grouping
         this.color = initialData?.color || getRandomTrackColor();
 
@@ -12712,6 +12716,66 @@ export class Track {
     getTimeStretchModesSettings() {
         return this.timeStretchModes || { enabled: false };
     }
+
+    // --- Lyrics Track Methods ---
+    // Add a new lyric entry
+    addLyric(text, time = 0, duration = 2) {
+        const lyric = {
+            id: `lyric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            time: parseFloat(time) || 0,
+            text: text,
+            duration: parseFloat(duration) || 2
+        };
+        this.lyrics.push(lyric);
+        this.lyrics.sort((a, b) => a.time - b.time);
+        console.log(`[Track ${this.id}] Added lyric: "${text}" at ${time}s`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        return lyric;
+    }
+
+    // Update an existing lyric
+    updateLyric(lyricId, updates) {
+        const lyric = this.lyrics.find(l => l.id === lyricId);
+        if (lyric) {
+            if (updates.text !== undefined) lyric.text = updates.text;
+            if (updates.time !== undefined) lyric.time = parseFloat(updates.time) || 0;
+            if (updates.duration !== undefined) lyric.duration = parseFloat(updates.duration) || 2;
+            this.lyrics.sort((a, b) => a.time - b.time);
+            console.log(`[Track ${this.id}] Updated lyric ${lyricId}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    // Remove a lyric
+    removeLyric(lyricId) {
+        const idx = this.lyrics.findIndex(l => l.id === lyricId);
+        if (idx !== -1) {
+            this.lyrics.splice(idx, 1);
+            console.log(`[Track ${this.id}] Removed lyric ${lyricId}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    // Get all lyrics
+    getLyrics() {
+        return [...this.lyrics];
+    }
+
+    // Get lyric at a specific time
+    getLyricAtTime(time) {
+        return this.lyrics.find(l => time >= l.time && time < l.time + l.duration);
+    }
+
+    // Clear all lyrics
+    clearLyrics() {
+        this.lyrics = [];
+        console.log(`[Track ${this.id}] Cleared all lyrics`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+    }
 }
 
     // ===========================================
@@ -13549,5 +13613,65 @@ export class Track {
 
     getTimeStretchModesSettings() {
         return this.timeStretchModes || { enabled: false };
+    }
+
+    // --- Lyrics Track Methods ---
+    // Add a new lyric entry
+    addLyric(text, time = 0, duration = 2) {
+        const lyric = {
+            id: `lyric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            time: parseFloat(time) || 0,
+            text: text,
+            duration: parseFloat(duration) || 2
+        };
+        this.lyrics.push(lyric);
+        this.lyrics.sort((a, b) => a.time - b.time);
+        console.log(`[Track ${this.id}] Added lyric: "${text}" at ${time}s`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        return lyric;
+    }
+
+    // Update an existing lyric
+    updateLyric(lyricId, updates) {
+        const lyric = this.lyrics.find(l => l.id === lyricId);
+        if (lyric) {
+            if (updates.text !== undefined) lyric.text = updates.text;
+            if (updates.time !== undefined) lyric.time = parseFloat(updates.time) || 0;
+            if (updates.duration !== undefined) lyric.duration = parseFloat(updates.duration) || 2;
+            this.lyrics.sort((a, b) => a.time - b.time);
+            console.log(`[Track ${this.id}] Updated lyric ${lyricId}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    // Remove a lyric
+    removeLyric(lyricId) {
+        const idx = this.lyrics.findIndex(l => l.id === lyricId);
+        if (idx !== -1) {
+            this.lyrics.splice(idx, 1);
+            console.log(`[Track ${this.id}] Removed lyric ${lyricId}`);
+            if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+            return true;
+        }
+        return false;
+    }
+
+    // Get all lyrics
+    getLyrics() {
+        return [...this.lyrics];
+    }
+
+    // Get lyric at a specific time
+    getLyricAtTime(time) {
+        return this.lyrics.find(l => time >= l.time && time < l.time + l.duration);
+    }
+
+    // Clear all lyrics
+    clearLyrics() {
+        this.lyrics = [];
+        console.log(`[Track ${this.id}] Cleared all lyrics`);
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
     }
 }
