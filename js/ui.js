@@ -3486,646 +3486,154 @@ function setupTimelineEventListeners(content, tracks) {
         });
     });
 
-    // Clip click to select
-    content.querySelectorAll('.timeline-clip').forEach(clip => {
-        clip.addEventListener('click', (e) => {
+    // Get all clips flattened for shift-click range selection
+    const allClips = [];
+    tracks.forEach(t => {
+        if (t.timelineClips) {
+            t.timelineClips.forEach(c => allClips.push({ ...c, trackId: t.id }));
+        }
+    });
+    // Sort by start time for range selection
+    allClips.sort((a, b) => a.startTime - b.startTime);
+
+    // Clip click to select (with shift/Ctrl/Cmd for multi-select)
+    content.querySelectorAll('.timeline-clip').forEach(clipEl => {
+        clipEl.addEventListener('click', (e) => {
             e.stopPropagation();
-            timelineState.selectedClipId = clip.dataset.clipId;
-            renderTimeline(); // Re-render to show selection
+            const clipId = clipEl.dataset.clipId;
+            const trackId = parseInt(clipEl.dataset.trackId);
+            const track = tracks.find(t => t.id === trackId);
+            
+            // Ctrl/Cmd+click: toggle individual clip selection
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                toggleClipSelection(clipId);
+                renderTimeline();
+                return;
+            }
+            
+            // Shift+click: select range from first selected to clicked
+            if (e.shiftKey && allClips.length > 0) {
+                e.preventDefault();
+                selectClipRange(allClips, clipId, content);
+                renderTimeline();
+                return;
+            }
+            
+            // Normal click: clear previous selection and select only this clip
+            clearClipSelections();
+            selectClip(clipId);
+            renderTimeline();
         });
 
         // Clip double-click to open editor
-        clip.addEventListener('dblclick', (e) => {
+        clipEl.addEventListener('dblclick', (e) => {
             e.stopPropagation();
-            const trackId = parseInt(clip.dataset.trackId);
+            const trackId = parseInt(clipEl.dataset.trackId);
             const track = tracks.find(t => t.id === trackId);
             if (track && track.type !== 'Audio' && localAppServices.handleOpenSequencer) {
                 localAppServices.handleOpenSequencer(trackId);
             }
         });
 
-        // Clip drag to move
-        clip.addEventListener('dragstart', (e) => {
+        // Clip drag to move (or move multi-selected clips)
+        clipEl.addEventListener('dragstart', (e) => {
+            const selectedIds = timelineState.selectedClipIds;
+            const clipId = clipEl.dataset.clipId;
+            
+            let clipIdsToMove = [clipId];
+            if (selectedIds.includes(clipId) && selectedIds.length > 1) {
+                clipIdsToMove = [...selectedIds];
+            }
+            
             e.dataTransfer.setData('application/json', JSON.stringify({
                 type: 'timeline-clip-drag',
-                clipId: clip.dataset.clipId,
-                trackId: clip.dataset.trackId
+                clipId: clipId,
+                clipIds: clipIdsToMove,
+                trackId: clipEl.dataset.trackId
             }));
         });
-
-
-        // Fade handle drag interaction for audio clips
-        content.querySelectorAll('.fade-handle').forEach(handle => {
-            handle.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const clipId = handle.dataset.clipId;
-                const fadeType = handle.dataset.fadeType; // 'in' or 'out'
-                
-                // Find track and clip
-                let track = null, clipData = null;
-                for (const t of tracks) {
-                    if (t.type === 'Audio' && t.timelineClips) {
-                        const found = t.timelineClips.find(c => c.id === clipId);
-                        if (found) { track = t; clipData = found; break; }
-                    }
-                }
-                if (!track || !clipData) return;
-
-                const startX = e.clientX;
-                const pixelsPerSecond = timelineState.pixelsPerSecond;
-                const startFadeIn = clipData.fadeIn || 0;
-                const startFadeOut = clipData.fadeOut || 0;
-
-                function onMouseMove(moveEvent) {
-                    const deltaX = moveEvent.clientX - startX;
-                    const deltaTime = deltaX / pixelsPerSecond;
-                    let newFadeIn = startFadeIn;
-                    let newFadeOut = startFadeOut;
-                    if (fadeType === 'in') {
-                        newFadeIn = Math.max(0, startFadeIn + deltaTime);
-                    } else {
-                        newFadeOut = Math.max(0, startFadeOut - deltaTime);
-                    }
-                    // Live preview - update handle visual
-                    const clipEl = content.querySelector(`.timeline-clip[data-clip-id="${clipId}"]`);
-                    if (clipEl) {
-                        const clipWidth = clipEl.offsetWidth;
-                        if (fadeType === 'in') {
-                            const w = Math.min(newFadeIn * pixelsPerSecond, clipWidth * 0.5);
-                            const overlay = clipEl.querySelector('.fade-handle-in');
-                            if (overlay) {
-                                overlay.style.width = `${w}px`;
-                                overlay.nextSibling?.remove();
-                                const ind = document.createElement('div');
-                                ind.className = 'absolute top-0 left-0 pointer-events-none z-10';
-                                ind.style = `width: ${w}px; height: ${clipEl.offsetHeight}px; background: linear-gradient(to right, rgba(0,0,0,0.4), transparent);`;
-                                clipEl.insertBefore(ind, clipEl.firstChild);
-                            }
-                        } else {
-                            const w = Math.min(newFadeOut * pixelsPerSecond, clipWidth * 0.5);
-                            const overlay = clipEl.querySelector('.fade-handle-out');
-                            if (overlay) {
-                                overlay.style.width = `${w}px`;
-                            }
-                        }
-                    }
-                }
-                function onMouseUp() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                    const deltaX = e.clientX - startX;
-                    const deltaTime = deltaX / pixelsPerSecond;
-                    let newFadeIn = startFadeIn;
-                    let newFadeOut = startFadeOut;
-                    if (fadeType === 'in') {
-                        newFadeIn = Math.max(0, startFadeIn + deltaTime);
-                    } else {
-                        newFadeOut = Math.max(0, startFadeOut - deltaTime);
-                    }
-                    if (track.setClipFade) {
-                        track.setClipFade(clipId, newFadeIn, newFadeOut);
-                        if (localAppServices.captureStateForUndo) {
-                            localAppServices.captureStateForUndo(`Set fade ${fadeType === 'in' ? 'in' : 'out'} for clip`);
-                        }
-                    }
-                    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                }
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-        });
-        // Clip context menu for fade editing (audio clips only)
-        clip.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const clipId = clip.dataset.clipId;
-            const trackId = parseInt(clip.dataset.trackId);
-            const track = tracks.find(t => t.id === trackId);
-            if (!track || track.type !== 'Audio') return;
-
-            const clipData = track.timelineClips?.find(c => c.id === clipId);
-            if (!clipData) return;
-
-            const currentFadeIn = clipData.fadeIn || 0;
-            const currentFadeOut = clipData.fadeOut || 0;
-
-            const menuItems = [
-                { label: `Fade In: ${currentFadeIn.toFixed(2)}s`, action: () => {} },
-                { label: `Fade Out: ${currentFadeOut.toFixed(2)}s`, action: () => {} },
-                { separator: true },
-                { label: 'Set Fade In (0.1s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, 0.1, currentFadeOut);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade in set to 0.1s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade In (0.25s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, 0.25, currentFadeOut);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade in set to 0.25s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade In (0.5s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, 0.5, currentFadeOut);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade in set to 0.5s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade In (1.0s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, 1.0, currentFadeOut);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade in set to 1.0s`, 1500);
-                    }
-                }},
-                { label: 'Clear Fade In', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, 0, currentFadeOut);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade in cleared`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: 'Set Fade Out (0.1s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, currentFadeIn, 0.1);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade out set to 0.1s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade Out (0.25s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, currentFadeIn, 0.25);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade out set to 0.25s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade Out (0.5s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, currentFadeIn, 0.5);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade out set to 0.5s`, 1500);
-                    }
-                }},
-                { label: 'Set Fade Out (1.0s)', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, currentFadeIn, 1.0);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade out set to 1.0s`, 1500);
-                    }
-                }},
-                { label: 'Clear Fade Out', action: () => {
-                    if (typeof track.setClipFade === 'function') {
-                        track.setClipFade(clipId, currentFadeIn, 0);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Fade out cleared`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: 'Gain Envelope', action: () => {} },
-                { label: '  Linear Fade (In)', action: () => {
-                    if (typeof track.setClipGainEnvelope === 'function') {
-                        const fadePoints = [];
-                        const clipDuration = clipData.duration || 4;
-                        fadePoints.push({ time: 0, value: 0 });
-                        fadePoints.push({ time: Math.min(0.5, clipDuration * 0.1), value: 1 });
-                        track.setClipGainEnvelope(clipId, fadePoints);
-                        showNotification(`Linear fade in applied`, 1500);
-                    }
-                }},
-                { label: '  Linear Fade (Out)', action: () => {
-                    if (typeof track.setClipGainEnvelope === 'function') {
-                        const fadePoints = [];
-                        const clipDuration = clipData.duration || 4;
-                        fadePoints.push({ time: Math.max(0, clipDuration - 0.5), value: 1 });
-                        fadePoints.push({ time: clipDuration, value: 0 });
-                        track.setClipGainEnvelope(clipId, fadePoints);
-                        showNotification(`Linear fade out applied`, 1500);
-                    }
-                }},
-                { label: '  Linear Fade (In/Out)', action: () => {
-                    if (typeof track.setClipGainEnvelope === 'function') {
-                        const fadePoints = [];
-                        const clipDuration = clipData.duration || 4;
-                        fadePoints.push({ time: 0, value: 0 });
-                        fadePoints.push({ time: Math.min(0.5, clipDuration * 0.1), value: 1 });
-                        fadePoints.push({ time: Math.max(0, clipDuration - 0.5), value: 1 });
-                        fadePoints.push({ time: clipDuration, value: 0 });
-                        track.setClipGainEnvelope(clipId, fadePoints);
-                        showNotification(`Fade in/out applied`, 1500);
-                    }
-                }},
-                { label: '  Open Envelope Editor...', action: () => {
-                    if (typeof track.setClipGainEnvelope === 'function') {
-                        openGainEnvelopeEditor(track, clipId, clipData);
-                    }
-                }},
-                { label: '  Clear Envelope', action: () => {
-                    if (typeof track.clearClipGainEnvelope === 'function') {
-                        track.clearClipGainEnvelope(clipId);
-                        showNotification(`Gain envelope cleared`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: 'Transpose', action: () => {} },
-                { label: '  +12 (Octave Up)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift + 12);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed +12 semitones`, 1500);
-                    }
-                }},
-                { label: '  +5 (Perfect Fifth)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift + 5);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed +5 semitones`, 1500);
-                    }
-                }},
-                { label: '  +2 (Whole Step)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift + 2);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed +2 semitones`, 1500);
-                    }
-                }},
-                { label: '  -2 (Whole Step Down)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift - 2);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed -2 semitones`, 1500);
-                    }
-                }},
-                { label: '  -5 (Perfect Fourth)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift - 5);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed -5 semitones`, 1500);
-                    }
-                }},
-                { label: '  -12 (Octave Down)', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        const currentShift = clipData.pitchShift || 0;
-                        track.setClipPitchShift(clipId, currentShift - 12);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Transposed -12 semitones`, 1500);
-                    }
-                }},
-                { label: '  Reset to 0', action: () => {
-                    if (typeof track.setClipPitchShift === 'function') {
-                        track.setClipPitchShift(clipId, 0);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Pitch reset to 0 semitones`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: 'Split at Playhead', action: () => {
-                    if (typeof track.splitClipAtPlayhead === 'function') {
-                        const playheadPos = Tone.Transport.seconds;
-                        track.splitClipAtPlayhead(clipId, playheadPos);
-                        if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                        showNotification(`Clip split at playhead`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: 'Playback Speed', action: () => {} },
-                { label: '  0.5x (Half)', action: () => {
-                    if (typeof track.setPlaybackRate === 'function') {
-                        track.setPlaybackRate(0.5, true);
-                        showNotification(`Playback speed: 0.5x`, 1500);
-                    }
-                }},
-                { label: '  0.75x (Three-Quarter)', action: () => {
-                    if (typeof track.setPlaybackRate === 'function') {
-                        track.setPlaybackRate(0.75, true);
-                        showNotification(`Playback speed: 0.75x`, 1500);
-                    }
-                }},
-                { label: '  1.0x (Normal)', action: () => {
-                    if (typeof track.setPlaybackRate === 'function') {
-                        track.setPlaybackRate(1.0, true);
-                        showNotification(`Playback speed: 1.0x`, 1500);
-                    }
-                }},
-                { label: '  1.5x (One-and-Half)', action: () => {
-                    if (typeof track.setPlaybackRate === 'function') {
-                        track.setPlaybackRate(1.5, true);
-                        showNotification(`Playback speed: 1.5x`, 1500);
-                    }
-                }},
-                { label: '  2.0x (Double)', action: () => {
-                    if (typeof track.setPlaybackRate === 'function') {
-                        track.setPlaybackRate(2.0, true);
-                        showNotification(`Playback speed: 2.0x`, 1500);
-                    }
-                }},
-                { label: '🔄 Reverse Audio', action: () => {
-                    if (typeof track.reverseAudioClip === 'function') {
-                        track.reverseAudioClip(clipId);
-                        showNotification(`Audio reversed`, 1500);
-                    } else {
-                        showNotification(`Reverse not available`, 1500);
-                    }
-                }},
-                { label: '🎵 Transpose Clip', action: () => {} },
-                { label: '  -12 st (Octave Down)', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, -12);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { label: '  -5 st', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, -5);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { label: '  -2 st', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, -2);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { label: '  +2 st', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, 2);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { label: '  +5 st', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, 5);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { label: '  +12 st (Octave Up)', action: () => {
-                    if (typeof track.transposeAudioClip === 'function') {
-                        track.transposeAudioClip(clipId, 12);
-                    } else {
-                        showNotification(`Transpose not available`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: '📏 Quantize Clip', action: () => {} },
-                { label: '  Snap to 1/4 (Quarter)', action: () => {
-                    if (typeof track.quantizeAudioClip === 'function') {
-                        track.quantizeAudioClip(clipId, '1/4');
-                    } else {
-                        showNotification(`Quantize not available`, 1500);
-                    }
-                }},
-                { label: '  Snap to 1/8 (Eighth)', action: () => {
-                    if (typeof track.quantizeAudioClip === 'function') {
-                        track.quantizeAudioClip(clipId, '1/8');
-                    } else {
-                        showNotification(`Quantize not available`, 1500);
-                    }
-                }},
-                { label: '  Snap to 1/16 (Sixteenth)', action: () => {
-                    if (typeof track.quantizeAudioClip === 'function') {
-                        track.quantizeAudioClip(clipId, '1/16');
-                    } else {
-                        showNotification(`Quantize not available`, 1500);
-                    }
-                }},
-                { label: '  Snap to 1/32 (Thirty-second)', action: () => {
-                    if (typeof track.quantizeAudioClip === 'function') {
-                        track.quantizeAudioClip(clipId, '1/32');
-                    } else {
-                        showNotification(`Quantize not available`, 1500);
-                    }
-                }},
-                { label: '  Snap Start Only (1/16)', action: () => {
-                    if (typeof track.snapAudioClipStart === 'function') {
-                        track.snapAudioClipStart(clipId, '1/16');
-                    } else {
-                        showNotification(`Snap not available`, 1500);
-                    }
-                }},
-                { separator: true },
-                { label: '🔁 Loop Mode', action: () => {} },
-                { label: '  Enable Loop', action: () => {
-                    if (typeof track.setClipLoopMode === 'function') {
-                        track.setClipLoopMode(clipId, true, 0, clipData.duration);
-                        showNotification(`Loop enabled for clip`, 1500);
-                    }
-                }},
-                { label: '  Disable Loop', action: () => {
-                    if (typeof track.setClipLoopMode === 'function') {
-                        track.setClipLoopMode(clipId, false);
-                        showNotification(`Loop disabled for clip`, 1500);
-                    }
-                }},
-                { label: '  Set Loop Region...', action: () => {
-                    const loopStart = prompt('Loop start (seconds from clip start):', '0');
-                    const loopEnd = prompt('Loop end (seconds from clip start):', String(clipData.duration));
-                    if (loopStart !== null && loopEnd !== null) {
-                        if (typeof track.setClipLoopMode === 'function') {
-                            track.setClipLoopMode(clipId, true, parseFloat(loopStart), parseFloat(loopEnd));
-                            showNotification(`Loop region set: ${loopStart}s - ${loopEnd}s`, 1500);
-                        }
-                    }
-                }},
-                { separator: true },
-                { label: '🔀 Crossfade', action: () => {} },
-                { label: '  Crossfade with Next Clip', action: () => {
-                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
-                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
-                    const nextClip = sortedClips[currentSortedIndex + 1];
-                    if (nextClip && typeof track.crossfadeClips === 'function') {
-                        track.crossfadeClips(clipId, nextClip.id, 0.5);
-                    } else {
-                        showNotification(`No adjacent clip found for crossfade`, 2000);
-                    }
-                }},
-                { label: '  Crossfade (0.25s)', action: () => {
-                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
-                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
-                    const nextClip = sortedClips[currentSortedIndex + 1];
-                    if (nextClip && typeof track.crossfadeClips === 'function') {
-                        track.crossfadeClips(clipId, nextClip.id, 0.25);
-                    } else {
-                        showNotification(`No adjacent clip found for crossfade`, 2000);
-                    }
-                }},
-                { label: '  Crossfade (1.0s)', action: () => {
-                    const sortedClips = [...track.timelineClips].sort((a, b) => a.startTime - b.startTime);
-                    const currentSortedIndex = sortedClips.findIndex(c => c.id === clipId);
-                    const nextClip = sortedClips[currentSortedIndex + 1];
-                    if (nextClip && typeof track.crossfadeClips === 'function') {
-                        track.crossfadeClips(clipId, nextClip.id, 1.0);
-                    } else {
-                        showNotification(`No adjacent clip found for crossfade`, 2000);
-                    }
-                }},
-                { separator: true },
-                { label: '🎵 Convert to MIDI', action: () => {} },
-                { label: '  Detect Melody (Normal)', action: () => {
-                    if (typeof track.convertAudioToMidi === 'function') {
-                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.5, minNoteDuration: 0.1 });
-                        if (result && result.newTrackId) {
-                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
-                        }
-                    } else {
-                        showNotification(`Audio to MIDI conversion not available`, 2000);
-                    }
-                }},
-                { label: '  Detect Melody (High Sensitivity)', action: () => {
-                    if (typeof track.convertAudioToMidi === 'function') {
-                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.8, minNoteDuration: 0.05 });
-                        if (result && result.newTrackId) {
-                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
-                        }
-                    } else {
-                        showNotification(`Audio to MIDI conversion not available`, 2000);
-                    }
-                }},
-                { label: '  Detect Melody (Low Sensitivity)', action: () => {
-                    if (typeof track.convertAudioToMidi === 'function') {
-                        const result = track.convertAudioToMidi(clipId, { sensitivity: 0.3, minNoteDuration: 0.2 });
-                        if (result && result.newTrackId) {
-                            showNotification(`Converted to MIDI: ${result.noteCount} notes detected. New track created.`, 3000);
-                        }
-                    } else {
-                        showNotification(`Audio to MIDI conversion not available`, 2000);
-                    }
-                }},
-                { label: 'Multiply Clip', action: () => {
-                    const countStr = prompt('Number of copies (1-16):', '2');
-                    if (countStr !== null) {
-                        const count = parseInt(countStr) || 2;
-                        if (typeof track.multiplyClip === 'function') {
-                            track.multiplyClip(clipId, count, true);
-                        } else {
-                            showNotification(`Multiply not available`, 1500);
-                        }
-                    }
-                }},
-                { label: 'Delete Clip', action: () => {
-                    showConfirmationDialog(`Delete clip "${clipData.name || clipId}"?`, 'This cannot be undone.', () => {
-                        const idx = track.timelineClips.findIndex(c => c.id === clipId);
-                        if (idx !== -1) {
-                            if (localAppServices.captureStateForUndo) {
-                                localAppServices.captureStateForUndo(`Delete clip on ${track.name}`);
-                            }
-                            track.timelineClips.splice(idx, 1);
-                            if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-                            showNotification(`Clip deleted`, 1500);
-                        }
-                    });
-                }}
-            ];
-            createContextMenu(e, menuItems, localAppServices);
-        });
     });
 
-    // Timeline track lane drop for audio files
-    content.querySelectorAll('.track-clips-lane').forEach(lane => {
-        lane.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-
-        lane.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            const trackId = parseInt(lane.dataset.trackId);
-            const rect = lane.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const startTime = x / timelineState.pixelsPerSecond;
-            
-            // Handle timeline clip drag (move)
-            const jsonData = e.dataTransfer.getData('application/json');
-            if (jsonData) {
-                try {
-                    const data = JSON.parse(jsonData);
-                    if (data.type === 'timeline-clip-drag') {
-                        const track = tracks.find(t => t.id === parseInt(data.trackId));
-                        if (track) {
-                            const clip = track.timelineClips?.find(c => c.id === data.clipId);
-                            if (clip && typeof track.updateAudioClipPosition === 'function') {
-                                await track.updateAudioClipPosition(clip.id, startTime);
-                            }
-                        }
-                        return;
-                    }
-                } catch (err) {}
-            }
-
-            // Handle external file drop
-            if (e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                if (file.type.startsWith('audio/')) {
-                    const track = tracks.find(t => t.id === trackId);
-                    if (track && track.type === 'Audio' && typeof track.addExternalAudioFileAsClip === 'function') {
-                        await track.addExternalAudioFileAsClip(file, startTime, file.name);
-                        if (localAppServices.captureStateForUndo) {
-                            localAppServices.captureStateForUndo(`Add audio clip to ${track.name}`);
-                        }
-                        renderTimeline();
-                    }
-                }
-            }
-        });
+    // Click on empty timeline area clears selection
+    content.addEventListener('click', (e) => {
+        if (e.target.closest('.timeline-clip') || e.target.closest('.track-header')) return;
+        clearClipSelections();
+        renderTimeline();
     });
 
-    // Click on empty lane area to deselect
-    content.querySelectorAll('.track-clips-lane').forEach(lane => {
-        lane.addEventListener('click', (e) => {
-            if (e.target === lane) {
-                timelineState.selectedClipId = null;
-                renderTimeline();
-            }
-        });
-    });
-
-    // Timeline ruler click to move playhead
-    content.querySelectorAll('.timeline-ruler').forEach(ruler => {
-        ruler.addEventListener('click', (e) => {
-            const rect = ruler.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const newPosition = x / timelineState.pixelsPerSecond;
-            timelineState.playheadPosition = newPosition;
-            if (localAppServices.seekToPosition) {
-                localAppServices.seekToPosition(newPosition);
+    // Keyboard: Escape clears selection, Ctrl+A selects all
+    const handleTimelineKeydown = (e) => {
+        if (e.key === 'Escape') {
+            clearClipSelections();
+            renderTimeline();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a' && document.activeElement?.closest('.timeline-container')) {
+            e.preventDefault();
+            timelineState.selectedClipIds = allClips.map(c => c.id);
+            if (timelineState.selectedClipIds.length > 0) {
+                timelineState.selectedClipId = timelineState.selectedClipIds[0];
             }
             renderTimeline();
-        });
-        
-        // Right-click on timeline ruler to add marker
-        ruler.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const rect = ruler.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const position = x / timelineState.pixelsPerSecond;
-            showAddMarkerDialog(position);
-        });
-    });
+        }
+    };
+    document.addEventListener('keydown', handleTimelineKeydown);
 
-    // Marker click to jump
-    content.querySelectorAll('.timeline-marker').forEach(markerEl => {
-        markerEl.addEventListener('click', (e) => {
+    // Fade handle drag interaction for audio clips
+    content.querySelectorAll('.fade-handle').forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            const markerId = markerEl.dataset.markerId;
-            jumpToMarker(markerId);
-        });
-        
-        // Marker right-click for context menu
-        markerEl.addEventListener('contextmenu', (e) => {
-            showMarkerContextMenu(e, markerEl.dataset.markerId);
+            const clipId = handle.dataset.clipId;
+            const fadeType = handle.dataset.fadeType;
+            
+            // Find track and clip
+            let track = null, clipData = null;
+            for (const t of tracks) {
+                if (t.type === 'Audio' && t.timelineClips) {
+                    const found = t.timelineClips.find(c => c.id === clipId);
+                    if (found) { track = t; clipData = found; break; }
+                }
+            }
+            if (!track || !clipData) return;
+
+            const startX = e.clientX;
+            const pixelsPerSecond = timelineState.pixelsPerSecond;
+            const startFadeIn = clipData.fadeIn || 0;
+            const startFadeOut = clipData.fadeOut || 0;
+
+            function onMouseMove(moveEvent) {
+                const deltaX = moveEvent.clientX - startX;
+                const deltaTime = deltaX / pixelsPerSecond;
+                let newFadeIn = startFadeIn;
+                let newFadeOut = startFadeOut;
+                if (fadeType === 'in') {
+                    newFadeIn = Math.max(0, startFadeIn + deltaTime);
+                } else {
+                    newFadeOut = Math.max(0, startFadeOut - deltaTime);
+                }
+                // Live preview - update handle visual
+                const clipEl = content.querySelector(`.timeline-clip[data-clip-id="${clipId}"]`);
+                if (clipEl) {
+                    const clipWidth = clipEl.offsetWidth;
+                    if (fadeType === 'in') {
+                        const w = Math.min(newFadeIn * pixelsPerSecond, clipWidth * 0.5);
+                        const overlay = clipEl.querySelector('.fade-handle-in');
+                        if (overlay) overlay.style.width = `${w}px`;
+                    } else {
+                        const w = Math.min(newFadeOut * pixelsPerSecond, clipWidth * 0.5);
+                        const overlay = clipEl.querySelector('.fade-handle-out');
+                        if (overlay) overlay.style.width = `${w}px`;
+                    }
+                }
+            }
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                renderTimeline();
+            }
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         });
     });
 }
