@@ -187,6 +187,26 @@ export const synthEngineControlDefinitions = {
     // Add other synth engine definitions here
 };
 
+// ScatterEffect - Effect for randomizing note timing, velocity, and presence
+export const ScatterEffectDefinition = {
+    ScatterEffect: {
+        displayName: 'Scatter',
+        toneClass: 'ScatterEffect',
+        params: [
+            { key: 'enabled', label: 'Enabled', type: 'checkbox', defaultValue: true },
+            { key: 'mode', label: 'Mode', type: 'select', options: ['chaos', 'jungle', 'glitch', 'humanize'], defaultValue: 'chaos' },
+            { key: 'timingAmount', label: 'Timing', type: 'knob', min: 0, max: 300, step: 1, defaultValue: 50, decimals: 0, displaySuffix: 'ms' },
+            { key: 'timingCurve', label: 'Curve', type: 'select', options: ['gaussian', 'uniform', 'swing'], defaultValue: 'gaussian' },
+            { key: 'velocityAmount', label: 'Velocity', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.3, decimals: 2 },
+            { key: 'noteProbability', label: 'Probability', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2 },
+            { key: 'shuffleNotes', label: 'Shuffle', type: 'checkbox', defaultValue: false },
+            { key: 'octaveSpread', label: 'Oct Spread', type: 'knob', min: 0, max: 3, step: 1, defaultValue: 0, decimals: 0 },
+            { key: 'pitchRandomSemitones', label: 'Pitch', type: 'knob', min: 0, max: 12, step: 1, defaultValue: 0, decimals: 0, displaySuffix: 'st' },
+            { key: 'durationAmount', label: 'Duration', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2 }
+        ]
+    }
+};
+
 export const AVAILABLE_EFFECTS = {
     AutoFilter: {
         displayName: 'Auto Filter',
@@ -459,6 +479,9 @@ export const AVAILABLE_EFFECTS = {
         ]
     },
 };
+
+// Merge ScatterEffect into AVAILABLE_EFFECTS
+Object.assign(AVAILABLE_EFFECTS, ScatterEffectDefinition);
 
 export function createEffectInstance(effectType, initialParams = {}) {
     if (typeof Tone === 'undefined') {
