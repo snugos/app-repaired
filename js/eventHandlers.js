@@ -106,6 +106,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Keyboard Shortcuts", action: () => { if(services.openKeyBindingsPanel) services.openKeyBindingsPanel(); } },
                     { label: "Project Notes", action: () => { if(services.openProjectNotesPanel) services.openProjectNotesPanel(); } },
                     { label: "Drum Map Editor", action: () => { if(services.openDrumMapEditorPanel) services.openDrumMapEditorPanel(); } },
+                    { label: "Group Edit Panel", action: () => { if(services.openGroupEditPanel) services.openGroupEditPanel('notes'); } },
                     { separator: true },
                     { label: "Upload Custom Background (Image/Video)", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
                     { label: "Remove Custom Background", action: () => { if(services.removeCustomDesktopBackground) services.removeCustomDesktopBackground(); } },
