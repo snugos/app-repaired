@@ -1332,9 +1332,8 @@ function renderTrackGroupsContent() {
     
     if (groups.length === 0) {
         html += `
-            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                <p>No track groups created.</p>
-                <p class="text-xs mt-2">Click "Create Group" to organize your tracks.</p>
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded">
+                No track groups created.
             </div>
         `;
     } else {
@@ -1452,7 +1451,7 @@ function renderTrackGroupsContent() {
     container.querySelectorAll('.delete-group-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const groupId = parseInt(e.target.dataset.id, 10);
-            if (confirm('Delete this track group?')) {
+            if (confirm(`Delete group "${groupId}"?`)) {
                 localAppServices.removeTrackGroup?.(groupId);
                 showNotification('Group deleted', 1500);
                 renderTrackGroupsContent();
@@ -1909,7 +1908,7 @@ export function openPatternChainsPanel(savedState = null) {
     }
 
     const contentContainer = document.createElement('div');
-    contentContainer.id = 'patternChainsContent';
+    contentContainer.id = 'patternChainTrackContent';
     contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
     
     const desktopEl = localAppServices.uiElementsCache?.desktop || document.getElementById('desktop');
@@ -1938,7 +1937,7 @@ export function openPatternChainsPanel(savedState = null) {
     const win = localAppServices.createWindow(windowId, 'Pattern Chains', contentContainer, options);
     
     if (win?.element) {
-        renderPatternChainsContent();
+        renderPatternChainTrackContent();
     }
     
     return win;
@@ -3859,3 +3858,77 @@ export function updateTrackRoutingMatrixPanel() {
 }
 
 // --- Random Pattern Generator UI ---
+// --- Tap Tempo ---
+let tapTempoState = {
+    taps: [],
+    lastTap: 0,
+    timeout: null
+};
+
+const TAP_TEMPO_TIMEOUT_MS = 2000; // Reset after 2 seconds of no taps
+const TAP_TEMPO_MIN_TAPS = 2; // Need at least 2 taps to calculate BPM
+const TAP_TEMPO_MAX_TAPS = 8; // Use last 8 taps for averaging
+
+/**
+ * Handles tap tempo input. Calculates BPM from tap intervals.
+ * @returns {number|null} The calculated BPM, or null if not enough taps yet.
+ */
+export function handleTapTempo() {
+    const now = performance.now();
+    
+    // Clear the reset timeout
+    if (tapTempoState.timeout) {
+        clearTimeout(tapTempoState.timeout);
+    }
+    
+    // Reset if too much time has passed since last tap
+    if (tapTempoState.lastTap && (now - tapTempoState.lastTap) > TAP_TEMPO_TIMEOUT_MS) {
+        tapTempoState.taps = [];
+    }
+    
+    // Record this tap
+    tapTempoState.taps.push(now);
+    tapTempoState.lastTap = now;
+    
+    // Keep only the last N taps
+    if (tapTempoState.taps.length > TAP_TEMPO_MAX_TAPS) {
+        tapTempoState.taps.shift();
+    }
+    
+    // Set timeout to reset state after inactivity
+    tapTempoState.timeout = setTimeout(() => {
+        resetTapTempo();
+    }, TAP_TEMPO_TIMEOUT_MS);
+    
+    // Need at least 2 taps to calculate BPM
+    if (tapTempoState.taps.length < TAP_TEMPO_MIN_TAPS) {
+        return null;
+    }
+    
+    // Calculate average interval between taps
+    let totalInterval = 0;
+    for (let i = 1; i < tapTempoState.taps.length; i++) {
+        totalInterval += tapTempoState.taps[i] - tapTempoState.taps[i - 1];
+    }
+    const avgIntervalMs = totalInterval / (tapTempoState.taps.length - 1);
+    
+    // Convert to BPM (BPM = 60000 / interval in ms)
+    const bpm = Math.round(60000 / avgIntervalMs);
+    
+    // Clamp to reasonable range
+    const clampedBpm = Math.max(30, Math.min(300, bpm));
+    
+    return clampedBpm;
+}
+
+/**
+ * Resets the tap tempo state.
+ */
+export function resetTapTempo() {
+    tapTempoState.taps = [];
+    tapTempoState.lastTap = 0;
+    if (tapTempoState.timeout) {
+        clearTimeout(tapTempoState.timeout);
+        tapTempoState.timeout = null;
+    }
+}
