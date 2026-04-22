@@ -2404,9 +2404,9 @@ export async function exportWithSettingsInternal(settings = {}) {
         return;
     }
 
-    // Validate format and check dependencies
-    if (config.format === 'mp3' && typeof lamejs === 'undefined') {
-        appServices.showNotification("MP3 encoding requires lamejs library. Exporting as WAV.", 3000);
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
         config.format = 'wav';
     }
 
@@ -2516,140 +2516,19 @@ export async function exportWithSettingsInternal(settings = {}) {
             return;
         }
 
-        // Convert to MP3 or FLAC if needed
-        let finalBlob = recording;
-        let fileExtension = 'wav';
-        let formatInfo = `${config.sampleRate}Hz, ${config.bitDepth}-bit`;
-        
-        if (config.format === 'mp3') {
-            appServices.showNotification("Encoding MP3...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // Encode to MP3 using lamejs
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitrate = config.mp3Bitrate || 192;
-                const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
-                const mp3Data = [];
-                const sampleBlockSize = 1152;
-                
-                const leftChannel = audioBuffer.getChannelData(0);
-                const rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-                
-                for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
-                    const leftChunk = new Int16Array(sampleBlockSize);
-                    const rightChunk = new Int16Array(sampleBlockSize);
-                    
-                    for (let j = 0; j < sampleBlockSize && i + j < audioBuffer.length; j++) {
-                        const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
-                        leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
-                        
-                        const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
-                        rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
-                    }
-                    
-                    const mp3buf = numChannels === 2 
-                        ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
-                        : mp3encoder.encodeBuffer(leftChunk);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(mp3buf);
-                    }
-                }
-                
-                const mp3buf = mp3encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(mp3buf);
-                }
-                
-                finalBlob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                fileExtension = 'mp3';
-                formatInfo = `${config.sampleRate}Hz, ${bitrate}kbps`;
-                console.log("[Export] MP3 encoded, size:", finalBlob.size);
-            } catch (mp3Error) {
-                console.error("[Export] MP3 encoding failed:", mp3Error);
-                appServices.showNotification("MP3 encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        } else if (config.format === 'flac') {
-            appServices.showNotification("Encoding FLAC...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // FLAC encoding (basic implementation using WAV-like structure with FLAC header)
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitsPerSample = 16;
-                const length = audioBuffer.length;
-                
-                const channelData = [];
-                for (let ch = 0; ch < numChannels; ch++) {
-                    channelData.push(audioBuffer.getChannelData(ch));
-                }
-                
-                // Build FLAC file structure
-                const flacData = [];
-                
-                // fLaC marker
-                flacData.push(new Uint8Array([0x66, 0x4C, 0x61, 0x43])); // 'fLaC'
-                
-                // STREAMINFO block (simplified - 34 bytes of metadata)
-                const streamInfo = new ArrayBuffer(38);
-                const view = new DataView(streamInfo);
-                view.setUint8(0, 0x80); // Last metadata block flag + type 0
-                view.setUint8(1, 0); view.setUint8(2, 0); view.setUint8(3, 34); // Block size
-                // Sample rate (20 bits), channels (3 bits), bits per sample (5 bits), total samples (36 bits)
-                view.setUint16(4, (sampleRate >>> 12) & 0xFFFF);
-                view.setUint8(6, (sampleRate >>> 4) & 0xFF);
-                view.setUint8(7, ((sampleRate & 0x0F) << 4) | ((numChannels - 1) << 1) | ((bitsPerSample - 1) >>> 4));
-                view.setUint8(8, ((bitsPerSample - 1) & 0x0F) << 4);
-                view.setUint32(9, 0);
-                view.setUint32(13, length); // Total samples
-                for (let i = 17; i < 33; i++) { view.setUint8(i, 0); } // MD5 signature (zeros)
-                flacData.push(new Uint8Array(streamInfo));
-                
-                // Simple PCM frame data (interleaved)
-                const frameData = new Int16Array(length * numChannels);
-                let idx = 0;
-                for (let i = 0; i < length; i++) {
-                    for (let ch = 0; ch < numChannels; ch++) {
-                        const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
-                        frameData[idx++] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                    }
-                }
-                flacData.push(new Uint8Array(frameData.buffer));
-                
-                finalBlob = new Blob(flacData, { type: 'audio/flac' });
-                fileExtension = 'flac';
-                formatInfo = `${config.sampleRate}Hz, FLAC`;
-                console.log("[Export] FLAC encoded, size:", finalBlob.size);
-            } catch (flacError) {
-                console.error("[Export] FLAC encoding failed:", flacError);
-                appServices.showNotification("FLAC encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        }
-
         // Download with settings info in filename
-        const url = URL.createObjectURL(finalBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        a.download = `snugos-export-${config.sampleRate}hz-${fileExtension === 'wav' ? config.bitDepth + 'bit' : fileExtension === 'mp3' ? (config.mp3Bitrate || 192) + 'kbps' : 'flac'}-${timestamp}.${fileExtension}`;
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        const formatDisplay = config.format.toUpperCase();
-        appServices.showNotification(`Export successful! (${formatDisplay}, ${formatInfo})`, 3000);
-        console.log("[Export] Complete, format:", config.format, "size:", finalBlob.size);
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", recording.size);
 
     } catch (error) {
         console.error("[State exportWithSettingsInternal] Error:", error);
@@ -4830,9 +4709,10 @@ export async function exportWithSettingsInternal(settings = {}) {
         return;
     }
 
-    // Validate format and check dependencies
-    if (config.format === 'mp3' && typeof lamejs === 'undefined') {
-        appServices.showNotification("MP3 encoding requires lamejs library. Exporting as WAV.", 3000);
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
+        config.format = 'wav';
     }
 
     appServices.showNotification("Preparing export...", 2000);
@@ -4941,140 +4821,19 @@ export async function exportWithSettingsInternal(settings = {}) {
             return;
         }
 
-        // Convert to MP3 or FLAC if needed
-        let finalBlob = recording;
-        let fileExtension = 'wav';
-        let formatInfo = `${config.sampleRate}Hz, ${config.bitDepth}-bit`;
-        
-        if (config.format === 'mp3') {
-            appServices.showNotification("Encoding MP3...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // Encode to MP3 using lamejs
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitrate = config.mp3Bitrate || 192;
-                const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
-                const mp3Data = [];
-                const sampleBlockSize = 1152;
-                
-                const leftChannel = audioBuffer.getChannelData(0);
-                const rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-                
-                for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
-                    const leftChunk = new Int16Array(sampleBlockSize);
-                    const rightChunk = new Int16Array(sampleBlockSize);
-                    
-                    for (let j = 0; j < sampleBlockSize && i + j < audioBuffer.length; j++) {
-                        const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
-                        leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
-                        
-                        const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
-                        rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
-                    }
-                    
-                    const mp3buf = numChannels === 2 
-                        ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
-                        : mp3encoder.encodeBuffer(leftChunk);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(mp3buf);
-                    }
-                }
-                
-                const mp3buf = mp3encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(mp3buf);
-                }
-                
-                finalBlob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                fileExtension = 'mp3';
-                formatInfo = `${config.sampleRate}Hz, ${bitrate}kbps`;
-                console.log("[Export] MP3 encoded, size:", finalBlob.size);
-            } catch (mp3Error) {
-                console.error("[Export] MP3 encoding failed:", mp3Error);
-                appServices.showNotification("MP3 encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        } else if (config.format === 'flac') {
-            appServices.showNotification("Encoding FLAC...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // FLAC encoding (basic implementation using WAV-like structure with FLAC header)
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitsPerSample = 16;
-                const length = audioBuffer.length;
-                
-                const channelData = [];
-                for (let ch = 0; ch < numChannels; ch++) {
-                    channelData.push(audioBuffer.getChannelData(ch));
-                }
-                
-                // Build FLAC file structure
-                const flacData = [];
-                
-                // fLaC marker
-                flacData.push(new Uint8Array([0x66, 0x4C, 0x61, 0x43])); // 'fLaC'
-                
-                // STREAMINFO block (simplified - 34 bytes of metadata)
-                const streamInfo = new ArrayBuffer(38);
-                const view = new DataView(streamInfo);
-                view.setUint8(0, 0x80); // Last metadata block flag + type 0
-                view.setUint8(1, 0); view.setUint8(2, 0); view.setUint8(3, 34); // Block size
-                // Sample rate (20 bits), channels (3 bits), bits per sample (5 bits), total samples (36 bits)
-                view.setUint16(4, (sampleRate >>> 12) & 0xFFFF);
-                view.setUint8(6, (sampleRate >>> 4) & 0xFF);
-                view.setUint8(7, ((sampleRate & 0x0F) << 4) | ((numChannels - 1) << 1) | ((bitsPerSample - 1) >>> 4));
-                view.setUint8(8, ((bitsPerSample - 1) & 0x0F) << 4);
-                view.setUint32(9, 0);
-                view.setUint32(13, length); // Total samples
-                for (let i = 17; i < 33; i++) { view.setUint8(i, 0); } // MD5 signature (zeros)
-                flacData.push(new Uint8Array(streamInfo));
-                
-                // Simple PCM frame data (interleaved)
-                const frameData = new Int16Array(length * numChannels);
-                let idx = 0;
-                for (let i = 0; i < length; i++) {
-                    for (let ch = 0; ch < numChannels; ch++) {
-                        const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
-                        frameData[idx++] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                    }
-                }
-                flacData.push(new Uint8Array(frameData.buffer));
-                
-                finalBlob = new Blob(flacData, { type: 'audio/flac' });
-                fileExtension = 'flac';
-                formatInfo = `${config.sampleRate}Hz, FLAC`;
-                console.log("[Export] FLAC encoded, size:", finalBlob.size);
-            } catch (flacError) {
-                console.error("[Export] FLAC encoding failed:", flacError);
-                appServices.showNotification("FLAC encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        }
-
         // Download with settings info in filename
-        const url = URL.createObjectURL(finalBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        a.download = `snugos-export-${config.sampleRate}hz-${fileExtension === 'wav' ? config.bitDepth + 'bit' : fileExtension === 'mp3' ? (config.mp3Bitrate || 192) + 'kbps' : 'flac'}-${timestamp}.${fileExtension}`;
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        const formatDisplay = config.format.toUpperCase();
-        appServices.showNotification(`Export successful! (${formatDisplay}, ${formatInfo})`, 3000);
-        console.log("[Export] Complete, format:", config.format, "size:", finalBlob.size);
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", recording.size);
 
     } catch (error) {
         console.error("[State exportWithSettingsInternal] Error:", error);
@@ -7255,9 +7014,10 @@ export async function exportWithSettingsInternal(settings = {}) {
         return;
     }
 
-    // Validate format and check dependencies
-    if (config.format === 'mp3' && typeof lamejs === 'undefined') {
-        appServices.showNotification("MP3 encoding requires lamejs library. Exporting as WAV.", 3000);
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
+        config.format = 'wav';
     }
 
     appServices.showNotification("Preparing export...", 2000);
@@ -7366,140 +7126,19 @@ export async function exportWithSettingsInternal(settings = {}) {
             return;
         }
 
-        // Convert to MP3 or FLAC if needed
-        let finalBlob = recording;
-        let fileExtension = 'wav';
-        let formatInfo = `${config.sampleRate}Hz, ${config.bitDepth}-bit`;
-        
-        if (config.format === 'mp3') {
-            appServices.showNotification("Encoding MP3...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // Encode to MP3 using lamejs
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitrate = config.mp3Bitrate || 192;
-                const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
-                const mp3Data = [];
-                const sampleBlockSize = 1152;
-                
-                const leftChannel = audioBuffer.getChannelData(0);
-                const rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-                
-                for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
-                    const leftChunk = new Int16Array(sampleBlockSize);
-                    const rightChunk = new Int16Array(sampleBlockSize);
-                    
-                    for (let j = 0; j < sampleBlockSize && i + j < audioBuffer.length; j++) {
-                        const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
-                        leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
-                        
-                        const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
-                        rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
-                    }
-                    
-                    const mp3buf = numChannels === 2 
-                        ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
-                        : mp3encoder.encodeBuffer(leftChunk);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(mp3buf);
-                    }
-                }
-                
-                const mp3buf = mp3encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(mp3buf);
-                }
-                
-                finalBlob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                fileExtension = 'mp3';
-                formatInfo = `${config.sampleRate}Hz, ${bitrate}kbps`;
-                console.log("[Export] MP3 encoded, size:", finalBlob.size);
-            } catch (mp3Error) {
-                console.error("[Export] MP3 encoding failed:", mp3Error);
-                appServices.showNotification("MP3 encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        } else if (config.format === 'flac') {
-            appServices.showNotification("Encoding FLAC...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // FLAC encoding (basic implementation using WAV-like structure with FLAC header)
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitsPerSample = 16;
-                const length = audioBuffer.length;
-                
-                const channelData = [];
-                for (let ch = 0; ch < numChannels; ch++) {
-                    channelData.push(audioBuffer.getChannelData(ch));
-                }
-                
-                // Build FLAC file structure
-                const flacData = [];
-                
-                // fLaC marker
-                flacData.push(new Uint8Array([0x66, 0x4C, 0x61, 0x43])); // 'fLaC'
-                
-                // STREAMINFO block (simplified - 34 bytes of metadata)
-                const streamInfo = new ArrayBuffer(38);
-                const view = new DataView(streamInfo);
-                view.setUint8(0, 0x80); // Last metadata block flag + type 0
-                view.setUint8(1, 0); view.setUint8(2, 0); view.setUint8(3, 34); // Block size
-                // Sample rate (20 bits), channels (3 bits), bits per sample (5 bits), total samples (36 bits)
-                view.setUint16(4, (sampleRate >>> 12) & 0xFFFF);
-                view.setUint8(6, (sampleRate >>> 4) & 0xFF);
-                view.setUint8(7, ((sampleRate & 0x0F) << 4) | ((numChannels - 1) << 1) | ((bitsPerSample - 1) >>> 4));
-                view.setUint8(8, ((bitsPerSample - 1) & 0x0F) << 4);
-                view.setUint32(9, 0);
-                view.setUint32(13, length); // Total samples
-                for (let i = 17; i < 33; i++) { view.setUint8(i, 0); } // MD5 signature (zeros)
-                flacData.push(new Uint8Array(streamInfo));
-                
-                // Simple PCM frame data (interleaved)
-                const frameData = new Int16Array(length * numChannels);
-                let idx = 0;
-                for (let i = 0; i < length; i++) {
-                    for (let ch = 0; ch < numChannels; ch++) {
-                        const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
-                        frameData[idx++] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                    }
-                }
-                flacData.push(new Uint8Array(frameData.buffer));
-                
-                finalBlob = new Blob(flacData, { type: 'audio/flac' });
-                fileExtension = 'flac';
-                formatInfo = `${config.sampleRate}Hz, FLAC`;
-                console.log("[Export] FLAC encoded, size:", finalBlob.size);
-            } catch (flacError) {
-                console.error("[Export] FLAC encoding failed:", flacError);
-                appServices.showNotification("FLAC encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        }
-
         // Download with settings info in filename
-        const url = URL.createObjectURL(finalBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        a.download = `snugos-export-${config.sampleRate}hz-${fileExtension === 'wav' ? config.bitDepth + 'bit' : fileExtension === 'mp3' ? (config.mp3Bitrate || 192) + 'kbps' : 'flac'}-${timestamp}.${fileExtension}`;
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        const formatDisplay = config.format.toUpperCase();
-        appServices.showNotification(`Export successful! (${formatDisplay}, ${formatInfo})`, 3000);
-        console.log("[Export] Complete, format:", config.format, "size:", finalBlob.size);
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", recording.size);
 
     } catch (error) {
         console.error("[State exportWithSettingsInternal] Error:", error);
@@ -9680,9 +9319,10 @@ export async function exportWithSettingsInternal(settings = {}) {
         return;
     }
 
-    // Validate format and check dependencies
-    if (config.format === 'mp3' && typeof lamejs === 'undefined') {
-        appServices.showNotification("MP3 encoding requires lamejs library. Exporting as WAV.", 3000);
+    // For now, only WAV is supported
+    if (config.format !== 'wav') {
+        appServices.showNotification("MP3 export coming soon. Exporting as WAV.", 3000);
+        config.format = 'wav';
     }
 
     appServices.showNotification("Preparing export...", 2000);
@@ -9791,140 +9431,19 @@ export async function exportWithSettingsInternal(settings = {}) {
             return;
         }
 
-        // Convert to MP3 or FLAC if needed
-        let finalBlob = recording;
-        let fileExtension = 'wav';
-        let formatInfo = `${config.sampleRate}Hz, ${config.bitDepth}-bit`;
-        
-        if (config.format === 'mp3') {
-            appServices.showNotification("Encoding MP3...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // Encode to MP3 using lamejs
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitrate = config.mp3Bitrate || 192;
-                const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
-                const mp3Data = [];
-                const sampleBlockSize = 1152;
-                
-                const leftChannel = audioBuffer.getChannelData(0);
-                const rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-                
-                for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
-                    const leftChunk = new Int16Array(sampleBlockSize);
-                    const rightChunk = new Int16Array(sampleBlockSize);
-                    
-                    for (let j = 0; j < sampleBlockSize && i + j < audioBuffer.length; j++) {
-                        const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
-                        leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
-                        
-                        const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
-                        rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
-                    }
-                    
-                    const mp3buf = numChannels === 2 
-                        ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
-                        : mp3encoder.encodeBuffer(leftChunk);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(mp3buf);
-                    }
-                }
-                
-                const mp3buf = mp3encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(mp3buf);
-                }
-                
-                finalBlob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                fileExtension = 'mp3';
-                formatInfo = `${config.sampleRate}Hz, ${bitrate}kbps`;
-                console.log("[Export] MP3 encoded, size:", finalBlob.size);
-            } catch (mp3Error) {
-                console.error("[Export] MP3 encoding failed:", mp3Error);
-                appServices.showNotification("MP3 encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        } else if (config.format === 'flac') {
-            appServices.showNotification("Encoding FLAC...", 5000);
-            try {
-                // Decode WAV to AudioBuffer
-                const arrayBuffer = await recording.arrayBuffer();
-                const audioContext = Tone.context.rawContext;
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // FLAC encoding (basic implementation using WAV-like structure with FLAC header)
-                const numChannels = audioBuffer.numberOfChannels;
-                const sampleRate = audioBuffer.sampleRate;
-                const bitsPerSample = 16;
-                const length = audioBuffer.length;
-                
-                const channelData = [];
-                for (let ch = 0; ch < numChannels; ch++) {
-                    channelData.push(audioBuffer.getChannelData(ch));
-                }
-                
-                // Build FLAC file structure
-                const flacData = [];
-                
-                // fLaC marker
-                flacData.push(new Uint8Array([0x66, 0x4C, 0x61, 0x43])); // 'fLaC'
-                
-                // STREAMINFO block (simplified - 34 bytes of metadata)
-                const streamInfo = new ArrayBuffer(38);
-                const view = new DataView(streamInfo);
-                view.setUint8(0, 0x80); // Last metadata block flag + type 0
-                view.setUint8(1, 0); view.setUint8(2, 0); view.setUint8(3, 34); // Block size
-                // Sample rate (20 bits), channels (3 bits), bits per sample (5 bits), total samples (36 bits)
-                view.setUint16(4, (sampleRate >>> 12) & 0xFFFF);
-                view.setUint8(6, (sampleRate >>> 4) & 0xFF);
-                view.setUint8(7, ((sampleRate & 0x0F) << 4) | ((numChannels - 1) << 1) | ((bitsPerSample - 1) >>> 4));
-                view.setUint8(8, ((bitsPerSample - 1) & 0x0F) << 4);
-                view.setUint32(9, 0);
-                view.setUint32(13, length); // Total samples
-                for (let i = 17; i < 33; i++) { view.setUint8(i, 0); } // MD5 signature (zeros)
-                flacData.push(new Uint8Array(streamInfo));
-                
-                // Simple PCM frame data (interleaved)
-                const frameData = new Int16Array(length * numChannels);
-                let idx = 0;
-                for (let i = 0; i < length; i++) {
-                    for (let ch = 0; ch < numChannels; ch++) {
-                        const sample = Math.max(-1, Math.min(1, channelData[ch][i]));
-                        frameData[idx++] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                    }
-                }
-                flacData.push(new Uint8Array(frameData.buffer));
-                
-                finalBlob = new Blob(flacData, { type: 'audio/flac' });
-                fileExtension = 'flac';
-                formatInfo = `${config.sampleRate}Hz, FLAC`;
-                console.log("[Export] FLAC encoded, size:", finalBlob.size);
-            } catch (flacError) {
-                console.error("[Export] FLAC encoding failed:", flacError);
-                appServices.showNotification("FLAC encoding failed, exporting as WAV.", 3000);
-                fileExtension = 'wav';
-            }
-        }
-
         // Download with settings info in filename
-        const url = URL.createObjectURL(finalBlob);
+        const url = URL.createObjectURL(recording);
         const a = document.createElement('a');
         a.href = url;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        a.download = `snugos-export-${config.sampleRate}hz-${fileExtension === 'wav' ? config.bitDepth + 'bit' : fileExtension === 'mp3' ? (config.mp3Bitrate || 192) + 'kbps' : 'flac'}-${timestamp}.${fileExtension}`;
+        a.download = `snugos-export-${config.sampleRate}hz-${config.bitDepth}bit-${timestamp}.wav`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        const formatDisplay = config.format.toUpperCase();
-        appServices.showNotification(`Export successful! (${formatDisplay}, ${formatInfo})`, 3000);
-        console.log("[Export] Complete, format:", config.format, "size:", finalBlob.size);
+        appServices.showNotification(`Export successful! (${config.sampleRate}Hz, ${config.bitDepth}-bit)`, 3000);
+        console.log("[Export] Complete, size:", recording.size);
 
     } catch (error) {
         console.error("[State exportWithSettingsInternal] Error:", error);

@@ -508,6 +508,7 @@ import {
     openTrackTemplatesPanel,
     openAutomationLanesPanel,
     openSpectrumAnalyzerPanel,
+    openMixdownVisualizerPanel,
     
     // New Feature Panels
     openRandomPatternGeneratorPanel,

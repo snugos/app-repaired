@@ -104,6 +104,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Random Pattern Generator", action: () => { if(services.openRandomPatternGeneratorPanel) services.openRandomPatternGeneratorPanel(); } },
                     { label: "CPU Monitor", action: () => { if(services.openCpuMonitorPanel) services.openCpuMonitorPanel(); } },
                     { label: "Spectrum Analyzer", action: () => { if(services.openSpectrumAnalyzerPanel) services.openSpectrumAnalyzerPanel(); } },
+                    { label: "Mixdown Visualizer", action: () => { if(services.openMixdownVisualizerPanel) services.openMixdownVisualizerPanel(); } },
                     { label: "Keyboard Shortcuts", action: () => { if(services.openKeyBindingsPanel) services.openKeyBindingsPanel(); } },
                     { label: "Project Notes", action: () => { if(services.openProjectNotesPanel) services.openProjectNotesPanel(); } },
                     { label: "Drum Map Editor", action: () => { if(services.openDrumMapEditorPanel) services.openDrumMapEditorPanel(); } },

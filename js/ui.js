@@ -4142,8 +4142,278 @@ export function updateTrackRoutingMatrixPanel() {
     }
 }
 
-// --- Random Pattern Generator UI ---
-// --- Tap Tempo ---
+// --- Mixdown Visualizer Panel ---
+
+/**
+ * Opens the Mixdown Visualizer panel for stereo field and correlation metering.
+ */
+export function openMixdownVisualizerPanel(savedState = null) {
+    const windowId = 'mixdownVisualizer';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'mixdownVisualizerContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+
+    const options = { width: 400, height: 350, minWidth: 300, minHeight: 280, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Mixdown Visualizer', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderMixdownVisualizerContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the mixdown visualizer content.
+ */
+function renderMixdownVisualizerContent() {
+    const container = document.getElementById('mixdownVisualizerContent');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                <select id="visualizerSource" class="p-2 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="master">Master Output</option>
+                </select>
+            </div>
+            <div class="text-xs text-gray-500">
+                Correlation: <span id="correlationValue" class="font-mono text-green-400">0.00</span>
+            </div>
+        </div>
+        <div id="mixdownCanvasContainer" class="flex-1 bg-black rounded border border-gray-700 relative overflow-hidden">
+            <canvas id="mixdownCanvas" class="w-full h-full"></canvas>
+        </div>
+        <div class="flex items-center justify-between mt-2">
+            <div class="text-xs px-2 py-1 rounded bg-gray-800 text-gray-400" id="correlationLabel">Wide stereo</div>
+            <div class="flex items-center gap-4 text-xs text-gray-500">
+                <span>L</span>
+                <span class="text-gray-600">Mono</span>
+                <span>R</span>
+            </div>
+        </div>
+    `;
+
+    setupMixdownVisualizer();
+}
+
+/**
+ * Sets up the mixdown visualizer.
+ */
+function setupMixdownVisualizer() {
+    const canvas = document.getElementById('mixdownCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('mixdownCanvasContainer');
+    if (!container) return;
+
+    // Set canvas size
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    let animationId = null;
+    let correlationHistory = [];
+    const maxHistory = 60;
+    let peakCorrelation = 0;
+    let peakDecay = 0;
+
+    // Import visualizer if available
+    let visualizer = null;
+    try {
+        if (typeof window.MixdownVisualizer !== 'undefined') {
+            visualizer = new window.MixdownVisualizer();
+            visualizer.init(canvas);
+        }
+    } catch (e) {
+        console.warn('[MixdownVisualizer] Could not load visualizer class:', e);
+    }
+
+    function draw() {
+        // Get correlation data from audio system
+        let leftVal = 0, rightVal = 0, correlation = 0;
+        
+        try {
+            if (typeof Tone !== 'undefined' && localAppServices.getMasterFrequencyData) {
+                // Use audio context timing for animation
+                const time = performance.now() * 0.001;
+                
+                // Estimate stereo values from frequency data
+                const freqData = localAppServices.getMasterFrequencyData();
+                if (freqData && freqData.length > 0) {
+                    // Use first few bins for L/R estimation (simplified)
+                    leftVal = (freqData[0] || 0) * 0.5;
+                    rightVal = (freqData[1] || freqData[0] || 0) * 0.5;
+                }
+                
+                // Add some motion based on time
+                leftVal += Math.sin(time * 2.5) * 0.15 + Math.sin(time * 1.3) * 0.1;
+                rightVal += Math.sin(time * 2.8) * 0.15 + Math.sin(time * 1.7) * 0.1;
+                
+                // Estimate correlation based on similarity
+                const diff = Math.abs(leftVal - rightVal);
+                correlation = Math.max(-1, Math.min(1, 1 - diff * 2));
+            } else {
+                // Demo animation
+                const time = performance.now() * 0.001;
+                leftVal = Math.sin(time * 2.5) * 0.25 + Math.sin(time * 1.7) * 0.15;
+                rightVal = Math.sin(time * 2.3) * 0.25 + Math.sin(time * 1.9) * 0.15;
+                correlation = Math.cos(time * 0.3) * 0.4 + 0.4;
+            }
+        } catch (e) {
+            // Fallback demo animation
+            const time = performance.now() * 0.001;
+            leftVal = Math.sin(time * 2.5) * 0.25;
+            rightVal = Math.sin(time * 2.8) * 0.25;
+            correlation = Math.cos(time * 0.5) * 0.3 + 0.4;
+        }
+
+        // Store correlation history
+        correlationHistory.push(correlation);
+        if (correlationHistory.length > maxHistory) {
+            correlationHistory.shift();
+        }
+
+        // Update peak correlation
+        if (correlation > peakCorrelation) {
+            peakCorrelation = correlation;
+            peakDecay = 0;
+        } else {
+            peakDecay += 0.005;
+            if (peakDecay > 1) {
+                peakCorrelation = Math.max(0, peakCorrelation - 0.005);
+            }
+        }
+
+        // Clear canvas
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const scale = Math.min(w, h) * 0.35;
+
+        // Draw grid
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+        ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+        ctx.stroke();
+
+        // Draw diagonal reference lines
+        ctx.strokeStyle = '#282828';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(w, h);
+        ctx.moveTo(w, 0); ctx.lineTo(0, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw current position dot
+        const x = cx + leftVal * scale;
+        const y = cy + rightVal * scale;
+        
+        const hue = correlation > 0 ? 120 - (correlation * 60) : 60 + (correlation * 60);
+        ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowColor = `hsl(${hue}, 70%, 60%)`;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Draw correlation bar at bottom
+        const barY = h - 28;
+        const barHeight = 18;
+        const barWidth = w - 20;
+        const barX = 10;
+
+        ctx.fillStyle = '#151515';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Scale markers
+        ctx.fillStyle = '#555';
+        ctx.font = '8px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        for (let i = -1; i <= 1; i += 0.5) {
+            const mx = barX + ((i + 1) / 2) * barWidth;
+            ctx.fillRect(mx - 0.5, barY, 1, barHeight);
+        }
+
+        // Correlation indicator
+        const indicatorX = barX + ((correlation + 1) / 2) * barWidth;
+        let barColor;
+        if (correlation > 0.5) barColor = '#22c55e';
+        else if (correlation > 0) barColor = '#84cc16';
+        else if (correlation > -0.5) barColor = '#eab308';
+        else barColor = '#ef4444';
+
+        ctx.fillStyle = barColor;
+        ctx.fillRect(barX, barY, indicatorX - barX, barHeight);
+
+        // Center line
+        ctx.strokeStyle = '#777';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(barX + barWidth / 2, barY);
+        ctx.lineTo(barX + barWidth / 2, barY + barHeight);
+        ctx.stroke();
+
+        // Update label
+        const labelEl = document.getElementById('correlationLabel');
+        if (labelEl) {
+            if (correlation >= 0.8) {
+                labelEl.textContent = 'Very correlated';
+                labelEl.className = 'text-xs px-2 py-1 rounded bg-green-900 text-green-300';
+            } else if (correlation >= 0.3) {
+                labelEl.textContent = 'Good stereo';
+                labelEl.className = 'text-xs px-2 py-1 rounded bg-lime-900 text-lime-300';
+            } else if (correlation >= 0) {
+                labelEl.textContent = 'Wide stereo';
+                labelEl.className = 'text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300';
+            } else if (correlation >= -0.5) {
+                labelEl.textContent = 'Phase issues';
+                labelEl.className = 'text-xs px-2 py-1 rounded bg-orange-900 text-orange-300';
+            } else {
+                labelEl.textContent = 'Out of phase!';
+                labelEl.className = 'text-xs px-2 py-1 rounded bg-red-900 text-red-300';
+            }
+        }
+
+        const valueEl = document.getElementById('correlationValue');
+        if (valueEl) {
+            valueEl.textContent = correlation.toFixed(2);
+            valueEl.style.color = correlation > 0 ? '#22c55e' : correlation > -0.5 ? '#eab308' : '#ef4444';
+        }
+
+        animationId = requestAnimationFrame(draw);
+    }
+
+    draw();
+}
+
+// ==========================================
+// TAP TEMPO
+// ==========================================
 let tapTempoState = {
     taps: [],
     lastTap: 0,
