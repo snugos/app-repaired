@@ -963,6 +963,21 @@ export function initializeStateModule(services) {
     console.log("[State] State module initialized. AppServices keys:", Object.keys(appServices));
 }
 
+// --- Audio Stretching Quality Presets ---
+let audioStretchingQuality = 'balanced'; // 'fast' | 'balanced' | 'high'
+
+export function getAudioStretchingQuality() { return audioStretchingQuality; }
+
+export function setAudioStretchingQuality(quality) {
+    const validQualities = ['fast', 'balanced', 'high'];
+    if (validQualities.includes(quality)) {
+        audioStretchingQuality = quality;
+        console.log(`[State] Audio stretching quality set to: ${quality}`);
+    } else {
+        console.warn(`[State] Invalid audio stretching quality: ${quality}. Valid options: ${validQualities.join(', ')}`);
+    }
+}
+
 // --- Getters for Centralized State ---
 export function getTracksState() { return tracks; }
 export function getTrackByIdState(id) { return tracks.find(t => t.id === id); }
@@ -9701,45 +9716,4 @@ export async function exportWithSettingsInternal(settings = {}) {
 /**
  * Normalizes an audio blob to a target dB level.
  * @param {Blob} audioBlob - The audio blob to normalize
- * @param {number} targetDb - Target peak level in dB (e.g., -1 for -1dB)
- * @returns {Promise<Blob>} - Normalized audio blob
- */
-async function normalizeAudioBlob(audioBlob, targetDb = -1) {
-    try {
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        
-        // Find peak amplitude
-        let peak = 0;
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-            const channelData = audioBuffer.getChannelData(channel);
-            for (let i = 0; i < channelData.length; i++) {
-                const absValue = Math.abs(channelData[i]);
-                if (absValue > peak) peak = absValue;
-            }
-        }
-        
-        if (peak === 0) {
-            await audioContext.close();
-            return audioBlob; // Silent audio, return as-is
-        }
-        
-        // Calculate gain needed
-        const targetLinear = Math.pow(10, targetDb / 20);
-        const gain = targetLinear / peak;
-        
-        // Apply gain
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-            const channelData = audioBuffer.getChannelData(channel);
-            for (let i = 0; i < channelData.length; i++) {
-                channelData[i] *= gain;
-            }
-        }
-        
-        // Convert back to WAV
-        const wavBlob = bufferToWav(audioBuffer);
-        await audioContext.close();
-        return wavBlob;
-        
-    } catch (error
+ * @param {number} targetDb - Target peak level in dB (
