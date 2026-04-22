@@ -288,7 +288,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -308,8 +308,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -325,7 +325,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -643,18 +643,6 @@ function handleTrackUIUpdate(trackId, reason, detail) {
     }
 }
 
-// --- SnugOS DAW Initialization ---
-// Imports at top of file
-import { SnugWindow } from './SnugWindow.js';
-import * as Constants from './constants.js';
-import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
-import { parseMidiFile, midiNotesToSequenceData, encodeSequenceToMidi, midiToNoteName, noteNameToMidi } from './midiUtils.js';
-import { initializeAudio, getAudioContextState, togglePlayback, stopAllAudio, getMasterGainNodeFromAudio, getActualMasterGainNodeFromAudio, loadSampleFile, loadSoundFromBrowserToTarget, getTrackById as getTrackByIdAudio, encodeMp3FromAudioBuffer, encodeOggFromAudioBuffer, encodeWavFromAudioBuffer } from './audio.js';
-import { initializeUI, updateTransportDisplay, updateBPMDisplay, updateTimeSignatureDisplay, createToolbar, createPianoRollEditor, createStepSequencer, updateSequencerCellUI, createPlaylistView, openWindow as uiOpenWindow, setupDragAndDrop, renderTimeline, getUIElement, cacheUIElement, openInstrumentRackPanel, updateInstrumentRackPanel } from './ui.js';
-import { initializeState, getState, setState, subscribeToChanges, getTracksState, setTracksState, getUndoStackState, setUndoStackState, getRedoStackState, setRedoStackState, getMasterEffectsState, setMasterEffectsState, getCurrentProjectState, setCurrentProjectState, getPlaybackState, setPlaybackState } from './state.js';
-import { initializeEventListeners, setupKeyboardListeners, setupRightClickMenu, setupDragAndDrop as ehSetupDragAndDrop, setupRightClickMenu as setupContextMenu } from './eventHandlers.js';
-import { initializeEffectsRegistry, getAvailableEffects, createEffect } from './effectsRegistry.js';
-import { initializeMidiIO, getMidiAccess, getAllMidiInputs, getAllMidiOutputs, sendMidiMessageToAllOutputs, sendMidiMessageToOutput, getMidiNoteName as midiGetNoteName, getMidiNoteNumber as midiGetNoteNumber } from './MidiOutput.js';
 
 console.log('[SnugOS] main.js loaded - version', Constants.APP_VERSION);
 async function initializeSnugOS() {
