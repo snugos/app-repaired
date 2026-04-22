@@ -288,7 +288,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -325,7 +325,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -399,8 +399,8 @@ import {
 
     removeCustomDesktopBackground: async () => {
         try {
-            localStorage.removeItem(appServices.DESKTOP_BACKGROUND_KEY);
-            localStorage.removeItem(appServices.DESKTOP_BG_TYPE_KEY);
+            localStorage.removeItem(DESKTOP_BACKGROUND_KEY);
+            localStorage.removeItem(DESKTOP_BG_TYPE_KEY);
             await this.bgDb.remove('desktopVideo');
             applyDesktopBackground(null, null);
             showSafeNotification("Background removed.", 2000);
@@ -884,7 +884,7 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
 
 // Restore background on load
 async function restoreDesktopBackground() {
-    const bgType = localStorage.getItem(appServices.DESKTOP_BG_TYPE_KEY);
+    const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
     
     if (bgType === 'video') {
         try {
@@ -898,7 +898,7 @@ async function restoreDesktopBackground() {
             console.warn("Could not restore video background:", e);
         }
     } else if (bgType === 'image' || !bgType) {
-        const imageUrl = localStorage.getItem(appServices.DESKTOP_BACKGROUND_KEY);
+        const imageUrl = localStorage.getItem(DESKTOP_BACKGROUND_KEY);
         if (imageUrl) {
             applyDesktopBackground(imageUrl, 'image');
         }
