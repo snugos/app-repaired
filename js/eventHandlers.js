@@ -31,7 +31,11 @@ import {
     setSelectedNotes, addSelectedNote, removeSelectedNote, toggleSelectedNote,
     clearSelectedNotes, isSelectedNote, deleteSelectedNotes, duplicateSelectedNotes,
     moveSelectedNotes, quantizeSelectedNotes,
-    deleteTimelineClips, duplicateTimelineClips
+    deleteTimelineClips, duplicateTimelineClips,
+    setSelectedNotesVelocity, setSelectedNotesGate, humanizeSelectedNotes,
+    copySelectedNotes, cutSelectedNotes, pasteNotes,
+    moveSelectedClips, groupEditClips, copySelectedClips, cutSelectedClips, pasteClips,
+    getNotesClipboard, getClipsClipboard
 } from './state.js';
 
 let localAppServices = {};

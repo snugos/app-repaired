@@ -8779,3 +8779,306 @@ export function openDrumMapEditorPanel() {
         }
     }, 100);
 }
+
+// --- Group Edit Panel ---
+// Panel for batch editing selected notes or clips
+
+export function openGroupEditPanel(editType = 'notes') {
+    const winId = 'groupEditPanel';
+    const existingWindow = localAppServices.getWindowById?.(winId);
+    
+    if (existingWindow) {
+        localAppServices.focusWindow?.(winId);
+        return;
+    }
+    
+    const container = document.createElement('div');
+    container.className = 'p-4 text-sm';
+    
+    if (editType === 'notes') {
+        container.innerHTML = `
+            <h3 class="text-lg font-bold mb-4 text-white">Group Edit: Selected Notes</h3>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Velocity</label>
+                <div class="flex items-center gap-2">
+                    <input type="range" id="groupVelocity" min="0" max="1" step="0.01" value="0.8" class="flex-1">
+                    <input type="number" id="groupVelocityNum" min="0" max="127" value="100" class="w-16 px-2 py-1 bg-slate-700 text-white rounded text-center">
+                </div>
+                <button id="applyVelocityBtn" class="mt-1 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Apply to Selected</button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Gate (Length)</label>
+                <div class="flex items-center gap-2">
+                    <input type="range" id="groupGate" min="0.01" max="1" step="0.01" value="0.5" class="flex-1">
+                    <span id="groupGateVal" class="text-gray-300 w-10">0.5</span>
+                </div>
+                <button id="applyGateBtn" class="mt-1 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Apply to Selected</button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Humanize (Randomize Velocity)</label>
+                <div class="flex items-center gap-2">
+                    <input type="range" id="humanizeAmount" min="0" max="0.5" step="0.01" value="0.1" class="flex-1">
+                    <span id="humanizeAmountVal" class="text-gray-300 w-10">10%</span>
+                </div>
+                <button id="humanizeBtn" class="mt-1 px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">Humanize Selected</button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Transpose (Semitones)</label>
+                <div class="flex items-center gap-2">
+                    <button id="transposeDown12" class="px-2 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-500">-12</button>
+                    <button id="transposeDown1" class="px-2 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-500">-1</button>
+                    <span class="text-white">±0</span>
+                    <button id="transposeUp1" class="px-2 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-500">+1</button>
+                    <button id="transposeUp12" class="px-2 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-500">+12</button>
+                </div>
+            </div>
+            
+            <div class="border-t border-slate-600 pt-3 mt-3">
+                <div class="flex gap-2 flex-wrap">
+                    <button id="copyNotesBtn" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">📋 Copy</button>
+                    <button id="cutNotesBtn" class="px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700">✂️ Cut</button>
+                    <button id="pasteNotesBtn" class="px-3 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700">📄 Paste</button>
+                    <button id="deleteNotesBtn" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">🗑️ Delete</button>
+                </div>
+            </div>
+            
+            <p id="selectionInfo" class="mt-3 text-gray-400 text-xs">No notes selected</p>
+        `;
+    } else {
+        container.innerHTML = `
+            <h3 class="text-lg font-bold mb-4 text-white">Group Edit: Selected Clips</h3>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Move Clips (seconds)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="moveTimeDelta" value="0" step="0.1" class="w-20 px-2 py-1 bg-slate-700 text-white rounded">
+                    <button id="moveClipsBtn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Move</button>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-1">Gain (dB)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="groupGain" value="0" step="0.5" class="w-20 px-2 py-1 bg-slate-700 text-white rounded">
+                    <button id="applyGainBtn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Apply</button>
+                </div>
+            </div>
+            
+            <div class="border-t border-slate-600 pt-3 mt-3">
+                <div class="flex gap-2 flex-wrap">
+                    <button id="copyClipsBtn" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">📋 Copy</button>
+                    <button id="cutClipsBtn" class="px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700">✂️ Cut</button>
+                    <button id="pasteClipsBtn" class="px-3 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700">📄 Paste</button>
+                    <button id="deleteClipsBtn" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">🗑️ Delete</button>
+                </div>
+            </div>
+            
+            <p id="clipSelectionInfo" class="mt-3 text-gray-400 text-xs">No clips selected</p>
+        `;
+    }
+    
+    localAppServices.createWindow?.(winId, editType === 'notes' ? 'Group Edit: Notes' : 'Group Edit: Clips', container, {
+        width: 320,
+        height: 400,
+        x: 150,
+        y: 100,
+        resizable: true
+    });
+    
+    setTimeout(() => {
+        const win = localAppServices.getWindowById?.(winId);
+        if (!win || !win.element) return;
+        
+        if (editType === 'notes') {
+            // Velocity controls
+            const velocitySlider = container.querySelector('#groupVelocity');
+            const velocityNum = container.querySelector('#groupVelocityNum');
+            velocitySlider?.addEventListener('input', (e) => {
+                velocityNum.value = Math.round(parseFloat(e.target.value) * 127);
+            });
+            velocityNum?.addEventListener('input', (e) => {
+                velocitySlider.value = parseFloat(e.target.value) / 127;
+            });
+            
+            container.querySelector('#applyVelocityBtn')?.addEventListener('click', () => {
+                const velocity = parseFloat(velocitySlider.value);
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Set velocity for selected notes');
+                const result = localAppServices.setSelectedNotesVelocity?.(velocity);
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Set velocity for ${result.affectedCount} notes`, 1500);
+                }
+            });
+            
+            // Gate controls
+            const gateSlider = container.querySelector('#groupGate');
+            const gateVal = container.querySelector('#groupGateVal');
+            gateSlider?.addEventListener('input', (e) => {
+                gateVal.textContent = e.target.value;
+            });
+            
+            container.querySelector('#applyGateBtn')?.addEventListener('click', () => {
+                const gate = parseFloat(gateSlider.value);
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Set gate for selected notes');
+                const result = localAppServices.setSelectedNotesGate?.(gate);
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Set gate for ${result.affectedCount} notes`, 1500);
+                }
+            });
+            
+            // Humanize
+            const humanizeSlider = container.querySelector('#humanizeAmount');
+            const humanizeVal = container.querySelector('#humanizeAmountVal');
+            humanizeSlider?.addEventListener('input', (e) => {
+                humanizeVal.textContent = Math.round(parseFloat(e.target.value) * 100) + '%';
+            });
+            
+            container.querySelector('#humanizeBtn')?.addEventListener('click', () => {
+                const amount = parseFloat(humanizeSlider.value);
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Humanize selected notes');
+                const result = localAppServices.humanizeSelectedNotes?.(amount);
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Humanized ${result.affectedCount} notes`, 1500);
+                }
+            });
+            
+            // Transpose
+            container.querySelector('#transposeDown12')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Transpose down 12 semitones');
+                localAppServices.moveSelectedNotes?.(-12);
+                localAppServices.showNotification?.('Transposed down 1 octave', 1500);
+            });
+            container.querySelector('#transposeDown1')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Transpose down 1 semitone');
+                localAppServices.moveSelectedNotes?.(-1);
+                localAppServices.showNotification?.('Transposed down 1 semitone', 1500);
+            });
+            container.querySelector('#transposeUp1')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Transpose up 1 semitone');
+                localAppServices.moveSelectedNotes?.(1);
+                localAppServices.showNotification?.('Transposed up 1 semitone', 1500);
+            });
+            container.querySelector('#transposeUp12')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Transpose up 12 semitones');
+                localAppServices.moveSelectedNotes?.(12);
+                localAppServices.showNotification?.('Transposed up 1 octave', 1500);
+            });
+            
+            // Copy/Cut/Paste/Delete
+            container.querySelector('#copyNotesBtn')?.addEventListener('click', () => {
+                const result = localAppServices.copySelectedNotes?.();
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Copied ${result.copiedCount} notes`, 1500);
+                }
+            });
+            container.querySelector('#cutNotesBtn')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Cut selected notes');
+                const result = localAppServices.cutSelectedNotes?.();
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Cut ${result.cutCount} notes`, 1500);
+                }
+            });
+            container.querySelector('#pasteNotesBtn')?.addEventListener('click', () => {
+                const seqId = localAppServices.getActiveSequenceIdForSelection?.();
+                if (seqId) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Paste notes');
+                    const result = localAppServices.pasteNotes?.(seqId);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Pasted ${result.pastedCount} notes`, 1500);
+                    }
+                }
+            });
+            container.querySelector('#deleteNotesBtn')?.addEventListener('click', () => {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Delete selected notes');
+                const result = localAppServices.deleteSelectedNotes?.();
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Deleted ${result.deletedCount} notes`, 1500);
+                }
+            });
+            
+            // Update selection info
+            const updateSelectionInfo = () => {
+                const count = localAppServices.getSelectedNotesCount?.() || 0;
+                container.querySelector('#selectionInfo').textContent = count > 0 ? `${count} note(s) selected` : 'No notes selected';
+            };
+            updateSelectionInfo();
+        } else {
+            // Clip editing
+            container.querySelector('#moveClipsBtn')?.addEventListener('click', () => {
+                const delta = parseFloat(container.querySelector('#moveTimeDelta').value) || 0;
+                const clipIds = Array.from(localAppServices.getSelectedClipIds?.() || []);
+                if (clipIds.length > 0 && delta !== 0) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Move selected clips');
+                    const result = localAppServices.moveSelectedClips?.(clipIds, delta);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Moved ${result.movedCount} clips`, 1500);
+                    }
+                }
+            });
+            
+            container.querySelector('#applyGainBtn')?.addEventListener('click', () => {
+                const gain = parseFloat(container.querySelector('#groupGain').value) || 0;
+                const clipIds = Array.from(localAppServices.getSelectedClipIds?.() || []);
+                if (clipIds.length > 0) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Set gain for selected clips');
+                    const result = localAppServices.groupEditClips?.(clipIds, 'gain', gain);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Set gain for ${result.affectedCount} clips`, 1500);
+                    }
+                }
+            });
+            
+            // Copy/Cut/Paste/Delete for clips
+            container.querySelector('#copyClipsBtn')?.addEventListener('click', () => {
+                const clipIds = Array.from(localAppServices.getSelectedClipIds?.() || []);
+                const result = localAppServices.copySelectedClips?.(clipIds);
+                if (result?.success) {
+                    localAppServices.showNotification?.(`Copied ${result.copiedCount} clips`, 1500);
+                }
+            });
+            container.querySelector('#cutClipsBtn')?.addEventListener('click', () => {
+                const clipIds = Array.from(localAppServices.getSelectedClipIds?.() || []);
+                if (clipIds.length > 0) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Cut selected clips');
+                    const result = localAppServices.cutSelectedClips?.(clipIds);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Cut ${result.cutCount} clips`, 1500);
+                    }
+                }
+            });
+            container.querySelector('#pasteClipsBtn')?.addEventListener('click', () => {
+                // Paste to first selected track or first audio track
+                const tracks = localAppServices.getTracks?.() || [];
+                const audioTrack = tracks.find(t => t.type === 'Audio');
+                if (audioTrack) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Paste clips');
+                    const result = localAppServices.pasteClips?.(audioTrack.id, 0);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Pasted ${result.pastedCount} clips`, 1500);
+                    }
+                }
+            });
+            container.querySelector('#deleteClipsBtn')?.addEventListener('click', () => {
+                const clipIds = Array.from(localAppServices.getSelectedClipIds?.() || []);
+                if (clipIds.length > 0) {
+                    if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Delete selected clips');
+                    const result = localAppServices.deleteTimelineClips?.(clipIds);
+                    if (result?.success) {
+                        localAppServices.showNotification?.(`Deleted ${result.deletedCount} clips`, 1500);
+                        localAppServices.clearClipSelections?.();
+                    }
+                }
+            });
+            
+            // Update clip selection info
+            const updateClipSelectionInfo = () => {
+                const count = (localAppServices.getSelectedClipIds?.() || []).size;
+                container.querySelector('#clipSelectionInfo').textContent = count > 0 ? `${count} clip(s) selected` : 'No clips selected';
+            };
+            updateClipSelectionInfo();
+        }
+    }, 100);
+}

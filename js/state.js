@@ -16787,3 +16787,285 @@ export function quantizeSelectedNotes(quantizeValue = 0.25) {
     console.log(`[State] Quantized ${quantizedCount} notes`);
     return { success: true, quantizedCount };
 }
+
+// --- Extended Group Edit: Piano Roll Notes ---
+
+// Set velocity for all selected notes
+export function setSelectedNotesVelocity(velocity) {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, affectedCount: 0 };
+    }
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) return { success: false, affectedCount: 0 };
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) return { success: false, affectedCount: 0 };
+    const clampedVelocity = Math.max(0, Math.min(1, velocity));
+    let affectedCount = 0;
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null) {
+                noteData.velocity = clampedVelocity;
+                affectedCount++;
+            }
+        }
+    }
+    console.log(`[State] Set velocity to ${clampedVelocity} for ${affectedCount} notes`);
+    return { success: true, affectedCount };
+}
+
+// Set gate/length for all selected notes (0-1 as fraction of step)
+export function setSelectedNotesGate(gate) {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, affectedCount: 0 };
+    }
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) return { success: false, affectedCount: 0 };
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) return { success: false, affectedCount: 0 };
+    const clampedGate = Math.max(0.01, Math.min(1, gate));
+    let affectedCount = 0;
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null) {
+                noteData.gate = clampedGate;
+                affectedCount++;
+            }
+        }
+    }
+    console.log(`[State] Set gate to ${clampedGate} for ${affectedCount} notes`);
+    return { success: true, affectedCount };
+}
+
+// Add random variation to velocities (humanize)
+export function humanizeSelectedNotes(amount = 0.1) {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, affectedCount: 0 };
+    }
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) return { success: false, affectedCount: 0 };
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) return { success: false, affectedCount: 0 };
+    let affectedCount = 0;
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null && noteData.velocity !== undefined) {
+                const variation = (Math.random() - 0.5) * 2 * amount;
+                noteData.velocity = Math.max(0, Math.min(1, noteData.velocity + variation));
+                affectedCount++;
+            }
+        }
+    }
+    console.log(`[State] Humanized ${affectedCount} notes with ${amount * 100}% variation`);
+    return { success: true, affectedCount };
+}
+
+// Copy selected notes to clipboard
+let notesClipboard = { notes: [], sequenceId: null, minCol: 0 };
+
+export function copySelectedNotes() {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, copiedCount: 0 };
+    }
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) return { success: false, copiedCount: 0 };
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) return { success: false, copiedCount: 0 };
+    const copiedNotes = [];
+    let minCol = Infinity;
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null) {
+                copiedNotes.push({ row, col, noteData: JSON.parse(JSON.stringify(noteData)) });
+                minCol = Math.min(minCol, col);
+            }
+        }
+    }
+    notesClipboard = {
+        notes: copiedNotes,
+        sequenceId: activeSequenceIdForSelection,
+        minCol,
+        sourceTrackType: track.type
+    };
+    console.log(`[State] Copied ${copiedNotes.length} notes to clipboard`);
+    return { success: true, copiedCount: copiedNotes.length };
+}
+
+// Cut selected notes (copy then delete)
+export function cutSelectedNotes() {
+    const copyResult = copySelectedNotes();
+    if (!copyResult.success) return copyResult;
+    const deleteResult = deleteSelectedNotes();
+    console.log(`[State] Cut ${copyResult.copiedCount} notes`);
+    return { success: true, cutCount: copyResult.copiedCount };
+}
+
+// Paste notes from clipboard
+export function pasteNotes(targetSequenceId, atColumn = null) {
+    if (!notesClipboard.notes || notesClipboard.notes.length === 0) {
+        return { success: false, pastedCount: 0, message: 'Clipboard empty' };
+    }
+    const track = getTrackWithSequence(targetSequenceId);
+    if (!track) return { success: false, pastedCount: 0, message: 'Target track not found' };
+    if (track.type !== notesClipboard.sourceTrackType) {
+        return { success: false, pastedCount: 0, message: 'Track type mismatch' };
+    }
+    const sequence = track.sequences.find(s => s.id === targetSequenceId);
+    if (!sequence || !sequence.data) return { success: false, pastedCount: 0, message: 'Sequence not found' };
+    const targetCol = atColumn !== null ? atColumn : (notesClipboard.minCol + 1);
+    const colOffset = targetCol - notesClipboard.minCol;
+    let maxNeededCol = 0;
+    for (const note of notesClipboard.notes) {
+        maxNeededCol = Math.max(maxNeededCol, note.col + colOffset);
+    }
+    if (maxNeededCol >= sequence.data[0].length) {
+        const extendBy = maxNeededCol - sequence.data[0].length + 1;
+        sequence.data.forEach(row => {
+            for (let i = 0; i < extendBy; i++) row.push(null);
+        });
+        sequence.length = sequence.data[0].length;
+    }
+    let pastedCount = 0;
+    const newSelection = new Set();
+    for (const note of notesClipboard.notes) {
+        const newRow = note.row;
+        const newCol = note.col + colOffset;
+        if (newRow >= 0 && newRow < sequence.data.length && newCol >= 0 && newCol < sequence.data[newRow].length) {
+            sequence.data[newRow][newCol] = JSON.parse(JSON.stringify(note.noteData));
+            newSelection.add(`${newRow}_${newCol}`);
+            pastedCount++;
+        }
+    }
+    selectedNotes = newSelection;
+    activeSequenceIdForSelection = targetSequenceId;
+    console.log(`[State] Pasted ${pastedCount} notes at column ${targetCol}`);
+    return { success: true, pastedCount };
+}
+
+// --- Extended Group Edit: Timeline Clips ---
+
+// Move all selected clips by time delta
+export function moveSelectedClips(clipIds, deltaTime) {
+    if (!Array.isArray(clipIds) || clipIds.length === 0) {
+        return { success: false, movedCount: 0 };
+    }
+    let movedCount = 0;
+    const movedClips = [];
+    for (const track of tracks) {
+        if (track.type !== 'Audio' || !track.timelineClips) continue;
+        for (const clip of track.timelineClips) {
+            if (clipIds.includes(clip.id)) {
+                const newStartTime = Math.max(0, clip.startTime + deltaTime);
+                clip.startTime = newStartTime;
+                movedClips.push({ trackId: track.id, clipId: clip.id, newStartTime });
+                movedCount++;
+            }
+        }
+    }
+    for (const track of tracks) {
+        if (track.timelineClips) {
+            track.timelineClips.sort((a, b) => a.startTime - b.startTime);
+        }
+    }
+    console.log(`[State] Moved ${movedCount} clips by ${deltaTime}s`);
+    return { success: true, movedCount, movedClips };
+}
+
+// Group edit clips - change a property on all selected clips
+export function groupEditClips(clipIds, property, value) {
+    if (!Array.isArray(clipIds) || clipIds.length === 0) {
+        return { success: false, affectedCount: 0 };
+    }
+    let affectedCount = 0;
+    for (const track of tracks) {
+        if (track.type !== 'Audio' || !track.timelineClips) continue;
+        for (const clip of track.timelineClips) {
+            if (clipIds.includes(clip.id)) {
+                if (property in clip) {
+                    clip[property] = value;
+                    affectedCount++;
+                }
+            }
+        }
+    }
+    console.log(`[State] Set ${property} to ${value} for ${affectedCount} clips`);
+    return { success: true, affectedCount };
+}
+
+// Clipboard for clips
+let clipsClipboard = { clips: [], sourceTrackIds: [] };
+
+// Copy selected clips to clipboard
+export function copySelectedClips(clipIds) {
+    if (!Array.isArray(clipIds) || clipIds.length === 0) {
+        return { success: false, copiedCount: 0 };
+    }
+    const copiedClips = [];
+    const sourceTrackIds = [];
+    for (const track of tracks) {
+        if (track.type !== 'Audio' || !track.timelineClips) continue;
+        for (const clipId of clipIds) {
+            const clip = track.timelineClips.find(c => c.id === clipId);
+            if (clip) {
+                copiedClips.push({ trackId: track.id, clip: JSON.parse(JSON.stringify(clip)) });
+                if (!sourceTrackIds.includes(track.id)) sourceTrackIds.push(track.id);
+            }
+        }
+    }
+    clipsClipboard = { clips: copiedClips, sourceTrackIds };
+    console.log(`[State] Copied ${copiedClips.length} clips to clipboard`);
+    return { success: true, copiedCount: copiedClips.length };
+}
+
+// Cut selected clips (copy then delete)
+export function cutSelectedClips(clipIds) {
+    const copyResult = copySelectedClips(clipIds);
+    if (!copyResult.success) return copyResult;
+    const deleteResult = deleteTimelineClips(clipIds);
+    console.log(`[State] Cut ${copyResult.copiedCount} clips`);
+    return { success: true, cutCount: copyResult.copiedCount };
+}
+
+// Paste clips from clipboard at specified time
+export function pasteClips(targetTrackId, atTime = 0) {
+    if (!clipsClipboard.clips || clipsClipboard.clips.length === 0) {
+        return { success: false, pastedCount: 0, message: 'Clipboard empty' };
+    }
+    const track = tracks.find(t => t.id === targetTrackId);
+    if (!track || track.type !== 'Audio') {
+        return { success: false, pastedCount: 0, message: 'Target track not found or not Audio type' };
+    }
+    if (!track.timelineClips) track.timelineClips = [];
+    let minTime = Infinity;
+    for (const item of clipsClipboard.clips) {
+        minTime = Math.min(minTime, item.clip.startTime);
+    }
+    const timeOffset = atTime - minTime;
+    let pastedCount = 0;
+    const newClipIds = [];
+    for (const item of clipsClipboard.clips) {
+        const newClip = {
+            ...JSON.parse(JSON.stringify(item.clip)),
+            id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: `${item.clip.name || 'Clip'} (paste)`,
+            startTime: Math.max(0, item.clip.startTime + timeOffset)
+        };
+        track.timelineClips.push(newClip);
+        newClipIds.push(newClip.id);
+        pastedCount++;
+    }
+    track.timelineClips.sort((a, b) => a.startTime - b.startTime);
+    console.log(`[State] Pasted ${pastedCount} clips to track ${targetTrackId} at time ${atTime}`);
+    return { success: true, pastedCount, newClipIds };
+}
+
+// Export clipboard data getters for external access
+export function getNotesClipboard() { return notesClipboard; }
+export function getClipsClipboard() { return clipsClipboard; }
