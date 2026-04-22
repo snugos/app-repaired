@@ -6,7 +6,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 All previous feature queues are COMPLETE. The following new features were generated through brainstorming:
 
-### New Feature Queue (2026-04-21 21:00 UTC)
+### New Feature Queue (2026-04-22 00:10 UTC)
 
 1. **Export Stems** - Export individual tracks as separate audio files
 2. **CPU Monitor Panel** - Show detailed CPU usage per track
@@ -17,7 +17,7 @@ All previous feature queues are COMPLETE. The following new features were genera
 7. **Project Notes** - Add text notes/comments to projects
 8. **Audio Export Dialog** - Comprehensive export with format/bitrate options
 9. **Track Lane Reordering** - Drag and drop to reorder tracks
-10. **Multi-select & Group Edit** - Select and edit multiple clips/notes at once
+10. ~~**Multi-select & Group Edit**~~ - ~~Select and edit multiple clips/notes at once~~ ✅ COMPLETED
 
 ## Workflow
 
