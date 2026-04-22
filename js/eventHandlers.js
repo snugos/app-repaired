@@ -58,7 +58,11 @@ const MIN_OCTAVE_SHIFT = -2;
 const MAX_OCTAVE_SHIFT = 2;
 
 export function initializePrimaryEventListeners(appContext) {
-    const services = appContext || localAppServices;
+    if (!appContext) {
+        console.error('[EventHandlers initializePrimaryEventListeners] appContext is required but was not provided!');
+        return;
+    }
+    const services = appContext;
     const uiCache = services.uiElementsCache || {};
     console.log('[EventHandlers initializePrimaryEventListeners] Initializing. uiCache keys:', Object.keys(uiCache));
 
