@@ -288,7 +288,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -308,8 +308,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -325,8 +325,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -449,8 +449,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -530,7 +530,11 @@ import {
     openMicroTuningPanel,
     
     // Track Templates
-    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate
+    getTrackTemplatesState, saveTrackTemplate, getTrackTemplate, getTrackTemplateNames, deleteTrackTemplate, applyTrackTemplate, renameTrackTemplate,
+    
+    // Instrument Rack
+    openInstrumentRackPanel,
+    updateInstrumentRackPanel,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
@@ -649,7 +653,7 @@ import * as Constants from './constants.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import { parseMidiFile, midiNotesToSequenceData, encodeSequenceToMidi, midiToNoteName, noteNameToMidi } from './midiUtils.js';
 import { initializeAudio, getAudioContextState, togglePlayback, stopAllAudio, getMasterGainNodeFromAudio, getActualMasterGainNodeFromAudio, loadSampleFile, loadSoundFromBrowserToTarget, getTrackById as getTrackByIdAudio } from './audio.js';
-import { initializeUI, updateTransportDisplay, updateBPMDisplay, updateTimeSignatureDisplay, createToolbar, createPianoRollEditor, createStepSequencer, updateSequencerCellUI, createPlaylistView, openWindow as uiOpenWindow, setupDragAndDrop, renderTimeline, getUIElement, cacheUIElement } from './ui.js';
+import { initializeUI, updateTransportDisplay, updateBPMDisplay, updateTimeSignatureDisplay, createToolbar, createPianoRollEditor, createStepSequencer, updateSequencerCellUI, createPlaylistView, openWindow as uiOpenWindow, setupDragAndDrop, renderTimeline, getUIElement, cacheUIElement, openInstrumentRackPanel, updateInstrumentRackPanel } from './ui.js';
 import { initializeState, getState, setState, subscribeToChanges, getTracksState, setTracksState, getUndoStackState, setUndoStackState, getRedoStackState, setRedoStackState, getMasterEffectsState, setMasterEffectsState, getCurrentProjectState, setCurrentProjectState, getPlaybackState, setPlaybackState } from './state.js';
 import { initializeEventListeners, setupKeyboardListeners, setupRightClickMenu, setupDragAndDrop as ehSetupDragAndDrop, setupRightClickMenu as setupContextMenu } from './eventHandlers.js';
 import { initializeEffectsRegistry, getAvailableEffects, createEffect } from './effectsRegistry.js';

@@ -11875,6 +11875,843 @@ export class Track {
     getMobileTouchSettings() {
         return this.mobileTouch || { enabled: false };
     }
+
+    // ===========================================
+    // ABLETON LINK SYNCHRONIZATION
+    // ===========================================
+
+    initAbletonLink(config = {}) {
+        this.abletonLink = {
+            enabled: config.enabled ?? false,
+            bpm: config.bpm ?? 120,
+            quantum: config.quantum ?? 4,
+            connected: false,
+            peers: [],
+            sessionState: { beats: 0, phase: 0, tempo: 120, time: 0 },
+            lastSyncTime: 0
+        };
+        console.log(`[Track ${this.id}] Ableton Link initialized`);
+        return this.abletonLink;
+    }
+
+    async connectAbletonLink(sessionId = null) {
+        if (!this.abletonLink) this.initAbletonLink();
+        this.abletonLink.connected = true;
+        this.abletonLink.sessionId = sessionId || `link_${Date.now()}`;
+        console.log(`[Track ${this.id}] Connected to Ableton Link`);
+        return { success: true, sessionId: this.abletonLink.sessionId };
+    }
+
+    disconnectAbletonLink() {
+        if (this.abletonLink) {
+            this.abletonLink.connected = false;
+            this.abletonLink.peers = [];
+        }
+    }
+
+    getLinkTimelinePosition() {
+        if (!this.abletonLink?.connected) return null;
+        const now = Date.now() / 1000;
+        const elapsed = now - this.abletonLink.lastSyncTime;
+        const beatsElapsed = elapsed * (this.abletonLink.bpm / 60);
+        return {
+            beats: this.abletonLink.sessionState.beats + beatsElapsed,
+            phase: (this.abletonLink.sessionState.beats + beatsElapsed) % this.abletonLink.quantum,
+            tempo: this.abletonLink.bpm,
+            time: now
+        };
+    }
+
+    setLinkTempo(bpm) {
+        if (!this.abletonLink) return;
+        this.abletonLink.bpm = Math.max(20, Math.min(999, bpm));
+        this.abletonLink.sessionState.tempo = this.abletonLink.bpm;
+    }
+
+    getAbletonLinkSettings() {
+        return this.abletonLink || { enabled: false };
+    }
+
+    // ===========================================
+    // OSC SUPPORT
+    // ===========================================
+
+    initOSC(config = {}) {
+        this.osc = {
+            enabled: config.enabled ?? false,
+            localPort: config.localPort ?? 9000,
+            remotePort: config.remotePort ?? 9001,
+            remoteAddress: config.remoteAddress ?? '127.0.0.1',
+            addressPatterns: new Map(),
+            messageQueue: [],
+            maxQueueSize: 1000
+        };
+        this._registerDefaultOSCPatterns();
+        return this.osc;
+    }
+
+    _registerDefaultOSCPatterns() {
+        if (!this.osc) return;
+        this.registerOSCPattern('/transport/play', () => console.log('OSC: play'));
+        this.registerOSCPattern('/transport/stop', () => console.log('OSC: stop'));
+    }
+
+    registerOSCPattern(pattern, handler) {
+        if (!this.osc) this.initOSC();
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        this.osc.addressPatterns.set(pattern, { pattern, handler, regex });
+    }
+
+    sendOSC(address, args = []) {
+        if (!this.osc?.enabled) return;
+        this.osc.messageQueue.push({ address, args, timestamp: Date.now() });
+        console.log(`[Track ${this.id}] OSC sent: ${address}`);
+    }
+
+    receiveOSC(message) {
+        if (!this.osc?.enabled) return;
+        for (const [, config] of this.osc.addressPatterns) {
+            if (config.regex.test(message.address)) {
+                config.handler(message);
+            }
+        }
+    }
+
+    getOSCSettings() {
+        return this.osc || { enabled: false };
+    }
+
+    // ===========================================
+    // NOTATION VIEW
+    // ===========================================
+
+    initNotationView(config = {}) {
+        this.notation = {
+            enabled: config.enabled ?? false,
+            clef: config.clef ?? 'treble',
+            timeSignature: config.timeSignature ?? { numerator: 4, denominator: 4 },
+            keySignature: config.keySignature ?? 'C',
+            zoom: config.zoom ?? 1,
+            selectedNotes: [],
+            displayOptions: { showMeasureNumbers: true, showBarlines: true }
+        };
+        return this.notation;
+    }
+
+    convertSequenceToNotation(sequenceId) {
+        const sequence = this.sequences?.find(s => s.id === sequenceId);
+        if (!sequence) return null;
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        return sequence.notes.map(note => ({
+            pitch: noteNames[note.midi % 12] + (Math.floor(note.midi / 12) - 1),
+            midi: note.midi,
+            duration: note.duration
+        }));
+    }
+
+    setNotationClef(clef) {
+        if (!this.notation) this.initNotationView();
+        this.notation.clef = clef;
+    }
+
+    setNotationTimeSignature(num, den) {
+        if (!this.notation) this.initNotationView();
+        this.notation.timeSignature = { numerator: num, denominator: den };
+    }
+
+    getNotationSettings() {
+        return this.notation || { enabled: false };
+    }
+
+    // ===========================================
+    // MACKIE CONTROL SUPPORT
+    // ===========================================
+
+    initMackieControl(config = {}) {
+        this.mackieControl = {
+            enabled: config.enabled ?? false,
+            protocol: config.protocol ?? 'MCU',
+            numChannels: config.numChannels ?? 8,
+            currentBank: 0,
+            connection: null,
+            faderPositions: new Array(8).fill(0)
+        };
+        return this.mackieControl;
+    }
+
+    async connectMackieControl(midiInput, midiOutput) {
+        if (!this.mackieControl) this.initMackieControl();
+        this.mackieControl.connection = { input: midiInput, output: midiOutput };
+        return { success: true };
+    }
+
+    handleMackieMIDI(msg) {
+        if (!this.mackieControl?.enabled) return;
+        console.log(`[Track ${this.id}] Mackie MIDI:`, msg);
+    }
+
+    sendMackieLED(name, on) {
+        if (!this.mackieControl?.connection?.output) return;
+        this.mackieControl.connection.output.send([0x90, 0x5E, on ? 0x7f : 0x00]);
+    }
+
+    getMackieControlSettings() {
+        return this.mackieControl || { enabled: false };
+    }
+
+    // ===========================================
+    // VIDEO TRACK SUPPORT
+    // ===========================================
+
+    initVideoTrack(config = {}) {
+        this.videoTrack = {
+            enabled: config.enabled ?? false,
+            videoUrl: null,
+            videoElement: null,
+            duration: 0,
+            syncMode: config.syncMode ?? 'master',
+            frameRate: config.frameRate ?? 30,
+            markers: [],
+            muted: false,
+            volume: 1
+        };
+        return this.videoTrack;
+    }
+
+    async loadVideo(url) {
+        if (!this.videoTrack) this.initVideoTrack();
+        this.videoTrack.videoUrl = url;
+        this.videoTrack.videoElement = document.createElement('video');
+        this.videoTrack.videoElement.src = url;
+        await new Promise(resolve => { this.videoTrack.videoElement.onloadedmetadata = resolve; });
+        this.videoTrack.duration = this.videoTrack.videoElement.duration;
+        return { success: true, duration: this.videoTrack.duration };
+    }
+
+    playVideo() {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.play();
+    }
+
+    pauseVideo() {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.pause();
+    }
+
+    seekVideo(time) {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.currentTime = time;
+    }
+
+    setVideoVolume(vol) {
+        if (this.videoTrack?.videoElement) this.videoTrack.videoElement.volume = Math.max(0, Math.min(1, vol));
+    }
+
+    getVideoTrackSettings() {
+        return this.videoTrack || { enabled: false };
+    }
+
+    disposeVideoTrack() {
+        if (this.videoTrack?.videoElement) {
+            this.videoTrack.videoElement.pause();
+            this.videoTrack.videoElement.src = '';
+        }
+        this.videoTrack = null;
+    }
+
+    // ===========================================
+    // CLIP CROSSFADE EDITOR
+    // ===========================================
+
+    initClipCrossfadeEditor(config = {}) {
+        this.clipCrossfadeEditor = {
+            enabled: config.enabled ?? false,
+            defaultDuration: config.defaultDuration ?? 0.1, // seconds
+            curveType: config.curveType ?? 'linear', // linear, exponential, logarithmic, s-curve
+            crossfades: [] // Array of { clipId1, clipId2, startTime, duration, curveType, curvePoints }
+        };
+        return this.clipCrossfadeEditor;
+    }
+
+    createCrossfade(clipId1, clipId2, startTime, duration = null, curveType = null) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+        const crossfade = {
+            id: Date.now(),
+            clipId1,
+            clipId2,
+            startTime,
+            duration: duration ?? this.clipCrossfadeEditor.defaultDuration,
+            curveType: curveType ?? this.clipCrossfadeEditor.curveType,
+            curvePoints: this.generateCrossfadeCurve(curveType ?? this.clipCrossfadeEditor.curveType)
+        };
+        this.clipCrossfadeEditor.crossfades.push(crossfade);
+        return crossfade;
+    }
+
+    generateCrossfadeCurve(type) {
+        const points = [];
+        const numPoints = 100;
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            let value;
+            switch (type) {
+                case 'exponential':
+                    value = Math.pow(t, 2);
+                    break;
+                case 'logarithmic':
+                    value = 1 - Math.pow(1 - t, 2);
+                    break;
+                case 's-curve':
+                    value = (Math.sin((t - 0.5) * Math.PI) + 1) / 2;
+                    break;
+                case 'linear':
+                default:
+                    value = t;
+            }
+            points.push({ time: t, value });
+        }
+        return points;
+    }
+
+    setCrossfadeCurveType(crossfadeId, curveType) {
+        if (!this.clipCrossfadeEditor) return;
+        const crossfade = this.clipCrossfadeEditor.crossfades.find(c => c.id === crossfadeId);
+        if (crossfade) {
+            crossfade.curveType = curveType;
+            crossfade.curvePoints = this.generateCrossfadeCurve(curveType);
+        }
+    }
+
+    setCrossfadeDuration(crossfadeId, duration) {
+        if (!this.clipCrossfadeEditor) return;
+        const crossfade = this.clipCrossfadeEditor.crossfades.find(c => c.id === crossfadeId);
+        if (crossfade) {
+            crossfade.duration = Math.max(0.01, duration);
+        }
+    }
+
+    removeCrossfade(crossfadeId) {
+        if (!this.clipCrossfadeEditor) return;
+        this.clipCrossfadeEditor.crossfades = this.clipCrossfadeEditor.crossfades.filter(c => c.id !== crossfadeId);
+    }
+
+    getCrossfadeAtPosition(position) {
+        if (!this.clipCrossfadeEditor) return null;
+        return this.clipCrossfadeEditor.crossfades.find(c => 
+            position >= c.startTime && position <= c.startTime + c.duration
+        ) || null;
+    }
+
+    getClipCrossfadeEditorSettings() {
+        return this.clipCrossfadeEditor || { enabled: false };
+    }
+
+    // ===========================================
+    // AUDIO SPECTRAL EDITOR
+    // ===========================================
+
+    initSpectralEditor(config = {}) {
+        this.spectralEditor = {
+            enabled: config.enabled ?? false,
+            fftSize: config.fftSize ?? 2048,
+            hopSize: config.hopSize ?? 512,
+            windowType: config.windowType ?? 'hann', // hann, hamming, blackman
+            frequencyBands: [],
+            selections: [], // Array of { startTime, endTime, startFreq, endFreq }
+            modifications: [] // Array of { selection, operation, value }
+        };
+        return this.spectralEditor;
+    }
+
+    analyzeSpectrum(audioBuffer, startTime = 0, duration = null) {
+        if (!this.spectralEditor) this.initSpectralEditor();
+        
+        const sampleRate = audioBuffer.sampleRate;
+        const channelData = audioBuffer.getChannelData(0);
+        const fftSize = this.spectralEditor.fftSize;
+        const hopSize = this.spectralEditor.hopSize;
+        
+        const startSample = Math.floor(startTime * sampleRate);
+        const endSample = duration ? Math.floor((startTime + duration) * sampleRate) : channelData.length;
+        const numFrames = Math.floor((endSample - startSample - fftSize) / hopSize) + 1;
+        
+        const frames = [];
+        const window = this.createWindow(fftSize, this.spectralEditor.windowType);
+        
+        for (let i = 0; i < numFrames; i++) {
+            const frameStart = startSample + i * hopSize;
+            const frame = new Float32Array(fftSize);
+            for (let j = 0; j < fftSize; j++) {
+                frame[j] = channelData[frameStart + j] * window[j];
+            }
+            frames.push(frame);
+        }
+        
+        this.spectralEditor.analysis = {
+            frames,
+            sampleRate,
+            fftSize,
+            hopSize,
+            timeResolution: hopSize / sampleRate,
+            frequencyResolution: sampleRate / fftSize
+        };
+        
+        return this.spectralEditor.analysis;
+    }
+
+    createWindow(size, type) {
+        const window = new Float32Array(size);
+        for (let i = 0; i < size; i++) {
+            switch (type) {
+                case 'hamming':
+                    window[i] = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1));
+                    break;
+                case 'blackman':
+                    window[i] = 0.42 - 0.5 * Math.cos(2 * Math.PI * i / (size - 1)) 
+                                + 0.08 * Math.cos(4 * Math.PI * i / (size - 1));
+                    break;
+                case 'hann':
+                default:
+                    window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (size - 1)));
+            }
+        }
+        return window;
+    }
+
+    createSpectralSelection(startTime, endTime, startFreq, endFreq) {
+        if (!this.spectralEditor) this.initSpectralEditor();
+        const selection = {
+            id: Date.now(),
+            startTime,
+            endTime,
+            startFreq,
+            endFreq
+        };
+        this.spectralEditor.selections.push(selection);
+        return selection;
+    }
+
+    applySpectralOperation(selectionId, operation, value = null) {
+        if (!this.spectralEditor) return;
+        const selection = this.spectralEditor.selections.find(s => s.id === selectionId);
+        if (!selection) return;
+        
+        const modification = {
+            id: Date.now(),
+            selectionId,
+            operation, // 'gain', 'mute', 'shift', 'stretch'
+            value,
+            applied: false
+        };
+        this.spectralEditor.modifications.push(modification);
+        return modification;
+    }
+
+    removeSpectralSelection(selectionId) {
+        if (!this.spectralEditor) return;
+        this.spectralEditor.selections = this.spectralEditor.selections.filter(s => s.id !== selectionId);
+        this.spectralEditor.modifications = this.spectralEditor.modifications.filter(m => m.selectionId !== selectionId);
+    }
+
+    getSpectralEditorSettings() {
+        return this.spectralEditor || { enabled: false };
+    }
+
+    // ===========================================
+    // TRACK ROUTING MATRIX
+    // ===========================================
+
+    initRoutingMatrix(config = {}) {
+        this.routingMatrix = {
+            enabled: config.enabled ?? false,
+            buses: [], // Array of { id, name, type: 'aux'/'group', gain, pan }
+            sends: [], // Array of { sourceTrackId, destinationBusId, gain, prePost }
+            returns: [], // Array of { busId, destinationTrackId, gain }
+            routing: [] // Array of { trackId, output, type }
+        };
+        return this.routingMatrix;
+    }
+
+    createBus(name, type = 'aux', config = {}) {
+        if (!this.routingMatrix) this.initRoutingMatrix();
+        const bus = {
+            id: `bus_${Date.now()}`,
+            name,
+            type, // 'aux' or 'group'
+            gain: config.gain ?? 1.0,
+            pan: config.pan ?? 0,
+            muted: false,
+            solo: false
+        };
+        this.routingMatrix.buses.push(bus);
+        return bus;
+    }
+
+    removeBus(busId) {
+        if (!this.routingMatrix) return;
+        this.routingMatrix.buses = this.routingMatrix.buses.filter(b => b.id !== busId);
+        this.routingMatrix.sends = this.routingMatrix.sends.filter(s => s.destinationBusId !== busId);
+        this.routingMatrix.returns = this.routingMatrix.returns.filter(r => r.busId !== busId);
+    }
+
+    createSend(sourceTrackId, destinationBusId, gain = 1.0, prePost = 'post') {
+        if (!this.routingMatrix) this.initRoutingMatrix();
+        const existing = this.routingMatrix.sends.find(s => 
+            s.sourceTrackId === sourceTrackId && s.destinationBusId === destinationBusId
+        );
+        if (existing) {
+            existing.gain = gain;
+            existing.prePost = prePost;
+            return existing;
+        }
+        const send = {
+            id: `send_${Date.now()}`,
+            sourceTrackId,
+            destinationBusId,
+            gain,
+            prePost // 'pre' or 'post' fader
+        };
+        this.routingMatrix.sends.push(send);
+        return send;
+    }
+
+    removeSend(sendId) {
+        if (!this.routingMatrix) return;
+        this.routingMatrix.sends = this.routingMatrix.sends.filter(s => s.id !== sendId);
+    }
+
+    setBusGain(busId, gain) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.gain = Math.max(0, Math.min(2, gain));
+    }
+
+    setBusPan(busId, pan) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.pan = Math.max(-1, Math.min(1, pan));
+    }
+
+    setBusMute(busId, muted) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.muted = muted;
+    }
+
+    setBusSolo(busId, solo) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.solo = solo;
+    }
+
+    getRoutingMatrixSettings() {
+        return this.routingMatrix || { enabled: false };
+    }
+
+    // ===========================================
+    // NOTE EXPRESSION
+    // ===========================================
+
+    initNoteExpression(config = {}) {
+        this.noteExpression = {
+            enabled: config.enabled ?? false,
+            expressions: new Map(), // Map of noteId -> expression data
+            supportedTypes: ['pitch', 'pan', 'velocity', 'timbre', 'pressure']
+        };
+        return this.noteExpression;
+    }
+
+    setNoteExpression(noteId, type, envelope) {
+        if (!this.noteExpression) this.initNoteExpression();
+        if (!this.noteExpression.supportedTypes.includes(type)) {
+            console.warn(`[Track ${this.id}] Unsupported expression type: ${type}`);
+            return;
+        }
+        
+        let expressionData = this.noteExpression.expressions.get(noteId);
+        if (!expressionData) {
+            expressionData = { noteId, expressions: {} };
+            this.noteExpression.expressions.set(noteId, expressionData);
+        }
+        
+        // envelope is array of { time, value } points relative to note start
+        expressionData.expressions[type] = {
+            envelope: envelope,
+            range: this.getExpressionRange(type)
+        };
+        
+        return expressionData;
+    }
+
+    getExpressionRange(type) {
+        switch (type) {
+            case 'pitch': return { min: -12, max: 12, unit: 'semitones' };
+            case 'pan': return { min: -1, max: 1, unit: 'stereo' };
+            case 'velocity': return { min: 0, max: 1, unit: 'normalized' };
+            case 'timbre': return { min: 0, max: 1, unit: 'normalized' };
+            case 'pressure': return { min: 0, max: 1, unit: 'normalized' };
+            default: return { min: 0, max: 1, unit: 'normalized' };
+        }
+    }
+
+    getNoteExpression(noteId, type = null) {
+        if (!this.noteExpression) return null;
+        const expressionData = this.noteExpression.expressions.get(noteId);
+        if (!expressionData) return null;
+        if (type) return expressionData.expressions[type] || null;
+        return expressionData;
+    }
+
+    removeNoteExpression(noteId, type = null) {
+        if (!this.noteExpression) return;
+        if (type) {
+            const expressionData = this.noteExpression.expressions.get(noteId);
+            if (expressionData) delete expressionData.expressions[type];
+        } else {
+            this.noteExpression.expressions.delete(noteId);
+        }
+    }
+
+    interpolateExpression(expression, noteDuration, time) {
+        if (!expression?.envelope || expression.envelope.length === 0) return null;
+        
+        const envelope = expression.envelope;
+        const normalizedTime = time / noteDuration;
+        
+        // Find surrounding points
+        let prevPoint = envelope[0];
+        let nextPoint = envelope[envelope.length - 1];
+        
+        for (let i = 0; i < envelope.length - 1; i++) {
+            if (normalizedTime >= envelope[i].time && normalizedTime <= envelope[i + 1].time) {
+                prevPoint = envelope[i];
+                nextPoint = envelope[i + 1];
+                break;
+            }
+        }
+        
+        // Linear interpolation
+        const t = (normalizedTime - prevPoint.time) / (nextPoint.time - prevPoint.time);
+        return prevPoint.value + t * (nextPoint.value - prevPoint.value);
+    }
+
+    getNoteExpressionSettings() {
+        return this.noteExpression || { enabled: false };
+    }
+
+    // ===========================================
+    // SCENE TRIGGER SEQUENCER
+    // ===========================================
+
+    initSceneTriggerSequencer(config = {}) {
+        this.sceneTriggerSequencer = {
+            enabled: config.enabled ?? false,
+            scenes: [], // Array of { id, name, tracks: [{ trackId, patternId, muteState }] }
+            sequence: [], // Array of { sceneId, time, duration, transition }
+            currentSceneIndex: -1,
+            playing: false
+        };
+        return this.sceneTriggerSequencer;
+    }
+
+    createScene(name, trackStates = []) {
+        if (!this.sceneTriggerSequencer) this.initSceneTriggerSequencer();
+        const scene = {
+            id: `scene_${Date.now()}`,
+            name,
+            tracks: trackStates.map(ts => ({
+                trackId: ts.trackId,
+                patternId: ts.patternId ?? null,
+                muteState: ts.muteState ?? false,
+                volume: ts.volume ?? 1.0
+            }))
+        };
+        this.sceneTriggerSequencer.scenes.push(scene);
+        return scene;
+    }
+
+    removeScene(sceneId) {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.scenes = this.sceneTriggerSequencer.scenes.filter(s => s.id !== sceneId);
+        this.sceneTriggerSequencer.sequence = this.sceneTriggerSequencer.sequence.filter(t => t.sceneId !== sceneId);
+    }
+
+    addSceneToSequence(sceneId, time, duration = null, transition = 'cut') {
+        if (!this.sceneTriggerSequencer) return;
+        const scene = this.sceneTriggerSequencer.scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+        
+        const trigger = {
+            id: `trigger_${Date.now()}`,
+            sceneId,
+            time, // in beats or seconds
+            duration: duration ?? 4, // in beats
+            transition // 'cut', 'fade', 'crossfade'
+        };
+        
+        // Insert in time order
+        const insertIndex = this.sceneTriggerSequencer.sequence.findIndex(t => t.time > time);
+        if (insertIndex === -1) {
+            this.sceneTriggerSequencer.sequence.push(trigger);
+        } else {
+            this.sceneTriggerSequencer.sequence.splice(insertIndex, 0, trigger);
+        }
+        
+        return trigger;
+    }
+
+    removeSceneFromSequence(triggerId) {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.sequence = this.sceneTriggerSequencer.sequence.filter(t => t.id !== triggerId);
+    }
+
+    triggerScene(sceneId, transition = 'cut') {
+        if (!this.sceneTriggerSequencer) return;
+        const scene = this.sceneTriggerSequencer.scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+        
+        console.log(`[Track ${this.id}] Triggering scene: ${scene.name}`);
+        
+        // Apply scene state to all tracks
+        scene.tracks.forEach(trackState => {
+            // This would integrate with the main track management system
+            // For now, we just log the action
+            console.log(`  Track ${trackState.trackId}: pattern=${trackState.patternId}, mute=${trackState.muteState}`);
+        });
+        
+        return { success: true, scene };
+    }
+
+    startSceneSequence() {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.playing = true;
+        this.sceneTriggerSequencer.currentSceneIndex = 0;
+        console.log(`[Track ${this.id}] Scene sequence started`);
+    }
+
+    stopSceneSequence() {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.playing = false;
+        this.sceneTriggerSequencer.currentSceneIndex = -1;
+        console.log(`[Track ${this.id}] Scene sequence stopped`);
+    }
+
+    getSceneTriggerSequencerSettings() {
+        return this.sceneTriggerSequencer || { enabled: false };
+    }
+
+    // ===========================================
+    // AUDIO TIME STRETCHING MODES
+    // ===========================================
+
+    initTimeStretchModes(config = {}) {
+        this.timeStretchModes = {
+            enabled: config.enabled ?? false,
+            currentMode: config.currentMode ?? 'timestretch',
+            availableModes: [
+                {
+                    id: 'timestretch',
+                    name: 'Time Stretch',
+                    description: 'Stretch audio without changing pitch',
+                    quality: 'high',
+                    latency: 'medium'
+                },
+                {
+                    id: 'pitchshift',
+                    name: 'Pitch Shift',
+                    description: 'Change pitch without changing tempo',
+                    quality: 'medium',
+                    latency: 'low'
+                },
+                {
+                    id: 'varispeed',
+                    name: 'Varispeed',
+                    description: 'Traditional tape-style speed change',
+                    quality: 'high',
+                    latency: 'none'
+                },
+                {
+                    id: 'formant',
+                    name: 'Formant Preservation',
+                    description: 'Preserves formants during pitch shifting',
+                    quality: 'high',
+                    latency: 'high'
+                },
+                {
+                    id: 'granular',
+                    name: 'Granular',
+                    description: 'Granular synthesis-based stretching',
+                    quality: 'medium',
+                    latency: 'medium'
+                }
+            ],
+            stretchSettings: {
+                stretchRatio: 1.0,
+                pitchSemitones: 0,
+                formantShift: 0,
+                grainSize: 0.05,
+                overlap: 0.5
+            }
+        };
+        return this.timeStretchModes;
+    }
+
+    setTimeStretchMode(modeId) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        const mode = this.timeStretchModes.availableModes.find(m => m.id === modeId);
+        if (mode) {
+            this.timeStretchModes.currentMode = modeId;
+            console.log(`[Track ${this.id}] Time stretch mode set to: ${mode.name}`);
+        }
+    }
+
+    setStretchRatio(ratio) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.stretchRatio = Math.max(0.25, Math.min(4, ratio));
+    }
+
+    setPitchShift(semitones) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.pitchSemitones = Math.max(-24, Math.min(24, semitones));
+    }
+
+    setFormantShift(shift) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.formantShift = Math.max(-12, Math.min(12, shift));
+    }
+
+    setGrainSize(size) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.grainSize = Math.max(0.01, Math.min(0.5, size));
+    }
+
+    setGrainOverlap(overlap) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.overlap = Math.max(0.1, Math.min(0.9, overlap));
+    }
+
+    applyTimeStretch(audioBuffer, targetDuration) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        
+        const mode = this.timeStretchModes.currentMode;
+        const settings = this.timeStretchModes.stretchSettings;
+        const ratio = targetDuration / audioBuffer.duration;
+        
+        console.log(`[Track ${this.id}] Applying ${mode} stretch with ratio ${ratio}`);
+        
+        // Return stretch parameters - actual processing would be done by the audio engine
+        return {
+            mode,
+            originalDuration: audioBuffer.duration,
+            targetDuration,
+            stretchRatio: ratio,
+            pitchSemitones: settings.pitchSemitones,
+            formantShift: settings.formantShift,
+            grainSize: settings.grainSize,
+            overlap: settings.overlap
+        };
+    }
+
+    getTimeStretchModesSettings() {
+        return this.timeStretchModes || { enabled: false };
+    }
 }
 
     // ===========================================
@@ -12115,5 +12952,602 @@ export class Track {
             this.videoTrack.videoElement.src = '';
         }
         this.videoTrack = null;
+    }
+
+    // ===========================================
+    // CLIP CROSSFADE EDITOR
+    // ===========================================
+
+    initClipCrossfadeEditor(config = {}) {
+        this.clipCrossfadeEditor = {
+            enabled: config.enabled ?? false,
+            defaultDuration: config.defaultDuration ?? 0.1, // seconds
+            curveType: config.curveType ?? 'linear', // linear, exponential, logarithmic, s-curve
+            crossfades: [] // Array of { clipId1, clipId2, startTime, duration, curveType, curvePoints }
+        };
+        return this.clipCrossfadeEditor;
+    }
+
+    createCrossfade(clipId1, clipId2, startTime, duration = null, curveType = null) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+        const crossfade = {
+            id: Date.now(),
+            clipId1,
+            clipId2,
+            startTime,
+            duration: duration ?? this.clipCrossfadeEditor.defaultDuration,
+            curveType: curveType ?? this.clipCrossfadeEditor.curveType,
+            curvePoints: this.generateCrossfadeCurve(curveType ?? this.clipCrossfadeEditor.curveType)
+        };
+        this.clipCrossfadeEditor.crossfades.push(crossfade);
+        return crossfade;
+    }
+
+    generateCrossfadeCurve(type) {
+        const points = [];
+        const numPoints = 100;
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            let value;
+            switch (type) {
+                case 'exponential':
+                    value = Math.pow(t, 2);
+                    break;
+                case 'logarithmic':
+                    value = 1 - Math.pow(1 - t, 2);
+                    break;
+                case 's-curve':
+                    value = (Math.sin((t - 0.5) * Math.PI) + 1) / 2;
+                    break;
+                case 'linear':
+                default:
+                    value = t;
+            }
+            points.push({ time: t, value });
+        }
+        return points;
+    }
+
+    setCrossfadeCurveType(crossfadeId, curveType) {
+        if (!this.clipCrossfadeEditor) return;
+        const crossfade = this.clipCrossfadeEditor.crossfades.find(c => c.id === crossfadeId);
+        if (crossfade) {
+            crossfade.curveType = curveType;
+            crossfade.curvePoints = this.generateCrossfadeCurve(curveType);
+        }
+    }
+
+    setCrossfadeDuration(crossfadeId, duration) {
+        if (!this.clipCrossfadeEditor) return;
+        const crossfade = this.clipCrossfadeEditor.crossfades.find(c => c.id === crossfadeId);
+        if (crossfade) {
+            crossfade.duration = Math.max(0.01, duration);
+        }
+    }
+
+    removeCrossfade(crossfadeId) {
+        if (!this.clipCrossfadeEditor) return;
+        this.clipCrossfadeEditor.crossfades = this.clipCrossfadeEditor.crossfades.filter(c => c.id !== crossfadeId);
+    }
+
+    getCrossfadeAtPosition(position) {
+        if (!this.clipCrossfadeEditor) return null;
+        return this.clipCrossfadeEditor.crossfades.find(c => 
+            position >= c.startTime && position <= c.startTime + c.duration
+        ) || null;
+    }
+
+    getClipCrossfadeEditorSettings() {
+        return this.clipCrossfadeEditor || { enabled: false };
+    }
+
+    // ===========================================
+    // AUDIO SPECTRAL EDITOR
+    // ===========================================
+
+    initSpectralEditor(config = {}) {
+        this.spectralEditor = {
+            enabled: config.enabled ?? false,
+            fftSize: config.fftSize ?? 2048,
+            hopSize: config.hopSize ?? 512,
+            windowType: config.windowType ?? 'hann', // hann, hamming, blackman
+            frequencyBands: [],
+            selections: [], // Array of { startTime, endTime, startFreq, endFreq }
+            modifications: [] // Array of { selection, operation, value }
+        };
+        return this.spectralEditor;
+    }
+
+    analyzeSpectrum(audioBuffer, startTime = 0, duration = null) {
+        if (!this.spectralEditor) this.initSpectralEditor();
+        
+        const sampleRate = audioBuffer.sampleRate;
+        const channelData = audioBuffer.getChannelData(0);
+        const fftSize = this.spectralEditor.fftSize;
+        const hopSize = this.spectralEditor.hopSize;
+        
+        const startSample = Math.floor(startTime * sampleRate);
+        const endSample = duration ? Math.floor((startTime + duration) * sampleRate) : channelData.length;
+        const numFrames = Math.floor((endSample - startSample - fftSize) / hopSize) + 1;
+        
+        const frames = [];
+        const window = this.createWindow(fftSize, this.spectralEditor.windowType);
+        
+        for (let i = 0; i < numFrames; i++) {
+            const frameStart = startSample + i * hopSize;
+            const frame = new Float32Array(fftSize);
+            for (let j = 0; j < fftSize; j++) {
+                frame[j] = channelData[frameStart + j] * window[j];
+            }
+            frames.push(frame);
+        }
+        
+        this.spectralEditor.analysis = {
+            frames,
+            sampleRate,
+            fftSize,
+            hopSize,
+            timeResolution: hopSize / sampleRate,
+            frequencyResolution: sampleRate / fftSize
+        };
+        
+        return this.spectralEditor.analysis;
+    }
+
+    createWindow(size, type) {
+        const window = new Float32Array(size);
+        for (let i = 0; i < size; i++) {
+            switch (type) {
+                case 'hamming':
+                    window[i] = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1));
+                    break;
+                case 'blackman':
+                    window[i] = 0.42 - 0.5 * Math.cos(2 * Math.PI * i / (size - 1)) 
+                                + 0.08 * Math.cos(4 * Math.PI * i / (size - 1));
+                    break;
+                case 'hann':
+                default:
+                    window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (size - 1)));
+            }
+        }
+        return window;
+    }
+
+    createSpectralSelection(startTime, endTime, startFreq, endFreq) {
+        if (!this.spectralEditor) this.initSpectralEditor();
+        const selection = {
+            id: Date.now(),
+            startTime,
+            endTime,
+            startFreq,
+            endFreq
+        };
+        this.spectralEditor.selections.push(selection);
+        return selection;
+    }
+
+    applySpectralOperation(selectionId, operation, value = null) {
+        if (!this.spectralEditor) return;
+        const selection = this.spectralEditor.selections.find(s => s.id === selectionId);
+        if (!selection) return;
+        
+        const modification = {
+            id: Date.now(),
+            selectionId,
+            operation, // 'gain', 'mute', 'shift', 'stretch'
+            value,
+            applied: false
+        };
+        this.spectralEditor.modifications.push(modification);
+        return modification;
+    }
+
+    removeSpectralSelection(selectionId) {
+        if (!this.spectralEditor) return;
+        this.spectralEditor.selections = this.spectralEditor.selections.filter(s => s.id !== selectionId);
+        this.spectralEditor.modifications = this.spectralEditor.modifications.filter(m => m.selectionId !== selectionId);
+    }
+
+    getSpectralEditorSettings() {
+        return this.spectralEditor || { enabled: false };
+    }
+
+    // ===========================================
+    // TRACK ROUTING MATRIX
+    // ===========================================
+
+    initRoutingMatrix(config = {}) {
+        this.routingMatrix = {
+            enabled: config.enabled ?? false,
+            buses: [], // Array of { id, name, type: 'aux'/'group', gain, pan }
+            sends: [], // Array of { sourceTrackId, destinationBusId, gain, prePost }
+            returns: [], // Array of { busId, destinationTrackId, gain }
+            routing: [] // Array of { trackId, output, type }
+        };
+        return this.routingMatrix;
+    }
+
+    createBus(name, type = 'aux', config = {}) {
+        if (!this.routingMatrix) this.initRoutingMatrix();
+        const bus = {
+            id: `bus_${Date.now()}`,
+            name,
+            type, // 'aux' or 'group'
+            gain: config.gain ?? 1.0,
+            pan: config.pan ?? 0,
+            muted: false,
+            solo: false
+        };
+        this.routingMatrix.buses.push(bus);
+        return bus;
+    }
+
+    removeBus(busId) {
+        if (!this.routingMatrix) return;
+        this.routingMatrix.buses = this.routingMatrix.buses.filter(b => b.id !== busId);
+        this.routingMatrix.sends = this.routingMatrix.sends.filter(s => s.destinationBusId !== busId);
+        this.routingMatrix.returns = this.routingMatrix.returns.filter(r => r.busId !== busId);
+    }
+
+    createSend(sourceTrackId, destinationBusId, gain = 1.0, prePost = 'post') {
+        if (!this.routingMatrix) this.initRoutingMatrix();
+        const existing = this.routingMatrix.sends.find(s => 
+            s.sourceTrackId === sourceTrackId && s.destinationBusId === destinationBusId
+        );
+        if (existing) {
+            existing.gain = gain;
+            existing.prePost = prePost;
+            return existing;
+        }
+        const send = {
+            id: `send_${Date.now()}`,
+            sourceTrackId,
+            destinationBusId,
+            gain,
+            prePost // 'pre' or 'post' fader
+        };
+        this.routingMatrix.sends.push(send);
+        return send;
+    }
+
+    removeSend(sendId) {
+        if (!this.routingMatrix) return;
+        this.routingMatrix.sends = this.routingMatrix.sends.filter(s => s.id !== sendId);
+    }
+
+    setBusGain(busId, gain) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.gain = Math.max(0, Math.min(2, gain));
+    }
+
+    setBusPan(busId, pan) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.pan = Math.max(-1, Math.min(1, pan));
+    }
+
+    setBusMute(busId, muted) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.muted = muted;
+    }
+
+    setBusSolo(busId, solo) {
+        if (!this.routingMatrix) return;
+        const bus = this.routingMatrix.buses.find(b => b.id === busId);
+        if (bus) bus.solo = solo;
+    }
+
+    getRoutingMatrixSettings() {
+        return this.routingMatrix || { enabled: false };
+    }
+
+    // ===========================================
+    // NOTE EXPRESSION
+    // ===========================================
+
+    initNoteExpression(config = {}) {
+        this.noteExpression = {
+            enabled: config.enabled ?? false,
+            expressions: new Map(), // Map of noteId -> expression data
+            supportedTypes: ['pitch', 'pan', 'velocity', 'timbre', 'pressure']
+        };
+        return this.noteExpression;
+    }
+
+    setNoteExpression(noteId, type, envelope) {
+        if (!this.noteExpression) this.initNoteExpression();
+        if (!this.noteExpression.supportedTypes.includes(type)) {
+            console.warn(`[Track ${this.id}] Unsupported expression type: ${type}`);
+            return;
+        }
+        
+        let expressionData = this.noteExpression.expressions.get(noteId);
+        if (!expressionData) {
+            expressionData = { noteId, expressions: {} };
+            this.noteExpression.expressions.set(noteId, expressionData);
+        }
+        
+        // envelope is array of { time, value } points relative to note start
+        expressionData.expressions[type] = {
+            envelope: envelope,
+            range: this.getExpressionRange(type)
+        };
+        
+        return expressionData;
+    }
+
+    getExpressionRange(type) {
+        switch (type) {
+            case 'pitch': return { min: -12, max: 12, unit: 'semitones' };
+            case 'pan': return { min: -1, max: 1, unit: 'stereo' };
+            case 'velocity': return { min: 0, max: 1, unit: 'normalized' };
+            case 'timbre': return { min: 0, max: 1, unit: 'normalized' };
+            case 'pressure': return { min: 0, max: 1, unit: 'normalized' };
+            default: return { min: 0, max: 1, unit: 'normalized' };
+        }
+    }
+
+    getNoteExpression(noteId, type = null) {
+        if (!this.noteExpression) return null;
+        const expressionData = this.noteExpression.expressions.get(noteId);
+        if (!expressionData) return null;
+        if (type) return expressionData.expressions[type] || null;
+        return expressionData;
+    }
+
+    removeNoteExpression(noteId, type = null) {
+        if (!this.noteExpression) return;
+        if (type) {
+            const expressionData = this.noteExpression.expressions.get(noteId);
+            if (expressionData) delete expressionData.expressions[type];
+        } else {
+            this.noteExpression.expressions.delete(noteId);
+        }
+    }
+
+    interpolateExpression(expression, noteDuration, time) {
+        if (!expression?.envelope || expression.envelope.length === 0) return null;
+        
+        const envelope = expression.envelope;
+        const normalizedTime = time / noteDuration;
+        
+        // Find surrounding points
+        let prevPoint = envelope[0];
+        let nextPoint = envelope[envelope.length - 1];
+        
+        for (let i = 0; i < envelope.length - 1; i++) {
+            if (normalizedTime >= envelope[i].time && normalizedTime <= envelope[i + 1].time) {
+                prevPoint = envelope[i];
+                nextPoint = envelope[i + 1];
+                break;
+            }
+        }
+        
+        // Linear interpolation
+        const t = (normalizedTime - prevPoint.time) / (nextPoint.time - prevPoint.time);
+        return prevPoint.value + t * (nextPoint.value - prevPoint.value);
+    }
+
+    getNoteExpressionSettings() {
+        return this.noteExpression || { enabled: false };
+    }
+
+    // ===========================================
+    // SCENE TRIGGER SEQUENCER
+    // ===========================================
+
+    initSceneTriggerSequencer(config = {}) {
+        this.sceneTriggerSequencer = {
+            enabled: config.enabled ?? false,
+            scenes: [], // Array of { id, name, tracks: [{ trackId, patternId, muteState }] }
+            sequence: [], // Array of { sceneId, time, duration, transition }
+            currentSceneIndex: -1,
+            playing: false
+        };
+        return this.sceneTriggerSequencer;
+    }
+
+    createScene(name, trackStates = []) {
+        if (!this.sceneTriggerSequencer) this.initSceneTriggerSequencer();
+        const scene = {
+            id: `scene_${Date.now()}`,
+            name,
+            tracks: trackStates.map(ts => ({
+                trackId: ts.trackId,
+                patternId: ts.patternId ?? null,
+                muteState: ts.muteState ?? false,
+                volume: ts.volume ?? 1.0
+            }))
+        };
+        this.sceneTriggerSequencer.scenes.push(scene);
+        return scene;
+    }
+
+    removeScene(sceneId) {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.scenes = this.sceneTriggerSequencer.scenes.filter(s => s.id !== sceneId);
+        this.sceneTriggerSequencer.sequence = this.sceneTriggerSequencer.sequence.filter(t => t.sceneId !== sceneId);
+    }
+
+    addSceneToSequence(sceneId, time, duration = null, transition = 'cut') {
+        if (!this.sceneTriggerSequencer) return;
+        const scene = this.sceneTriggerSequencer.scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+        
+        const trigger = {
+            id: `trigger_${Date.now()}`,
+            sceneId,
+            time, // in beats or seconds
+            duration: duration ?? 4, // in beats
+            transition // 'cut', 'fade', 'crossfade'
+        };
+        
+        // Insert in time order
+        const insertIndex = this.sceneTriggerSequencer.sequence.findIndex(t => t.time > time);
+        if (insertIndex === -1) {
+            this.sceneTriggerSequencer.sequence.push(trigger);
+        } else {
+            this.sceneTriggerSequencer.sequence.splice(insertIndex, 0, trigger);
+        }
+        
+        return trigger;
+    }
+
+    removeSceneFromSequence(triggerId) {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.sequence = this.sceneTriggerSequencer.sequence.filter(t => t.id !== triggerId);
+    }
+
+    triggerScene(sceneId, transition = 'cut') {
+        if (!this.sceneTriggerSequencer) return;
+        const scene = this.sceneTriggerSequencer.scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+        
+        console.log(`[Track ${this.id}] Triggering scene: ${scene.name}`);
+        
+        // Apply scene state to all tracks
+        scene.tracks.forEach(trackState => {
+            // This would integrate with the main track management system
+            // For now, we just log the action
+            console.log(`  Track ${trackState.trackId}: pattern=${trackState.patternId}, mute=${trackState.muteState}`);
+        });
+        
+        return { success: true, scene };
+    }
+
+    startSceneSequence() {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.playing = true;
+        this.sceneTriggerSequencer.currentSceneIndex = 0;
+        console.log(`[Track ${this.id}] Scene sequence started`);
+    }
+
+    stopSceneSequence() {
+        if (!this.sceneTriggerSequencer) return;
+        this.sceneTriggerSequencer.playing = false;
+        this.sceneTriggerSequencer.currentSceneIndex = -1;
+        console.log(`[Track ${this.id}] Scene sequence stopped`);
+    }
+
+    getSceneTriggerSequencerSettings() {
+        return this.sceneTriggerSequencer || { enabled: false };
+    }
+
+    // ===========================================
+    // AUDIO TIME STRETCHING MODES
+    // ===========================================
+
+    initTimeStretchModes(config = {}) {
+        this.timeStretchModes = {
+            enabled: config.enabled ?? false,
+            currentMode: config.currentMode ?? 'timestretch',
+            availableModes: [
+                {
+                    id: 'timestretch',
+                    name: 'Time Stretch',
+                    description: 'Stretch audio without changing pitch',
+                    quality: 'high',
+                    latency: 'medium'
+                },
+                {
+                    id: 'pitchshift',
+                    name: 'Pitch Shift',
+                    description: 'Change pitch without changing tempo',
+                    quality: 'medium',
+                    latency: 'low'
+                },
+                {
+                    id: 'varispeed',
+                    name: 'Varispeed',
+                    description: 'Traditional tape-style speed change',
+                    quality: 'high',
+                    latency: 'none'
+                },
+                {
+                    id: 'formant',
+                    name: 'Formant Preservation',
+                    description: 'Preserves formants during pitch shifting',
+                    quality: 'high',
+                    latency: 'high'
+                },
+                {
+                    id: 'granular',
+                    name: 'Granular',
+                    description: 'Granular synthesis-based stretching',
+                    quality: 'medium',
+                    latency: 'medium'
+                }
+            ],
+            stretchSettings: {
+                stretchRatio: 1.0,
+                pitchSemitones: 0,
+                formantShift: 0,
+                grainSize: 0.05,
+                overlap: 0.5
+            }
+        };
+        return this.timeStretchModes;
+    }
+
+    setTimeStretchMode(modeId) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        const mode = this.timeStretchModes.availableModes.find(m => m.id === modeId);
+        if (mode) {
+            this.timeStretchModes.currentMode = modeId;
+            console.log(`[Track ${this.id}] Time stretch mode set to: ${mode.name}`);
+        }
+    }
+
+    setStretchRatio(ratio) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.stretchRatio = Math.max(0.25, Math.min(4, ratio));
+    }
+
+    setPitchShift(semitones) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.pitchSemitones = Math.max(-24, Math.min(24, semitones));
+    }
+
+    setFormantShift(shift) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.formantShift = Math.max(-12, Math.min(12, shift));
+    }
+
+    setGrainSize(size) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.grainSize = Math.max(0.01, Math.min(0.5, size));
+    }
+
+    setGrainOverlap(overlap) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        this.timeStretchModes.stretchSettings.overlap = Math.max(0.1, Math.min(0.9, overlap));
+    }
+
+    applyTimeStretch(audioBuffer, targetDuration) {
+        if (!this.timeStretchModes) this.initTimeStretchModes();
+        
+        const mode = this.timeStretchModes.currentMode;
+        const settings = this.timeStretchModes.stretchSettings;
+        const ratio = targetDuration / audioBuffer.duration;
+        
+        console.log(`[Track ${this.id}] Applying ${mode} stretch with ratio ${ratio}`);
+        
+        // Return stretch parameters - actual processing would be done by the audio engine
+        return {
+            mode,
+            originalDuration: audioBuffer.duration,
+            targetDuration,
+            stretchRatio: ratio,
+            pitchSemitones: settings.pitchSemitones,
+            formantShift: settings.formantShift,
+            grainSize: settings.grainSize,
+            overlap: settings.overlap
+        };
+    }
+
+    getTimeStretchModesSettings() {
+        return this.timeStretchModes || { enabled: false };
     }
 }

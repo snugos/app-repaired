@@ -418,6 +418,9 @@ export class SnugWindow {
                     if (!this.id.startsWith('sequencerWin-') && currentTrack.type !== 'Audio' && this.appServices.handleOpenSequencer) {
                         menuItems.push({ label: `Open Sequencer: ${currentTrack.name}`, action: () => this.appServices.handleOpenSequencer(trackId) });
                     }
+                    if (this.appServices.openInstrumentRackPanel) {
+                        menuItems.push({ label: `Open Instrument Rack: ${currentTrack.name}`, action: () => this.appServices.openInstrumentRackPanel(trackId) });
+                    }
                 }
             }
             createContextMenu(event, menuItems, this.appServices);
