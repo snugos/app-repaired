@@ -3232,8 +3232,32 @@ async function handleAudioExport() {
                 const wavBlob = await localAppServices.bounceTrackToWav?.(track, durationSeconds);
                 
                 if (wavBlob) {
+                    // Convert to requested format if not WAV
+                    let exportBlob = wavBlob;
+                    if (format === 'mp3' && localAppServices.encodeMp3FromAudioBuffer) {
+                        try {
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeMp3FromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate, bitrate);
+                        } catch (e) {
+                            console.warn('MP3 encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
+                    } else if (format === 'ogg' && localAppServices.encodeOggFromAudioBuffer) {
+                        try {
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeOggFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                        } catch (e) {
+                            console.warn('OGG encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
+                    }
+                    
                     // Download the file
-                    const url = URL.createObjectURL(wavBlob);
+                    const url = URL.createObjectURL(exportBlob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `${track.name.replace(/[^a-zA-Z0-9-_]/g, '_')}_stem.${format}`;
@@ -3283,9 +3307,35 @@ async function handleAudioExport() {
                 progressBar.style.width = '80%';
                 
                 if (wavBlob) {
+                    // Convert to requested format if not WAV
+                    let exportBlob = wavBlob;
+                    if (format === 'mp3' && localAppServices.encodeMp3FromAudioBuffer) {
+                        try {
+                            statusText.textContent = 'Encoding to MP3...';
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeMp3FromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate, bitrate);
+                        } catch (e) {
+                            console.warn('MP3 encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
+                    } else if (format === 'ogg' && localAppServices.encodeOggFromAudioBuffer) {
+                        try {
+                            statusText.textContent = 'Encoding to OGG...';
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeOggFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                        } catch (e) {
+                            console.warn('OGG encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
+                    }
+                    
                     // Download the file
                     const projectName = localAppServices.getProjectName?.() || 'snugos_project';
-                    const url = URL.createObjectURL(wavBlob);
+                    const url = URL.createObjectURL(exportBlob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `${projectName.replace(/[^a-zA-Z0-9-_]/g, '_')}_master.${format}`;

@@ -2788,6 +2788,82 @@ function writeString(view, offset, string) {
 }
 
 /**
+ * Encode an AudioBuffer to MP3 format using lamejs.
+ * @param {AudioBuffer} buffer - The audio buffer to encode
+ * @param {number} sampleRate - Sample rate
+ * @param {number} bitrate - MP3 bitrate in kbps (128, 192, 256, 320)
+ * @returns {Promise<Blob>} - MP3 file as Blob
+ */
+export function encodeMp3FromAudioBuffer(buffer, sampleRate, bitrate = 256) {
+    console.log(`[Audio encodeMp3FromAudioBuffer] Encoding MP3 at ${bitrate}kbps`);
+    
+    return new Promise((resolve, reject) => {
+        try {
+            const numChannels = buffer.numberOfChannels || 2;
+            const mp3encoder = numChannels === 2 ? new lamejs.Mp3Encoder(2, sampleRate, bitrate) : new lamejs.Mp3Encoder(1, sampleRate, bitrate);
+            
+            const mp3Data = [];
+            const sampleBlockSize = 1152;
+            
+            // Get channel data
+            const leftChannel = buffer.getChannelData(0);
+            const rightChannel = numChannels > 1 ? buffer.getChannelData(1) : leftChannel;
+            
+            // Convert float samples to int16 and encode
+            for (let i = 0; i < buffer.length; i += sampleBlockSize) {
+                const leftChunk = new Int16Array(sampleBlockSize);
+                const rightChunk = new Int16Array(sampleBlockSize);
+                
+                for (let j = 0; j < sampleBlockSize && i + j < buffer.length; j++) {
+                    // Convert float (-1 to 1) to int16
+                    const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
+                    leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
+                    
+                    const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
+                    rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
+                }
+                
+                const mp3buf = numChannels === 2 
+                    ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
+                    : mp3encoder.encodeBuffer(leftChunk);
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+            }
+            
+            // Flush remaining data
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
+            }
+            
+            // Create blob from mp3 data
+            const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+            console.log(`[Audio encodeMp3FromAudioBuffer] MP3 encoded. Size: ${blob.size} bytes`);
+            resolve(blob);
+            
+        } catch (error) {
+            console.error(`[Audio encodeMp3FromAudioBuffer] Error:`, error);
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Encode an AudioBuffer to OGG format using Tone.js offline rendering.
+ * Note: This creates a placeholder - actual OGG encoding requires additional libraries.
+ * @param {AudioBuffer} buffer - The audio buffer 
+ * @param {number} sampleRate - Sample rate
+ * @returns {Blob} - OGG file as Blob (or WAV fallback)
+ */
+export function encodeOggFromAudioBuffer(buffer, sampleRate) {
+    console.warn(`[Audio encodeOggFromAudioBuffer] OGG encoding not fully supported, falling back to WAV`);
+    // OGG encoding in browser requires additional libraries like ogg.js
+    // For now, return WAV as fallback
+    return encodeWavFromAudioBuffer(buffer, sampleRate);
+}
+
+/**
  * Bounce the master mix with real-time rendering.
  * Alternative approach that captures the actual audio output.
  * @param {number} duration - Duration in seconds to record
@@ -5263,6 +5339,82 @@ function writeString(view, offset, string) {
 }
 
 /**
+ * Encode an AudioBuffer to MP3 format using lamejs.
+ * @param {AudioBuffer} buffer - The audio buffer to encode
+ * @param {number} sampleRate - Sample rate
+ * @param {number} bitrate - MP3 bitrate in kbps (128, 192, 256, 320)
+ * @returns {Promise<Blob>} - MP3 file as Blob
+ */
+export function encodeMp3FromAudioBuffer(buffer, sampleRate, bitrate = 256) {
+    console.log(`[Audio encodeMp3FromAudioBuffer] Encoding MP3 at ${bitrate}kbps`);
+    
+    return new Promise((resolve, reject) => {
+        try {
+            const numChannels = buffer.numberOfChannels || 2;
+            const mp3encoder = numChannels === 2 ? new lamejs.Mp3Encoder(2, sampleRate, bitrate) : new lamejs.Mp3Encoder(1, sampleRate, bitrate);
+            
+            const mp3Data = [];
+            const sampleBlockSize = 1152;
+            
+            // Get channel data
+            const leftChannel = buffer.getChannelData(0);
+            const rightChannel = numChannels > 1 ? buffer.getChannelData(1) : leftChannel;
+            
+            // Convert float samples to int16 and encode
+            for (let i = 0; i < buffer.length; i += sampleBlockSize) {
+                const leftChunk = new Int16Array(sampleBlockSize);
+                const rightChunk = new Int16Array(sampleBlockSize);
+                
+                for (let j = 0; j < sampleBlockSize && i + j < buffer.length; j++) {
+                    // Convert float (-1 to 1) to int16
+                    const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
+                    leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
+                    
+                    const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
+                    rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
+                }
+                
+                const mp3buf = numChannels === 2 
+                    ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
+                    : mp3encoder.encodeBuffer(leftChunk);
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+            }
+            
+            // Flush remaining data
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
+            }
+            
+            // Create blob from mp3 data
+            const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+            console.log(`[Audio encodeMp3FromAudioBuffer] MP3 encoded. Size: ${blob.size} bytes`);
+            resolve(blob);
+            
+        } catch (error) {
+            console.error(`[Audio encodeMp3FromAudioBuffer] Error:`, error);
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Encode an AudioBuffer to OGG format using Tone.js offline rendering.
+ * Note: This creates a placeholder - actual OGG encoding requires additional libraries.
+ * @param {AudioBuffer} buffer - The audio buffer 
+ * @param {number} sampleRate - Sample rate
+ * @returns {Blob} - OGG file as Blob (or WAV fallback)
+ */
+export function encodeOggFromAudioBuffer(buffer, sampleRate) {
+    console.warn(`[Audio encodeOggFromAudioBuffer] OGG encoding not fully supported, falling back to WAV`);
+    // OGG encoding in browser requires additional libraries like ogg.js
+    // For now, return WAV as fallback
+    return encodeWavFromAudioBuffer(buffer, sampleRate);
+}
+
+/**
  * Bounce the master mix with real-time rendering.
  * Alternative approach that captures the actual audio output.
  * @param {number} duration - Duration in seconds to record
@@ -7735,6 +7887,82 @@ function writeString(view, offset, string) {
     for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
     }
+}
+
+/**
+ * Encode an AudioBuffer to MP3 format using lamejs.
+ * @param {AudioBuffer} buffer - The audio buffer to encode
+ * @param {number} sampleRate - Sample rate
+ * @param {number} bitrate - MP3 bitrate in kbps (128, 192, 256, 320)
+ * @returns {Promise<Blob>} - MP3 file as Blob
+ */
+export function encodeMp3FromAudioBuffer(buffer, sampleRate, bitrate = 256) {
+    console.log(`[Audio encodeMp3FromAudioBuffer] Encoding MP3 at ${bitrate}kbps`);
+    
+    return new Promise((resolve, reject) => {
+        try {
+            const numChannels = buffer.numberOfChannels || 2;
+            const mp3encoder = numChannels === 2 ? new lamejs.Mp3Encoder(2, sampleRate, bitrate) : new lamejs.Mp3Encoder(1, sampleRate, bitrate);
+            
+            const mp3Data = [];
+            const sampleBlockSize = 1152;
+            
+            // Get channel data
+            const leftChannel = buffer.getChannelData(0);
+            const rightChannel = numChannels > 1 ? buffer.getChannelData(1) : leftChannel;
+            
+            // Convert float samples to int16 and encode
+            for (let i = 0; i < buffer.length; i += sampleBlockSize) {
+                const leftChunk = new Int16Array(sampleBlockSize);
+                const rightChunk = new Int16Array(sampleBlockSize);
+                
+                for (let j = 0; j < sampleBlockSize && i + j < buffer.length; j++) {
+                    // Convert float (-1 to 1) to int16
+                    const leftSample = Math.max(-1, Math.min(1, leftChannel[i + j]));
+                    leftChunk[j] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
+                    
+                    const rightSample = Math.max(-1, Math.min(1, rightChannel[i + j]));
+                    rightChunk[j] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
+                }
+                
+                const mp3buf = numChannels === 2 
+                    ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
+                    : mp3encoder.encodeBuffer(leftChunk);
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+            }
+            
+            // Flush remaining data
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
+            }
+            
+            // Create blob from mp3 data
+            const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+            console.log(`[Audio encodeMp3FromAudioBuffer] MP3 encoded. Size: ${blob.size} bytes`);
+            resolve(blob);
+            
+        } catch (error) {
+            console.error(`[Audio encodeMp3FromAudioBuffer] Error:`, error);
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Encode an AudioBuffer to OGG format using Tone.js offline rendering.
+ * Note: This creates a placeholder - actual OGG encoding requires additional libraries.
+ * @param {AudioBuffer} buffer - The audio buffer 
+ * @param {number} sampleRate - Sample rate
+ * @returns {Blob} - OGG file as Blob (or WAV fallback)
+ */
+export function encodeOggFromAudioBuffer(buffer, sampleRate) {
+    console.warn(`[Audio encodeOggFromAudioBuffer] OGG encoding not fully supported, falling back to WAV`);
+    // OGG encoding in browser requires additional libraries like ogg.js
+    // For now, return WAV as fallback
+    return encodeWavFromAudioBuffer(buffer, sampleRate);
 }
 
 /**
