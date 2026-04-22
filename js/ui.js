@@ -26,6 +26,79 @@ export function openTimeSignaturePanel(savedState = null) {
     return win;
 }
 
+// --- Keyboard Shortcuts Panel ---
+
+const KEYBOARD_SHORTCUTS = [
+    { category: 'Transport', shortcuts: [
+        { keys: 'Space', description: 'Play / Pause' },
+        { keys: 'Enter', description: 'Start recording' },
+        { keys: 'Escape', description: 'Stop / Close all windows' },
+        { keys: 'Ctrl+Z', description: 'Undo' },
+        { keys: 'Ctrl+Y', description: 'Redo' },
+    ]},
+    { category: 'Navigation', shortcuts: [
+        { keys: '←', description: 'Decrease tempo by 0.1 BPM' },
+        { keys: '→', description: 'Increase tempo by 0.1 BPM' },
+        { keys: 'Z', description: 'Shift octave down' },
+        { keys: 'X', description: 'Shift octave up' },
+    ]},
+    { category: 'Track Controls', shortcuts: [
+        { keys: 'M', description: 'Toggle mute' },
+        { keys: 'S', description: 'Toggle solo' },
+        { keys: 'R', description: 'Toggle record arm' },
+        { keys: 'Delete', description: 'Delete selected clips/notes' },
+        { keys: 'Ctrl+D', description: 'Duplicate selected' },
+    ]},
+    { category: 'MIDI & Computer Keyboard', shortcuts: [
+        { keys: 'A-Z, 0-9', description: 'Play MIDI notes (computer keyboard)' },
+        { keys: '?', description: 'Show this shortcuts panel' },
+    ]},
+    { category: 'Editing', shortcuts: [
+        { keys: 'Shift+Click', description: 'Multi-select notes' },
+        { keys: 'Ctrl+Click', description: 'Add to selection' },
+    ]},
+];
+
+export function openKeyboardShortcutsPanel(savedState = null) {
+    const windowId = 'keyboardShortcuts';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'keyboardShortcutsContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    let html = '<div class="text-sm font-medium mb-4 text-gray-600 dark:text-gray-400">Press <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-slate-700 rounded text-xs">?</kbd> to toggle this panel</div>';
+    
+    KEYBOARD_SHORTCUTS.forEach(section => {
+        html += `<div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">${section.category}</div>
+            <div class="space-y-1">`;
+        section.shortcuts.forEach(shortcut => {
+            html += `<div class="flex items-center justify-between py-1 px-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                <span class="text-sm text-gray-700 dark:text-gray-300">${shortcut.description}</span>
+                <kbd class="px-2 py-1 bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-500 rounded text-xs font-mono">${shortcut.keys}</kbd>
+            </div>`;
+        });
+        html += '</div></div>';
+    });
+
+    contentContainer.innerHTML = html;
+
+    const options = { width: 380, height: 500, minWidth: 300, minHeight: 350, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    return localAppServices.createWindow(windowId, 'Keyboard Shortcuts', contentContainer, options);
+}
+
 function renderTimeSignatureContent() {
     const container = document.getElementById('timeSignatureContent');
     if (!container) return;

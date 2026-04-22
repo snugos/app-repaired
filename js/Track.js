@@ -205,7 +205,8 @@ export class Track {
                             duration: ac.duration || 0, 
                             name: ac.name || `Rec Clip ${this.timelineClips.filter(c => c.type === 'audio').length + 1}`,
                             fadeIn: ac.fadeIn ?? 0,
-                            fadeOut: ac.fadeOut ?? 0
+                            fadeOut: ac.fadeOut ?? 0,
+                            phaseInverted: false
                         });
                     }
                 });
@@ -6639,5 +6640,116 @@ export class Track {
         this.delayCompensationNode = null;
 
         console.log(`[Track Dispose END ${this.id}] Finished disposal for track: "${trackNameForLog}"`);
+    }
+
+    // ==================== Audio Phase Invert ====================
+
+    /**
+     * Toggle phase inversion for an audio clip.
+     * Phase inversion multiplies the audio signal by -1, which can help
+     * with phase alignment when layering tracks.
+     * @param {string} clipId - The clip ID to toggle phase inversion
+     * @returns {boolean} New phase inverted state, or false if failed
+     */
+    toggleAudioClipPhaseInvert(clipId) {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] toggleAudioClipPhaseInvert only works on Audio tracks.`);
+            return false;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return false;
+        }
+
+        // Capture undo state
+        if (this.appServices.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Toggle phase invert on "${clip.name}"`);
+        }
+
+        // Toggle phase inverted state
+        clip.phaseInverted = !clip.phaseInverted;
+        
+        console.log(`[Track ${this.id}] Audio clip "${clip.name}" phase ${clip.phaseInverted ? 'inverted' : 'normal'}.`);
+
+        // Update timeline UI if available
+        if (this.appServices.renderTimeline) {
+            this.appServices.renderTimeline();
+        }
+
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Phase ${clip.phaseInverted ? 'inverted' : 'normal'} for "${clip.name}"`, 1500);
+        }
+
+        return clip.phaseInverted;
+    }
+
+    /**
+     * Set phase inversion state for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {boolean} inverted - Whether to invert phase
+     * @returns {boolean} True if set successfully
+     */
+    setAudioClipPhaseInvert(clipId, inverted) {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] setAudioClipPhaseInvert only works on Audio tracks.`);
+            return false;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return false;
+        }
+
+        clip.phaseInverted = inverted;
+        
+        // Update timeline UI if available
+        if (this.appServices.renderTimeline) {
+            this.appServices.renderTimeline();
+        }
+
+        return true;
+    }
+
+    /**
+     * Get phase inversion state for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @returns {boolean} Phase inverted state (default false)
+     */
+    getAudioClipPhaseInvert(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        return clip?.phaseInverted || false;
+    }
+
+    /**
+     * Apply phase inversion to an audio buffer.
+     * Creates a new buffer with inverted phase if needed.
+     * @param {AudioBuffer} audioBuffer - The original audio buffer
+     * @returns {AudioBuffer} The phase-inverted buffer or original if not inverted
+     */
+    _createPhaseInvertedBuffer(audioBuffer) {
+        if (!audioBuffer) return null;
+        
+        const audioContext = Tone.context.rawContext;
+        const numChannels = audioBuffer.numberOfChannels;
+        const length = audioBuffer.length;
+        const sampleRate = audioBuffer.sampleRate;
+        
+        // Create a new buffer with same specs
+        const invertedBuffer = audioContext.createBuffer(numChannels, length, sampleRate);
+        
+        // Copy and invert each channel
+        for (let channel = 0; channel < numChannels; channel++) {
+            const sourceData = audioBuffer.getChannelData(channel);
+            const destData = invertedBuffer.getChannelData(channel);
+            
+            for (let i = 0; i < length; i++) {
+                destData[i] = -sourceData[i]; // Invert phase by negating
+            }
+        }
+        
+        return invertedBuffer;
     }
 }
