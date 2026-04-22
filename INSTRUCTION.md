@@ -2,22 +2,21 @@
 
 You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Current Feature Queue (2026-04-22 10:55 UTC)
+## Current Feature Queue (2026-04-22 14:00 UTC)
 
 All previous feature queues are COMPLETE. The following new features were generated through brainstorming:
 
-### New Feature Queue (2026-04-22 10:55 UTC)
+### New Feature Queue (2026-04-22 14:00 UTC)
 
-1. **Instrument Rack** - Group multiple instruments into a single rack with layered sounds
-2. **Scatter/Chaos Effect** - Randomize note timing/velocity for experimental patterns
-3. **Spectrum Analyzer** - Real-time FFT visualization on master or track channels ✅ COMPLETE
-4. **Lyrics Track** - Add text lyrics that sync to timeline position
-5. **Video Sync Output** - Send LTC timecode for video sync applications
-6. **Clip Envelope Editor** - Draw AHDSR envelopes on audio clips
-7. **Rhythmical Groove Drawing** - Draw custom groove patterns visually
-8. **VST Host Foundation** - Prepare architecture for VST/AU plugin hosting
-9. **Cloud Project Storage** - Save/load projects to cloud storage
-10. **Share Link Generator** - Generate shareable links to exported audio
+1. **Scatter/Chaos Effect** - Randomize note timing/velocity for experimental patterns ✅ COMPLETE
+2. **Lyrics Track** - Add text lyrics that sync to timeline position
+3. **Video Sync Output** - Send LTC timecode for video sync applications
+4. **Clip Envelope Editor** - Draw AHDSR envelopes on audio clips
+5. **Rhythmical Groove Drawing** - Draw custom groove patterns visually
+6. **VST Host Foundation** - Prepare architecture for VST/AU plugin hosting
+7. **Cloud Project Storage** - Save/load projects to cloud storage
+8. **Share Link Generator** - Generate shareable links to exported audio
+9. **Instrument Rack** - Group multiple instruments into a single rack with layered sounds ✅ COMPLETE (2026-04-22)
 
 ## Workflow
 
