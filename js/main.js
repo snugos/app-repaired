@@ -288,8 +288,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -308,7 +308,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -325,7 +325,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -450,7 +450,7 @@ import {
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
     getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -641,6 +641,20 @@ function handleTrackUIUpdate(trackId, reason, detail) {
     }
 }
 
+// --- SnugOS DAW Initialization ---
+// Imports at top of file
+import { SnugWindow } from './SnugWindow.js';
+import * as Constants from './constants.js';
+import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
+import { parseMidiFile, midiNotesToSequenceData, encodeSequenceToMidi, midiToNoteName, noteNameToMidi } from './midiUtils.js';
+import { initializeAudio, getAudioContextState, togglePlayback, stopAllAudio, getMasterGainNodeFromAudio, getActualMasterGainNodeFromAudio, loadSampleFile, loadSoundFromBrowserToTarget, getTrackById as getTrackByIdAudio } from './audio.js';
+import { initializeUI, updateTransportDisplay, updateBPMDisplay, updateTimeSignatureDisplay, createToolbar, createPianoRollEditor, createStepSequencer, updateSequencerCellUI, createPlaylistView, openWindow as uiOpenWindow, setupDragAndDrop, renderTimeline, getUIElement, cacheUIElement } from './ui.js';
+import { initializeState, getState, setState, subscribeToChanges, getTracksState, setTracksState, getUndoStackState, setUndoStackState, getRedoStackState, setRedoStackState, getMasterEffectsState, setMasterEffectsState, getCurrentProjectState, setCurrentProjectState, getPlaybackState, setPlaybackState } from './state.js';
+import { initializeEventListeners, setupKeyboardListeners, setupRightClickMenu, setupDragAndDrop as ehSetupDragAndDrop, setupRightClickMenu as setupContextMenu } from './eventHandlers.js';
+import { initializeEffectsRegistry, getAvailableEffects, createEffect } from './effectsRegistry.js';
+import { initializeMidiIO, getMidiAccess, getAllMidiInputs, getAllMidiOutputs, sendMidiMessageToAllOutputs, sendMidiMessageToOutput, getMidiNoteName as midiGetNoteName, getMidiNoteNumber as midiGetNoteNumber } from './MidiOutput.js';
+
+console.log('[SnugOS] main.js loaded - version', Constants.APP_VERSION);
 async function initializeSnugOS() {
     console.log("[Main initializeSnugOS] Initializing SnugOS...");
 
