@@ -3137,52 +3137,317 @@ export class Track {
 
     // --- Automation Functions ---
     /**
+     * Apply an automation value to a parameter.
+     * @param {string} param - Parameter name
+     * @param {number} value - Value to apply
+     */
+    applyAutomationValue(param, value) {
+        try {
+            switch (param) {
+                case 'volume':
+                    if (this.gainNode && !this.gainNode.disposed && this.gainNode.gain) {
+                        this.gainNode.gain.setValueAtTime(Math.max(0.0001, value), Tone.now());
+                    }
+                    break;
+                    
+                case 'pan':
+                    this.pan = Math.max(-1, Math.min(1, value));
+                    if (this.panNode && !this.panNode.disposed) {
+                        this.panNode.pan.setValueAtTime(this.pan, Tone.now());
+                    }
+                    break;
+                    
+                case 'filterFreq':
+                case 'filterRes':
+                    // Find filter effect in activeEffects
+                    const filterEffect = this.activeEffects.find(e => e.type === 'Filter' || e.type === 'filter');
+                    if (filterEffect && filterEffect.toneNode && !filterEffect.toneNode.disposed) {
+                        if (param === 'filterFreq' && filterEffect.toneNode.frequency) {
+                            filterEffect.toneNode.frequency.setValueAtTime(Math.max(20, Math.min(20000, value)), Tone.now());
+                        } else if (param === 'filterRes' && filterEffect.toneNode.Q) {
+                            filterEffect.toneNode.Q.setValueAtTime(Math.max(0.1, Math.min(20, value)), Tone.now());
+                        }
+                    }
+                    break;
+                    
+                case 'reverbMix':
+                    if (this.sendGainNodes['reverb'] && !this.sendGainNodes['reverb'].disposed) {
+                        this.sendGainNodes['reverb'].gain.setValueAtTime(Math.max(0, Math.min(1, value)), Tone.now());
+                        this.sendLevels['reverb'] = value;
+                    }
+                    break;
+                    
+                case 'delayMix':
+                    if (this.sendGainNodes['delay'] && !this.sendGainNodes['delay'].disposed) {
+                        this.sendGainNodes['delay'].gain.setValueAtTime(Math.max(0, Math.min(1, value)), Tone.now());
+                        this.sendLevels['delay'] = value;
+                    }
+                    break;
+                    
+                case 'distortion':
+                case 'bitcrush':
+                case 'pitchShift':
+                case 'drive':
+                case 'chorusMix':
+                case 'chorusRate':
+                case 'chorusDepth':
+                case 'delayTime':
+                case 'delayFeedback':
+                case 'reverbDecay':
+                case 'width':
+                    // Handle effect-specific parameters
+                    this.applyEffectAutomation(param, value);
+                    break;
+            }
+        } catch (e) {
+            console.warn(`[Track ${this.id}] Error applying automation value for ${param}:`, e.message);
+        }
+    }
+    
+    /**
+     * Apply automation to effect parameters.
+     * @param {string} param - Parameter name
+     * @param {number} value - Value to apply
+     */
+    applyEffectAutomation(param, value) {
+        // Map param names to effect types and their properties
+        const paramMap = {
+            'distortion': { effectType: 'Distortion', prop: 'distortion' },
+            'bitcrush': { effectType: 'BitCrusher', prop: 'bits' },
+            'pitchShift': { effectType: 'PitchShift', prop: 'pitch' },
+            'drive': { effectType: 'Distortion', prop: 'distortion' },
+            'chorusMix': { effectType: 'Chorus', prop: 'wet' },
+            'chorusRate': { effectType: 'Chorus', prop: 'frequency' },
+            'chorusDepth': { effectType: 'Chorus', prop: 'depth' },
+            'delayTime': { effectType: 'FeedbackDelay', prop: 'delayTime' },
+            'delayFeedback': { effectType: 'FeedbackDelay', prop: 'feedback' },
+            'reverbDecay': { effectType: 'Reverb', prop: 'decay' },
+            'width': { effectType: 'StereoWidener', prop: 'width' }
+        };
+        
+        const mapping = paramMap[param];
+        if (!mapping) return;
+        
+        const effect = this.activeEffects.find(e => 
+            e.type === mapping.effectType || 
+            e.type.toLowerCase() === mapping.effectType.toLowerCase()
+        );
+        
+        if (effect && effect.toneNode && !effect.toneNode.disposed) {
+            const node = effect.toneNode[mapping.prop];
+            if (node && typeof node.setValueAtTime === 'function') {
+                node.setValueAtTime(value, Tone.now());
+            } else if (node && typeof node.value !== 'undefined') {
+                node.value = value;
+            }
+        }
+    }
+
+    /**
      * Schedule automation events for playback.
      * @param {number} startTime - Transport start time
      * @param {number} duration - Duration to schedule for
      */
     scheduleAutomation(startTime, duration) {
-        if (!this.automation || !this.gainNode || this.gainNode.disposed) {
-            console.log(`[Track ${this.id}] No automation or gainNode not available for scheduling.`);
+        if (!this.automation) {
+            console.log(`[Track ${this.id}] No automation to schedule.`);
             return;
         }
+        
+        const schedulePoint = (param, point, idx, points, targetParam, minVal, maxVal) => {
+            if (point.time >= startTime && point.time < startTime + duration) {
+                const rampTime = Tone.Transport.seconds + (point.time - startTime);
+                const curveType = point.curveType || 'exponential';
+                const targetValue = Math.max(minVal, Math.min(maxVal, point.value));
+                
+                if (targetParam && typeof targetParam.setValueAtTime === 'function') {
+                    try {
+                        const prevValue = Math.max(minVal, targetParam.value || minVal);
+                        
+                        // Set value slightly before to establish starting point for ramp
+                        targetParam.setValueAtTime(prevValue, rampTime - 0.001);
+                        
+                        // Apply curve type for transition to this point
+                        if (curveType === 'linear') {
+                            targetParam.linearRampToValueAtTime(targetValue, rampTime);
+                        } else if (curveType === 'stepped') {
+                            targetParam.setValueAtTime(targetValue, rampTime);
+                        } else {
+                            // Exponential - ensure values are positive
+                            const expPrev = Math.max(0.0001, prevValue);
+                            const expTarget = Math.max(0.0001, targetValue);
+                            targetParam.exponentialRampToValueAtTime(expTarget, rampTime);
+                        }
+                        
+                        console.log(`[Track ${this.id}] Scheduled ${param} automation at ${point.time.toFixed(2)}s: ${targetValue.toFixed(2)} (${curveType})`);
+                    } catch (e) {
+                        console.warn(`[Track ${this.id}] Error scheduling ${param} automation:`, e.message);
+                    }
+                }
+            }
+        };
 
         // Schedule volume automation
         if (this.automation.volume && Array.isArray(this.automation.volume) && this.automation.volume.length > 0) {
-            const points = this.automation.volume;
-            
-            points.forEach((point, idx) => {
-                if (point.time >= startTime && point.time < startTime + duration) {
-                    const rampTime = Tone.Transport.seconds + (point.time - startTime);
-                    const curveType = point.curveType || 'exponential';
-                    const nextPoint = points[idx + 1];
-                    
-                    if (this.gainNode && !this.gainNode.disposed && this.gainNode.gain) {
-                        try {
-                            const prevValue = Math.max(0.0001, this.gainNode.gain.value);
-                            const targetValue = Math.max(0.0001, point.value);
-                            
-                            // Set value slightly before to establish starting point for ramp
-                            this.gainNode.gain.setValueAtTime(prevValue, rampTime - 0.001);
-                            
-                            // Apply curve type for transition to this point
-                            if (curveType === 'linear') {
-                                this.gainNode.gain.linearRampToValueAtTime(targetValue, rampTime);
-                            } else if (curveType === 'stepped') {
-                                // Stepped: hold previous value until this point, then jump
-                                this.gainNode.gain.setValueAtTime(targetValue, rampTime);
-                            } else {
-                                // Default: exponential (smoother transition)
-                                this.gainNode.gain.exponentialRampToValueAtTime(targetValue, rampTime);
-                            }
-                            
-                            console.log(`[Track ${this.id}] Scheduled volume automation at ${point.time.toFixed(2)}s: ${(point.value * 100).toFixed(0)}% (${curveType})`);
-                        } catch (e) {
-                            console.warn(`[Track ${this.id}] Error scheduling volume automation:`, e.message);
-                        }
-                    }
-                }
-            });
+            if (this.gainNode && !this.gainNode.disposed && this.gainNode.gain) {
+                this.automation.volume.forEach((point, idx) => {
+                    schedulePoint('volume', point, idx, this.automation.volume, this.gainNode.gain, 0.0001, 2);
+                });
+            }
+        }
+
+        // Schedule pan automation
+        if (this.automation.pan && Array.isArray(this.automation.pan) && this.automation.pan.length > 0) {
+            if (this.panNode && !this.panNode.disposed && this.panNode.pan) {
+                this.automation.pan.forEach((point, idx) => {
+                    schedulePoint('pan', point, idx, this.automation.pan, this.panNode.pan, -1, 1);
+                });
+            }
+        }
+
+        // Schedule filter frequency automation
+        if (this.automation.filterFreq && Array.isArray(this.automation.filterFreq) && this.automation.filterFreq.length > 0) {
+            const filterEffect = this.activeEffects.find(e => e.type === 'Filter' || e.type === 'filter');
+            if (filterEffect && filterEffect.toneNode && !filterEffect.toneNode.disposed && filterEffect.toneNode.frequency) {
+                this.automation.filterFreq.forEach((point, idx) => {
+                    schedulePoint('filterFreq', point, idx, this.automation.filterFreq, filterEffect.toneNode.frequency, 20, 20000);
+                });
+            }
+        }
+
+        // Schedule filter resonance automation
+        if (this.automation.filterRes && Array.isArray(this.automation.filterRes) && this.automation.filterRes.length > 0) {
+            const filterEffect = this.activeEffects.find(e => e.type === 'Filter' || e.type === 'filter');
+            if (filterEffect && filterEffect.toneNode && !filterEffect.toneNode.disposed && filterEffect.toneNode.Q) {
+                this.automation.filterRes.forEach((point, idx) => {
+                    schedulePoint('filterRes', point, idx, this.automation.filterRes, filterEffect.toneNode.Q, 0.1, 20);
+                });
+            }
+        }
+
+        // Schedule reverb mix automation
+        if (this.automation.reverbMix && Array.isArray(this.automation.reverbMix) && this.automation.reverbMix.length > 0) {
+            if (this.sendGainNodes['reverb'] && !this.sendGainNodes['reverb'].disposed) {
+                this.automation.reverbMix.forEach((point, idx) => {
+                    schedulePoint('reverbMix', point, idx, this.automation.reverbMix, this.sendGainNodes['reverb'].gain, 0, 1);
+                });
+            }
+        }
+
+        // Schedule delay mix automation
+        if (this.automation.delayMix && Array.isArray(this.automation.delayMix) && this.automation.delayMix.length > 0) {
+            if (this.sendGainNodes['delay'] && !this.sendGainNodes['delay'].disposed) {
+                this.automation.delayMix.forEach((point, idx) => {
+                    schedulePoint('delayMix', point, idx, this.automation.delayMix, this.sendGainNodes['delay'].gain, 0, 1);
+                });
+            }
+        }
+
+        // Schedule distortion automation
+        if (this.automation.distortion && Array.isArray(this.automation.distortion) && this.automation.distortion.length > 0) {
+            const distEffect = this.activeEffects.find(e => e.type === 'Distortion' || e.type === 'distortion');
+            if (distEffect && distEffect.toneNode && !distEffect.toneNode.disposed && distEffect.toneNode.distortion) {
+                this.automation.distortion.forEach((point, idx) => {
+                    schedulePoint('distortion', point, idx, this.automation.distortion, distEffect.toneNode.distortion, 0, 1);
+                });
+            }
+        }
+
+        // Schedule bitcrush automation
+        if (this.automation.bitcrush && Array.isArray(this.automation.bitcrush) && this.automation.bitcrush.length > 0) {
+            const bcEffect = this.activeEffects.find(e => e.type === 'BitCrusher' || e.type === 'bitcrusher');
+            if (bcEffect && bcEffect.toneNode && !bcEffect.toneNode.disposed && bcEffect.toneNode.bits) {
+                this.automation.bitcrush.forEach((point, idx) => {
+                    schedulePoint('bitcrush', point, idx, this.automation.bitcrush, bcEffect.toneNode.bits, 1, 16);
+                });
+            }
+        }
+
+        // Schedule pitch shift automation
+        if (this.automation.pitchShift && Array.isArray(this.automation.pitchShift) && this.automation.pitchShift.length > 0) {
+            const psEffect = this.activeEffects.find(e => e.type === 'PitchShift' || e.type === 'pitchshift');
+            if (psEffect && psEffect.toneNode && !psEffect.toneNode.disposed && psEffect.toneNode.pitch) {
+                this.automation.pitchShift.forEach((point, idx) => {
+                    schedulePoint('pitchShift', point, idx, this.automation.pitchShift, psEffect.toneNode.pitch, -12, 12);
+                });
+            }
+        }
+
+        // Schedule chorus parameters automation
+        if (this.automation.chorusMix && Array.isArray(this.automation.chorusMix) && this.automation.chorusMix.length > 0) {
+            const chorusEffect = this.activeEffects.find(e => e.type === 'Chorus' || e.type === 'chorus');
+            if (chorusEffect && chorusEffect.toneNode && !chorusEffect.toneNode.disposed && chorusEffect.toneNode.wet) {
+                this.automation.chorusMix.forEach((point, idx) => {
+                    schedulePoint('chorusMix', point, idx, this.automation.chorusMix, chorusEffect.toneNode.wet, 0, 1);
+                });
+            }
+        }
+
+        if (this.automation.chorusRate && Array.isArray(this.automation.chorusRate) && this.automation.chorusRate.length > 0) {
+            const chorusEffect = this.activeEffects.find(e => e.type === 'Chorus' || e.type === 'chorus');
+            if (chorusEffect && chorusEffect.toneNode && !chorusEffect.toneNode.disposed && chorusEffect.toneNode.frequency) {
+                this.automation.chorusRate.forEach((point, idx) => {
+                    schedulePoint('chorusRate', point, idx, this.automation.chorusRate, chorusEffect.toneNode.frequency, 0.1, 10);
+                });
+            }
+        }
+
+        if (this.automation.chorusDepth && Array.isArray(this.automation.chorusDepth) && this.automation.chorusDepth.length > 0) {
+            const chorusEffect = this.activeEffects.find(e => e.type === 'Chorus' || e.type === 'chorus');
+            if (chorusEffect && chorusEffect.toneNode && !chorusEffect.toneNode.disposed && chorusEffect.toneNode.depth) {
+                this.automation.chorusDepth.forEach((point, idx) => {
+                    schedulePoint('chorusDepth', point, idx, this.automation.chorusDepth, chorusEffect.toneNode.depth, 0, 1);
+                });
+            }
+        }
+
+        // Schedule delay time and feedback automation
+        if (this.automation.delayTime && Array.isArray(this.automation.delayTime) && this.automation.delayTime.length > 0) {
+            const delayEffect = this.activeEffects.find(e => e.type === 'FeedbackDelay' || e.type === 'delay');
+            if (delayEffect && delayEffect.toneNode && !delayEffect.toneNode.disposed && delayEffect.toneNode.delayTime) {
+                this.automation.delayTime.forEach((point, idx) => {
+                    schedulePoint('delayTime', point, idx, this.automation.delayTime, delayEffect.toneNode.delayTime, 0.01, 2);
+                });
+            }
+        }
+
+        if (this.automation.delayFeedback && Array.isArray(this.automation.delayFeedback) && this.automation.delayFeedback.length > 0) {
+            const delayEffect = this.activeEffects.find(e => e.type === 'FeedbackDelay' || e.type === 'delay');
+            if (delayEffect && delayEffect.toneNode && !delayEffect.toneNode.disposed && delayEffect.toneNode.feedback) {
+                this.automation.delayFeedback.forEach((point, idx) => {
+                    schedulePoint('delayFeedback', point, idx, this.automation.delayFeedback, delayEffect.toneNode.feedback, 0, 0.9);
+                });
+            }
+        }
+
+        // Schedule reverb decay automation
+        if (this.automation.reverbDecay && Array.isArray(this.automation.reverbDecay) && this.automation.reverbDecay.length > 0) {
+            const reverbEffect = this.activeEffects.find(e => e.type === 'Reverb' || e.type === 'reverb');
+            if (reverbEffect && reverbEffect.toneNode && !reverbEffect.toneNode.disposed && reverbEffect.toneNode.decay) {
+                this.automation.reverbDecay.forEach((point, idx) => {
+                    schedulePoint('reverbDecay', point, idx, this.automation.reverbDecay, reverbEffect.toneNode.decay, 0.1, 10);
+                });
+            }
+        }
+
+        // Schedule stereo width automation
+        if (this.automation.width && Array.isArray(this.automation.width) && this.automation.width.length > 0) {
+            const widthEffect = this.activeEffects.find(e => e.type === 'StereoWidener' || e.type === 'width');
+            if (widthEffect && widthEffect.toneNode && !widthEffect.toneNode.disposed && widthEffect.toneNode.width) {
+                this.automation.width.forEach((point, idx) => {
+                    schedulePoint('width', point, idx, this.automation.width, widthEffect.toneNode.width, 0, 1);
+                });
+            }
+        }
+
+        // Schedule drive automation
+        if (this.automation.drive && Array.isArray(this.automation.drive) && this.automation.drive.length > 0) {
+            const driveEffect = this.activeEffects.find(e => e.type === 'Distortion' || e.type === 'distortion');
+            if (driveEffect && driveEffect.toneNode && !driveEffect.toneNode.disposed && driveEffect.toneNode.distortion) {
+                this.automation.drive.forEach((point, idx) => {
+                    schedulePoint('drive', point, idx, this.automation.drive, driveEffect.toneNode.distortion, 0, 1);
+                });
+            }
         }
     }
 
