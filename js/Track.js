@@ -2757,6 +2757,510 @@ export class Track {
         return pastedCount;
     }
 
+    // ==================== Sequence Variation Methods ====================
+
+    /**
+     * Create a variation of an existing sequence with randomization options.
+     * @param {string} sequenceId - ID of the source sequence
+     * @param {Object} options - Variation options
+     * @param {number} options.velocityVariation - Amount of velocity randomization (0-1)
+     * @param {number} options.timingVariation - Amount of timing shift in steps (0-2)
+     * @param {number} options.noteOmitChance - Chance to omit notes (0-1)
+     * @param {number} options.noteAddChance - Chance to add ghost notes (0-1)
+     * @param {string} options.variationName - Name for the new sequence
+     * @returns {Object|null} The new variation sequence or null if failed
+     */
+    createSequenceVariation(sequenceId, options = {}) {
+        if (this.type === 'Audio') {
+            console.warn(`[Track ${this.id}] Cannot create sequence variation on Audio track.`);
+            return null;
+        }
+
+        const sourceSequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sourceSequence) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found for variation.`);
+            return null;
+        }
+
+        const velocityVariation = options.velocityVariation ?? 0.1;
+        const timingVariation = options.timingVariation ?? 0.25;
+        const noteOmitChance = options.noteOmitChance ?? 0;
+        const noteAddChance = options.noteAddChance ?? 0;
+        const variationName = options.variationName || `${sourceSequence.name} (variation)`;
+
+        // Deep clone the source data
+        const newData = sourceSequence.data.map((row, rowIndex) => {
+            if (!row) return Array(sourceSequence.length).fill(null);
+            return row.map((step, colIndex) => {
+                if (!step || !step.active) return null;
+                
+                // Apply note omit chance
+                if (noteOmitChance > 0 && Math.random() < noteOmitChance) {
+                    return null;
+                }
+
+                const newStep = { ...step };
+
+                // Apply velocity variation
+                if (velocityVariation > 0 && newStep.velocity !== undefined) {
+                    const variation = (Math.random() * 2 - 1) * velocityVariation;
+                    newStep.velocity = Math.max(0.1, Math.min(1.0, newStep.velocity + variation));
+                    newStep.velocity = Math.round(newStep.velocity * 100) / 100;
+                }
+
+                // Note probability is preserved but can be modified
+                if (newStep.probability === undefined) {
+                    newStep.probability = 1.0;
+                }
+
+                return newStep;
+            });
+        });
+
+        // Apply timing variation by shifting notes
+        if (timingVariation > 0) {
+            const maxShift = Math.ceil(timingVariation);
+            for (let rowIndex = 0; rowIndex < newData.length; rowIndex++) {
+                const row = newData[rowIndex];
+                if (!row) continue;
+                
+                const newRow = Array(sourceSequence.length).fill(null);
+                for (let colIndex = 0; colIndex < row.length; colIndex++) {
+                    const step = row[colIndex];
+                    if (!step) continue;
+
+                    // Random shift within timing variation
+                    const shift = Math.round((Math.random() * 2 - 1) * timingVariation);
+                    const newCol = colIndex + shift;
+
+                    if (newCol >= 0 && newCol < sourceSequence.length) {
+                        newRow[newCol] = step;
+                    }
+                }
+                newData[rowIndex] = newRow;
+            }
+        }
+
+        // Apply note addition (ghost notes)
+        if (noteAddChance > 0) {
+            for (let rowIndex = 0; rowIndex < newData.length; rowIndex++) {
+                const row = newData[rowIndex];
+                if (!row) continue;
+
+                for (let colIndex = 0; colIndex < row.length; colIndex++) {
+                    if (Math.random() < noteAddChance) {
+                        if (!row[colIndex]) {
+                            // Find neighboring velocities to reference
+                            let refVelocity = 0.5;
+                            for (let i = colIndex - 1; i >= Math.max(0, colIndex - 4); i--) {
+                                if (row[i] && row[i].velocity) {
+                                    refVelocity = row[i].velocity * 0.7;
+                                    break;
+                                }
+                            }
+                            
+                            row[colIndex] = {
+                                active: true,
+                                velocity: Math.round(refVelocity * 100) / 100,
+                                probability: 0.7 // Ghost notes have lower probability
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Create new sequence
+        const newSequence = {
+            id: `seq_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: variationName,
+            data: newData,
+            length: sourceSequence.length
+        };
+
+        this.sequences.push(newSequence);
+        console.log(`[Track ${this.id}] Created sequence variation "${variationName}" from "${sourceSequence.name}".`);
+
+        return newSequence;
+    }
+
+    /**
+     * Set probability for a specific note in the sequence.
+     * @param {number} rowIndex - Row index in sequence
+     * @param {number} colIndex - Column index in sequence
+     * @param {number} probability - Probability value (0-1)
+     * @returns {boolean} Success status
+     */
+    setNoteProbability(rowIndex, colIndex, probability) {
+        if (this.type === 'Audio') return false;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) return false;
+
+        if (rowIndex < 0 || rowIndex >= activeSeq.data.length) return false;
+        const row = activeSeq.data[rowIndex];
+        if (!row || colIndex < 0 || colIndex >= row.length) return false;
+
+        const step = row[colIndex];
+        if (!step || !step.active) return false;
+
+        step.probability = Math.max(0, Math.min(1, probability));
+        return true;
+    }
+
+    /**
+     * Get probability for a specific note in the sequence.
+     * @param {number} rowIndex - Row index in sequence
+     * @param {number} colIndex - Column index in sequence
+     * @returns {number} Probability value (0-1, default 1)
+     */
+    getNoteProbability(rowIndex, colIndex) {
+        if (this.type === 'Audio') return 1;
+        const activeSeq = this.getActiveSequence();
+        if (!activeSeq || !activeSeq.data) return 1;
+
+        if (rowIndex < 0 || rowIndex >= activeSeq.data.length) return 1;
+        const row = activeSeq.data[rowIndex];
+        if (!row || colIndex < 0 || colIndex >= row.length) return 1;
+
+        const step = row[colIndex];
+        if (!step || !step.active) return 1;
+
+        return step.probability ?? 1;
+    }
+
+    // ==================== Smart Tempo Detection ====================
+
+    /**
+     * Detect tempo from an audio clip using onset detection.
+     * @param {string} clipId - ID of the audio clip to analyze
+     * @returns {Object|null} Object with detectedTempo and confidence, or null if failed
+     */
+    detectTempoFromAudio(clipId) {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] detectTempoFromAudio only works on Audio tracks.`);
+            return null;
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found for tempo detection.`);
+            return null;
+        }
+
+        // Get audio buffer from the clip
+        let audioBuffer = null;
+        if (clip.audioBuffer) {
+            audioBuffer = clip.audioBuffer;
+        } else if (clip.dbKey && this.appServices?.getAudioBufferFromDb) {
+            audioBuffer = this.appServices.getAudioBufferFromDb(clip.dbKey);
+        }
+
+        if (!audioBuffer) {
+            console.warn(`[Track ${this.id}] No audio buffer available for clip ${clipId}.`);
+            return null;
+        }
+
+        let channelData, sampleRate;
+        if (audioBuffer.getChannelData) {
+            channelData = audioBuffer.getChannelData(0);
+            sampleRate = audioBuffer.sampleRate;
+        } else if (audioBuffer._buffer) {
+            channelData = audioBuffer._buffer.getChannelData(0);
+            sampleRate = audioBuffer._buffer.sampleRate;
+        } else {
+            console.warn(`[Track ${this.id}] Invalid audio buffer format.`);
+            return null;
+        }
+
+        // Detect onsets using energy-based method
+        const onsetTimes = this._detectOnsets(channelData, sampleRate);
+        
+        if (onsetTimes.length < 4) {
+            console.warn(`[Track ${this.id}] Not enough onsets detected for tempo analysis.`);
+            return { detectedTempo: null, confidence: 0 };
+        }
+
+        // Calculate inter-onset intervals
+        const intervals = [];
+        for (let i = 1; i < onsetTimes.length; i++) {
+            intervals.push(onsetTimes[i] - onsetTimes[i - 1]);
+        }
+
+        // Find the most common interval (likely the beat)
+        const bpmCandidates = intervals.map(interval => 60 / interval);
+        
+        // Cluster BPM candidates around common tempo ranges (60-180 BPM)
+        const validBpms = bpmCandidates.filter(bpm => bpm >= 60 && bpm <= 180);
+        
+        if (validBpms.length === 0) {
+            return { detectedTempo: null, confidence: 0 };
+        }
+
+        // Use median for robustness
+        validBpms.sort((a, b) => a - b);
+        const medianBpm = validBpms[Math.floor(validBpms.length / 2)];
+
+        // Calculate confidence based on consistency
+        const avgDeviation = validBpms.reduce((sum, bpm) => {
+            return sum + Math.abs(bpm - medianBpm);
+        }, 0) / validBpms.length;
+        const confidence = Math.max(0, 1 - (avgDeviation / medianBpm));
+
+        console.log(`[Track ${this.id}] Detected tempo: ${medianBpm.toFixed(1)} BPM (confidence: ${(confidence * 100).toFixed(0)}%)`);
+
+        return {
+            detectedTempo: Math.round(medianBpm * 10) / 10,
+            confidence: Math.round(confidence * 100) / 100,
+            onsetCount: onsetTimes.length
+        };
+    }
+
+    /**
+     * Detect onsets in audio using energy-based method.
+     * @private
+     */
+    _detectOnsets(channelData, sampleRate) {
+        const windowSize = 512;
+        const hopSize = 256;
+        const threshold = 0.1;
+        
+        const onsets = [];
+        let prevEnergy = 0;
+        
+        for (let i = 0; i < channelData.length - windowSize; i += hopSize) {
+            let energy = 0;
+            for (let j = 0; j < windowSize; j++) {
+                energy += channelData[i + j] ** 2;
+            }
+            energy = Math.sqrt(energy / windowSize);
+            
+            // Onset detection: energy increase exceeds threshold
+            if (energy > prevEnergy * (1 + threshold) && energy > 0.02) {
+                const time = i / sampleRate;
+                // Avoid duplicate onsets too close together
+                if (onsets.length === 0 || time - onsets[onsets.length - 1] > 0.1) {
+                    onsets.push(time);
+                }
+            }
+            prevEnergy = energy;
+        }
+        
+        return onsets;
+    }
+
+    // ==================== Clip Grouping Methods ====================
+
+    /**
+     * Create a group from selected clips.
+     * @param {Array<string>} clipIds - Array of clip IDs to group
+     * @param {string} groupName - Optional name for the group
+     * @returns {Object|null} The created group or null if failed
+     */
+    createClipGroup(clipIds, groupName = 'Clip Group') {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] Clip grouping only applies to Audio tracks.`);
+            return null;
+        }
+
+        if (!clipIds || clipIds.length < 2) {
+            console.warn(`[Track ${this.id}] Need at least 2 clips to create a group.`);
+            return null;
+        }
+
+        // Find all clips to group
+        const clipsToGroup = clipIds.map(id => this.timelineClips.find(c => c.id === id)).filter(Boolean);
+        if (clipsToGroup.length < 2) {
+            console.warn(`[Track ${this.id}] Not enough valid clips to group.`);
+            return null;
+        }
+
+        // Check if any clip is already in a group
+        for (const clip of clipsToGroup) {
+            if (clip.groupId) {
+                console.warn(`[Track ${this.id}] Clip ${clip.id} is already in a group. Remove from group first.`);
+                return null;
+            }
+        }
+
+        // Create the group
+        const groupId = `group_${this.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        
+        for (const clip of clipsToGroup) {
+            clip.groupId = groupId;
+        }
+
+        const group = {
+            id: groupId,
+            name: groupName,
+            clipIds: clipsToGroup.map(c => c.id),
+            locked: false // Whether the group is locked for editing
+        };
+
+        // Initialize clipGroups array if needed
+        if (!this.clipGroups) {
+            this.clipGroups = [];
+        }
+        this.clipGroups.push(group);
+
+        console.log(`[Track ${this.id}] Created clip group "${groupName}" with ${clipsToGroup.length} clips.`);
+        return group;
+    }
+
+    /**
+     * Add a clip to an existing group.
+     * @param {string} clipId - Clip ID to add
+     * @param {string} groupId - Group ID to add to
+     * @returns {boolean} Success status
+     */
+    addToClipGroup(clipId, groupId) {
+        if (this.type !== 'Audio') return false;
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} not found.`);
+            return false;
+        }
+
+        if (clip.groupId) {
+            console.warn(`[Track ${this.id}] Clip ${clipId} is already in a group.`);
+            return false;
+        }
+
+        const group = this.clipGroups?.find(g => g.id === groupId);
+        if (!group) {
+            console.warn(`[Track ${this.id}] Group ${groupId} not found.`);
+            return false;
+        }
+
+        if (group.locked) {
+            console.warn(`[Track ${this.id}] Group ${groupId} is locked.`);
+            return false;
+        }
+
+        clip.groupId = groupId;
+        group.clipIds.push(clipId);
+
+        console.log(`[Track ${this.id}] Added clip ${clipId} to group ${groupId}.`);
+        return true;
+    }
+
+    /**
+     * Remove a clip from its group.
+     * @param {string} clipId - Clip ID to remove from group
+     * @returns {boolean} Success status
+     */
+    removeFromClipGroup(clipId) {
+        if (this.type !== 'Audio') return false;
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || !clip.groupId) {
+            return false;
+        }
+
+        const group = this.clipGroups?.find(g => g.id === clip.groupId);
+        if (group) {
+            group.clipIds = group.clipIds.filter(id => id !== clipId);
+            
+            // If group has only 1 clip left, dissolve the group
+            if (group.clipIds.length <= 1) {
+                this.clipGroups = this.clipGroups.filter(g => g.id !== group.id);
+                // Clear groupId from remaining clip
+                const remainingClip = this.timelineClips.find(c => c.id === group.clipIds[0]);
+                if (remainingClip) remainingClip.groupId = null;
+                console.log(`[Track ${this.id}] Group ${group.id} dissolved (only 1 clip remaining).`);
+            }
+        }
+
+        clip.groupId = null;
+        console.log(`[Track ${this.id}] Removed clip ${clipId} from its group.`);
+        return true;
+    }
+
+    /**
+     * Ungroup all clips in a group.
+     * @param {string} groupId - Group ID to ungroup
+     * @returns {number} Number of clips ungrouped
+     */
+    ungroupClips(groupId) {
+        if (this.type !== 'Audio') return 0;
+
+        const group = this.clipGroups?.find(g => g.id === groupId);
+        if (!group) {
+            console.warn(`[Track ${this.id}] Group ${groupId} not found.`);
+            return 0;
+        }
+
+        const clipCount = group.clipIds.length;
+        
+        for (const clipId of group.clipIds) {
+            const clip = this.timelineClips.find(c => c.id === clipId);
+            if (clip) {
+                clip.groupId = null;
+            }
+        }
+
+        this.clipGroups = this.clipGroups.filter(g => g.id !== groupId);
+        console.log(`[Track ${this.id}] Ungrouped ${clipCount} clips from group ${groupId}.`);
+        
+        return clipCount;
+    }
+
+    /**
+     * Move all clips in a group by a time offset.
+     * @param {string} groupId - Group ID to move
+     * @param {number} timeOffset - Time offset in seconds (positive = later, negative = earlier)
+     * @returns {boolean} Success status
+     */
+    moveClipGroup(groupId, timeOffset) {
+        if (this.type !== 'Audio') return false;
+
+        const group = this.clipGroups?.find(g => g.id === groupId);
+        if (!group || group.locked) {
+            return false;
+        }
+
+        for (const clipId of group.clipIds) {
+            const clip = this.timelineClips.find(c => c.id === clipId);
+            if (clip) {
+                clip.startTime = Math.max(0, clip.startTime + timeOffset);
+            }
+        }
+
+        console.log(`[Track ${this.id}] Moved group ${groupId} by ${timeOffset}s.`);
+        return true;
+    }
+
+    /**
+     * Get all clips in a group.
+     * @param {string} groupId - Group ID
+     * @returns {Array} Array of clip objects
+     */
+    getClipsInGroup(groupId) {
+        if (!this.clipGroups) return [];
+        
+        const group = this.clipGroups.find(g => g.id === groupId);
+        if (!group) return [];
+
+        return group.clipIds
+            .map(id => this.timelineClips.find(c => c.id === id))
+            .filter(Boolean);
+    }
+
+    /**
+     * Lock or unlock a clip group.
+     * @param {string} groupId - Group ID
+     * @param {boolean} locked - Lock state
+     * @returns {boolean} Success status
+     */
+    setClipGroupLocked(groupId, locked) {
+        const group = this.clipGroups?.find(g => g.id === groupId);
+        if (!group) return false;
+
+        group.locked = locked;
+        console.log(`[Track ${this.id}] Group ${groupId} ${locked ? 'locked' : 'unlocked'}.`);
+        return true;
+    }
+
     async renderTrackToBuffer(transportStartTime, transportStopTime) {
         const duration = transportStopTime - transportStartTime;
         if (duration <= 0) return null;

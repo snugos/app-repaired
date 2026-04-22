@@ -205,6 +205,147 @@ export function setTempoRampsState(ramps) {
     tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
 }
 
+// ==================== Time Signature Support ====================
+// Time signatures: Array of { id, barPosition: number (bar where change takes effect), numerator: number, denominator: number }
+// Default: 4/4 time
+let timeSignatureChangesState = [];
+let currentTimeSignature = { numerator: 4, denominator: 4 };
+
+export function getTimeSignatureChanges() { return [...timeSignatureChangesState]; }
+
+export function getCurrentTimeSignature() { return { ...currentTimeSignature }; }
+
+export function setCurrentTimeSignature(numerator, denominator) {
+    currentTimeSignature = {
+        numerator: Math.max(1, Math.min(32, parseInt(numerator) || 4)),
+        denominator: Math.max(1, Math.min(32, parseInt(denominator) || 4))
+    };
+    console.log(`[State] Time signature set to ${currentTimeSignature.numerator}/${currentTimeSignature.denominator}`);
+}
+
+export function addTimeSignatureChange(barPosition, numerator, denominator) {
+    const id = `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const change = {
+        id,
+        barPosition: Math.max(0, parseFloat(barPosition) || 0),
+        numerator: Math.max(1, Math.min(32, parseInt(numerator) || 4)),
+        denominator: Math.max(1, Math.min(32, parseInt(denominator) || 4))
+    };
+    
+    // Remove existing change at same position
+    timeSignatureChangesState = timeSignatureChangesState.filter(ts => ts.barPosition !== change.barPosition);
+    timeSignatureChangesState.push(change);
+    timeSignatureChangesState.sort((a, b) => a.barPosition - b.barPosition);
+    
+    console.log(`[State] Added time signature change at bar ${barPosition}: ${numerator}/${denominator}`);
+    return id;
+}
+
+export function removeTimeSignatureChange(id) {
+    const idx = timeSignatureChangesState.findIndex(ts => ts.id === id);
+    if (idx !== -1) {
+        timeSignatureChangesState.splice(idx, 1);
+        console.log(`[State] Removed time signature change ${id}`);
+    }
+}
+
+export function updateTimeSignatureChange(id, barPosition, numerator, denominator) {
+    const ts = timeSignatureChangesState.find(t => t.id === id);
+    if (ts) {
+        if (barPosition !== undefined) ts.barPosition = Math.max(0, parseFloat(barPosition) || 0);
+        if (numerator !== undefined) ts.numerator = Math.max(1, Math.min(32, parseInt(numerator) || 4));
+        if (denominator !== undefined) ts.denominator = Math.max(1, Math.min(32, parseInt(denominator) || 4));
+        timeSignatureChangesState.sort((a, b) => a.barPosition - b.barPosition);
+        console.log(`[State] Updated time signature change ${id}`);
+    }
+}
+
+export function clearTimeSignatureChanges() {
+    timeSignatureChangesState = [];
+    console.log('[State] Cleared all time signature changes');
+}
+
+export function setTimeSignatureChanges(changes) {
+    timeSignatureChangesState = Array.isArray(changes) ? changes.map(c => ({
+        id: c.id || `ts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        barPosition: Math.max(0, parseFloat(c.barPosition) || 0),
+        numerator: Math.max(1, Math.min(32, parseInt(c.numerator) || 4)),
+        denominator: Math.max(1, Math.min(32, parseInt(c.denominator) || 4))
+    })) : [];
+    timeSignatureChangesState.sort((a, b) => a.barPosition - b.barPosition);
+}
+
+/**
+ * Get the time signature at a specific bar position.
+ * Returns the active time signature (including any changes) at that bar.
+ * @param {number} barPosition - Bar position (0-indexed)
+ * @returns {Object} { numerator, denominator }
+ */
+export function getTimeSignatureAtBar(barPosition) {
+    // Find the most recent time signature change before or at this bar
+    let activeTs = { ...currentTimeSignature };
+    
+    for (const ts of timeSignatureChangesState) {
+        if (ts.barPosition <= barPosition) {
+            activeTs = { numerator: ts.numerator, denominator: ts.denominator };
+        } else {
+            break;
+        }
+    }
+    
+    return activeTs;
+}
+
+/**
+ * Calculate the duration of one bar in seconds at a given time signature and tempo.
+ * @param {number} numerator - Time signature numerator (beats per bar)
+ * @param {number} denominator - Time signature denominator (note value)
+ * @param {number} bpm - Tempo in beats per minute
+ * @returns {number} Duration in seconds
+ */
+export function calculateBarDuration(numerator, denominator, bpm) {
+    const beatDuration = 60 / bpm; // Duration of one beat (quarter note) in seconds
+    const denominatorRatio = 4 / denominator; // How many beats the denominator note gets
+    return beatDuration * numerator * denominatorRatio;
+}
+
+/**
+ * Convert a bar position to time in seconds, accounting for time signature changes.
+ * @param {number} barPosition - Bar position (can be fractional)
+ * @param {number} bpm - Current tempo
+ * @returns {number} Time in seconds
+ */
+export function barPositionToTime(barPosition, bpm) {
+    let totalTime = 0;
+    let currentBar = 0;
+    let lastTs = getTimeSignatureAtBar(0);
+    let lastBarDuration = calculateBarDuration(lastTs.numerator, lastTs.denominator, bpm);
+    
+    // Sort time signature changes by position
+    const sortedChanges = [...timeSignatureChangesState].sort((a, b) => a.barPosition - b.barPosition);
+    
+    for (const tsChange of sortedChanges) {
+        if (tsChange.barPosition > barPosition) break;
+        
+        // Add time for bars before this change
+        const barsBeforeTs = tsChange.barPosition - currentBar;
+        totalTime += barsBeforeTs * lastBarDuration;
+        currentBar = tsChange.barPosition;
+        
+        // Update time signature
+        lastTs = { numerator: tsChange.numerator, denominator: tsChange.denominator };
+        lastBarDuration = calculateBarDuration(lastTs.numerator, lastTs.denominator, bpm);
+    }
+    
+    // Add remaining bars
+    const remainingBars = barPosition - currentBar;
+    totalTime += remainingBars * lastBarDuration;
+    
+    return totalTime;
+}
+
+
+
 // --- Scale Hint Overlay State ---
 let scaleHintEnabled = false;
 let scaleHintRoot = 'C';
