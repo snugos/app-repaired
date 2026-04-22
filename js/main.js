@@ -940,7 +940,7 @@ function applyDesktopBackground(sourceUrl, bgType = 'image') {
 
 // Restore background on load
 async function restoreDesktopBackground() {
-    const bgType = localStorage.getItem(DESKTOP_BG_TYPE_KEY);
+    const bgType = localStorage.getItem('snugosDesktopBgType');
     
     if (bgType === 'video') {
         try {
@@ -954,7 +954,7 @@ async function restoreDesktopBackground() {
             console.warn("Could not restore video background:", e);
         }
     } else if (bgType === 'image' || !bgType) {
-        const imageUrl = localStorage.getItem(DESKTOP_BACKGROUND_KEY);
+        const imageUrl = localStorage.getItem('snugosDesktopBackground');
         if (imageUrl) {
             applyDesktopBackground(imageUrl, 'image');
         }
