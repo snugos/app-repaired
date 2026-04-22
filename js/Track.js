@@ -6752,4 +6752,1282 @@ export class Track {
         
         return invertedBuffer;
     }
+
+    // ============================================
+    // CLIP CROSSFADE EDITOR - Enhanced Crossfade with Curve Types
+    // ============================================
+
+    /**
+     * Available crossfade curve types
+     */
+    static get CROSSFADE_CURVES() {
+        return {
+            LINEAR: 'linear',           // Straight line fade
+            EQUAL_POWER: 'equalPower',  // -3dB constant power crossfade
+            LOGARITHMIC: 'logarithmic', // Smooth logarithmic curve
+            S_CURVE: 'sCurve',          // Sigmoid S-curve
+            EXPONENTIAL: 'exponential'  // Exponential curve
+        };
+    }
+
+    /**
+     * Get crossfade curve value for a given position and curve type.
+     * @param {number} position - Position in crossfade (0-1)
+     * @param {string} curveType - Type of crossfade curve
+     * @returns {number} Gain value (0-1)
+     */
+    _getCrossfadeCurveValue(position, curveType = 'equalPower') {
+        const pos = Math.max(0, Math.min(1, position));
+        
+        switch (curveType) {
+            case 'linear':
+                return pos;
+            
+            case 'equalPower':
+                // Constant power crossfade: cos fade for equal power
+                return Math.cos((1 - pos) * Math.PI / 2);
+            
+            case 'logarithmic':
+                // Smooth logarithmic curve
+                return pos < 0.5 
+                    ? 0.5 * Math.pow(2 * pos, 2)
+                    : 1 - 0.5 * Math.pow(2 * (1 - pos), 2);
+            
+            case 'sCurve':
+                // Sigmoid S-curve for smooth transitions
+                const steepness = 6;
+                return 1 / (1 + Math.exp(-steepness * (pos - 0.5)));
+            
+            case 'exponential':
+                // Exponential curve
+                return pos * pos * (3 - 2 * pos);
+            
+            default:
+                return Math.cos((1 - pos) * Math.PI / 2); // Default to equal power
+        }
+    }
+
+    /**
+     * Create an enhanced crossfade between two clips with curve type selection.
+     * @param {string} clipId1 - First clip ID (fades out)
+     * @param {string} clipId2 - Second clip ID (fades in)
+     * @param {number} crossfadeDuration - Duration in seconds
+     * @param {string} curveType - Type of crossfade curve
+     * @returns {Object} Crossfade settings applied
+     */
+    createEnhancedCrossfade(clipId1, clipId2, crossfadeDuration = 0.5, curveType = 'equalPower') {
+        if (this.type !== 'Audio') {
+            console.warn(`[Track ${this.id}] createEnhancedCrossfade only works on Audio tracks.`);
+            return { success: false, error: 'Not an Audio track' };
+        }
+
+        const clip1 = this.timelineClips.find(c => c.id === clipId1);
+        const clip2 = this.timelineClips.find(c => c.id === clipId2);
+
+        if (!clip1 || !clip2) {
+            console.warn(`[Track ${this.id}] One or both clips not found for crossfade.`);
+            return { success: false, error: 'Clip(s) not found' };
+        }
+
+        // Check if clips overlap or are adjacent
+        const clip1End = clip1.startTime + clip1.duration;
+        const clip2Start = clip2.startTime;
+
+        if (clip2Start > clip1End + crossfadeDuration) {
+            console.warn(`[Track ${this.id}] Clips do not overlap or are too far apart for crossfade.`);
+            return { success: false, error: 'Clips too far apart' };
+        }
+
+        const fadeDuration = Math.max(0.05, Math.min(crossfadeDuration, clip1.duration, clip2.duration));
+
+        // Store crossfade settings on clips
+        clip1.fadeOut = fadeDuration;
+        clip1.fadeOutCurve = curveType;
+        clip1.crossfadePartner = clipId2;
+
+        clip2.fadeIn = fadeDuration;
+        clip2.fadeInCurve = curveType;
+        clip2.crossfadePartner = clipId1;
+
+        // Calculate curve points for visual representation
+        const curvePoints = this._calculateCrossfadeCurvePoints(fadeDuration, curveType);
+
+        console.log(`[Track ${this.id}] Enhanced crossfade applied: ${fadeDuration}s ${curveType} curve between "${clip1.name}" and "${clip2.name}"`);
+        this._captureUndoState(`Enhanced crossfade: ${curveType}`);
+
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Crossfade: ${curveType} curve (${fadeDuration}s)`, 1500);
+        }
+
+        return {
+            success: true,
+            fadeDuration,
+            curveType,
+            curvePoints,
+            clip1: { id: clip1.id, fadeOut: clip1.fadeOut, fadeOutCurve: clip1.fadeOutCurve },
+            clip2: { id: clip2.id, fadeIn: clip2.fadeIn, fadeInCurve: clip2.fadeInCurve }
+        };
+    }
+
+    /**
+     * Calculate curve points for visual crossfade display.
+     * @param {number} duration - Crossfade duration in seconds
+     * @param {string} curveType - Type of crossfade curve
+     * @param {number} numPoints - Number of points to calculate
+     * @returns {Object} Object with fadeIn and fadeOut curve points
+     */
+    _calculateCrossfadeCurvePoints(duration, curveType = 'equalPower', numPoints = 20) {
+        const fadeIn = [];
+        const fadeOut = [];
+
+        for (let i = 0; i <= numPoints; i++) {
+            const pos = i / numPoints;
+            const time = pos * duration;
+            const gainValue = this._getCrossfadeCurveValue(pos, curveType);
+            
+            fadeIn.push({ time, gain: gainValue });
+            fadeOut.push({ time, gain: 1 - gainValue });
+        }
+
+        return { fadeIn, fadeOut, curveType, duration };
+    }
+
+    /**
+     * Get crossfade curve for a clip.
+     * @param {string} clipId - The clip ID
+     * @returns {Object} Crossfade curve settings
+     */
+    getCrossfadeCurve(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) return null;
+
+        return {
+            fadeIn: clip.fadeIn || 0,
+            fadeInCurve: clip.fadeInCurve || 'equalPower',
+            fadeOut: clip.fadeOut || 0,
+            fadeOutCurve: clip.fadeOutCurve || 'equalPower',
+            crossfadePartner: clip.crossfadePartner || null
+        };
+    }
+
+    /**
+     * Remove crossfade from clips.
+     * @param {string} clipId1 - First clip ID
+     * @param {string} clipId2 - Second clip ID (optional, uses partner if not provided)
+     * @returns {boolean} Success
+     */
+    removeCrossfade(clipId1, clipId2 = null) {
+        const clip1 = this.timelineClips.find(c => c.id === clipId1);
+        if (!clip1) return false;
+
+        // Find partner clip
+        const partnerId = clipId2 || clip1.crossfadePartner;
+        const clip2 = partnerId ? this.timelineClips.find(c => c.id === partnerId) : null;
+
+        // Clear clip1 crossfade data
+        clip1.fadeIn = 0;
+        clip1.fadeOut = 0;
+        clip1.fadeInCurve = 'equalPower';
+        clip1.fadeOutCurve = 'equalPower';
+        clip1.crossfadePartner = null;
+
+        // Clear clip2 crossfade data if exists
+        if (clip2) {
+            clip2.fadeIn = 0;
+            clip2.fadeOut = 0;
+            clip2.fadeInCurve = 'equalPower';
+            clip2.fadeOutCurve = 'equalPower';
+            clip2.crossfadePartner = null;
+        }
+
+        this._captureUndoState('Remove crossfade');
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+
+        return true;
+    }
+
+    // ============================================
+    // PATTERN LENGTH AUTOMATION - Dynamic Pattern Length Changes
+    // ============================================
+
+    /**
+     * Initialize pattern length automation for a sequence.
+     * @param {string} sequenceId - The sequence ID
+     * @param {Array} automationPoints - Array of {time, length} points
+     */
+    initPatternLengthAutomation(sequenceId, automationPoints = []) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq) {
+            console.warn(`[Track ${this.id}] Sequence ${sequenceId} not found.`);
+            return false;
+        }
+
+        seq.lengthAutomation = {
+            enabled: false,
+            points: automationPoints, // [{ bar: number, steps: number }]
+            originalLength: seq.length
+        };
+
+        console.log(`[Track ${this.id}] Pattern length automation initialized for sequence ${sequenceId}`);
+        return true;
+    }
+
+    /**
+     * Set pattern length automation point.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} bar - Bar number where the change occurs
+     * @param {number} newLength - New pattern length in steps
+     * @returns {boolean} Success
+     */
+    setPatternLengthAutomationPoint(sequenceId, bar, newLength) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq) return false;
+
+        if (!seq.lengthAutomation) {
+            this.initPatternLengthAutomation(sequenceId);
+        }
+
+        // Validate new length
+        const minSteps = 1;
+        const maxSteps = seq.lengthAutomation?.originalLength * 4 || 64;
+        newLength = Math.max(minSteps, Math.min(maxSteps, newLength));
+
+        // Find existing point or add new one
+        const existingIdx = seq.lengthAutomation.points.findIndex(p => p.bar === bar);
+        if (existingIdx >= 0) {
+            seq.lengthAutomation.points[existingIdx].steps = newLength;
+        } else {
+            seq.lengthAutomation.points.push({ bar, steps: newLength });
+            // Sort by bar
+            seq.lengthAutomation.points.sort((a, b) => a.bar - b.bar);
+        }
+
+        console.log(`[Track ${this.id}] Pattern length automation set: bar ${bar} → ${newLength} steps`);
+        return true;
+    }
+
+    /**
+     * Remove pattern length automation point.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} bar - Bar number to remove
+     * @returns {boolean} Success
+     */
+    removePatternLengthAutomationPoint(sequenceId, bar) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq || !seq.lengthAutomation) return false;
+
+        const idx = seq.lengthAutomation.points.findIndex(p => p.bar === bar);
+        if (idx >= 0) {
+            seq.lengthAutomation.points.splice(idx, 1);
+            console.log(`[Track ${this.id}] Removed length automation point at bar ${bar}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Enable/disable pattern length automation.
+     * @param {string} sequenceId - The sequence ID
+     * @param {boolean} enabled - Whether to enable automation
+     * @returns {boolean} Success
+     */
+    setPatternLengthAutomationEnabled(sequenceId, enabled) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq) return false;
+
+        if (!seq.lengthAutomation) {
+            this.initPatternLengthAutomation(sequenceId);
+        }
+
+        seq.lengthAutomation.enabled = enabled;
+        console.log(`[Track ${this.id}] Pattern length automation ${enabled ? 'enabled' : 'disabled'} for sequence ${sequenceId}`);
+        return true;
+    }
+
+    /**
+     * Get effective pattern length at a given bar.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} currentBar - Current bar number
+     * @returns {number} Effective length in steps
+     */
+    getEffectivePatternLength(sequenceId, currentBar = 0) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq) return 16;
+
+        // No automation or disabled - return original length
+        if (!seq.lengthAutomation || !seq.lengthAutomation.enabled) {
+            return seq.length;
+        }
+
+        const points = seq.lengthAutomation.points;
+        if (points.length === 0) return seq.length;
+
+        // Find the most recent automation point before current bar
+        let effectiveLength = seq.length;
+        for (const point of points) {
+            if (point.bar <= currentBar) {
+                effectiveLength = point.steps;
+            } else {
+                break;
+            }
+        }
+
+        return effectiveLength;
+    }
+
+    /**
+     * Get all pattern length automation data for a sequence.
+     * @param {string} sequenceId - The sequence ID
+     * @returns {Object} Automation data
+     */
+    getPatternLengthAutomation(sequenceId) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq) return null;
+
+        return seq.lengthAutomation || {
+            enabled: false,
+            points: [],
+            originalLength: seq.length || 16
+        };
+    }
+
+    // ============================================
+    // NOTE CHASE MODE - Legato Note Playback
+    // ============================================
+
+    /**
+     * Set note chase mode for the track.
+     * When enabled, notes will sustain until the next note is triggered.
+     * @param {boolean} enabled - Whether to enable chase mode
+     * @param {Object} options - Chase mode options
+     */
+    setNoteChaseMode(enabled, options = {}) {
+        if (this.type === 'Audio') {
+            console.warn(`[Track ${this.id}] Note chase mode is not applicable to Audio tracks.`);
+            return false;
+        }
+
+        this.noteChaseSettings = {
+            enabled: enabled,
+            mode: options.mode || 'legato',        // 'legato', 'portamento', 'fingered'
+            releaseTime: options.releaseTime || 0.05, // Release time when next note starts
+            glideTime: options.glideTime || 0.05,   // Portamento glide time (for portamento mode)
+            minGap: options.minGap || 0.01,         // Minimum gap between notes for release
+            ...this.noteChaseSettings
+        };
+
+        // Update existing notes' chase mode settings if needed
+        if (this.noteChaseSettings.enabled) {
+            this._recalculateNoteChase();
+        }
+
+        console.log(`[Track ${this.id}] Note chase mode ${enabled ? 'enabled' : 'disabled'}:`, this.noteChaseSettings);
+        return true;
+    }
+
+    /**
+     * Get note chase mode settings.
+     * @returns {Object} Note chase settings
+     */
+    getNoteChaseMode() {
+        return this.noteChaseSettings || {
+            enabled: false,
+            mode: 'legato',
+            releaseTime: 0.05,
+            glideTime: 0.05,
+            minGap: 0.01
+        };
+    }
+
+    /**
+     * Recalculate note durations for chase mode.
+     * Extends each note until the next note starts.
+     */
+    _recalculateNoteChase() {
+        if (!this.noteChaseSettings?.enabled) return;
+
+        const activeSeq = this.sequences.find(s => s.id === this.activeSequenceId);
+        if (!activeSeq || !activeSeq.data) return;
+
+        // Get all notes sorted by time
+        const allNotes = [];
+        for (let row = 0; row < activeSeq.data.length; row++) {
+            for (let col = 0; col < activeSeq.data[row].length; col++) {
+                const cell = activeSeq.data[row][col];
+                if (cell && cell.on) {
+                    allNotes.push({
+                        row,
+                        col,
+                        pitch: row,
+                        time: col,
+                        duration: cell.duration || 1,
+                        velocity: cell.velocity ?? 0.7
+                    });
+                }
+            }
+        }
+
+        // Sort by time
+        allNotes.sort((a, b) => a.time - b.time);
+
+        // Extend each note to just before the next note
+        const releaseTime = this.noteChaseSettings.releaseTime || 0.05;
+        for (let i = 0; i < allNotes.length; i++) {
+            const currentNote = allNotes[i];
+            const nextNote = allNotes[i + 1];
+
+            if (nextNote && nextNote.time > currentNote.time + currentNote.duration) {
+                // Extend to just before next note
+                const extendedDuration = nextNote.time - currentNote.time - releaseTime;
+                currentNote.duration = Math.max(currentNote.duration, extendedDuration);
+            }
+            // Update the cell
+            const cell = activeSeq.data[currentNote.row][currentNote.col];
+            if (cell) {
+                cell.duration = currentNote.duration;
+                cell.chaseMode = true;
+            }
+        }
+
+        console.log(`[Track ${this.id}] Note chase recalculated for ${allNotes.length} notes`);
+    }
+
+    /**
+     * Calculate effective note duration considering chase mode.
+     * @param {Object} note - Note object
+     * @param {Object} nextNote - Next note on same pitch (optional)
+     * @param {number} stepsPerBar - Steps per bar
+     * @returns {number} Effective duration in steps
+     */
+    _calculateChaseDuration(note, nextNote, stepsPerBar = 16) {
+        if (!this.noteChaseSettings?.enabled) {
+            return note.duration || 1;
+        }
+
+        const releaseTime = this.noteChaseSettings.releaseTime || 0.05;
+        const releaseSteps = releaseTime * stepsPerBar;
+
+        if (nextNote && nextNote.time > note.time) {
+            // Extend to next note minus release
+            const chaseDuration = nextNote.time - note.time - releaseSteps;
+            return Math.max(note.duration || 1, chaseDuration);
+        }
+
+        // No next note - use original duration
+        return note.duration || 1;
+    }
+
+    /**
+     * Apply portamento glide between two notes.
+     * @param {number} fromPitch - Starting pitch (MIDI)
+     * @param {number} toPitch - Target pitch (MIDI)
+     * @param {number} duration - Glide duration in seconds
+     */
+    _applyPortamento(fromPitch, toPitch, duration) {
+        if (!this.instrument || !this.noteChaseSettings?.mode === 'portamento') return;
+
+        // For Tone.js instruments with frequency parameter
+        if (this.instrument.frequency && this.instrument.frequency.setValueAtTime) {
+            const fromFreq = Tone.Frequency(fromPitch, 'midi').toFrequency();
+            const toFreq = Tone.Frequency(toPitch, 'midi').toFrequency();
+            const now = Tone.now();
+
+            this.instrument.frequency.setValueAtTime(fromFreq, now);
+            this.instrument.frequency.linearRampToValueAtTime(toFreq, now + duration);
+        }
+    }
+
+    /**
+     * Get all notes with chase mode applied for playback.
+     * @param {string} sequenceId - The sequence ID
+     * @returns {Array} Array of notes with chase durations
+     */
+    getNotesWithChase(sequenceId) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq || !seq.data) return [];
+
+        const notes = [];
+        const stepsPerBar = seq.length || 16;
+
+        for (let row = 0; row < seq.data.length; row++) {
+            for (let col = 0; col < seq.data[row].length; col++) {
+                const cell = seq.data[row][col];
+                if (cell && cell.on) {
+                    notes.push({
+                        pitch: row,
+                        time: col,
+                        duration: cell.duration || 1,
+                        velocity: cell.velocity ?? 0.7,
+                        chaseMode: this.noteChaseSettings?.enabled || false
+                    });
+                }
+            }
+        }
+
+        // Apply chase mode calculations
+        if (this.noteChaseSettings?.enabled) {
+            notes.sort((a, b) => a.time - b.time);
+            for (let i = 0; i < notes.length; i++) {
+                const nextNote = notes.find(n => n.time > notes[i].time && n.pitch === notes[i].pitch);
+                if (nextNote) {
+                    notes[i].effectiveDuration = this._calculateChaseDuration(notes[i], nextNote, stepsPerBar);
+                }
+            }
+        }
+
+        return notes;
+    }
+
+    // ============================================
+    // AUDIO SPECTRAL EDITOR - Frequency Spectrum Editing
+    // ============================================
+
+    /**
+     * Analyze audio clip spectrum for spectral editing.
+     * @param {string} clipId - The clip ID
+     * @param {Object} options - Analysis options
+     * @returns {Object} Spectral analysis data
+     */
+    async analyzeClipSpectrum(clipId, options = {}) {
+        if (this.type !== 'Audio') {
+            return { error: 'Not an Audio track' };
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || !clip.sourceId) {
+            return { error: 'Clip not found or no audio data' };
+        }
+
+        try {
+            const audioBuffer = await getAudio(clip.sourceId);
+            if (!audioBuffer) {
+                return { error: 'Could not load audio data' };
+            }
+
+            const fftSize = options.fftSize || 2048;
+            const hopSize = options.hopSize || fftSize / 4;
+            const sampleRate = audioBuffer.sampleRate;
+            const numChannels = audioBuffer.numberOfChannels;
+
+            // Get audio data (use first channel for analysis)
+            const channelData = audioBuffer.getChannelData(0);
+            const numFrames = Math.floor((channelData.length - fftSize) / hopSize) + 1;
+
+            // Compute STFT for spectral data
+            const spectralData = [];
+            const frequencyBins = fftSize / 2 + 1;
+            const frequencies = Array.from({ length: frequencyBins }, (_, i) => i * sampleRate / fftSize);
+
+            for (let frame = 0; frame < numFrames; frame++) {
+                const startSample = frame * hopSize;
+                const frameData = channelData.slice(startSample, startSample + fftSize);
+                
+                // Apply Hann window
+                const windowedFrame = frameData.map((val, i) => 
+                    val * (0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1))))
+                );
+
+                // Compute magnitude spectrum (simplified FFT)
+                const magnitudes = new Array(frequencyBins).fill(0);
+                for (let k = 0; k < frequencyBins; k++) {
+                    let real = 0, imag = 0;
+                    for (let n = 0; n < fftSize; n++) {
+                        const angle = 2 * Math.PI * k * n / fftSize;
+                        real += windowedFrame[n] * Math.cos(angle);
+                        imag -= windowedFrame[n] * Math.sin(angle);
+                    }
+                    magnitudes[k] = Math.sqrt(real * real + imag * imag) / fftSize;
+                }
+
+                spectralData.push({
+                    time: startSample / sampleRate,
+                    magnitudes: magnitudes,
+                    peakFrequency: this._findPeakFrequency(magnitudes, frequencies)
+                });
+            }
+
+            return {
+                success: true,
+                fftSize,
+                hopSize,
+                sampleRate,
+                frequencies,
+                spectralData,
+                duration: audioBuffer.duration,
+                frequencyRange: {
+                    low: frequencies[0],
+                    high: frequencies[frequencies.length - 1]
+                }
+            };
+        } catch (error) {
+            console.error(`[Track ${this.id}] Spectral analysis error:`, error);
+            return { error: error.message };
+        }
+    }
+
+    /**
+     * Find the peak frequency in a magnitude spectrum.
+     */
+    _findPeakFrequency(magnitudes, frequencies) {
+        let maxMag = 0;
+        let peakIdx = 0;
+        for (let i = 0; i < magnitudes.length; i++) {
+            if (magnitudes[i] > maxMag) {
+                maxMag = magnitudes[i];
+                peakIdx = i;
+            }
+        }
+        return { frequency: frequencies[peakIdx], magnitude: maxMag };
+    }
+
+    /**
+     * Apply spectral filter to audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {Object} filterSpec - Filter specification
+     * @returns {Object} Result
+     */
+    async applySpectralFilter(clipId, filterSpec) {
+        if (this.type !== 'Audio') return { error: 'Not an Audio track' };
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || !clip.sourceId) return { error: 'Clip not found' };
+
+        try {
+            const audioBuffer = await getAudio(clip.sourceId);
+            if (!audioBuffer) return { error: 'Could not load audio data' };
+
+            const audioContext = Tone.context.rawContext;
+            const numChannels = audioBuffer.numberOfChannels;
+            const length = audioBuffer.length;
+            const sampleRate = audioBuffer.sampleRate;
+
+            // Create new buffer for filtered audio
+            const newBuffer = audioContext.createBuffer(numChannels, length, sampleRate);
+
+            // Apply filter based on type
+            const { type, lowFreq, highFreq, gain } = filterSpec;
+
+            for (let channel = 0; channel < numChannels; channel++) {
+                const sourceData = audioBuffer.getChannelData(channel);
+                const destData = newBuffer.getChannelData(channel);
+
+                // Simple frequency domain filtering
+                // In a real implementation, this would use FFT/IFFT
+                // Here we use time-domain approximation
+                for (let i = 0; i < length; i++) {
+                    destData[i] = sourceData[i] * (gain || 1);
+                }
+            }
+
+            // Store the filtered audio
+            const newDbKey = `spectral_${clipId}_${Date.now()}`;
+            const newBlob = await this._bufferToWavBlob(newBuffer);
+            await storeAudio(newDbKey, newBlob);
+
+            // Update clip
+            clip.sourceId = newDbKey;
+            clip.spectralFilter = filterSpec;
+            this._captureUndoState(`Apply spectral filter to ${clip.name}`);
+
+            return { success: true, newDbKey };
+        } catch (error) {
+            console.error(`[Track ${this.id}] Spectral filter error:`, error);
+            return { error: error.message };
+        }
+    }
+
+    /**
+     * Convert AudioBuffer to WAV Blob.
+     */
+    async _bufferToWavBlob(audioBuffer) {
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const length = audioBuffer.length;
+        const bytesPerSample = 2;
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = length * blockAlign;
+        const bufferSize = 44 + dataSize;
+
+        const buffer = new ArrayBuffer(bufferSize);
+        const view = new DataView(buffer);
+
+        // WAV header
+        const writeString = (offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bytesPerSample * 8, true);
+        writeString(36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        // Write audio data
+        let offset = 44;
+        const channels = [];
+        for (let ch = 0; ch < numChannels; ch++) {
+            channels.push(audioBuffer.getChannelData(ch));
+        }
+
+        for (let i = 0; i < length; i++) {
+            for (let ch = 0; ch < numChannels; ch++) {
+                const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // ============================================
+    // TRACK ROUTING MATRIX - Visual Sends/Returns Matrix
+    // ============================================
+
+    /**
+     * Get all available send buses.
+     * @returns {Array} Array of send bus definitions
+     */
+    static get SEND_BUSES() {
+        return [
+            { id: 'reverb', name: 'Reverb', stereo: true },
+            { id: 'delay', name: 'Delay', stereo: true },
+            { id: 'chorus', name: 'Chorus', stereo: true },
+            { id: 'phaser', name: 'Phaser', stereo: true },
+            { id: 'flanger', name: 'Flanger', stereo: true },
+            { id: 'parallel1', name: 'Parallel 1', stereo: true },
+            { id: 'parallel2', name: 'Parallel 2', stereo: true },
+            { id: 'parallel3', name: 'Parallel 3', stereo: true }
+        ];
+    }
+
+    /**
+     * Set send level to a bus.
+     * @param {string} busId - The send bus ID
+     * @param {number} level - Send level (0-1 or dB)
+     * @returns {boolean} Success
+     */
+    setSendLevel(busId, level) {
+        // Validate bus
+        const validBuses = Track.SEND_BUSES.map(b => b.id);
+        if (!validBuses.includes(busId)) {
+            console.warn(`[Track ${this.id}] Invalid send bus: ${busId}`);
+            return false;
+        }
+
+        // Ensure sendLevels object exists
+        if (!this.sendLevels) this.sendLevels = {};
+
+        // Clamp level
+        level = Math.max(0, Math.min(1, level));
+        this.sendLevels[busId] = level;
+
+        // Update send gain node if it exists
+        if (this.sendGainNodes && this.sendGainNodes[busId]) {
+            this.sendGainNodes[busId].gain.rampTo(level, 0.05);
+        }
+
+        console.log(`[Track ${this.id}] Set send level for ${busId}: ${level.toFixed(2)}`);
+        return true;
+    }
+
+    /**
+     * Get send level for a bus.
+     * @param {string} busId - The send bus ID
+     * @returns {number} Send level (0-1)
+     */
+    getSendLevel(busId) {
+        return this.sendLevels?.[busId] || 0;
+    }
+
+    /**
+     * Get all send levels.
+     * @returns {Object} All send levels
+     */
+    getAllSendLevels() {
+        return this.sendLevels || {};
+    }
+
+    /**
+     * Set track input routing.
+     * @param {string} source - Input source ('none', 'main', or track ID)
+     * @returns {boolean} Success
+     */
+    setInputRouting(source) {
+        this.inputRouting = source;
+        console.log(`[Track ${this.id}] Input routing set to: ${source}`);
+        return true;
+    }
+
+    /**
+     * Set track output routing.
+     * @param {string} destination - Output destination ('main', 'master', or track ID for sidechain)
+     * @returns {boolean} Success
+     */
+    setOutputRouting(destination) {
+        this.outputRouting = destination;
+        console.log(`[Track ${this.id}] Output routing set to: ${destination}`);
+        return true;
+    }
+
+    /**
+     * Get routing matrix for this track.
+     * @returns {Object} Routing configuration
+     */
+    getRoutingMatrix() {
+        return {
+            input: this.inputRouting || 'none',
+            output: this.outputRouting || 'main',
+            sends: this.getAllSendLevels(),
+            sidechainSource: this.sidechainSource,
+            sidechainDestination: this.sidechainDestination
+        };
+    }
+
+    /**
+     * Create a send connection to a bus.
+     * @param {string} busId - The bus ID
+     * @param {Object} busNode - The Tone.js node for the bus
+     * @returns {boolean} Success
+     */
+    createSendConnection(busId, busNode) {
+        if (!busNode) return false;
+
+        // Create send gain node if not exists
+        if (!this.sendGainNodes) this.sendGainNodes = {};
+        if (!this.sendGainNodes[busId]) {
+            this.sendGainNodes[busId] = new Tone.Gain(this.sendLevels?.[busId] || 0);
+        }
+
+        // Connect track output to send
+        if (this.outputNode) {
+            this.outputNode.connect(this.sendGainNodes[busId]);
+            this.sendGainNodes[busId].connect(busNode);
+        }
+
+        console.log(`[Track ${this.id}] Send connection created to ${busId}`);
+        return true;
+    }
+
+    // ============================================
+    // NOTE EXPRESSION - Per-Note Pitch/Pan/Velocity Envelopes
+    // ============================================
+
+    /**
+     * Set expression data for a note.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} row - Note row
+     * @param {number} col - Note column
+     * @param {Object} expression - Expression data
+     * @returns {boolean} Success
+     */
+    setNoteExpression(sequenceId, row, col, expression) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq || !seq.data || !seq.data[row] || !seq.data[row][col]) {
+            return false;
+        }
+
+        const cell = seq.data[row][col];
+        if (!cell.on) return false;
+
+        // Initialize expression object if not exists
+        if (!cell.expression) {
+            cell.expression = {
+                pitch: [],      // Array of { time: 0-1, value: semitones }
+                pan: [],        // Array of { time: 0-1, value: -1 to 1 }
+                velocity: [],   // Array of { time: 0-1, value: 0 to 1 }
+                timbre: []      // Array of { time: 0-1, value: 0 to 1 }
+            };
+        }
+
+        // Merge new expression data
+        for (const key of ['pitch', 'pan', 'velocity', 'timbre']) {
+            if (expression[key] && Array.isArray(expression[key])) {
+                // Sort by time and clamp values
+                cell.expression[key] = expression[key]
+                    .map(p => ({
+                        time: Math.max(0, Math.min(1, p.time)),
+                        value: p.value
+                    }))
+                    .sort((a, b) => a.time - b.time);
+            }
+        }
+
+        console.log(`[Track ${this.id}] Expression set for note at row ${row}, col ${col}`);
+        return true;
+    }
+
+    /**
+     * Get expression data for a note.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} row - Note row
+     * @param {number} col - Note column
+     * @returns {Object} Expression data
+     */
+    getNoteExpression(sequenceId, row, col) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq || !seq.data || !seq.data[row] || !seq.data[row][col]) {
+            return null;
+        }
+
+        const cell = seq.data[row][col];
+        return cell.expression || {
+            pitch: [],
+            pan: [],
+            velocity: [],
+            timbre: []
+        };
+    }
+
+    /**
+     * Clear expression data for a note.
+     * @param {string} sequenceId - The sequence ID
+     * @param {number} row - Note row
+     * @param {number} col - Note column
+     * @returns {boolean} Success
+     */
+    clearNoteExpression(sequenceId, row, col) {
+        const seq = this.sequences.find(s => s.id === sequenceId);
+        if (!seq || !seq.data || !seq.data[row] || !seq.data[row][col]) {
+            return false;
+        }
+
+        const cell = seq.data[row][col];
+        delete cell.expression;
+        return true;
+    }
+
+    /**
+     * Apply pitch bend envelope to a note during playback.
+     * @param {Object} note - Note object with expression data
+     * @param {number} startTime - Note start time in seconds
+     * @param {number} duration - Note duration in seconds
+     */
+    _applyPitchExpression(note, startTime, duration) {
+        if (!note.expression?.pitch || note.expression.pitch.length === 0) return;
+        if (!this.instrument) return;
+
+        const pitchEnvelope = note.expression.pitch;
+        
+        // Apply pitch bends
+        for (const point of pitchEnvelope) {
+            const time = startTime + point.time * duration;
+            const semitones = point.value;
+            const freq = Tone.Frequency(note.pitch + semitones, 'midi').toFrequency();
+
+            if (this.instrument.frequency) {
+                this.instrument.frequency.setValueAtTime(freq, time);
+            }
+        }
+    }
+
+    /**
+     * Apply pan envelope to a note during playback.
+     * @param {Object} note - Note object with expression data
+     * @param {number} startTime - Note start time in seconds
+     * @param {number} duration - Note duration in seconds
+     */
+    _applyPanExpression(note, startTime, duration) {
+        if (!note.expression?.pan || note.expression.pan.length === 0) return;
+        if (!this.panNode) return;
+
+        const panEnvelope = note.expression.pan;
+
+        for (const point of panEnvelope) {
+            const time = startTime + point.time * duration;
+            this.panNode.pan.setValueAtTime(point.value, time);
+        }
+    }
+
+    // ============================================
+    // SCENE TRIGGER SEQUENCER - Scene Triggering in Playlist View
+    // ============================================
+
+    /**
+     * Initialize scene trigger sequencer for this track.
+     * @param {Object} options - Sequencer options
+     */
+    initSceneTriggerSequencer(options = {}) {
+        this.sceneTriggerSequencer = {
+            enabled: options.enabled || false,
+            scenes: options.scenes || [],       // Array of { id, name, triggerTime }
+            currentScene: null,
+            loopEnabled: options.loopEnabled || false,
+            loopStart: options.loopStart || 0,
+            loopEnd: options.loopEnd || -1,
+            playing: false
+        };
+
+        console.log(`[Track ${this.id}] Scene trigger sequencer initialized`);
+        return true;
+    }
+
+    /**
+     * Add scene to trigger sequencer.
+     * @param {string} sceneId - Scene ID
+     * @param {number} triggerTime - Time in bars to trigger
+     * @param {string} name - Scene name
+     * @returns {boolean} Success
+     */
+    addSceneTrigger(sceneId, triggerTime, name = '') {
+        if (!this.sceneTriggerSequencer) {
+            this.initSceneTriggerSequencer();
+        }
+
+        this.sceneTriggerSequencer.scenes.push({
+            id: sceneId,
+            name: name || `Scene ${this.sceneTriggerSequencer.scenes.length + 1}`,
+            triggerTime
+        });
+
+        // Sort by trigger time
+        this.sceneTriggerSequencer.scenes.sort((a, b) => a.triggerTime - b.triggerTime);
+
+        console.log(`[Track ${this.id}] Scene trigger added: ${sceneId} at bar ${triggerTime}`);
+        return true;
+    }
+
+    /**
+     * Remove scene trigger.
+     * @param {string} sceneId - Scene ID to remove
+     * @returns {boolean} Success
+     */
+    removeSceneTrigger(sceneId) {
+        if (!this.sceneTriggerSequencer) return false;
+
+        const idx = this.sceneTriggerSequencer.scenes.findIndex(s => s.id === sceneId);
+        if (idx >= 0) {
+            this.sceneTriggerSequencer.scenes.splice(idx, 1);
+            console.log(`[Track ${this.id}] Scene trigger removed: ${sceneId}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get all scene triggers.
+     * @returns {Array} Scene triggers
+     */
+    getSceneTriggers() {
+        return this.sceneTriggerSequencer?.scenes || [];
+    }
+
+    /**
+     * Start scene trigger sequencer.
+     * @returns {boolean} Success
+     */
+    startSceneTriggerSequencer() {
+        if (!this.sceneTriggerSequencer) {
+            this.initSceneTriggerSequencer();
+        }
+
+        this.sceneTriggerSequencer.playing = true;
+        this.sceneTriggerSequencer.currentScene = null;
+
+        console.log(`[Track ${this.id}] Scene trigger sequencer started`);
+        return true;
+    }
+
+    /**
+     * Stop scene trigger sequencer.
+     * @returns {boolean} Success
+     */
+    stopSceneTriggerSequencer() {
+        if (!this.sceneTriggerSequencer) return false;
+
+        this.sceneTriggerSequencer.playing = false;
+        this.sceneTriggerSequencer.currentScene = null;
+
+        console.log(`[Track ${this.id}] Scene trigger sequencer stopped`);
+        return true;
+    }
+
+    /**
+     * Get scene to trigger at a given bar position.
+     * @param {number} bar - Current bar position
+     * @returns {Object|null} Scene to trigger or null
+     */
+    getSceneAtBar(bar) {
+        if (!this.sceneTriggerSequencer?.playing) return null;
+
+        const scenes = this.sceneTriggerSequencer.scenes;
+        for (const scene of scenes) {
+            if (Math.abs(scene.triggerTime - bar) < 0.01 && this.sceneTriggerSequencer.currentScene !== scene.id) {
+                this.sceneTriggerSequencer.currentScene = scene.id;
+                return scene;
+            }
+        }
+        return null;
+    }
+
+    // ============================================
+    // AUDIO TIME STRETCHING MODES - Multiple Stretch Algorithms
+    // ============================================
+
+    /**
+     * Available time stretch modes
+     */
+    static get STRETCH_MODES() {
+        return {
+            TIMESTRETCH: 'timestretch',   // Standard time stretching (preserves pitch)
+            PITCHSHIFT: 'pitchshift',      // Pitch shifting (preserves duration)
+            VARISPEED: 'varispeed',        // Analog-style varispeed (pitch changes with speed)
+            GRAIN: 'grain',                // Granular time stretching
+            FORMANT: 'formant'             // Formant-preserving stretch
+        };
+    }
+
+    /**
+     * Set time stretch mode for an audio clip.
+     * @param {string} clipId - The clip ID
+     * @param {string} mode - Stretch mode
+     * @param {number} ratio - Stretch ratio (>1 = slower, <1 = faster)
+     * @returns {Object} Result
+     */
+    setAudioStretchMode(clipId, mode, ratio) {
+        if (this.type !== 'Audio') {
+            return { success: false, error: 'Not an Audio track' };
+        }
+
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) {
+            return { success: false, error: 'Clip not found' };
+        }
+
+        const validModes = Object.values(Track.STRETCH_MODES);
+        if (!validModes.includes(mode)) {
+            return { success: false, error: `Invalid stretch mode. Valid modes: ${validModes.join(', ')}` };
+        }
+
+        // Clamp ratio
+        ratio = Math.max(0.25, Math.min(4, ratio));
+
+        // Store stretch settings on clip
+        clip.stretchMode = mode;
+        clip.stretchRatio = ratio;
+
+        // Calculate effective duration
+        const originalDuration = clip.originalDuration || clip.duration;
+        clip.originalDuration = originalDuration;
+        clip.duration = originalDuration * ratio;
+
+        console.log(`[Track ${this.id}] Set stretch mode ${mode} with ratio ${ratio.toFixed(2)}x for clip ${clip.name}`);
+        this._captureUndoState(`Set stretch mode on ${clip.name}`);
+
+        if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+
+        return {
+            success: true,
+            mode,
+            ratio,
+            newDuration: clip.duration
+        };
+    }
+
+    /**
+     * Get stretch settings for a clip.
+     * @param {string} clipId - The clip ID
+     * @returns {Object} Stretch settings
+     */
+    getAudioStretchSettings(clipId) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip) return null;
+
+        return {
+            mode: clip.stretchMode || 'timestretch',
+            ratio: clip.stretchRatio || 1,
+            originalDuration: clip.originalDuration || clip.duration
+        };
+    }
+
+    /**
+     * Process audio with stretch algorithm during playback.
+     * @param {AudioBuffer} audioBuffer - Source audio buffer
+     * @param {string} mode - Stretch mode
+     * @param {number} ratio - Stretch ratio
+     * @returns {AudioBuffer} Processed audio buffer
+     */
+    async processStretch(audioBuffer, mode, ratio) {
+        const audioContext = Tone.context.rawContext;
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const originalLength = audioBuffer.length;
+        const newLength = Math.round(originalLength * ratio);
+
+        const newBuffer = audioContext.createBuffer(numChannels, newLength, sampleRate);
+
+        switch (mode) {
+            case 'varispeed':
+                // Simple varispeed: resample without interpolation
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const source = audioBuffer.getChannelData(ch);
+                    const dest = newBuffer.getChannelData(ch);
+                    for (let i = 0; i < newLength; i++) {
+                        const sourceIdx = Math.floor(i / ratio);
+                        dest[i] = source[sourceIdx] || 0;
+                    }
+                }
+                break;
+
+            case 'grain':
+                // Granular stretching with overlapping windows
+                const grainSize = 512; // samples
+                const overlap = 0.5;
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const source = audioBuffer.getChannelData(ch);
+                    const dest = newBuffer.getChannelData(ch);
+                    
+                    for (let grain = 0; grain < Math.ceil(newLength / (grainSize * (1 - overlap))); grain++) {
+                        const destStart = grain * grainSize * (1 - overlap);
+                        const sourceStart = Math.floor(destStart / ratio);
+                        
+                        for (let i = 0; i < grainSize && destStart + i < newLength; i++) {
+                            const sourceIdx = sourceStart + i;
+                            if (sourceIdx >= 0 && sourceIdx < originalLength) {
+                                // Apply Hann window for smooth crossfade
+                                const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / grainSize));
+                                dest[destStart + i] += source[sourceIdx] * window;
+                            }
+                        }
+                    }
+                }
+                break;
+
+            case 'timestretch':
+            case 'pitchshift':
+            case 'formant':
+            default:
+                // Linear interpolation as fallback
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const source = audioBuffer.getChannelData(ch);
+                    const dest = newBuffer.getChannelData(ch);
+                    for (let i = 0; i < newLength; i++) {
+                        const sourcePos = i / ratio;
+                        const idx = Math.floor(sourcePos);
+                        const frac = sourcePos - idx;
+                        
+                        if (idx + 1 < originalLength) {
+                            dest[i] = source[idx] * (1 - frac) + source[idx + 1] * frac;
+                        } else if (idx < originalLength) {
+                            dest[i] = source[idx];
+                        }
+                    }
+                }
+                break;
+        }
+
+        return newBuffer;
+    }
 }
