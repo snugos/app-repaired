@@ -3119,3 +3119,250 @@ export function openRandomPatternGeneratorPanel() {
         }
     }, 100);
 }
+
+// --- Track Routing Matrix Panel ---
+
+export function openTrackRoutingMatrixPanel(savedState = null) {
+    const windowId = 'trackRoutingMatrix';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderTrackRoutingMatrixContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'trackRoutingMatrixContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 600, 
+        height: 500, 
+        minWidth: 500, 
+        minHeight: 400,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Track Routing Matrix', contentContainer, options);
+    
+    if (win?.element) {
+        renderTrackRoutingMatrixContent();
+    }
+    
+    return win;
+}
+
+function renderTrackRoutingMatrixContent() {
+    const container = document.getElementById('trackRoutingMatrixContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    const availableBuses = localAppServices.getAvailableSendBuses ? localAppServices.getAvailableSendBuses() : ['reverb', 'delay'];
+    
+    // Build header columns
+    const columns = [
+        { id: 'track', label: 'Track', width: '120px' },
+        { id: 'main', label: 'Main Out', width: '100px' },
+        ...availableBuses.map(bus => ({ 
+            id: bus, 
+            label: bus.charAt(0).toUpperCase() + bus.slice(1), 
+            width: '100px' 
+        })),
+        { id: 'sidechain', label: 'Sidechain', width: '100px' }
+    ];
+
+    let html = `
+        <div class="mb-3 p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-600 dark:text-gray-400">
+                Route tracks to different outputs. Use Main Out for direct signal, or send to Reverb/Delay buses for effects.
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gray-200 dark:bg-slate-600">
+                        ${columns.map(col => `<th class="p-2 text-left font-medium text-gray-700 dark:text-gray-300" style="width: ${col.width}">${col.label}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    if (tracks.length === 0) {
+        html += `
+            <tr>
+                <td colspan="${columns.length}" class="p-4 text-center text-gray-500 dark:text-gray-400">
+                    No tracks available. Create a track first.
+                </td>
+            </tr>
+        `;
+    } else {
+        tracks.forEach(track => {
+            const trackColor = track.color || '#3b82f6';
+            html += `
+                <tr class="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700" data-track-id="${track.id}">
+                    <td class="p-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full" style="background-color: ${trackColor}"></span>
+                            <span class="font-medium text-gray-800 dark:text-gray-200 truncate">${track.name}</span>
+                        </div>
+                    </td>
+                    <td class="p-2">
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" class="main-out-toggle w-4 h-4 accent-blue-500" 
+                                data-track-id="${track.id}" 
+                                ${!track.outputRouting || track.outputRouting === 'main' ? 'checked' : ''}>
+                        </label>
+                    </td>
+                    ${availableBuses.map(bus => {
+                        const sendLevel = track.sendLevels?.[bus] || 0;
+                        return `
+                            <td class="p-2">
+                                <div class="flex items-center gap-1">
+                                    <input type="range" class="send-level-slider w-16 h-1" 
+                                        min="0" max="1" step="0.01" 
+                                        value="${sendLevel}"
+                                        data-track-id="${track.id}" 
+                                        data-bus="${bus}">
+                                    <span class="send-level-val text-gray-500 dark:text-gray-400 w-8 font-mono">${Math.round(sendLevel * 100)}%</span>
+                                </div>
+                            </td>
+                        `;
+                    }).join('')}
+                    <td class="p-2">
+                        <select class="sidechain-target-select p-1 text-xs bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200" data-track-id="${track.id}">
+                            <option value="">None</option>
+                            ${tracks.filter(t => t.id !== track.id).map(t => 
+                                `<option value="${t.id}" ${track.sidechainSource === t.id ? 'selected' : ''}>${t.name}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+            <span class="flex items-center gap-1">
+                <span class="w-4 h-1 bg-blue-400 rounded"></span>
+                Main Out
+            </span>
+            <span class="flex items-center gap-1">
+                <span class="w-4 h-1 bg-green-400 rounded"></span>
+                Send Level
+            </span>
+            <span class="flex items-center gap-1">
+                <span class="w-4 h-1 bg-purple-400 rounded"></span>
+                Sidechain
+            </span>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Wire up event listeners
+    wireTrackRoutingMatrixEvents(container);
+}
+
+function wireTrackRoutingMatrixEvents(container) {
+    // Main out toggles
+    container.querySelectorAll('.main-out-toggle').forEach(toggle => {
+        toggle.addEventListener('change', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const enabled = e.target.checked;
+            
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Toggle main out for track`);
+            }
+            
+            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+            if (track && typeof track.setOutputRouting === 'function') {
+                track.setOutputRouting(enabled ? 'main' : 'none');
+                localAppServices.showNotification?.(`Main out ${enabled ? 'enabled' : 'disabled'} for ${track.name}`, 1500);
+            }
+        });
+    });
+    
+    // Send level sliders
+    container.querySelectorAll('.send-level-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const bus = e.target.dataset.bus;
+            const level = parseFloat(e.target.value);
+            
+            // Update value display
+            const valDisplay = e.target.nextElementSibling;
+            if (valDisplay) valDisplay.textContent = `${Math.round(level * 100)}%`;
+            
+            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+            if (track && typeof track.setSendLevel === 'function') {
+                track.setSendLevel(bus, level);
+            }
+        });
+        
+        slider.addEventListener('change', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+            const bus = e.target.dataset.bus;
+            const level = parseFloat(e.target.value);
+            
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Set ${bus} send level`);
+            }
+            
+            if (track && typeof track.setSendLevel === 'function') {
+                track.setSendLevel(bus, level);
+                localAppServices.showNotification?.(`${bus.charAt(0).toUpperCase() + bus.slice(1)} send set to ${Math.round(level * 100)}% for ${track.name}`, 1500);
+            }
+        });
+    });
+    
+    // Sidechain target selects
+    container.querySelectorAll('.sidechain-target-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const targetTrackId = e.target.value ? parseInt(e.target.value, 10) : null;
+            
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Set sidechain routing`);
+            }
+            
+            const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+            if (track && typeof track.setSidechainSource === 'function') {
+                track.setSidechainSource(targetTrackId);
+                const targetName = targetTrackId ? (localAppServices.getTrackById?.(targetTrackId)?.name || `Track ${targetTrackId}`) : 'None';
+                localAppServices.showNotification?.(`Sidechain ${targetTrackId ? `routed to ${targetName}` : 'removed'} for ${track.name}`, 1500);
+            }
+        });
+    });
+}
+
+export function updateTrackRoutingMatrixPanel() {
+    const container = document.getElementById('trackRoutingMatrixContent');
+    if (container) {
+        renderTrackRoutingMatrixContent();
+    }
+}
+
+// --- Random Pattern Generator UI ---

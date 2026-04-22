@@ -181,7 +181,7 @@ export class Track {
         this.timelineClips = initialData?.timelineClips ? JSON.parse(JSON.stringify(initialData.timelineClips)) : [];
 
 
-        if (this.type !== 'Audio') {
+        if (this.type !== 'Audio' && this.type !== 'Lyrics') {
             if (initialData?.sequences && initialData.sequences.length > 0) {
                 this.sequences = JSON.parse(JSON.stringify(initialData.sequences));
                 this.activeSequenceId = initialData.activeSequenceId || (this.sequences[0] ? this.sequences[0].id : null);
@@ -190,7 +190,7 @@ export class Track {
             }
             delete this.sequenceData;
             delete this.sequenceLength;
-        } else { 
+        } else if (this.type === 'Audio') { 
             delete this.sequenceData;
             delete this.sequenceLength;
             delete this.sequences;
@@ -7339,7 +7339,7 @@ export class Track {
                     for (let n = 0; n < fftSize; n++) {
                         const angle = -2 * Math.PI * k * n / fftSize;
                         real += windowedFrame[n] * Math.cos(angle);
-                        imag -= windowedFrame[n] * Math.sin(angle);
+                        imag += windowedFrame[n] * Math.sin(angle);
                     }
                     magnitudes[k] = Math.sqrt(real * real + imag * imag) / fftSize;
                 }
@@ -8588,5 +8588,1151 @@ export class Track {
 
         console.log(`[Track ${this.id}] Created custom wavetable: ${name}`);
         return customWavetable;
+    }
+
+    // ============================================
+    // MPE (MIDI Polyphonic Expression) Support
+    // ============================================
+
+    /**
+     * Initialize MPE support for expressive control.
+     * MPE allows per-note pitch bend, timbre, and pressure.
+     */
+    initMPESupport(config = {}) {
+        if (this.type !== 'Synth') {
+            console.warn(`[Track ${this.id}] MPE support only available for Synth tracks`);
+            return false;
+        }
+
+        this.mpeSettings = {
+            enabled: true,
+            pitchRange: config.pitchRange || 48, // semitones (±24 default per note)
+            timbreCC: config.timbreCC || 74, // standard MPE timbre CC
+            pressureSensitivity: config.pressureSensitivity ?? 1.0,
+            glideEnabled: config.glideEnabled ?? false,
+            glideTime: config.glideTime || 0.05, // seconds
+            voices: new Map(), // noteNumber -> { pitchBend: 0, timbre: 0.5, pressure: 0.5 }
+            activeNotes: new Map(), // noteNumber -> voiceId
+            zone: config.zone || 'lower', // 'lower', 'upper', or 'full'
+            channelRange: config.channelRange || { start: 1, end: 16 } // MPE zone channels
+        };
+
+        console.log(`[Track ${this.id}] MPE support initialized: pitchRange=${this.mpeSettings.pitchRange} semitones`);
+        return true;
+    }
+
+    /**
+     * Handle MPE note on with expression data.
+     * @param {number} noteNumber - MIDI note number
+     * @param {number} velocity - Note velocity (0-127)
+     * @param {number} channel - MPE channel (2-16 typically)
+     */
+    mpeNoteOn(noteNumber, velocity, channel = 0) {
+        if (!this.mpeSettings?.enabled) {
+            console.warn(`[Track ${this.id}] MPE not initialized`);
+            return null;
+        }
+
+        const voiceId = `${noteNumber}-${channel}-${Date.now()}`;
+        
+        // Initialize voice expression state
+        this.mpeSettings.voices.set(voiceId, {
+            noteNumber,
+            channel,
+            pitchBend: 0,
+            timbre: 0.5,
+            pressure: velocity / 127,
+            velocity,
+            startTime: Date.now()
+        });
+
+        this.mpeSettings.activeNotes.set(noteNumber, voiceId);
+
+        // Trigger note on the synth with expression awareness
+        if (this.synth && this.synth.triggerAttack) {
+            const freq = this._mpeNoteToFrequency(noteNumber, 0);
+            this.synth.triggerAttack(freq, undefined, velocity / 127);
+        }
+
+        console.log(`[Track ${this.id}] MPE note ON: note=${noteNumber}, vel=${velocity}, ch=${channel}`);
+        return voiceId;
+    }
+
+    /**
+     * Handle MPE note off.
+     * @param {number} noteNumber - MIDI note number
+     * @param {number} channel - MPE channel
+     */
+    mpeNoteOff(noteNumber, channel = 0) {
+        if (!this.mpeSettings?.enabled) return false;
+
+        const voiceId = this.mpeSettings.activeNotes.get(noteNumber);
+        if (!voiceId) return false;
+
+        const voice = this.mpeSettings.voices.get(voiceId);
+        if (!voice) return false;
+
+        // Release the note
+        if (this.synth && this.synth.triggerRelease) {
+            this.synth.triggerRelease();
+        }
+
+        // Clean up
+        this.mpeSettings.voices.delete(voiceId);
+        this.mpeSettings.activeNotes.delete(noteNumber);
+
+        console.log(`[Track ${this.id}] MPE note OFF: note=${noteNumber}`);
+        return true;
+    }
+
+    /**
+     * Set per-voice pitch bend for MPE.
+     * @param {number} noteNumber - Note number
+     * @param {number} pitchBend - Pitch bend value (-1 to 1)
+     */
+    mpeSetPitchBend(noteNumber, pitchBend) {
+        if (!this.mpeSettings?.enabled) return false;
+
+        const voiceId = this.mpeSettings.activeNotes.get(noteNumber);
+        if (!voiceId) return false;
+
+        const voice = this.mpeSettings.voices.get(voiceId);
+        if (!voice) return false;
+
+        voice.pitchBend = Math.max(-1, Math.min(1, pitchBend));
+        
+        // Apply pitch bend to frequency
+        const newFreq = this._mpeNoteToFrequency(voice.noteNumber, voice.pitchBend);
+        if (this.synth?.setNote) {
+            this.synth.setNote(newFreq);
+        }
+
+        return true;
+    }
+
+    /**
+     * Set per-voice timbre (CC74) for MPE.
+     * @param {number} noteNumber - Note number
+     * @param {number} timbre - Timbre value (0-1)
+     */
+    mpeSetTimbre(noteNumber, timbre) {
+        if (!this.mpeSettings?.enabled) return false;
+
+        const voiceId = this.mpeSettings.activeNotes.get(noteNumber);
+        if (!voiceId) return false;
+
+        const voice = this.mpeSettings.voices.get(voiceId);
+        if (!voice) return false;
+
+        voice.timbre = Math.max(0, Math.min(1, timbre));
+        
+        // Map timbre to filter cutoff or other synth parameter
+        if (this.synthParams?.filterEnvelope?.baseFrequency) {
+            const filterFreq = 200 + (voice.timbre * 4800); // 200Hz to 5000Hz
+            if (this.synth?.filter?.frequency) {
+                this.synth.filter.frequency.rampTo(filterFreq, 0.01);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Set per-voice pressure (aftertouch) for MPE.
+     * @param {number} noteNumber - Note number
+     * @param {number} pressure - Pressure value (0-1)
+     */
+    mpeSetPressure(noteNumber, pressure) {
+        if (!this.mpeSettings?.enabled) return false;
+
+        const voiceId = this.mpeSettings.activeNotes.get(noteNumber);
+        if (!voiceId) return false;
+
+        const voice = this.mpeSettings.voices.get(voiceId);
+        if (!voice) return false;
+
+        voice.pressure = Math.max(0, Math.min(1, pressure));
+        
+        // Map pressure to volume or filter
+        const volumeScale = 0.5 + (voice.pressure * 0.5);
+        if (this.synth?.volume) {
+            const currentVol = this.synth.volume.value;
+            this.synth.volume.rampTo(currentVol * volumeScale, 0.01);
+        }
+
+        return true;
+    }
+
+    /**
+     * Convert MPE note number to frequency with pitch bend.
+     * @private
+     */
+    _mpeNoteToFrequency(noteNumber, pitchBend) {
+        const baseFreq = 440 * Math.pow(2, (noteNumber - 69) / 12);
+        const bendSemitones = pitchBend * (this.mpeSettings.pitchRange / 2);
+        return baseFreq * Math.pow(2, bendSemitones / 12);
+    }
+
+    /**
+     * Get MPE settings.
+     */
+    getMPESettings() {
+        return this.mpeSettings || { enabled: false };
+    }
+
+    // ============================================
+    // AI-Assisted Composition Features
+    // ============================================
+
+    /**
+     * Initialize AI composition helper.
+     */
+    initAIComposition(config = {}) {
+        this.aiComposition = {
+            enabled: true,
+            styleProfile: config.styleProfile || 'electronic', // electronic, acoustic, orchestral, etc.
+            keyConstraint: config.keyConstraint || null, // e.g., 'C major', 'A minor'
+            tempoSuggestion: config.tempoSuggestion || null,
+            patternMemory: [], // Store patterns for learning
+            suggestionCache: new Map(),
+            maxSuggestions: config.maxSuggestions || 10,
+            generativeRules: {
+                minInterval: config.minInterval || 0, // minimum interval between notes (semitones)
+                maxInterval: config.maxInterval || 12, // maximum interval (octave)
+                favorConsonance: config.favorConsonance ?? true,
+                avoidParallelFifths: config.avoidParallelFifths ?? false,
+                rhythmicDensity: config.rhythmicDensity || 0.5, // 0-1
+                melodicRange: config.melodicRange || 12 // semitones
+            }
+        };
+
+        console.log(`[Track ${this.id}] AI Composition initialized: style=${this.aiComposition.styleProfile}`);
+        return true;
+    }
+
+    /**
+     * Generate pattern suggestions based on current sequence.
+     * @param {string} sequenceId - Target sequence
+     * @param {Object} options - Generation options
+     */
+    generatePatternSuggestions(sequenceId, options = {}) {
+        if (!this.aiComposition?.enabled) {
+            console.warn(`[Track ${this.id}] AI Composition not initialized`);
+            return [];
+        }
+
+        const sequence = this.sequences?.find(s => s.id === sequenceId);
+        if (!sequence) return [];
+
+        const suggestions = [];
+        const currentPattern = sequence.steps || [];
+        const numSuggestions = options.numSuggestions || this.aiComposition.maxSuggestions;
+
+        // Analyze current pattern
+        const analysis = this._analyzePattern(currentPattern);
+        
+        for (let i = 0; i < numSuggestions; i++) {
+            const suggestion = this._generateVariation(currentPattern, analysis, options);
+            suggestions.push({
+                id: `suggestion-${Date.now()}-${i}`,
+                pattern: suggestion,
+                confidence: this._calculateConfidence(currentPattern, suggestion),
+                description: this._describeVariation(i, options),
+                style: this.aiComposition.styleProfile
+            });
+        }
+
+        this.aiComposition.suggestionCache.set(sequenceId, suggestions);
+        console.log(`[Track ${this.id}] Generated ${suggestions.length} pattern suggestions for sequence ${sequenceId}`);
+        
+        return suggestions;
+    }
+
+    /**
+     * Analyze a pattern for musical characteristics.
+     * @private
+     */
+    _analyzePattern(pattern) {
+        const activeNotes = pattern.filter(s => s.active);
+        if (activeNotes.length === 0) {
+            return { density: 0, averageVelocity: 0, noteRange: { min: 0, max: 0 } };
+        }
+
+        const velocities = activeNotes.map(s => s.velocity || 100);
+        const pitches = activeNotes.map(s => s.note || 60);
+
+        return {
+            density: activeNotes.length / pattern.length,
+            averageVelocity: velocities.reduce((a, b) => a + b, 0) / velocities.length,
+            noteRange: {
+                min: Math.min(...pitches),
+                max: Math.max(...pitches)
+            },
+            pitchCentroid: pitches.reduce((a, b) => a + b, 0) / pitches.length,
+            rhythmicProfile: this._analyzeRhythm(activeNotes)
+        };
+    }
+
+    /**
+     * Analyze rhythm of active notes.
+     * @private
+     */
+    _analyzeRhythm(activeNotes) {
+        const positions = activeNotes.map(s => s.position || 0).sort((a, b) => a - b);
+        if (positions.length < 2) return { regularity: 1 };
+
+        const intervals = [];
+        for (let i = 1; i < positions.length; i++) {
+            intervals.push(positions[i] - positions[i - 1]);
+        }
+
+        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        const variance = intervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / intervals.length;
+        const regularity = 1 / (1 + Math.sqrt(variance));
+
+        return { regularity, avgInterval, intervals };
+    }
+
+    /**
+     * Generate a variation of the current pattern.
+     * @private
+     */
+    _generateVariation(originalPattern, analysis, options) {
+        const variationType = options.variationType || 'evolve'; // evolve, complement, contrast
+        const pattern = JSON.parse(JSON.stringify(originalPattern));
+
+        switch (variationType) {
+            case 'evolve':
+                return this._evolvePattern(pattern, analysis);
+            case 'complement':
+                return this._complementPattern(pattern, analysis);
+            case 'contrast':
+                return this._contrastPattern(pattern, analysis);
+            default:
+                return pattern;
+        }
+    }
+
+    /**
+     * Evolve a pattern with small changes.
+     * @private
+     */
+    _evolvePattern(pattern, analysis) {
+        const rules = this.aiComposition.generativeRules;
+        
+        // Add subtle variations
+        pattern.forEach((step, i) => {
+            if (step.active && Math.random() < 0.2) {
+                // Vary velocity slightly
+                step.velocity = Math.max(1, Math.min(127, 
+                    step.velocity + (Math.random() - 0.5) * 20));
+                
+                // Occasionally shift note pitch
+                if (Math.random() < 0.1) {
+                    const shift = Math.floor((Math.random() - 0.5) * rules.maxInterval);
+                    step.note = Math.max(0, Math.min(127, step.note + shift));
+                }
+            }
+        });
+
+        return pattern;
+    }
+
+    /**
+     * Create complementary pattern.
+     * @private
+     */
+    _complementPattern(pattern, analysis) {
+        // Add notes in gaps
+        const activePositions = new Set(
+            pattern.filter(s => s.active).map(s => s.position)
+        );
+
+        pattern.forEach((step, i) => {
+            if (!step.active && Math.random() < 0.3) {
+                // Fill gaps with complementary notes
+                const note = analysis.pitchCentroid 
+                    ? Math.round(analysis.pitchCentroid) + (Math.random() > 0.5 ? 3 : -3)
+                    : 60;
+                
+                step.active = true;
+                step.note = note;
+                step.velocity = analysis.averageVelocity * 0.8;
+            }
+        });
+
+        return pattern;
+    }
+
+    /**
+     * Create contrasting pattern.
+     * @private
+     */
+    _contrastPattern(pattern, analysis) {
+        const rules = this.aiComposition.generativeRules;
+        
+        // Invert or offset the pattern
+        pattern.forEach((step, i) => {
+            if (step.active) {
+                // Offset notes by interval
+                step.note = Math.max(0, Math.min(127, 
+                    step.note + rules.melodicRange * (Math.random() > 0.5 ? 1 : -1) * 0.5));
+                
+                // Invert rhythm probability
+                if (Math.random() < 0.3) {
+                    step.active = !step.active;
+                }
+            } else if (Math.random() < 0.2) {
+                step.active = true;
+                step.note = 60;
+                step.velocity = analysis.averageVelocity;
+            }
+        });
+
+        return pattern;
+    }
+
+    /**
+     * Calculate confidence score for a suggestion.
+     * @private
+     */
+    _calculateConfidence(original, suggestion) {
+        let score = 0.5; // Base confidence
+        
+        // Check how similar the patterns are
+        let similarNotes = 0;
+        for (let i = 0; i < original.length && i < suggestion.length; i++) {
+            if (original[i].active === suggestion[i].active) similarNotes++;
+        }
+        
+        score += (similarNotes / Math.max(original.length, suggestion.length)) * 0.3;
+        
+        // Add style-based bonus
+        if (this.aiComposition.styleProfile === 'electronic') {
+            score += 0.1; // Electronic styles favor repetition
+        }
+
+        return Math.max(0, Math.min(1, score));
+    }
+
+    /**
+     * Describe a variation type.
+     * @private
+     */
+    _describeVariation(index, options) {
+        const types = ['evolve', 'complement', 'contrast'];
+        const type = options.variationType || types[index % 3];
+        const descriptions = {
+            evolve: 'Gradual evolution with subtle variations',
+            complement: 'Fills gaps with complementary notes',
+            contrast: 'Creates contrasting musical ideas'
+        };
+        return descriptions[type] || 'Pattern variation';
+    }
+
+    /**
+     * Get AI composition settings.
+     */
+    getAICompositionSettings() {
+        return this.aiComposition || { enabled: false };
+    }
+
+    // ============================================
+    // Collaborative Editing Features
+    // ============================================
+
+    /**
+     * Initialize collaborative editing support.
+     */
+    initCollaborativeEditing(config = {}) {
+        this.collaborativeEditing = {
+            enabled: true,
+            sessionId: config.sessionId || `collab-${Date.now()}`,
+            hostId: config.hostId || null,
+            participants: new Map(), // userId -> { name, color, cursor }
+            documentHistory: [],
+            currentRevision: 0,
+            lockTimeout: config.lockTimeout || 30000, // 30 seconds
+            elementLocks: new Map(), // elementId -> { userId, timestamp }
+            conflictResolution: config.conflictResolution || 'last-write-wins', // 'last-write-wins', 'operational-transform'
+            presence: {
+                trackId: this.id,
+                lastActivity: Date.now(),
+                editingElement: null
+            }
+        };
+
+        console.log(`[Track ${this.id}] Collaborative editing initialized: session=${this.collaborativeEditing.sessionId}`);
+        return true;
+    }
+
+    /**
+     * Join a collaborative session.
+     * @param {string} userId - User identifier
+     * @param {Object} userInfo - User information
+     */
+    joinCollaboration(userId, userInfo = {}) {
+        if (!this.collaborativeEditing?.enabled) {
+            console.warn(`[Track ${this.id}] Collaborative editing not initialized`);
+            return false;
+        }
+
+        const participant = {
+            id: userId,
+            name: userInfo.name || `User ${userId.slice(0, 4)}`,
+            color: userInfo.color || this._generateParticipantColor(),
+            cursor: { position: 0, sequenceId: null },
+            joinedAt: Date.now(),
+            lastSeen: Date.now()
+        };
+
+        this.collaborativeEditing.participants.set(userId, participant);
+        
+        console.log(`[Track ${this.id}] Participant joined: ${participant.name} (${userId})`);
+        return { sessionId: this.collaborativeEditing.sessionId, participant };
+    }
+
+    /**
+     * Leave collaborative session.
+     * @param {string} userId - User identifier
+     */
+    leaveCollaboration(userId) {
+        if (!this.collaborativeEditing?.enabled) return false;
+
+        const removed = this.collaborativeEditing.participants.delete(userId);
+        if (removed) {
+            // Release any locks held by this user
+            for (const [elementId, lock] of this.collaborativeEditing.elementLocks) {
+                if (lock.userId === userId) {
+                    this.collaborativeEditing.elementLocks.delete(elementId);
+                }
+            }
+            console.log(`[Track ${this.id}] Participant left: ${userId}`);
+        }
+        return removed;
+    }
+
+    /**
+     * Update participant cursor position.
+     * @param {string} userId - User identifier
+     * @param {Object} cursor - Cursor position info
+     */
+    updateCollaboratorCursor(userId, cursor) {
+        if (!this.collaborativeEditing?.enabled) return false;
+
+        const participant = this.collaborativeEditing.participants.get(userId);
+        if (!participant) return false;
+
+        participant.cursor = { ...cursor, timestamp: Date.now() };
+        participant.lastSeen = Date.now();
+        
+        return true;
+    }
+
+    /**
+     * Lock an element for editing.
+     * @param {string} userId - User requesting lock
+     * @param {string} elementId - Element to lock
+     */
+    lockElement(userId, elementId) {
+        if (!this.collaborativeEditing?.enabled) return false;
+
+        const participant = this.collaborativeEditing.participants.get(userId);
+        if (!participant) return false;
+
+        // Check if already locked
+        const existingLock = this.collaborativeEditing.elementLocks.get(elementId);
+        if (existingLock) {
+            // Check if lock has expired
+            if (Date.now() - existingLock.timestamp > this.collaborativeEditing.lockTimeout) {
+                this.collaborativeEditing.elementLocks.delete(elementId);
+            } else if (existingLock.userId !== userId) {
+                return { locked: false, lockedBy: existingLock.userId };
+            }
+        }
+
+        // Acquire lock
+        this.collaborativeEditing.elementLocks.set(elementId, {
+            userId,
+            timestamp: Date.now()
+        });
+
+        return { locked: true, elementId };
+    }
+
+    /**
+     * Unlock an element.
+     * @param {string} userId - User releasing lock
+     * @param {string} elementId - Element to unlock
+     */
+    unlockElement(userId, elementId) {
+        if (!this.collaborativeEditing?.enabled) return false;
+
+        const lock = this.collaborativeEditing.elementLocks.get(elementId);
+        if (!lock || lock.userId !== userId) return false;
+
+        this.collaborativeEditing.elementLocks.delete(elementId);
+        return { unlocked: true, elementId };
+    }
+
+    /**
+     * Record a change for history/sync.
+     * @param {Object} change - Change object
+     */
+    recordCollaborativeChange(change) {
+        if (!this.collaborativeEditing?.enabled) return false;
+
+        const revision = {
+            id: `rev-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            timestamp: Date.now(),
+            revisionNumber: ++this.collaborativeEditing.currentRevision,
+            change: {
+                type: change.type, // 'note-add', 'note-remove', 'note-update', 'sequence-create', etc.
+                trackId: this.id,
+                elementId: change.elementId,
+                previous: change.previous,
+                current: change.current,
+                userId: change.userId
+            }
+        };
+
+        this.collaborativeEditing.documentHistory.push(revision);
+        
+        // Keep history bounded
+        if (this.collaborativeEditing.documentHistory.length > 1000) {
+            this.collaborativeEditing.documentHistory = 
+                this.collaborativeEditing.documentHistory.slice(-500);
+        }
+
+        return revision;
+    }
+
+    /**
+     * Get changes since a revision.
+     * @param {number} sinceRevision - Revision number to get changes after
+     */
+    getChangesSinceRevision(sinceRevision) {
+        if (!this.collaborativeEditing?.enabled) return [];
+
+        return this.collaborativeEditing.documentHistory
+            .filter(r => r.revisionNumber > sinceRevision);
+    }
+
+    /**
+     * Get collaborative editing state.
+     */
+    getCollaborativeState() {
+        return this.collaborativeEditing || { enabled: false };
+    }
+
+    /**
+     * Generate a color for a participant.
+     * @private
+     */
+    _generateParticipantColor() {
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // ============================================
+    // Mobile Touch Optimization
+    // ============================================
+
+    /**
+     * Initialize mobile touch optimization.
+     */
+    initMobileTouchOptimization(config = {}) {
+        this.mobileTouchOptimization = {
+            enabled: true,
+            isTouchDevice: this._detectTouchDevice(),
+            touchSensitivity: config.touchSensitivity || 1.0,
+            gestureRecognition: {
+                swipeThreshold: config.swipeThreshold || 50, // pixels
+                tapTimeout: config.tapTimeout || 300, // ms
+                longPressTimeout: config.longPressTimeout || 500, // ms
+                pinchZoomEnabled: config.pinchZoomEnabled ?? true,
+                twoFingerScroll: config.twoFingerScroll ?? true
+            },
+            touchTargets: {
+                minSize: config.minSize || 44, // iOS HIG minimum
+                spacing: config.spacing || 8 // pixels between targets
+            },
+            hapticFeedback: config.hapticFeedback ?? true,
+            velocityTracking: {
+                enabled: config.velocityTracking ?? true,
+                smoothingFactor: config.smoothingFactor || 0.3
+            },
+            multiTouch: {
+                maxTouches: config.maxTouches || 5,
+                gestureTimeout: config.gestureTimeout || 100
+            },
+            touchHistory: [],
+            lastTouchTime: 0
+        };
+
+        console.log(`[Track ${this.id}] Mobile touch optimization initialized: touchDevice=${this.mobileTouchOptimization.isTouchDevice}`);
+        return true;
+    }
+
+    /**
+     * Detect if running on a touch device.
+     * @private
+     */
+    _detectTouchDevice() {
+        if (typeof window === 'undefined') return false;
+        return 'ontouchstart' in window || 
+            navigator.maxTouchPoints > 0 || 
+            navigator.msMaxTouchPoints > 0;
+    }
+
+    /**
+     * Handle touch start event.
+     * @param {TouchList} touches - Touch points
+     * @param {Object} context - Touch context info
+     */
+    handleTouchStart(touches, context = {}) {
+        if (!this.mobileTouchOptimization?.enabled) return null;
+
+        const opt = this.mobileTouchOptimization;
+        const touchArray = Array.from(touches);
+        
+        const touchInfo = {
+            id: `touch-${Date.now()}`,
+            startTime: Date.now(),
+            touches: touchArray.map(t => ({
+                id: t.identifier,
+                x: t.clientX,
+                y: t.clientY,
+                timestamp: Date.now()
+            })),
+            context: {
+                elementId: context.elementId,
+                sequenceId: context.sequenceId,
+                trackId: this.id
+            },
+            gesture: null
+        };
+
+        // Store in history for gesture detection
+        opt.touchHistory.push(touchInfo);
+        if (opt.touchHistory.length > 20) {
+            opt.touchHistory = opt.touchHistory.slice(-10);
+        }
+
+        // Trigger haptic feedback
+        if (opt.hapticFeedback && navigator.vibrate) {
+            navigator.vibrate(10);
+        }
+
+        opt.lastTouchTime = Date.now();
+        
+        return touchInfo;
+    }
+
+    /**
+     * Handle touch move event.
+     * @param {TouchList} touches - Touch points
+     * @param {Object} initialTouch - Initial touch info
+     */
+    handleTouchMove(touches, initialTouch) {
+        if (!this.mobileTouchOptimization?.enabled) return null;
+
+        const opt = this.mobileTouchOptimization;
+        const touchArray = Array.from(touches);
+        
+        // Calculate velocity
+        let velocity = { x: 0, y: 0 };
+        if (opt.velocityTracking.enabled && initialTouch) {
+            const dt = Date.now() - initialTouch.startTime;
+            if (dt > 0) {
+                const initialX = initialTouch.touches[0]?.x || 0;
+                const initialY = initialTouch.touches[0]?.y || 0;
+                const currentX = touchArray[0]?.clientX || 0;
+                const currentY = touchArray[0]?.clientY || 0;
+                
+                velocity.x = (currentX - initialX) / dt * 1000; // px/s
+                velocity.y = (currentY - initialY) / dt * 1000;
+                
+                // Apply smoothing
+                velocity.x *= opt.velocityTracking.smoothingFactor;
+                velocity.y *= opt.velocityTracking.smoothingFactor;
+            }
+        }
+
+        // Detect gesture
+        const gesture = this._detectGesture(touchArray, initialTouch, velocity);
+        
+        return { velocity, gesture, touches: touchArray };
+    }
+
+    /**
+     * Handle touch end event.
+     * @param {TouchList} touches - Remaining touch points
+     * @param {Object} initialTouch - Initial touch info
+     */
+    handleTouchEnd(touches, initialTouch) {
+        if (!this.mobileTouchOptimization?.enabled) return null;
+
+        const opt = this.mobileTouchOptimization;
+        const touchArray = Array.from(touches);
+        const duration = Date.now() - initialTouch.startTime;
+        
+        let gestureType = 'tap';
+        
+        // Determine final gesture
+        if (duration > opt.gestureRecognition.longPressTimeout) {
+            gestureType = 'longPress';
+        } else if (touchArray.length === 0) {
+            const initialPos = initialTouch.touches[0];
+            const lastPos = opt.touchHistory[opt.touchHistory.length - 1];
+            
+            if (initialPos && lastPos) {
+                const dx = (lastPos.touches[0]?.x || 0) - initialPos.x;
+                const dy = (lastPos.touches[0]?.y || 0) - initialPos.y;
+                
+                if (Math.abs(dx) > opt.gestureRecognition.swipeThreshold || 
+                    Math.abs(dy) > opt.gestureRecognition.swipeThreshold) {
+                    gestureType = Math.abs(dx) > Math.abs(dy) ? 'swipe-horizontal' : 'swipe-vertical';
+                }
+            }
+        }
+
+        // Trigger haptic feedback for gesture
+        if (opt.hapticFeedback && navigator.vibrate) {
+            if (gestureType === 'longPress') {
+                navigator.vibrate([20, 10, 20]);
+            }
+        }
+
+        return { gestureType, duration, tapCount: this._getTapCount() };
+    }
+
+    /**
+     * Detect gesture from touch movement.
+     * @private
+     */
+    _detectGesture(touches, initialTouch, velocity) {
+        if (!initialTouch?.touches?.length) return null;
+
+        const opt = this.mobileTouchOptimization;
+        const initial = initialTouch.touches[0];
+        const current = touches[0];
+        
+        if (!current) return null;
+
+        const dx = current.clientX - initial.x;
+        const dy = current.clientY - initial.y;
+        
+        // Pinch zoom (two fingers)
+        if (touches.length === 2 && opt.gestureRecognition.pinchZoomEnabled) {
+            const touch1 = touches[0];
+            const touch2 = touches[1];
+            const distance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+            
+            return {
+                type: 'pinch',
+                scale: distance / 100, // Normalize
+                center: {
+                    x: (touch1.clientX + touch2.clientX) / 2,
+                    y: (touch1.clientY + touch2.clientY) / 2
+                }
+            };
+        }
+
+        // Swipe detection
+        if (Math.abs(dx) > opt.gestureRecognition.swipeThreshold) {
+            return {
+                type: 'swipe',
+                direction: dx > 0 ? 'right' : 'left',
+                velocity: velocity.x
+            };
+        }
+
+        if (Math.abs(dy) > opt.gestureRecognition.swipeThreshold) {
+            return {
+                type: 'swipe',
+                direction: dy > 0 ? 'down' : 'up',
+                velocity: velocity.y
+            };
+        }
+
+        return { type: 'drag', dx, dy };
+    }
+
+    /**
+     * Get tap count for double/triple tap detection.
+     * @private
+     */
+    _getTapCount() {
+        const opt = this.mobileTouchOptimization;
+        const recentTouches = opt.touchHistory.filter(
+            t => Date.now() - t.startTime < 500
+        );
+        return recentTouches.length;
+    }
+
+    /**
+     * Get mobile touch settings.
+     */
+    getMobileTouchSettings() {
+        return this.mobileTouchOptimization || { enabled: false };
+    }
+
+    // ============================================
+    // Accessibility Improvements
+    // ============================================
+
+    /**
+     * Initialize accessibility features.
+     */
+    initAccessibility(config = {}) {
+        this.accessibility = {
+            enabled: true,
+            screenReaderSupport: config.screenReaderSupport ?? true,
+            keyboardNavigation: config.keyboardNavigation ?? true,
+            highContrast: config.highContrast ?? false,
+            reducedMotion: config.reducedMotion ?? false,
+            focusIndicators: config.focusIndicators ?? true,
+            ariaLabels: new Map(),
+            keyboardShortcuts: new Map(),
+            announcements: {
+                enabled: config.announcements ?? true,
+                queue: [],
+                lastAnnouncement: null
+            },
+            focusManagement: {
+                currentFocus: null,
+                focusHistory: [],
+                trapFocus: false
+            },
+            colorSchemes: {
+                default: { name: 'Default', contrast: 1 },
+                highContrast: { name: 'High Contrast', contrast: 2.5 },
+                dark: { name: 'Dark', contrast: 1.2 }
+            },
+            currentScheme: 'default'
+        };
+
+        // Set up default keyboard shortcuts
+        this._setupDefaultKeyboardShortcuts();
+
+        console.log(`[Track ${this.id}] Accessibility features initialized: screenReader=${this.accessibility.screenReaderSupport}`);
+        return true;
+    }
+
+    /**
+     * Set up default keyboard shortcuts.
+     * @private
+     */
+    _setupDefaultKeyboardShortcuts() {
+        if (!this.accessibility?.enabled) return;
+
+        const shortcuts = [
+            { key: 'Space', action: 'playPause', description: 'Play or pause playback' },
+            { key: 'Enter', action: 'confirm', description: 'Confirm action' },
+            { key: 'Escape', action: 'cancel', description: 'Cancel or close' },
+            { key: 'Tab', action: 'nextFocus', description: 'Move to next element' },
+            { key: 'Shift+Tab', action: 'prevFocus', description: 'Move to previous element' },
+            { key: 'ArrowUp', action: 'increment', description: 'Increase value' },
+            { key: 'ArrowDown', action: 'decrement', description: 'Decrease value' },
+            { key: 'ArrowLeft', action: 'navigateLeft', description: 'Navigate left' },
+            { key: 'ArrowRight', action: 'navigateRight', description: 'Navigate right' },
+            { key: 'Delete', action: 'delete', description: 'Delete selected element' },
+            { key: 'Ctrl+Z', action: 'undo', description: 'Undo last action' },
+            { key: 'Ctrl+Y', action: 'redo', description: 'Redo last action' },
+            { key: 'M', action: 'muteTrack', description: 'Mute current track' },
+            { key: 'S', action: 'soloTrack', description: 'Solo current track' },
+            { key: 'R', action: 'toggleRecord', description: 'Toggle recording' },
+            { key: 'L', action: 'toggleLoop', description: 'Toggle loop region' },
+            { key: '?', action: 'showHelp', description: 'Show keyboard shortcuts' }
+        ];
+
+        shortcuts.forEach(s => {
+            this.accessibility.keyboardShortcuts.set(s.key, {
+                action: s.action,
+                description: s.description
+            });
+        });
+    }
+
+    /**
+     * Register ARIA label for an element.
+     * @param {string} elementId - Element identifier
+     * @param {Object} ariaInfo - ARIA information
+     */
+    registerAriaLabel(elementId, ariaInfo) {
+        if (!this.accessibility?.enabled) return false;
+
+        this.accessibility.ariaLabels.set(elementId, {
+            role: ariaInfo.role || 'button',
+            label: ariaInfo.label || '',
+            description: ariaInfo.description || '',
+            state: ariaInfo.state || null,
+            live: ariaInfo.live || 'polite', // 'off', 'polite', 'assertive'
+            expanded: ariaInfo.expanded ?? null,
+            hasPopup: ariaInfo.hasPopup || false
+        });
+
+        return true;
+    }
+
+    /**
+     * Get ARIA attributes for an element.
+     * @param {string} elementId - Element identifier
+     */
+    getAriaAttributes(elementId) {
+        if (!this.accessibility?.enabled) return null;
+
+        const info = this.accessibility.ariaLabels.get(elementId);
+        if (!info) return null;
+
+        return {
+            'role': info.role,
+            'aria-label': info.label,
+            'aria-description': info.description,
+            'aria-expanded': info.expanded,
+            'aria-haspopup': info.hasPopup ? 'true' : null,
+            'aria-live': info.live
+        };
+    }
+
+    /**
+     * Announce a message for screen readers.
+     * @param {string} message - Message to announce
+     * @param {string} priority - 'polite' or 'assertive'
+     */
+    announceForScreenReader(message, priority = 'polite') {
+        if (!this.accessibility?.enabled || !this.accessibility.announcements.enabled) {
+            return false;
+        }
+
+        const announcement = {
+            id: `ann-${Date.now()}`,
+            message,
+            priority,
+            timestamp: Date.now()
+        };
+
+        this.accessibility.announcements.queue.push(announcement);
+        this.accessibility.announcements.lastAnnouncement = announcement;
+
+        // Keep queue bounded
+        if (this.accessibility.announcements.queue.length > 50) {
+            this.accessibility.announcements.queue = 
+                this.accessibility.announcements.queue.slice(-25);
+        }
+
+        console.log(`[Track ${this.id} A11y] Announced: "${message}" (${priority})`);
+        return announcement;
+    }
+
+    /**
+     * Handle keyboard navigation.
+     * @param {KeyboardEvent} event - Keyboard event
+     * @param {Object} context - Navigation context
+     */
+    handleKeyboardNavigation(event, context = {}) {
+        if (!this.accessibility?.enabled || !this.accessibility.keyboardNavigation) {
+            return null;
+        }
+
+        const key = this._getKeyboardCombo(event);
+        const shortcut = this.accessibility.keyboardShortcuts.get(key);
+
+        if (!shortcut) return null;
+
+        // Record focus history for backtracking
+        if (context.elementId) {
+            this.accessibility.focusManagement.focusHistory.push({
+                elementId: context.elementId,
+                timestamp: Date.now()
+            });
+        }
+
+        // Announce action for screen readers
+        if (this.accessibility.announcements.enabled) {
+            this.announceForScreenReader(shortcut.description);
+        }
+
+        return {
+            action: shortcut.action,
+            key,
+            description: shortcut.description
+        };
+    }
+
+    /**
+     * Get keyboard combo string from event.
+     * @private
+     */
+    _getKeyboardCombo(event) {
+        const parts = [];
+        if (event.ctrlKey) parts.push('Ctrl');
+        if (event.altKey) parts.push('Alt');
+        if (event.shiftKey) parts.push('Shift');
+        if (event.metaKey) parts.push('Meta');
+        parts.push(event.key);
+        return parts.join('+');
+    }
+
+    /**
+     * Set focus management state.
+     * @param {string} elementId - Element to focus
+     * @param {boolean} trapFocus - Whether to trap focus within
+     */
+    setFocusManagement(elementId, trapFocus = false) {
+        if (!this.accessibility?.enabled) return false;
+
+        this.accessibility.focusManagement.currentFocus = elementId;
+        this.accessibility.focusManagement.trapFocus = trapFocus;
+
+        // Announce focus change
+        const label = this.accessibility.ariaLabels.get(elementId);
+        if (label) {
+            this.announceForScreenReader(`Focused: ${label.label}`);
+        }
+
+        return true;
+    }
+
+    /**
+     * Set color scheme for accessibility.
+     * @param {string} schemeName - Name of color scheme
+     */
+    setColorScheme(schemeName) {
+        if (!this.accessibility?.enabled) return false;
+
+        if (this.accessibility.colorSchemes[schemeName]) {
+            this.accessibility.currentScheme = schemeName;
+            this.accessibility.highContrast = schemeName === 'highContrast';
+            
+            this.announceForScreenReader(`Color scheme changed to ${this.accessibility.colorSchemes[schemeName].name}`);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Enable/disable reduced motion mode.
+     * @param {boolean} enabled - Whether to reduce motion
+     */
+    setReducedMotion(enabled) {
+        if (!this.accessibility?.enabled) return false;
+
+        this.accessibility.reducedMotion = enabled;
+        this.announceForScreenReader(`Reduced motion ${enabled ? 'enabled' : 'disabled'}`);
+        
+        return true;
+    }
+
+    /**
+     * Get accessibility settings.
+     */
+    getAccessibilitySettings() {
+        return this.accessibility || { enabled: false };
     }
 }
