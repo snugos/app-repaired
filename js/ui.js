@@ -3352,6 +3352,22 @@ export function renderTimeline() {
     renderTimelineClipWaveforms(content);
 }
 
+// Exported functions for multi-select access
+export function getSelectedClipIds() {
+    return new Set(timelineState.selectedClipIds);
+}
+
+export function setSelectedClipIds(clipIds) {
+    if (Array.isArray(clipIds)) {
+        timelineState.selectedClipIds = clipIds;
+        timelineState.selectedClipId = clipIds[0] || null;
+    }
+}
+
+export function clearAllClipSelections() {
+    clearClipSelections();
+}
+
 function renderTimeRuler(duration, pixelsPerSecond) {
     let html = '';
     const interval = duration > 60 ? 10 : duration > 30 ? 5 : 1; // Adaptive interval
@@ -8299,7 +8315,7 @@ export function openCpuMonitorPanel() {
                 <button id="closeCpuMonitorBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             
-            <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
                 <div class="flex items-center gap-2">
                     <div id="cpuMonitorStatus" class="w-3 h-3 rounded-full bg-gray-400"></div>
                     <span class="text-xs text-gray-600 dark:text-gray-400">Monitoring</span>

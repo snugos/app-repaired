@@ -25,7 +25,13 @@ import {
     getLoopRegionEnabled, setLoopRegionEnabled, setLoopRegionStart, setLoopRegionEnd,
     // Metronome State
     getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume,
-    getAdaptiveMetronomeEnabled, setAdaptiveMetronomeEnabled, recordNoteTiming
+    getAdaptiveMetronomeEnabled, setAdaptiveMetronomeEnabled, recordNoteTiming,
+    // Group Edit State
+    getSelectedNotes, getSelectedNotesCount, getActiveSequenceIdForSelection,
+    setSelectedNotes, addSelectedNote, removeSelectedNote, toggleSelectedNote,
+    clearSelectedNotes, isSelectedNote, deleteSelectedNotes, duplicateSelectedNotes,
+    moveSelectedNotes, quantizeSelectedNotes,
+    deleteTimelineClips, duplicateTimelineClips
 } from './state.js';
 
 let localAppServices = {};
@@ -1033,6 +1039,106 @@ document.addEventListener('keydown', (event) => {
             if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
             const input = localAppServices.uiElementsCache?.tempoGlobalInput;
             if (input) input.value = newTempo.toFixed(1);
+            return;
+        }
+        // Delete key handler - delete selected clips or notes
+        if (key === 'delete' || key === 'backspace') {
+            event.preventDefault();
+            
+            // Check for selected timeline clips
+            if (localAppServices.getSelectedClipIds) {
+                const selectedClipIds = localAppServices.getSelectedClipIds();
+                if (selectedClipIds && selectedClipIds.length > 0) {
+                    captureStateForUndo(`Delete ${selectedClipIds.length} clip(s)`);
+                    const result = deleteTimelineClips(Array.from(selectedClipIds));
+                    if (result.success && result.deletedCount > 0) {
+                        if (localAppServices.showNotification) {
+                            localAppServices.showNotification(`Deleted ${result.deletedCount} clip(s)`, 1500);
+                        }
+                        if (localAppServices.clearClipSelections) {
+                            localAppServices.clearClipSelections();
+                        }
+                        if (localAppServices.renderTimeline) {
+                            localAppServices.renderTimeline();
+                        }
+                    }
+                    return;
+                }
+            }
+            
+            // Check for selected piano roll notes
+            const selectedNotesCount = getSelectedNotesCount();
+            if (selectedNotesCount > 0) {
+                captureStateForUndo(`Delete ${selectedNotesCount} note(s)`);
+                const result = deleteSelectedNotes();
+                if (result.success && result.deletedCount > 0) {
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification(`Deleted ${result.deletedCount} note(s)`, 1500);
+                    }
+                    if (localAppServices.updateTrackUI) {
+                        const seqId = getActiveSequenceIdForSelection();
+                        if (seqId && localAppServices.getTrackWithSequence) {
+                            const track = localAppServices.getTrackWithSequence(seqId);
+                            if (track) {
+                                localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+            
+            return;
+        }
+        // Ctrl+D - Duplicate selected clips or notes
+        if (key === 'd' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            
+            // Check for selected timeline clips
+            if (localAppServices.getSelectedClipIds) {
+                const selectedClipIds = localAppServices.getSelectedClipIds();
+                if (selectedClipIds && selectedClipIds.length > 0) {
+                    captureStateForUndo(`Duplicate ${selectedClipIds.length} clip(s)`);
+                    const result = duplicateTimelineClips(Array.from(selectedClipIds));
+                    if (result.success && result.duplicatedCount > 0) {
+                        if (localAppServices.showNotification) {
+                            localAppServices.showNotification(`Duplicated ${result.duplicatedCount} clip(s)`, 1500);
+                        }
+                        // Select the new clips
+                        const newClipIds = result.newClips.map(c => c.clip.id);
+                        if (localAppServices.setSelectedClipIds) {
+                            localAppServices.setSelectedClipIds(newClipIds);
+                        }
+                        if (localAppServices.renderTimeline) {
+                            localAppServices.renderTimeline();
+                        }
+                    }
+                    return;
+                }
+            }
+            
+            // Check for selected piano roll notes
+            const selectedNotesCount = getSelectedNotesCount();
+            if (selectedNotesCount > 0) {
+                captureStateForUndo(`Duplicate ${selectedNotesCount} note(s)`);
+                const result = duplicateSelectedNotes();
+                if (result.success && result.duplicatedCount > 0) {
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification(`Duplicated ${result.duplicatedCount} note(s)`, 1500);
+                    }
+                    if (localAppServices.updateTrackUI) {
+                        const seqId = getActiveSequenceIdForSelection();
+                        if (seqId && localAppServices.getTrackWithSequence) {
+                            const track = localAppServices.getTrackWithSequence(seqId);
+                            if (track) {
+                                localAppServices.updateTrackUI(track.id, 'sequencerContentChanged');
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+            
             return;
         }
         if (key === 'm' && !(event.ctrlKey || event.metaKey)) {

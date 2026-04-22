@@ -16501,3 +16501,289 @@ export function setDrumMapEditorOpen(open) {
     drumMapEditorOpen = !!open;
     console.log(`[State] Drum map editor ${drumMapEditorOpen ? 'opened' : 'closed'}`);
 }
+
+// --- Group Edit: Timeline Clips ---
+// Delete multiple timeline clips by ID
+export function deleteTimelineClips(clipIds) {
+    if (!Array.isArray(clipIds) || clipIds.length === 0) {
+        console.warn('[State] No clip IDs provided for deletion');
+        return { success: false, deletedCount: 0 };
+    }
+    
+    let deletedCount = 0;
+    const deletedClips = [];
+    
+    for (const track of tracks) {
+        if (track.type !== 'Audio' || !track.timelineClips) continue;
+        
+        const initialLength = track.timelineClips.length;
+        const toDelete = clipIds.filter(id => track.timelineClips.some(c => c.id === id));
+        
+        if (toDelete.length > 0) {
+            const deletedFromTrack = track.timelineClips.filter(c => toDelete.includes(c.id));
+            deletedClips.push(...deletedFromTrack.map(c => ({ trackId: track.id, clip: c })));
+            track.timelineClips = track.timelineClips.filter(c => !toDelete.includes(c.id));
+            deletedCount += toDelete.length;
+            
+            console.log(`[State] Deleted ${toDelete.length} clips from track ${track.id}`);
+        }
+    }
+    
+    return { success: true, deletedCount, deletedClips };
+}
+
+// Duplicate multiple timeline clips by ID
+export function duplicateTimelineClips(clipIds) {
+    if (!Array.isArray(clipIds) || clipIds.length === 0) {
+        console.warn('[State] No clip IDs provided for duplication');
+        return { success: false, duplicatedCount: 0, newClips: [] };
+    }
+    
+    const newClips = [];
+    let duplicatedCount = 0;
+    
+    for (const track of tracks) {
+        if (track.type !== 'Audio' || !track.timelineClips) continue;
+        
+        for (const clipId of clipIds) {
+            const originalClip = track.timelineClips.find(c => c.id === clipId);
+            if (!originalClip) continue;
+            
+            const newClip = {
+                ...JSON.parse(JSON.stringify(originalClip)),
+                id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: `${originalClip.name || 'Clip'} (copy)`,
+                startTime: originalClip.startTime + 0.5
+            };
+            
+            track.timelineClips.push(newClip);
+            track.timelineClips.sort((a, b) => a.startTime - b.startTime);
+            newClips.push({ trackId: track.id, clip: newClip });
+            duplicatedCount++;
+        }
+    }
+    
+    console.log(`[State] Duplicated ${duplicatedCount} clips`);
+    return { success: true, duplicatedCount, newClips };
+}
+
+// --- Group Edit: Piano Roll Notes ---
+let selectedNotes = new Set();
+let activeSequenceIdForSelection = null;
+
+export function getSelectedNotes() { return new Set(selectedNotes); }
+export function getSelectedNotesCount() { return selectedNotes.size; }
+export function getActiveSequenceIdForSelection() { return activeSequenceIdForSelection; }
+
+export function setSelectedNotes(noteKeys, sequenceId) {
+    selectedNotes = new Set(noteKeys);
+    activeSequenceIdForSelection = sequenceId || null;
+    console.log(`[State] Selected ${selectedNotes.size} notes in sequence ${sequenceId}`);
+}
+
+export function addSelectedNote(row, col, sequenceId) {
+    if (activeSequenceIdForSelection && activeSequenceIdForSelection !== sequenceId) {
+        selectedNotes.clear();
+    }
+    activeSequenceIdForSelection = sequenceId;
+    selectedNotes.add(`${row}_${col}`);
+}
+
+export function removeSelectedNote(row, col) {
+    selectedNotes.delete(`${row}_${col}`);
+}
+
+export function toggleSelectedNote(row, col, sequenceId) {
+    const key = `${row}_${col}`;
+    if (activeSequenceIdForSelection && activeSequenceIdForSelection !== sequenceId) {
+        selectedNotes.clear();
+        activeSequenceIdForSelection = sequenceId;
+        selectedNotes.add(key);
+    } else if (selectedNotes.has(key)) {
+        selectedNotes.delete(key);
+    } else {
+        selectedNotes.add(key);
+    }
+}
+
+export function clearSelectedNotes() {
+    selectedNotes.clear();
+    activeSequenceIdForSelection = null;
+}
+
+export function isSelectedNote(row, col) {
+    return selectedNotes.has(`${row}_${col}`);
+}
+
+export function deleteSelectedNotes() {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, deletedCount: 0 };
+    }
+    
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) {
+        console.warn('[State] Track not found for sequence', activeSequenceIdForSelection);
+        return { success: false, deletedCount: 0 };
+    }
+    
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) {
+        console.warn('[State] Sequence not found or has no data');
+        return { success: false, deletedCount: 0 };
+    }
+    
+    let deletedCount = 0;
+    const deletedNotes = [];
+    
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            if (sequence.data[row][col] !== null) {
+                deletedNotes.push({ row, col, note: sequence.data[row][col] });
+                sequence.data[row][col] = null;
+                deletedCount++;
+            }
+        }
+    }
+    
+    clearSelectedNotes();
+    console.log(`[State] Deleted ${deletedCount} notes from sequence ${activeSequenceIdForSelection}`);
+    return { success: true, deletedCount, deletedNotes };
+}
+
+export function duplicateSelectedNotes() {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, duplicatedCount: 0 };
+    }
+    
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) {
+        return { success: false, duplicatedCount: 0 };
+    }
+    
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) {
+        return { success: false, duplicatedCount: 0 };
+    }
+    
+    let maxCol = 0;
+    for (const key of selectedNotes) {
+        const [_, col] = key.split('_').map(Number);
+        if (col > maxCol) maxCol = col;
+    }
+    
+    const targetCol = maxCol + 1;
+    if (targetCol >= sequence.data[0].length) {
+        const extendBy = Math.max(16, targetCol - sequence.data[0].length + 1);
+        sequence.data.forEach(row => {
+            for (let i = 0; i < extendBy; i++) row.push(null);
+        });
+        sequence.length = sequence.data[0].length;
+    }
+    
+    let duplicatedCount = 0;
+    const newSelection = new Set();
+    
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null) {
+                let destCol = targetCol;
+                while (destCol < sequence.data[row].length && sequence.data[row][destCol] !== null) {
+                    destCol++;
+                }
+                
+                if (destCol < sequence.data[row].length) {
+                    sequence.data[row][destCol] = JSON.parse(JSON.stringify(noteData));
+                    newSelection.add(`${row}_${destCol}`);
+                    duplicatedCount++;
+                }
+            }
+        }
+    }
+    
+    selectedNotes = newSelection;
+    console.log(`[State] Duplicated ${duplicatedCount} notes in sequence ${activeSequenceIdForSelection}`);
+    return { success: true, duplicatedCount };
+}
+
+function getTrackWithSequence(sequenceId) {
+    return tracks.find(t => t.sequences && t.sequences.some(s => s.id === sequenceId));
+}
+
+export function moveSelectedNotes(delta) {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, movedCount: 0 };
+    }
+    
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) {
+        return { success: false, movedCount: 0 };
+    }
+    
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) {
+        return { success: false, movedCount: 0 };
+    }
+    
+    const notesToMove = [];
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData !== null) {
+                notesToMove.push({ row, col, noteData: JSON.parse(JSON.stringify(noteData)) });
+                sequence.data[row][col] = null;
+            }
+        }
+    }
+    
+    const newSelection = new Set();
+    let movedCount = 0;
+    
+    for (const { row, col, noteData } of notesToMove) {
+        const newRow = row - delta;
+        if (newRow >= 0 && newRow < sequence.data.length) {
+            sequence.data[newRow][col] = noteData;
+            newSelection.add(`${newRow}_${col}`);
+            movedCount++;
+        }
+    }
+    
+    selectedNotes = newSelection;
+    console.log(`[State] Moved ${movedCount} notes by ${delta} semitones`);
+    return { success: true, movedCount };
+}
+
+export function quantizeSelectedNotes(quantizeValue = 0.25) {
+    if (selectedNotes.size === 0 || !activeSequenceIdForSelection) {
+        return { success: false, quantizedCount: 0 };
+    }
+    
+    const track = getTrackWithSequence(activeSequenceIdForSelection);
+    if (!track) {
+        return { success: false, quantizedCount: 0 };
+    }
+    
+    const sequence = track.sequences.find(s => s.id === activeSequenceIdForSelection);
+    if (!sequence || !sequence.data) {
+        return { success: false, quantizedCount: 0 };
+    }
+    
+    let quantizedCount = 0;
+    
+    for (const key of selectedNotes) {
+        const [row, col] = key.split('_').map(Number);
+        if (row >= 0 && row < sequence.data.length && col >= 0 && col < sequence.data[row].length) {
+            const noteData = sequence.data[row][col];
+            if (noteData && noteData.offset) {
+                noteData.offset = Math.round(noteData.offset / quantizeValue) * quantizeValue;
+                quantizedCount++;
+            }
+        }
+    }
+    
+    console.log(`[State] Quantized ${quantizedCount} notes`);
+    return { success: true, quantizedCount };
+}
