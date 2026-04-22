@@ -2,21 +2,22 @@
 
 You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Current Feature Queue (2026-04-22 14:00 UTC)
+## Current Feature Queue (2026-04-22 16:55 UTC)
 
 All previous feature queues are COMPLETE. The following new features were generated through brainstorming:
 
-### New Feature Queue (2026-04-22 14:00 UTC)
+### New Feature Queue (2026-04-22 16:55 UTC)
 
-1. **Scatter/Chaos Effect** - Randomize note timing/velocity for experimental patterns ✅ COMPLETE
-2. **Lyrics Track** - Add text lyrics that sync to timeline position
-3. **Video Sync Output** - Send LTC timecode for video sync applications
-4. **Clip Envelope Editor** - Draw AHDSR envelopes on audio clips
-5. **Rhythmical Groove Drawing** - Draw custom groove patterns visually
-6. **VST Host Foundation** - Prepare architecture for VST/AU plugin hosting
-7. **Cloud Project Storage** - Save/load projects to cloud storage
-8. **Share Link Generator** - Generate shareable links to exported audio
-9. **Instrument Rack** - Group multiple instruments into a single rack with layered sounds ✅ COMPLETE (2026-04-22)
+1. **Export Format Options** - MP3, WAV, FLAC export choice dialog with bitrate settings
+2. **Track Freeze with Unfreeze** - Freeze track to audio and unfreeze later for CPU savings
+3. **MIDI Learn Visual Indicator** - Show which parameters are MIDI-mapped with LEDs
+4. **Computer Keyboard Velocity** - Map QWERTY keyboard to MIDI notes with velocity control
+5. **Snap Settings Per Track** - Different grid snap settings per track
+6. **Timeline Zoom Mouse Wheel** - Zoom timeline with Ctrl+mousewheel
+7. **Track Icon Selection** - Select icons/emojis for track headers
+8. **Pattern Copy Between Tracks** - Copy patterns between different tracks
+9. **Note Length Shortcut** - Press 1-8 to set selected notes to specific lengths
+10. **Audio Stretch Algorithm Selection** - Choose different stretch algorithms (elastique, rx, etc)
 
 ## Workflow
 
