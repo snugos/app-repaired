@@ -619,19 +619,379 @@ export class SpectralEditor {
      * @returns {AudioBuffer} Processed buffer
      */
     processBuffer(buffer, processing = {}) {
-        // This is a placeholder for actual spectral processing
-        // Real implementation would require FFT -> processing -> IFFT
-        
         console.log('[SpectralEditor] Processing buffer with options:', processing);
         
-        // For now, just return the original
-        // In production, this would:
-        // 1. STFT the buffer
-        // 2. Apply EQ/filter/noise reduction
-        // 3. Inverse STFT
-        // 4. Return new buffer
+        const {
+            applyEQ = true,
+            applyFilter = false,
+            filterType = 'lowpass',
+            filterCutoff = 20000,
+            applyNoiseReduction = false,
+            noiseReductionAmount = 0.5,
+            applyGain = false,
+            gainAmount = 1.0,
+            frequencySelection = null // { startFreq, endFreq, action: 'boost'|'cut'|'mute' }
+        } = processing;
         
-        return buffer;
+        // Get audio context or create offline context
+        const audioContext = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = buffer.sampleRate;
+        const numChannels = buffer.numberOfChannels;
+        const length = buffer.length;
+        
+        // Create output buffer
+        const outputBuffer = audioContext.createBuffer(numChannels, length, sampleRate);
+        
+        // Process each channel
+        for (let ch = 0; ch < numChannels; ch++) {
+            const inputData = buffer.getChannelData(ch);
+            const outputData = outputBuffer.getChannelData(ch);
+            
+            // Perform STFT processing
+            this.processChannelSTFT(inputData, outputData, sampleRate, {
+                applyEQ,
+                eqBands: this.eqBands,
+                applyFilter,
+                filterType,
+                filterCutoff,
+                applyNoiseReduction,
+                noiseReductionAmount,
+                applyGain,
+                gainAmount,
+                frequencySelection,
+                fftSize: this.fftSize,
+                hopSize: this.hopSize,
+                windowType: this.windowType
+            });
+        }
+        
+        console.log('[SpectralEditor] Buffer processing complete');
+        return outputBuffer;
+    }
+    
+    /**
+     * Process a single channel using STFT.
+     * @param {Float32Array} inputData - Input channel data
+     * @param {Float32Array} outputData - Output channel data
+     * @param {number} sampleRate - Sample rate
+     * @param {Object} options - Processing options
+     */
+    processChannelSTFT(inputData, outputData, sampleRate, options) {
+        const {
+            fftSize = 2048,
+            hopSize = 512,
+            windowType = FFTWindow.HANN,
+            applyEQ = false,
+            eqBands = [],
+            applyFilter = false,
+            filterType = 'lowpass',
+            filterCutoff = 20000,
+            applyNoiseReduction = false,
+            noiseReductionAmount = 0.5,
+            applyGain = false,
+            gainAmount = 1.0,
+            frequencySelection = null
+        } = options;
+        
+        const N = fftSize;
+        const hop = hopSize;
+        const length = inputData.length;
+        
+        // Initialize output with zeros
+        outputData.fill(0);
+        
+        // Create window function
+        const window = this.createWindow(N, windowType);
+        
+        // Create overlap-add buffer for normalization
+        const windowSum = new Float32Array(length);
+        windowSum.fill(0);
+        
+        // Calculate number of frames
+        const numFrames = Math.floor((length - N) / hop) + 1;
+        
+        // Process each frame
+        for (let frame = 0; frame < numFrames; frame++) {
+            const startSample = frame * hop;
+            
+            // Extract frame with window
+            const frameData = new Float32Array(N);
+            for (let i = 0; i < N; i++) {
+                if (startSample + i < length) {
+                    frameData[i] = inputData[startSample + i] * window[i];
+                }
+            }
+            
+            // Compute FFT (using real-valued FFT)
+            const fftResult = this.computeRealFFT(frameData);
+            const magnitudes = fftResult.magnitudes;
+            const phases = fftResult.phases;
+            
+            // Apply processing in frequency domain
+            const binFreq = sampleRate / N;
+            
+            for (let k = 0; k < magnitudes.length; k++) {
+                const freq = k * binFreq;
+                
+                // Apply EQ
+                if (applyEQ && eqBands.length > 0) {
+                    let totalGain = 1.0;
+                    for (const band of eqBands) {
+                        if (band.enabled) {
+                            const bandGain = this.calculateEQGain(freq, band);
+                            totalGain *= bandGain;
+                        }
+                    }
+                    magnitudes[k] *= totalGain;
+                }
+                
+                // Apply filter
+                if (applyFilter) {
+                    const filterGain = this.calculateFilterGain(freq, filterType, filterCutoff, sampleRate);
+                    magnitudes[k] *= filterGain;
+                }
+                
+                // Apply noise reduction (spectral gating)
+                if (applyNoiseReduction) {
+                    const threshold = noiseReductionAmount * 0.1; // Noise floor estimation
+                    if (magnitudes[k] < threshold) {
+                        // Reduce low-level noise
+                        magnitudes[k] *= (1 - noiseReductionAmount * 0.8);
+                    }
+                }
+                
+                // Apply frequency selection processing
+                if (frequencySelection) {
+                    const { startFreq, endFreq, action } = frequencySelection;
+                    if (freq >= startFreq && freq <= endFreq) {
+                        if (action === 'mute') {
+                            magnitudes[k] = 0;
+                        } else if (action === 'cut') {
+                            magnitudes[k] *= 0.25;
+                        } else if (action === 'boost') {
+                            magnitudes[k] *= 2.0;
+                        }
+                    }
+                }
+                
+                // Apply overall gain
+                if (applyGain) {
+                    magnitudes[k] *= gainAmount;
+                }
+            }
+            
+            // Compute inverse FFT
+            const processedFrame = this.computeRealIFFT(magnitudes, phases);
+            
+            // Overlap-add with window
+            for (let i = 0; i < N; i++) {
+                const outIdx = startSample + i;
+                if (outIdx < length) {
+                    outputData[outIdx] += processedFrame[i] * window[i];
+                    windowSum[outIdx] += window[i] * window[i];
+                }
+            }
+        }
+        
+        // Normalize by window sum (for overlap-add)
+        for (let i = 0; i < length; i++) {
+            if (windowSum[i] > 1e-8) {
+                outputData[i] /= windowSum[i];
+            }
+        }
+    }
+    
+    /**
+     * Create window function.
+     * @param {number} size - Window size
+     * @param {string} type - Window type
+     * @returns {Float32Array} Window values
+     */
+    createWindow(size, type) {
+        const window = new Float32Array(size);
+        const N = size;
+        
+        for (let n = 0; n < N; n++) {
+            let w = 1;
+            
+            switch (type) {
+                case FFTWindow.HANN:
+                    w = 0.5 * (1 - Math.cos((2 * Math.PI * n) / (N - 1)));
+                    break;
+                case FFTWindow.HAMMING:
+                    w = 0.54 - 0.46 * Math.cos((2 * Math.PI * n) / (N - 1));
+                    break;
+                case FFTWindow.BLACKMAN:
+                    w = 0.42 - 0.5 * Math.cos((2 * Math.PI * n) / (N - 1)) +
+                        0.08 * Math.cos((4 * Math.PI * n) / (N - 1));
+                    break;
+                case FFTWindow.BLACKMAN_HARRIS:
+                    w = 0.35875 - 0.48829 * Math.cos((2 * Math.PI * n) / (N - 1)) +
+                        0.14128 * Math.cos((4 * Math.PI * n) / (N - 1)) -
+                        0.01168 * Math.cos((6 * Math.PI * n) / (N - 1));
+                    break;
+                default: // RECTANGULAR
+                    w = 1;
+            }
+            
+            window[n] = w;
+        }
+        
+        return window;
+    }
+    
+    /**
+     * Compute real-valued FFT (simplified DFT for real signals).
+     * @param {Float32Array} signal - Input signal (real values only)
+     * @returns {Object} { magnitudes, phases }
+     */
+    computeRealFFT(signal) {
+        const N = signal.length;
+        const numBins = Math.floor(N / 2) + 1;
+        const magnitudes = new Float32Array(numBins);
+        const phases = new Float32Array(numBins);
+        
+        // Simplified DFT for real input
+        for (let k = 0; k < numBins; k++) {
+            let real = 0;
+            let imag = 0;
+            
+            for (let n = 0; n < N; n++) {
+                const angle = (2 * Math.PI * k * n) / N;
+                real += signal[n] * Math.cos(angle);
+                imag -= signal[n] * Math.sin(angle);
+            }
+            
+            magnitudes[k] = Math.sqrt(real * real + imag * imag) / N;
+            phases[k] = Math.atan2(imag, real);
+        }
+        
+        return { magnitudes, phases };
+    }
+    
+    /**
+     * Compute real-valued inverse FFT.
+     * @param {Float32Array} magnitudes - Frequency magnitudes
+     * @param {Float32Array} phases - Frequency phases
+     * @returns {Float32Array} Reconstructed signal
+     */
+    computeRealIFFT(magnitudes, phases) {
+        const numBins = magnitudes.length;
+        const N = (numBins - 1) * 2; // Reconstruct original size
+        const signal = new Float32Array(N);
+        
+        // Simplified IDFT
+        for (let n = 0; n < N; n++) {
+            let sum = 0;
+            
+            for (let k = 0; k < numBins; k++) {
+                const angle = (2 * Math.PI * k * n) / N;
+                const mag = magnitudes[k] * N; // Scale back
+                sum += mag * Math.cos(angle + phases[k]);
+            }
+            
+            signal[n] = sum / N;
+        }
+        
+        return signal;
+    }
+    
+    /**
+     * Calculate EQ gain for a frequency.
+     * @param {number} freq - Frequency in Hz
+     * @param {Object} band - EQ band parameters
+     * @returns {number} Linear gain
+     */
+    calculateEQGain(freq, band) {
+        const { frequency, gain, Q, type } = band;
+        
+        // Convert dB gain to linear
+        const linearGain = Math.pow(10, gain / 20);
+        
+        // Calculate frequency response based on filter type
+        const ratio = freq / frequency;
+        
+        switch (type) {
+            case 'peaking': {
+                // Peaking EQ - bell curve centered at frequency
+                const bandwidth = frequency / Q;
+                const distance = Math.abs(freq - frequency) / (bandwidth / 2);
+                const response = 1 + (linearGain - 1) * Math.exp(-distance * distance);
+                return response;
+            }
+            case 'lowshelf': {
+                // Low shelf - boost/cut below frequency
+                if (freq < frequency / 2) return linearGain;
+                if (freq > frequency * 2) return 1.0;
+                const t = (Math.log2(freq / frequency) + 1) / 2;
+                return 1 + (linearGain - 1) * (1 - t);
+            }
+            case 'highshelf': {
+                // High shelf - boost/cut above frequency
+                if (freq > frequency * 2) return linearGain;
+                if (freq < frequency / 2) return 1.0;
+                const t = (Math.log2(freq / frequency) - 1) / 2;
+                return 1 + (linearGain - 1) * t;
+            }
+            case 'lowpass': {
+                // Low pass - pass below frequency
+                if (freq < frequency) return 1.0;
+                const rolloff = Math.pow(2, -((freq / frequency) - 1) * Q);
+                return rolloff;
+            }
+            case 'highpass': {
+                // High pass - pass above frequency
+                if (freq > frequency) return 1.0;
+                const rolloff = Math.pow(2, -((frequency / freq) - 1) * Q);
+                return rolloff;
+            }
+            case 'notch': {
+                // Notch - cut at frequency
+                const distance = Math.abs(freq - frequency) / (frequency / Q);
+                return distance < 0.5 ? 0.1 : 1.0;
+            }
+            default:
+                return 1.0;
+        }
+    }
+    
+    /**
+     * Calculate filter gain for a frequency.
+     * @param {number} freq - Frequency in Hz
+     * @param {string} filterType - Filter type
+     * @param {number} cutoff - Cutoff frequency
+     * @param {number} sampleRate - Sample rate
+     * @returns {number} Linear gain (0-1)
+     */
+    calculateFilterGain(freq, filterType, cutoff, sampleRate) {
+        const ratio = freq / cutoff;
+        
+        switch (filterType) {
+            case 'lowpass': {
+                // Butterworth-like lowpass
+                if (freq < cutoff) return 1.0;
+                return 1 / (1 + Math.pow(ratio, 4));
+            }
+            case 'highpass': {
+                // Butterworth-like highpass
+                if (freq > cutoff) return 1.0;
+                return 1 / (1 + Math.pow(1 / ratio, 4));
+            }
+            case 'bandpass': {
+                // Bandpass (Q = 1)
+                const bandwidth = cutoff * 0.5;
+                const distance = Math.abs(freq - cutoff) / bandwidth;
+                return Math.exp(-distance * distance);
+            }
+            case 'notch': {
+                // Notch filter
+                const bandwidth = cutoff * 0.1;
+                const distance = Math.abs(freq - cutoff) / bandwidth;
+                return 1 - Math.exp(-distance * distance) * 0.95;
+            }
+            default:
+                return 1.0;
+        }
     }
     
     /**

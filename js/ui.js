@@ -3251,6 +3251,16 @@ async function handleAudioExport() {
                             const audioCtx = new AudioContext();
                             const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
                             exportBlob = await localAppServices.encodeOggFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                    } else if (format === 'flac' && localAppServices.encodeFlacFromAudioBuffer) {
+                        try {
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeFlacFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                        } catch (e) {
+                            console.warn('FLAC encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
                         } catch (e) {
                             console.warn('OGG encoding failed, using WAV:', e);
                             exportBlob = wavBlob;
@@ -3328,6 +3338,17 @@ async function handleAudioExport() {
                             const audioCtx = new AudioContext();
                             const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
                             exportBlob = await localAppServices.encodeOggFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                    } else if (format === 'flac' && localAppServices.encodeFlacFromAudioBuffer) {
+                        try {
+                            statusText.textContent = 'Encoding to FLAC...';
+                            const audioBuffer = await wavBlob.arrayBuffer();
+                            const audioCtx = new AudioContext();
+                            const decodedBuffer = await audioCtx.decodeAudioData(audioBuffer);
+                            exportBlob = await localAppServices.encodeFlacFromAudioBuffer(decodedBuffer, decodedBuffer.sampleRate);
+                        } catch (e) {
+                            console.warn('FLAC encoding failed, using WAV:', e);
+                            exportBlob = wavBlob;
+                        }
                         } catch (e) {
                             console.warn('OGG encoding failed, using WAV:', e);
                             exportBlob = wavBlob;

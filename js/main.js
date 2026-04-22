@@ -288,7 +288,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -309,7 +309,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -325,8 +325,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -397,23 +397,15 @@ import {
         }
     },
 
+    triggerCustomBackgroundUpload: () => {
+        if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
+        else console.warn("Custom background input element not found in cache.");
+    },
     removeCustomDesktopBackground: async () => {
         try {
             localStorage.removeItem('snugosDesktopBackground');
             localStorage.removeItem('snugosDesktopBgType');
-            const db = await (async () => {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open('SnugOSBackgrounds', 1);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onupgradeneeded = (e) => {
-                        const db = e.target.result;
-                        if (!db.objectStoreNames.contains('backgrounds')) {
-                            db.createObjectStore('backgrounds');
-                        }
-                    };
-                });
-            })();
+            const db = await appServices.bgDb.init();
             await new Promise((resolve, reject) => {
                 const tx = db.transaction('backgrounds', 'readwrite');
                 const store = tx.objectStore('backgrounds');
@@ -427,10 +419,6 @@ import {
             console.error("Error removing custom background:", e);
             if (typeof showSafeNotification === 'function') showSafeNotification("Could not remove background.", 2000);
         }
-    },
-    triggerCustomBackgroundUpload: () => {
-        if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
-        else console.warn("Custom background input element not found in cache.");
     },
     showSafeNotification: (message, duration) => {
         if (typeof utilShowNotification === 'function') {
@@ -449,7 +437,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingingDAW: () => appServices._isReconstructingingDAW_flag === true, 
     _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,

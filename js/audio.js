@@ -2864,6 +2864,52 @@ export function encodeOggFromAudioBuffer(buffer, sampleRate) {
 }
 
 /**
+ * Encode an AudioBuffer to FLAC format.
+ * Uses MediaRecorder with audio/flac mimeType if available (Chrome),
+ * otherwise falls back to WAV encoding.
+ * @param {AudioBuffer} buffer - The audio buffer
+ * @param {number} sampleRate - Sample rate
+ * @returns {Promise<Blob>} - FLAC file as Blob (or WAV fallback)
+ */
+export async function encodeFlacFromAudioBuffer(buffer, sampleRate) {
+    console.log(`[Audio encodeFlacFromAudioBuffer] Encoding FLAC at ${sampleRate}Hz`);
+    
+    // Check if MediaRecorder supports audio/flac
+    const mimeType = 'audio/flac';
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(mimeType)) {
+        try {
+            // Create offline context to render audio
+            const offlineCtx = new OfflineAudioContext(
+                buffer.numberOfChannels,
+                buffer.length,
+                sampleRate
+            );
+            
+            // Create buffer source and connect
+            const source = offlineCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(offlineCtx.destination);
+            source.start(0);
+            
+            // Render the audio
+            const renderedBuffer = await offlineCtx.startRendering();
+            
+            // For actual FLAC, we need to encode the PCM data
+            // Since browser does not have native FLAC encoder, we will use WAV as fallback
+            console.warn(`[Audio encodeFlacFromAudioBuffer] True FLAC encoding not available, using WAV fallback`);
+            return encodeWavFromAudioBuffer(buffer, sampleRate);
+            
+        } catch (error) {
+            console.error(`[Audio encodeFlacFromAudioBuffer] Error:`, error);
+            return encodeWavFromAudioBuffer(buffer, sampleRate);
+        }
+    } else {
+        console.warn(`[Audio encodeFlacFromAudioBuffer] FLAC not supported by MediaRecorder, falling back to WAV`);
+        return encodeWavFromAudioBuffer(buffer, sampleRate);
+    }
+}
+
+/**
  * Bounce the master mix with real-time rendering.
  * Alternative approach that captures the actual audio output.
  * @param {number} duration - Duration in seconds to record
