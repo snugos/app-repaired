@@ -3059,6 +3059,7 @@ function renderAudioExportDialogContent() {
                         <option value="wav" selected>WAV (Lossless)</option>
                         <option value="mp3">MP3 (Compressed)</option>
                         <option value="ogg">OGG (Compressed)</option>
+                        <option value="flac">FLAC (Lossless)</option>
                     </select>
                 </div>
                 <div>
