@@ -7405,10 +7405,23 @@ function renderAutomationLanesContent() {
     const track = tracks.find(t => t.id === activeTrackId);
     
     const automationParams = [
-        { id: 'volume', name: 'Volume', min: 0, max: 1 },
-        { id: 'pan', name: 'Pan', min: -1, max: 1 },
-        { id: 'filterFreq', name: 'Filter Freq', min: 0, max: 1 },
-        { id: 'filterRes', name: 'Filter Res', min: 0, max: 1 }
+        { id: 'volume', name: 'Volume', min: 0, max: 1, unit: '%', defaultVal: 1 },
+        { id: 'pan', name: 'Pan', min: -1, max: 1, unit: '', defaultVal: 0 },
+        { id: 'filterFreq', name: 'Filter Frequency', min: 20, max: 20000, unit: 'Hz', defaultVal: 20000, logScale: true },
+        { id: 'filterRes', name: 'Filter Resonance', min: 0, max: 20, unit: 'dB', defaultVal: 0 },
+        { id: 'reverbMix', name: 'Reverb Mix', min: 0, max: 1, unit: '%', defaultVal: 0 },
+        { id: 'reverbDecay', name: 'Reverb Decay', min: 0.1, max: 10, unit: 's', defaultVal: 1.5 },
+        { id: 'delayMix', name: 'Delay Mix', min: 0, max: 1, unit: '%', defaultVal: 0 },
+        { id: 'delayTime', name: 'Delay Time', min: 0.01, max: 2, unit: 's', defaultVal: 0.25 },
+        { id: 'delayFeedback', name: 'Delay Feedback', min: 0, max: 0.9, unit: '', defaultVal: 0.3 },
+        { id: 'chorusMix', name: 'Chorus Mix', min: 0, max: 1, unit: '%', defaultVal: 0 },
+        { id: 'chorusRate', name: 'Chorus Rate', min: 0.1, max: 10, unit: 'Hz', defaultVal: 1.5 },
+        { id: 'chorusDepth', name: 'Chorus Depth', min: 0, max: 1, unit: '', defaultVal: 0.5 },
+        { id: 'distortion', name: 'Distortion', min: 0, max: 1, unit: '%', defaultVal: 0 },
+        { id: 'bitcrush', name: 'Bitcrusher', min: 1, max: 16, unit: 'bits', defaultVal: 16 },
+        { id: 'pitchShift', name: 'Pitch Shift', min: -12, max: 12, unit: 'st', defaultVal: 0 },
+        { id: 'drive', name: 'Drive', min: 0, max: 1, unit: '%', defaultVal: 0 },
+        { id: 'width', name: 'Stereo Width', min: 0, max: 1, unit: '%', defaultVal: 1 }
     ];
 
     let html = `
