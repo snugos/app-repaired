@@ -505,6 +505,7 @@ import {
     openChordMemoryPanel,
     openTrackGroupsPanel,
     openArpeggiatorPanel,
+    openScatterPanel,
     openGrooveTemplatesPanel,
     openScaleLockPanel,
     openTrackTemplatesPanel,

@@ -6212,6 +6212,181 @@ export class Track {
         }
     }
 
+    // --- Scatter/Chaos Effect ---
+    /**
+     * Initialize scatter effect for this track.
+     * @param {Object} options - Scatter settings
+     */
+    initScatter(options = {}) {
+        this.scatterSettings = {
+            enabled: options.enabled || false,
+            mode: options.mode || 'chaos', // chaos, jungle, glitch, humanize
+            timingAmount: options.timingAmount ?? 50, // ±ms
+            timingCurve: options.timingCurve || 'gaussian', // gaussian, uniform, swing
+            velocityAmount: options.velocityAmount ?? 0.3, // 0-1
+            velocityMin: options.velocityMin ?? 0.1,
+            noteProbability: options.noteProbability ?? 1.0, // 0-1
+            shuffleNotes: options.shuffleNotes || false,
+            octaveSpread: options.octaveSpread ?? 0,
+            pitchRandomSemitones: options.pitchRandomSemitones ?? 0,
+            durationAmount: options.durationAmount ?? 0, // 0-1 percentage
+            individualTiming: options.individualTiming ?? true,
+            individualVelocity: options.individualVelocity ?? true,
+            ...this.scatterSettings
+        };
+        this._scatterRandomSeed = Date.now();
+        console.log(`[Track ${this.id}] Scatter initialized:`, this.scatterSettings);
+    }
+
+    /**
+     * Set scatter settings.
+     * @param {Object} settings - Scatter settings
+     */
+    setScatterSettings(settings) {
+        if (!this.scatterSettings) this.initScatter();
+        this.scatterSettings = { ...this.scatterSettings, ...settings };
+        console.log(`[Track ${this.id}] Scatter settings updated:`, this.scatterSettings);
+    }
+
+    /**
+     * Get scatter settings.
+     * @returns {Object} Scatter settings
+     */
+    getScatterSettings() {
+        return this.scatterSettings || {
+            enabled: false,
+            mode: 'chaos',
+            timingAmount: 50,
+            timingCurve: 'gaussian',
+            velocityAmount: 0.3,
+            velocityMin: 0.1,
+            noteProbability: 1.0,
+            shuffleNotes: false,
+            octaveSpread: 0,
+            pitchRandomSemitones: 0,
+            durationAmount: 0
+        };
+    }
+
+    /**
+     * Apply scatter/randomization to a note before playback.
+     * @param {number} note - MIDI note number
+     * @param {number} time - Original time
+     * @param {number} duration - Original duration
+     * @param {number} velocity - Original velocity (0-1)
+     * @returns {Object|null} Modified note data or null if dropped
+     */
+    applyScatterToNote(note, time, duration, velocity) {
+        if (!this.scatterSettings?.enabled) {
+            return { note, time, duration, velocity };
+        }
+
+        const s = this.scatterSettings;
+
+        // Probability gate - drop note?
+        if (s.noteProbability < 1 && Math.random() > s.noteProbability) {
+            return null; // Drop this note
+        }
+
+        // Clone result
+        const result = {
+            note: note,
+            time: time,
+            duration: duration,
+            velocity: velocity
+        };
+
+        // Timing randomization
+        if (s.timingAmount > 0 && s.individualTiming) {
+            const offset = this._getScatterTimingOffset(s.timingAmount, s.timingCurve);
+            result.time = time + offset;
+        }
+
+        // Velocity randomization
+        if (s.velocityAmount > 0 && s.individualVelocity) {
+            const variation = (Math.random() * 2 - 1) * s.velocityAmount;
+            let newVel = velocity * (1 + variation);
+            newVel = Math.max(s.velocityMin, Math.min(1, newVel));
+            result.velocity = newVel;
+        }
+
+        // Octave spread
+        if (s.octaveSpread > 0) {
+            const octaveShift = Math.floor(Math.random() * (s.octaveSpread * 2 + 1)) - s.octaveSpread;
+            result.note = Math.max(0, Math.min(127, note + octaveShift * 12));
+        }
+
+        // Pitch randomization (semitones)
+        if (s.pitchRandomSemitones > 0) {
+            const pitchShift = Math.floor(this._randomRange(-s.pitchRandomSemitones, s.pitchRandomSemitones));
+            result.note = Math.max(0, Math.min(127, note + pitchShift));
+        }
+
+        // Duration randomization
+        if (s.durationAmount > 0) {
+            const durMult = 1 + this._randomRange(-s.durationAmount, s.durationAmount);
+            result.duration = Math.max(0.01, duration * durMult);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get random timing offset based on curve.
+     * @private
+     */
+    _getScatterTimingOffset(amount, curve) {
+        switch (curve) {
+            case 'gaussian':
+                // Box-Muller for Gaussian
+                const u1 = Math.random();
+                const u2 = Math.random();
+                const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                return (z * amount) / 3;
+            case 'swing':
+                // Swing-like: odd steps get delayed
+                return this._swingOffset = (this._swingOffset || 0) ? -amount * 0.3 : amount * 0.5;
+            case 'uniform':
+            default:
+                return this._randomRange(-amount, amount);
+        }
+    }
+
+    /**
+     * Simple random in range.
+     * @private
+     */
+    _randomRange(min, max) {
+        return min + Math.random() * (max - min);
+    }
+
+    /**
+     * Apply scatter to a sequence's notes (for offline processing).
+     * @param {Array} notes - Array of note objects
+     * @returns {Array} Modified notes
+     */
+    applyScatterToSequence(notes) {
+        if (!this.scatterSettings?.enabled || !notes || notes.length === 0) {
+            return notes;
+        }
+
+        const s = this.scatterSettings;
+        let processed = notes.map(n => this.applyScatterToNote(n.note, n.time, n.duration, n.velocity));
+
+        // Filter dropped notes
+        processed = processed.filter(n => n !== null);
+
+        // Shuffle if enabled
+        if (s.shuffleNotes) {
+            for (let i = processed.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [processed[i], processed[j]] = [processed[j], processed[i]];
+            }
+        }
+
+        return processed;
+    }
+
     // --- Chord Detection ---
     /**
      * Detect chord name from a set of pitches.
