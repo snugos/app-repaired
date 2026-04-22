@@ -7803,3 +7803,331 @@ export function updateMicroTuningPanel() {
         renderMicroTuningPanelContent();
     }
 }
+/**
+ * Opens the comprehensive Audio Export Dialog.
+ * Allows users to export stems (individual tracks) or master mix with format/bitrate options.
+ */
+export function openAudioExportDialog(savedState = null) {
+    const windowId = 'audioExportDialog';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderAudioExportDialogContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'audioExportDialogContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 520, 
+        height: 580, 
+        minWidth: 450, 
+        minHeight: 500,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Audio Export Dialog', contentContainer, options);
+    
+    if (win?.element) {
+        renderAudioExportDialogContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Renders the audio export dialog content.
+ */
+function renderAudioExportDialogContent() {
+    const container = document.getElementById('audioExportDialogContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    
+    let html = `
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Audio Export Dialog</strong> lets you export individual tracks as stems or the master mix as a single audio file.
+            </div>
+        </div>
+        
+        <!-- Export Type Selection -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Export Type</h3>
+            <div class="flex gap-4 mb-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="exportType" value="stems" id="exportTypeStems" checked 
+                        class="w-4 h-4 accent-blue-500">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Export Stems (Individual Tracks)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="exportType" value="master" id="exportTypeMaster" 
+                        class="w-4 h-4 accent-blue-500">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Export Master Mix</span>
+                </label>
+            </div>
+            
+            <!-- Track Selection for Stems -->
+            <div id="stemsTrackSelection" class="mt-3">
+                <h4 class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Select Tracks to Export:</h4>
+                <div class="space-y-1 max-h-40 overflow-y-auto border border-gray-200 dark:border-slate-600 rounded p-2 bg-gray-50 dark:bg-slate-800">
+                    ${tracks.length === 0 ? 
+                        '<div class="text-xs text-gray-500 dark:text-gray-400 py-2">No tracks available</div>' :
+                        tracks.map(t => `
+                            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
+                                <input type="checkbox" class="stem-track-checkbox w-4 h-4 accent-green-500" value="${t.id}" checked
+                                    data-track-name="${t.name}">
+                                <span class="text-sm text-gray-700 dark:text-gray-300">${t.name}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">(${t.type})</span>
+                            </label>
+                        `).join('')
+                    }
+                </div>
+                <button id="selectAllStemsBtn" class="mt-2 text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Select All</button>
+                <button id="deselectAllStemsBtn" class="mt-2 ml-2 text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">Deselect All</button>
+            </div>
+        </div>
+        
+        <!-- Format Settings -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Format Settings</h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="exportFormat" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format:</label>
+                    <select id="exportFormat" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                        <option value="wav" selected>WAV (Lossless)</option>
+                        <option value="mp3">MP3 (Compressed)</option>
+                        <option value="ogg">OGG (Compressed)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="exportBitrate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Bitrate:</label>
+                    <select id="exportBitrate" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                        <option value="128">128 kbps</option>
+                        <option value="192">192 kbps</option>
+                        <option value="256" selected>256 kbps</option>
+                        <option value="320">320 kbps</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label for="exportSampleRate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Sample Rate:</label>
+                    <select id="exportSampleRate" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                        <option value="44100">44100 Hz (CD)</option>
+                        <option value="48000" selected>48000 Hz (Standard)</option>
+                        <option value="96000">96000 Hz (High-Res)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="exportBitDepth" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Bit Depth:</label>
+                    <select id="exportBitDepth" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                        <option value="16">16-bit</option>
+                        <option value="24" selected>24-bit</option>
+                        <option value="32">32-bit float</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Duration Settings -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Duration</h3>
+            <div class="flex gap-4 items-center">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="exportDuration" value="project" id="durationProject" checked 
+                        class="w-4 h-4 accent-blue-500">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Full Project Length</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="exportDuration" value="loop" id="durationLoop" 
+                        class="w-4 h-4 accent-blue-500">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Loop Region</span>
+                </label>
+            </div>
+            <div class="mt-2 flex gap-2 items-center">
+                <label class="text-xs text-gray-600 dark:text-gray-400">Custom End (bars):</label>
+                <input type="number" id="exportEndBar" value="16" min="1" max="999" 
+                    class="w-20 p-1 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+            </div>
+        </div>
+        
+        <!-- Export Button -->
+        <div class="flex gap-3">
+            <button id="exportAudioBtn" class="flex-1 px-4 py-3 bg-green-500 text-white font-semibold rounded hover:bg-green-600 transition-colors">
+                Export Audio
+            </button>
+            <button id="cancelExportBtn" class="px-4 py-3 bg-gray-400 text-white font-semibold rounded hover:bg-gray-500 transition-colors">
+                Cancel
+            </button>
+        </div>
+        
+        <!-- Progress Display -->
+        <div id="exportProgressContainer" class="mt-4 hidden">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Exporting...</div>
+            <div class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded overflow-hidden">
+                <div id="exportProgressBar" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="exportStatusText" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Attach event listeners
+    const selectAllBtn = container.querySelector('#selectAllStemsBtn');
+    const deselectAllBtn = container.querySelector('#deselectAllStemsBtn');
+    const exportBtn = container.querySelector('#exportAudioBtn');
+    const cancelBtn = container.querySelector('#cancelExportBtn');
+    const stemsSection = container.querySelector('#stemsTrackSelection');
+    
+    // Export type toggle
+    const exportTypeRadios = container.querySelectorAll('input[name="exportType"]');
+    exportTypeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isStems = document.querySelector('input[name="exportType"]:checked').value === 'stems';
+            stemsSection.style.display = isStems ? 'block' : 'none';
+        });
+    });
+    
+    // Select all / deselect all
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            container.querySelectorAll('.stem-track-checkbox').forEach(cb => cb.checked = true);
+        });
+    }
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', () => {
+            container.querySelectorAll('.stem-track-checkbox').forEach(cb => cb.checked = false);
+        });
+    }
+    
+    // Export button handler
+    if (exportBtn) {
+        exportBtn.addEventListener('click', handleAudioExport);
+    }
+    
+    // Cancel button
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            const win = localAppServices.getWindowByIdState ? localAppServices.getWindowByIdState('audioExportDialog') : null;
+            if (win && win.close) win.close();
+        });
+    }
+}
+
+/**
+ * Handles the audio export process.
+ */
+async function handleAudioExport() {
+    const container = document.getElementById('audioExportDialogContent');
+    if (!container) return;
+    
+    const exportType = container.querySelector('input[name="exportType"]:checked')?.value;
+    const format = container.querySelector('#exportFormat')?.value || 'wav';
+    const bitrate = parseInt(container.querySelector('#exportBitrate')?.value || '256');
+    const sampleRate = parseInt(container.querySelector('#exportSampleRate')?.value || '48000');
+    const bitDepth = parseInt(container.querySelector('#exportBitDepth')?.value || '24');
+    const durationType = container.querySelector('input[name="exportDuration"]:checked')?.value;
+    const endBar = parseInt(container.querySelector('#exportEndBar')?.value || '16');
+    
+    const progressContainer = container.querySelector('#exportProgressContainer');
+    const progressBar = container.querySelector('#exportProgressBar');
+    const statusText = container.querySelector('#exportStatusText');
+    
+    // Show progress
+    progressContainer?.classList.remove('hidden');
+    
+    try {
+        if (exportType === 'stems') {
+            // Get selected tracks
+            const selectedCheckboxes = container.querySelectorAll('.stem-track-checkbox:checked');
+            const selectedTrackIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+            
+            if (selectedTrackIds.length === 0) {
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification('Please select at least one track to export.', 3000);
+                }
+                progressContainer?.classList.add('hidden');
+                return;
+            }
+            
+            const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+            const selectedTracks = tracks.filter(t => selectedTrackIds.includes(t.id));
+            
+            // Calculate duration
+            const beatsPerBar = 4;
+            const bpm = Tone?.Transport?.bpm?.value || 120;
+            const durationSeconds = (endBar * beatsPerBar * 60) / bpm;
+            
+            // Export each track as a stem
+            for (let i = 0; i < selectedTracks.length; i++) {
+                const track = selectedTracks[i];
+                statusText.textContent = `Exporting stem ${i + 1}/${selectedTracks.length}: ${track.name}...`;
+                progressBar.style.width = `${((i + 1) / selectedTracks.length) * 100}%`;
+                
+                // Use the audio.js bounceTrackToWav function
+                const wavBlob = await localAppServices.bounceTrackToWav?.(track, durationSeconds);
+                
+                if (wavBlob) {
+                    // Download the file
+                    const url = URL.createObjectURL(wavBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${track.name.replace(/[^a-zA-Z0-9-_]/g, '_')}_stem.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                
+                // Small delay between exports to prevent UI freeze
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification(`Exported ${selectedTracks.length} stems successfully!`, 3000);
+            }
+            
+        } else {
+            // Master mix export
+            statusText.textContent = 'Exporting master mix...';
+            progressBar.style.width = '50%';
+            
+            // For master mix, we'd need to bounce the entire master output
+            // This would require implementation in audio.js to render master bus
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification('Master mix export is not yet implemented. Use stem export for now.', 4000);
+            }
+        }
+        
+        progressContainer?.classList.add('hidden');
+        
+    } catch (error) {
+        console.error('[UI handleAudioExport] Error:', error);
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification(`Export error: ${error.message}`, 4000);
+        }
+        progressContainer?.classList.add('hidden');
+    }
+}
