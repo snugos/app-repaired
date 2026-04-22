@@ -1,3 +1,170 @@
+// --- Spectrum Analyzer Panel ---
+
+/**
+ * Opens the Spectrum Analyzer panel for real-time FFT visualization.
+ */
+export function openSpectrumAnalyzerPanel(savedState = null) {
+    const windowId = 'spectrumAnalyzer';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'spectrumAnalyzerContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+
+    const options = { width: 600, height: 350, minWidth: 400, minHeight: 250, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Spectrum Analyzer', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderSpectrumAnalyzerContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the spectrum analyzer content.
+ */
+function renderSpectrumAnalyzerContent() {
+    const container = document.getElementById('spectrumAnalyzerContent');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                <select id="spectrumSource" class="p-2 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="master">Master Output</option>
+                </select>
+                <label class="flex items-center gap-2 text-sm text-gray-400">
+                    <input type="checkbox" id="spectrumShowPeaks" checked class="w-4 h-4">
+                    Show Peaks
+                </label>
+            </div>
+            <div class="text-xs text-gray-500" id="spectrumPeakDisplay">Peak: -- dB</div>
+        </div>
+        <div id="spectrumCanvasContainer" class="flex-1 bg-black rounded border border-gray-700 relative overflow-hidden">
+            <canvas id="spectrumCanvas" class="w-full h-full"></canvas>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+            <span>20Hz</span>
+            <span>200Hz</span>
+            <span>2kHz</span>
+            <span>20kHz</span>
+        </div>
+    `;
+
+    setupSpectrumAnalyzer();
+}
+
+/**
+ * Sets up the spectrum analyzer visualization.
+ */
+function setupSpectrumAnalyzer() {
+    const canvas = document.getElementById('spectrumCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('spectrumCanvasContainer');
+    if (!container) return;
+
+    // Set canvas size
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    let animationId = null;
+    let showPeaks = true;
+    let peakValue = -60;
+    let peakDecay = 0;
+
+    function draw() {
+        // Get frequency data from audio.js
+        let frequencyData = null;
+        if (localAppServices.getMasterFrequencyData) {
+            frequencyData = localAppServices.getMasterFrequencyData();
+        }
+
+        // Clear canvas
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (!frequencyData || frequencyData.length === 0) {
+            // Draw placeholder bars
+            ctx.fillStyle = '#333';
+            for (let i = 0; i < 64; i++) {
+                const barHeight = 10 + Math.random() * 50;
+                ctx.fillRect(i * (canvas.width / 64), canvas.height - barHeight, canvas.width / 64 - 2, barHeight);
+            }
+            animationId = requestAnimationFrame(draw);
+            return;
+        }
+
+        // Draw frequency bars
+        const barCount = Math.min(64, frequencyData.length);
+        const barWidth = canvas.width / barCount;
+        const gap = 2;
+
+        for (let i = 0; i < barCount; i++) {
+            // Use logarithmic scale for frequency bins
+            const value = frequencyData[i] || 0;
+            const dbValue = value > 0 ? (20 * Math.log10(value)) : -60;
+            const normalizedValue = Math.max(0, (dbValue + 60) / 60); // 0-1 range
+            const barHeight = normalizedValue * canvas.height;
+
+            // Gradient color based on intensity
+            const hue = 120 - (normalizedValue * 120); // Green to red
+            ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+
+            ctx.fillRect(
+                i * barWidth + gap / 2,
+                canvas.height - barHeight,
+                barWidth - gap,
+                barHeight
+            );
+
+            // Draw peak indicator
+            if (showPeaks && dbValue > peakValue - 3) {
+                peakValue = Math.max(peakValue, dbValue);
+                peakDecay = 0;
+            }
+        }
+
+        // Update peak display
+        peakDecay += 0.02;
+        if (peakDecay > 1) {
+            peakValue = Math.max(-60, peakValue - 0.5);
+        }
+
+        const peakDisplay = document.getElementById('spectrumPeakDisplay');
+        if (peakDisplay) {
+            peakDisplay.textContent = `Peak: ${peakValue.toFixed(1)} dB`;
+        }
+
+        animationId = requestAnimationFrame(draw);
+    }
+
+    // Handle checkbox
+    const peaksCheckbox = document.getElementById('spectrumShowPeaks');
+    if (peaksCheckbox) {
+        peaksCheckbox.addEventListener('change', (e) => {
+            showPeaks = e.target.checked;
+        });
+    }
+
+    // Start animation
+    draw();
+
+    // Cleanup on window close would be handled by the window system
+}
+
 // --- Time Signature Changes Panel ---
 
 export function openTimeSignaturePanel(savedState = null) {
