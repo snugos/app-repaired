@@ -646,10 +646,102 @@ export class PartExtraction {
             });
         }
         
+        // Sort notes by time first
+        notes.sort((a, b) => a.time - b.time);
+        
         // Merge rests if enabled
         if (settings.mergeRests) {
             // Find and merge consecutive rests
-            // This would be implemented with more complex logic
+            // Identify gaps between notes as rests
+            const rests = [];
+            let lastEndTime = 0;
+            let lastMeasure = 1;
+            
+            // Calculate ticks per measure (assuming 4/4 time, 480 ticks per quarter note)
+            const ticksPerBeat = 480;
+            const beatsPerMeasure = 4;
+            const ticksPerMeasure = ticksPerBeat * beatsPerMeasure;
+            
+            for (let i = 0; i < notes.length; i++) {
+                const note = notes[i];
+                const noteEndTime = note.time + (note.durationTicks || note.duration * ticksPerBeat);
+                
+                // Check if there's a gap (rest) between last note and current note
+                if (note.time > lastEndTime) {
+                    const restDuration = note.time - lastEndTime;
+                    const restDurationTicks = restDuration;
+                    
+                    // Calculate measure for the rest
+                    const restMeasure = Math.floor(lastEndTime / ticksPerMeasure) + 1;
+                    
+                    rests.push({
+                        isRest: true,
+                        time: lastEndTime,
+                        duration: restDuration / ticksPerBeat,
+                        durationTicks: restDurationTicks,
+                        measure: restMeasure,
+                        voice: note.voice || 1
+                    });
+                }
+                
+                lastEndTime = Math.max(lastEndTime, noteEndTime);
+                lastMeasure = note.measure || lastMeasure;
+            }
+            
+            // Merge consecutive rests in the same measure and voice
+            const mergedRests = [];
+            const restsByMeasure = new Map();
+            
+            rests.forEach(rest => {
+                const key = `${rest.measure}_${rest.voice}`;
+                if (!restsByMeasure.has(key)) {
+                    restsByMeasure.set(key, []);
+                }
+                restsByMeasure.get(key).push(rest);
+            });
+            
+            restsByMeasure.forEach((measureRests, key) => {
+                // Sort by time
+                measureRests.sort((a, b) => a.time - b.time);
+                
+                // Merge consecutive rests
+                let currentRest = null;
+                measureRests.forEach(rest => {
+                    if (!currentRest) {
+                        currentRest = { ...rest };
+                    } else {
+                        const currentEnd = currentRest.time + currentRest.durationTicks;
+                        // Check if rests are consecutive (within small tolerance)
+                        if (Math.abs(rest.time - currentEnd) < 10) {
+                            // Merge
+                            currentRest.durationTicks += rest.durationTicks;
+                            currentRest.duration += rest.duration;
+                        } else {
+                            // Gap between rests, push current and start new
+                            mergedRests.push(currentRest);
+                            currentRest = { ...rest };
+                        }
+                    }
+                });
+                if (currentRest) {
+                    mergedRests.push(currentRest);
+                }
+            });
+            
+            // Add merged rests to notes array
+            mergedRests.forEach(rest => {
+                notes.push({
+                    isRest: true,
+                    pitch: null,
+                    midi: null,
+                    duration: rest.duration,
+                    durationTicks: rest.durationTicks,
+                    time: rest.time,
+                    velocity: 0,
+                    voice: rest.voice,
+                    measure: rest.measure
+                });
+            });
         }
         
         return notes.sort((a, b) => a.time - b.time);

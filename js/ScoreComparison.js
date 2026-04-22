@@ -748,13 +748,330 @@ export class ScoreComparison {
         // Deep clone scoreA
         const merged = JSON.parse(JSON.stringify(scoreA));
         
+        // Build lookup for merged tracks/parts
+        const tracksMap = new Map();
+        if (merged.tracks) {
+            merged.tracks.forEach(track => {
+                tracksMap.set(track.id, track);
+                if (track.sequences) {
+                    track.sequences.forEach(seq => {
+                        if (seq.data) {
+                            seq.data.forEach((note, idx) => {
+                                note._idx = idx;
+                                note._seqId = seq.id;
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
         // Apply selected differences
         differenceIds.forEach(diffId => {
-            // Find the difference in scoreB
-            // This would need actual implementation based on difference type
+            // Find the difference by ID in session differences
+            const diff = this._findDifferenceById(diffId);
+            if (!diff) return;
+            
+            switch (diff.type) {
+                case DifferenceType.NOTE_ADDED: {
+                    // Add note from scoreB to merged
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences && diff.newValue) {
+                        const seq = targetTrack.sequences[0];
+                        if (seq && seq.data) {
+                            seq.data.push({ ...diff.newValue });
+                        }
+                    }
+                    break;
+                }
+                
+                case DifferenceType.NOTE_REMOVED: {
+                    // Remove note from merged
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences && diff.oldValue) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const idx = seq.data.findIndex(n => 
+                                    n.time === diff.time && 
+                                    n.pitch === diff.oldValue.pitch
+                                );
+                                if (idx !== -1) {
+                                    seq.data.splice(idx, 1);
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.NOTE_PITCH_CHANGED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.time);
+                                if (note) {
+                                    note.pitch = diff.newValue?.pitch;
+                                    note.midi = diff.newValue?.midi;
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.NOTE_DURATION_CHANGED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.time);
+                                if (note) {
+                                    note.duration = diff.newValue?.duration;
+                                    note.durationTicks = diff.newValue?.durationTicks;
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.NOTE_VELOCITY_CHANGED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.time);
+                                if (note) {
+                                    note.velocity = diff.newValue?.velocity;
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.NOTE_TIME_SHIFTED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.oldValue?.time);
+                                if (note) {
+                                    note.time = diff.newValue?.time;
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.TIME_SIGNATURE_CHANGED: {
+                    if (merged.timeSignatures) {
+                        const idx = merged.timeSignatures.findIndex(ts => ts.time === diff.time);
+                        if (idx !== -1) {
+                            merged.timeSignatures[idx] = { 
+                                ...merged.timeSignatures[idx], 
+                                ...diff.newValue 
+                            };
+                        } else {
+                            merged.timeSignatures.push({ time: diff.time, ...diff.newValue });
+                        }
+                    } else {
+                        merged.timeSignatures = [{ time: diff.time, ...diff.newValue }];
+                    }
+                    break;
+                }
+                
+                case DifferenceType.KEY_SIGNATURE_CHANGED: {
+                    if (merged.keySignatures) {
+                        const idx = merged.keySignatures.findIndex(ks => ks.time === diff.time);
+                        if (idx !== -1) {
+                            merged.keySignatures[idx] = { 
+                                ...merged.keySignatures[idx], 
+                                ...diff.newValue 
+                            };
+                        } else {
+                            merged.keySignatures.push({ time: diff.time, ...diff.newValue });
+                        }
+                    } else {
+                        merged.keySignatures = [{ time: diff.time, ...diff.newValue }];
+                    }
+                    break;
+                }
+                
+                case DifferenceType.TEMPO_CHANGED: {
+                    if (merged.tempoChanges) {
+                        const idx = merged.tempoChanges.findIndex(tc => tc.time === diff.time);
+                        if (idx !== -1) {
+                            merged.tempoChanges[idx] = { 
+                                ...merged.tempoChanges[idx], 
+                                bpm: diff.newValue 
+                            };
+                        } else {
+                            merged.tempoChanges.push({ time: diff.time, bpm: diff.newValue });
+                        }
+                    } else {
+                        merged.tempoChanges = [{ time: diff.time, bpm: diff.newValue }];
+                    }
+                    if (merged.bpm) {
+                        merged.bpm = diff.newValue;
+                    }
+                    break;
+                }
+                
+                case DifferenceType.DYNAMIC_ADDED: {
+                    if (!merged.dynamics) merged.dynamics = [];
+                    merged.dynamics.push({
+                        time: diff.time,
+                        value: diff.newValue,
+                        type: diff.partId
+                    });
+                    break;
+                }
+                
+                case DifferenceType.DYNAMIC_REMOVED: {
+                    if (merged.dynamics) {
+                        merged.dynamics = merged.dynamics.filter(d => 
+                            !(d.time === diff.time && d.value === diff.oldValue)
+                        );
+                    }
+                    break;
+                }
+                
+                case DifferenceType.DYNAMIC_CHANGED: {
+                    if (merged.dynamics) {
+                        const dyn = merged.dynamics.find(d => d.time === diff.time);
+                        if (dyn) {
+                            dyn.value = diff.newValue;
+                        }
+                    }
+                    break;
+                }
+                
+                case DifferenceType.LYRIC_ADDED: {
+                    if (!merged.lyrics) merged.lyrics = [];
+                    merged.lyrics.push({
+                        time: diff.time,
+                        text: diff.newValue,
+                        partId: diff.partId
+                    });
+                    break;
+                }
+                
+                case DifferenceType.LYRIC_REMOVED: {
+                    if (merged.lyrics) {
+                        merged.lyrics = merged.lyrics.filter(l => 
+                            !(l.time === diff.time && l.text === diff.oldValue)
+                        );
+                    }
+                    break;
+                }
+                
+                case DifferenceType.LYRIC_CHANGED: {
+                    if (merged.lyrics) {
+                        const lyric = merged.lyrics.find(l => l.time === diff.time);
+                        if (lyric) {
+                            lyric.text = diff.newValue;
+                        }
+                    }
+                    break;
+                }
+                
+                case DifferenceType.CHORD_SYMBOL_ADDED: {
+                    if (!merged.chordSymbols) merged.chordSymbols = [];
+                    merged.chordSymbols.push({
+                        time: diff.time,
+                        symbol: diff.newValue
+                    });
+                    break;
+                }
+                
+                case DifferenceType.CHORD_SYMBOL_REMOVED: {
+                    if (merged.chordSymbols) {
+                        merged.chordSymbols = merged.chordSymbols.filter(c => 
+                            !(c.time === diff.time && c.symbol === diff.oldValue)
+                        );
+                    }
+                    break;
+                }
+                
+                case DifferenceType.CHORD_SYMBOL_CHANGED: {
+                    if (merged.chordSymbols) {
+                        const chord = merged.chordSymbols.find(c => c.time === diff.time);
+                        if (chord) {
+                            chord.symbol = diff.newValue;
+                        }
+                    }
+                    break;
+                }
+                
+                case DifferenceType.ARTICULATION_ADDED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.time);
+                                if (note) {
+                                    if (!note.articulations) note.articulations = [];
+                                    note.articulations.push(diff.newValue);
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+                
+                case DifferenceType.ARTICULATION_REMOVED: {
+                    const targetTrack = tracksMap.get(diff.partId);
+                    if (targetTrack && targetTrack.sequences) {
+                        targetTrack.sequences.forEach(seq => {
+                            if (seq.data) {
+                                const note = seq.data.find(n => n.time === diff.time);
+                                if (note && note.articulations) {
+                                    note.articulations = note.articulations.filter(a => a !== diff.oldValue);
+                                }
+                            }
+                        });
+                    }
+                    break;
+                }
+            }
         });
         
+        // Sort notes by time in each track
+        if (merged.tracks) {
+            merged.tracks.forEach(track => {
+                if (track.sequences) {
+                    track.sequences.forEach(seq => {
+                        if (seq.data) {
+                            seq.data.sort((a, b) => a.time - b.time);
+                            // Clean up temporary properties
+                            seq.data.forEach(note => {
+                                delete note._idx;
+                                delete note._seqId;
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
         return merged;
+    }
+    
+    /**
+     * Find a difference by ID across all sessions
+     * @private
+     * @param {string} diffId - Difference ID
+     * @returns {ScoreDifference|null} Difference or null
+     */
+    _findDifferenceById(diffId) {
+        for (const session of this.sessions.values()) {
+            const diff = session.differences.find(d => d.id === diffId);
+            if (diff) return diff;
+        }
+        return null;
     }
 
     /**
