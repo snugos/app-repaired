@@ -1879,10 +1879,6 @@ function setupCustomGrooveEditor(container, tracks) {
  * Updates the groove templates panel with current data.
  */
 export function updateGrooveTemplatesPanel() {
-    const container = document.getElementById('grooveTemplatesContent');/**
- * Updates the groove templates panel with current data.
- */
-export function updateGrooveTemplatesPanel() {
     const container = document.getElementById('grooveTemplatesContent');
     if (container) {
         renderGrooveTemplatesContent();
@@ -2945,6 +2941,223 @@ export function updateMicroTuningPanel() {
         renderMicroTuningPanelContent();
     }
 }
+
+// --- Export Presets Panel ---
+export function openExportPresetsPanel(savedState = null) {
+    const windowId = 'exportPresets';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderExportPresetsContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'exportPresetsContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    
+    const options = { 
+        width: 480, 
+        height: 500, 
+        minWidth: 400, 
+        minHeight: 400,
+        initialContentKey: windowId,
+        closable: true, 
+        minimizable: true, 
+        resizable: true
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Export Presets', contentContainer, options);
+    
+    if (win?.element) {
+        renderExportPresetsContent();
+    }
+    
+    return win;
+}
+
+function renderExportPresetsContent() {
+    const container = document.getElementById('exportPresetsContent');
+    if (!container) return;
+
+    const presetNames = localAppServices.getExportPresetNames ? localAppServices.getExportPresetNames() : [];
+    
+    let html = `
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Export Presets</strong> let you save and load export configurations.
+            </div>
+        </div>
+        
+        <!-- Create New Preset -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Create New Preset</h3>
+            
+            <div class="space-y-3">
+                <div>
+                    <label for="presetName" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Preset Name:</label>
+                    <input type="text" id="presetName" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded" placeholder="My Preset">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="presetFormat" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format:</label>
+                        <select id="presetFormat" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            <option value="wav">WAV (Lossless)</option>
+                            <option value="mp3">MP3 (Compressed)</option>
+                            <option value="ogg">OGG</option>
+                            <option value="flac">FLAC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="presetBitrate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Bitrate:</label>
+                        <select id="presetBitrate" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            <option value="128">128 kbps</option>
+                            <option value="192">192 kbps</option>
+                            <option value="256" selected>256 kbps</option>
+                            <option value="320">320 kbps</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="presetSampleRate" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Sample Rate:</label>
+                        <select id="presetSampleRate" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            <option value="44100">44100 Hz</option>
+                            <option value="48000" selected>48000 Hz</option>
+                            <option value="96000">96000 Hz</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="presetBitDepth" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Bit Depth:</label>
+                        <select id="presetBitDepth" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded">
+                            <option value="16">16-bit</option>
+                            <option value="24" selected>24-bit</option>
+                            <option value="32">32-bit float</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="presetIncludeStems" class="w-4 h-4 accent-blue-500">
+                    <label for="presetIncludeStems" class="text-xs text-gray-600 dark:text-gray-400">Include stems export option</label>
+                </div>
+                
+                <button id="savePresetBtn" class="w-full px-4 py-2 bg-green-500 text-white font-semibold rounded hover:bg-green-600 transition-colors">
+                    Save Preset
+                </button>
+            </div>
+        </div>
+        
+        <!-- Existing Presets -->
+        <div class="p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Saved Presets</h3>
+            
+            <div id="presetsList" class="space-y-2 max-h-60 overflow-y-auto">
+                ${presetNames.length === 0 ? 
+                    '<div class="text-xs text-gray-500 dark:text-gray-400 py-2">No presets saved yet.</div>' :
+                    presetNames.map(name => {
+                        const preset = localAppServices.getExportPreset ? localAppServices.getExportPreset(name) : null;
+                        return `
+                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-600">
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${name}</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(${preset?.format || 'wav'}, ${preset?.bitrate || 256}kbps)</span>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button class="load-preset-btn px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-preset="${name}">Load</button>
+                                    <button class="delete-preset-btn px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600" data-preset="${name}">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                }
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Attach event listeners
+    const saveBtn = container.querySelector('#savePresetBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const name = container.querySelector('#presetName')?.value?.trim();
+            if (!name) {
+                localAppServices.showNotification?.('Please enter a preset name.', 2000);
+                return;
+            }
+            
+            const presetData = {
+                format: container.querySelector('#presetFormat')?.value || 'wav',
+                bitrate: parseInt(container.querySelector('#presetBitrate')?.value || '256'),
+                sampleRate: parseInt(container.querySelector('#presetSampleRate')?.value || '48000'),
+                bitDepth: parseInt(container.querySelector('#presetBitDepth')?.value || '24'),
+                includeStems: container.querySelector('#presetIncludeStems')?.checked || false
+            };
+            
+            if (localAppServices.saveExportPreset) {
+                localAppServices.saveExportPreset(name, presetData);
+                localAppServices.showNotification?.(`Preset "${name}" saved.`, 2000);
+                renderExportPresetsContent();
+            }
+        });
+    }
+    
+    // Load preset buttons
+    container.querySelectorAll('.load-preset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const name = e.target.dataset.preset;
+            const preset = localAppServices.getExportPreset ? localAppServices.getExportPreset(name) : null;
+            if (preset) {
+                // Fill in the form with preset values
+                const nameInput = container.querySelector('#presetName');
+                if (nameInput) nameInput.value = name;
+                
+                const formatSelect = container.querySelector('#presetFormat');
+                if (formatSelect) formatSelect.value = preset.format || 'wav';
+                
+                const bitrateSelect = container.querySelector('#presetBitrate');
+                if (bitrateSelect) bitrateSelect.value = String(preset.bitrate || 256);
+                
+                const sampleRateSelect = container.querySelector('#presetSampleRate');
+                if (sampleRateSelect) sampleRateSelect.value = String(preset.sampleRate || 48000);
+                
+                const bitDepthSelect = container.querySelector('#presetBitDepth');
+                if (bitDepthSelect) bitDepthSelect.value = String(preset.bitDepth || 24);
+                
+                localAppServices.showNotification?.(`Preset "${name}" loaded.`, 2000);
+            }
+        });
+    });
+    
+    // Delete preset buttons
+    container.querySelectorAll('.delete-preset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const name = e.target.dataset.preset;
+            if (localAppServices.deleteExportPreset) {
+                localAppServices.deleteExportPreset(name);
+                localAppServices.showNotification?.(`Preset "${name}" deleted.`, 2000);
+                renderExportPresetsContent();
+            }
+        });
+    });
+}
+
 /**
  * Opens the comprehensive Audio Export Dialog.
  * Allows users to export stems (individual tracks) or master mix with format/bitrate options.
