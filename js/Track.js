@@ -7333,7 +7333,7 @@ export class Track {
                 for (let k = 0; k < frequencyBins; k++) {
                     let real = 0, imag = 0;
                     for (let n = 0; n < fftSize; n++) {
-                        const angle = 2 * Math.PI * k * n / fftSize;
+                        const angle = -2 * Math.PI * k * n / fftSize;
                         real += windowedFrame[n] * Math.cos(angle);
                         imag -= windowedFrame[n] * Math.sin(angle);
                     }
@@ -8029,5 +8029,560 @@ export class Track {
         }
 
         return newBuffer;
+    }
+
+    // ============================================
+    // AUDIO TO MIDI DRUM PATTERN DETECTION
+    // ============================================
+
+    /**
+     * Analyze audio to detect drum hits and convert to MIDI notes.
+     * Uses transient detection to identify hit points.
+     * @param {string} clipId - The audio clip ID to analyze
+     * @param {Object} options - Detection options
+     * @returns {Object} Detected MIDI pattern
+     */
+    async detectDrumPattern(clipId, options = {}) {
+        const clip = this.timelineClips.find(c => c.id === clipId);
+        if (!clip || !clip.audioBuffer) {
+            console.warn(`[Track ${this.id}] No audio buffer found for clip ${clipId}`);
+            return null;
+        }
+
+        const audioBuffer = clip.audioBuffer;
+        const sampleRate = audioBuffer.sampleRate;
+        const channelData = audioBuffer.getChannelData(0);
+
+        // Detection parameters
+        const threshold = options.threshold || 0.3;
+        const minGapMs = options.minGapMs || 50;
+        const minGapSamples = Math.floor((minGapMs / 1000) * sampleRate);
+
+        console.log(`[Track ${this.id}] Detecting drum pattern in clip ${clipId}...`);
+
+        // Step 1: Compute envelope using rectified signal
+        const envelopeLength = Math.floor(channelData.length / 128);
+        const envelope = new Float32Array(envelopeLength);
+        for (let i = 0; i < envelopeLength; i++) {
+            let sum = 0;
+            for (let j = 0; j < 128; j++) {
+                const idx = i * 128 + j;
+                sum += Math.abs(channelData[idx] || 0);
+            }
+            envelope[i] = sum / 128;
+        }
+
+        // Step 2: Find peaks (transients) in envelope
+        const peaks = [];
+        let lastPeakIndex = -minGapSamples - 1;
+        
+        for (let i = 1; i < envelope.length - 1; i++) {
+            if (envelope[i] > threshold &&
+                envelope[i] > envelope[i - 1] &&
+                envelope[i] >= envelope[i + 1]) {
+                
+                const sampleIndex = i * 128;
+                if (sampleIndex - lastPeakIndex >= minGapSamples) {
+                    peaks.push({
+                        sampleIndex,
+                        time: sampleIndex / sampleRate,
+                        amplitude: envelope[i]
+                    });
+                    lastPeakIndex = sampleIndex;
+                }
+            }
+        }
+
+        console.log(`[Track ${this.id}] Detected ${peaks.length} transients`);
+
+        // Step 3: Convert peaks to MIDI notes
+        // Map amplitude to velocity and time to position
+        const maxAmplitude = Math.max(...peaks.map(p => p.amplitude), 0.01);
+        const bpm = this.appServices.getTempo ? this.appServices.getTempo() : 120;
+        const beatsPerSecond = bpm / 60;
+
+        const midiNotes = peaks.map((peak, idx) => {
+            // Convert time to beat position
+            const beatPosition = peak.time * beatsPerSecond;
+            // Normalize velocity based on amplitude
+            const normalizedVelocity = Math.min(1, peak.amplitude / maxAmplitude);
+            const midiVelocity = Math.round(normalizedVelocity * 127);
+
+            return {
+                note: options.defaultNote || 36, // Default to C1 (kick)
+                startBeat: Math.round(beatPosition * 4) / 4, // Quantize to 16th notes
+                duration: 0.25, // 16th note duration
+                velocity: midiVelocity,
+                detectedAt: peak.time
+            };
+        });
+
+        // Create pattern data
+        const patternData = {
+            id: `drum-pattern-${Date.now()}`,
+            sourceClipId: clipId,
+            detectedAt: new Date().toISOString(),
+            bpm,
+            notes: midiNotes,
+            totalBeats: Math.ceil((audioBuffer.duration * beatsPerSecond) + 1)
+        };
+
+        // Store detected pattern
+        if (!this.detectedDrumPatterns) {
+            this.detectedDrumPatterns = [];
+        }
+        this.detectedDrumPatterns.push(patternData);
+
+        return patternData;
+    }
+
+    /**
+     * Apply detected drum pattern to a sequence.
+     * @param {string} patternId - The detected pattern ID
+     * @param {string} sequenceId - Target sequence ID
+     * @param {Object} options - Apply options
+     * @returns {boolean} Success status
+     */
+    applyDetectedDrumPattern(patternId, sequenceId, options = {}) {
+        const pattern = this.detectedDrumPatterns?.find(p => p.id === patternId);
+        const sequence = this.sequences?.find(s => s.id === sequenceId);
+
+        if (!pattern || !sequence) {
+            console.warn(`[Track ${this.id}] Pattern or sequence not found`);
+            return false;
+        }
+
+        // Clear existing notes or merge
+        if (!options.merge) {
+            sequence.notes = [];
+        }
+
+        // Apply pattern notes to sequence
+        pattern.notes.forEach(note => {
+            const mappedNote = options.noteMap ? (options.noteMap[note.note] || note.note) : note.note;
+            sequence.notes.push({
+                note: mappedNote,
+                startBeat: note.startBeat + (options.offset || 0),
+                duration: note.duration,
+                velocity: note.velocity * (options.velocityScale || 1)
+            });
+        });
+
+        // Update UI if available
+        if (this.appServices.refreshSequencerUI) {
+            this.appServices.refreshSequencerUI(this.id, sequenceId);
+        }
+
+        console.log(`[Track ${this.id}] Applied drum pattern ${patternId} to sequence ${sequenceId}`);
+        return true;
+    }
+
+    /**
+     * Get all detected drum patterns for this track.
+     * @returns {Array} Array of detected patterns
+     */
+    getDetectedDrumPatterns() {
+        return this.detectedDrumPatterns || [];
+    }
+
+    // ============================================
+    // VECTOR SYNTHESIS
+    // ============================================
+
+    /**
+     * Initialize vector synthesis for this track.
+     * Vector synthesis allows blending between 4 waveforms using XY coordinates.
+     * @param {Object} config - Configuration for vector synthesis
+     */
+    initVectorSynthesis(config = {}) {
+        if (this.type !== 'Synth') {
+            console.warn(`[Track ${this.id}] Vector synthesis only available for Synth tracks`);
+            return false;
+        }
+
+        this.vectorSynthesis = {
+            enabled: true,
+            // Four corner waveforms
+            waveforms: config.waveforms || [
+                { type: 'sine', detune: 0, shape: 'sine' },
+                { type: 'sawtooth', detune: 0, shape: 'sawtooth' },
+                { type: 'square', detune: 0, shape: 'square' },
+                { type: 'triangle', detune: 0, shape: 'triangle' }
+            ],
+            // XY position (0-1 for each axis)
+            position: {
+                x: config.x || 0.5,
+                y: config.y || 0.5
+            },
+            // Smoothing for position changes
+            smoothing: config.smoothing || 0.05,
+            // Individual oscillators for blending
+            oscillators: [],
+            gains: []
+        };
+
+        console.log(`[Track ${this.id}] Vector synthesis initialized`);
+        return true;
+    }
+
+    /**
+     * Set vector synthesis XY position.
+     * @param {number} x - X position (0-1)
+     * @param {number} y - Y position (0-1)
+     */
+    setVectorPosition(x, y) {
+        if (!this.vectorSynthesis?.enabled) {
+            console.warn(`[Track ${this.id}] Vector synthesis not initialized`);
+            return;
+        }
+
+        // Clamp values
+        x = Math.max(0, Math.min(1, x));
+        y = Math.max(0, Math.min(1, y));
+
+        this.vectorSynthesis.position = { x, y };
+
+        // Calculate blend weights for each corner
+        // Top-left: (0,0), Top-right: (1,0), Bottom-left: (0,1), Bottom-right: (1,1)
+        const weights = [
+            (1 - x) * (1 - y), // Top-left (waveform A)
+            x * (1 - y),       // Top-right (waveform B)
+            (1 - x) * y,       // Bottom-left (waveform C)
+            x * y              // Bottom-right (waveform D)
+        ];
+
+        // Apply weights to oscillator gains
+        if (this.vectorSynthesis.gains.length === 4) {
+            for (let i = 0; i < 4; i++) {
+                const gainValue = weights[i];
+                const gainNode = this.vectorSynthesis.gains[i];
+                if (gainNode && !gainNode.disposed) {
+                    gainNode.gain.rampTo(gainValue, this.vectorSynthesis.smoothing);
+                }
+            }
+        }
+
+        console.log(`[Track ${this.id}] Vector position set to (${x.toFixed(2)}, ${y.toFixed(2)})`);
+    }
+
+    /**
+     * Get vector synthesis settings.
+     * @returns {Object} Current vector synthesis configuration
+     */
+    getVectorSynthesisSettings() {
+        return this.vectorSynthesis || { enabled: false };
+    }
+
+    /**
+     * Set waveform for a specific corner.
+     * @param {number} corner - Corner index (0-3)
+     * @param {Object} waveform - Waveform configuration
+     */
+    setVectorWaveform(corner, waveform) {
+        if (!this.vectorSynthesis?.enabled || corner < 0 || corner > 3) {
+            return false;
+        }
+
+        this.vectorSynthesis.waveforms[corner] = { ...waveform };
+        
+        // Reinitialize oscillator if playing
+        if (this.vectorSynthesis.oscillators[corner]) {
+            this._updateVectorOscillator(corner);
+        }
+
+        return true;
+    }
+
+    /**
+     * Update a single vector oscillator.
+     * @private
+     */
+    _updateVectorOscillator(corner) {
+        const osc = this.vectorSynthesis?.oscillators[corner];
+        const waveform = this.vectorSynthesis?.waveforms[corner];
+        
+        if (osc && waveform) {
+            osc.type = waveform.type;
+            if (osc.detune && waveform.detune) {
+                osc.detune.value = waveform.detune;
+            }
+        }
+    }
+
+    // ============================================
+    // WAVETABLE SYNTHESIS
+    // ============================================
+
+    /**
+     * Initialize wavetable synthesis for this track.
+     * Wavetable synthesis uses a table of waveforms that can be scanned through.
+     * @param {Object} config - Configuration for wavetable synthesis
+     */
+    initWavetableSynthesis(config = {}) {
+        if (this.type !== 'Synth') {
+            console.warn(`[Track ${this.id}] Wavetable synthesis only available for Synth tracks`);
+            return false;
+        }
+
+        // Built-in wavetable presets
+        const WAVETABLE_PRESETS = {
+            'sweep': this._generateSweepWavetable(),
+            'formant': this._generateFormantWavetable(),
+            'metallic': this._generateMetallicWavetable(),
+            'vocal': this._generateVocalWavetable()
+        };
+
+        this.wavetableSynthesis = {
+            enabled: true,
+            // Active wavetable
+            wavetable: config.wavetable || WAVETABLE_PRESETS['sweep'],
+            wavetableName: config.wavetableName || 'sweep',
+            // Position in the wavetable (0-1)
+            position: config.position || 0,
+            // Interpolation mode: 'linear', 'spectral', 'morph'
+            interpolation: config.interpolation || 'linear',
+            // Sub-oscillator settings
+            subOscillator: config.subOscillator || {
+                enabled: false,
+                octave: -1,
+                mix: 0.3
+            },
+            // Built-in presets
+            presets: Object.keys(WAVETABLE_PRESETS),
+            // Custom wavetables
+            customWavetables: []
+        };
+
+        console.log(`[Track ${this.id}] Wavetable synthesis initialized with ${this.wavetableSynthesis.wavetableName}`);
+        return true;
+    }
+
+    /**
+     * Generate a sweep wavetable (classic synthesizer sweep).
+     * @private
+     */
+    _generateSweepWavetable() {
+        const tableSize = 256;
+        const numFrames = 64;
+        const frames = [];
+
+        for (let frame = 0; frame < numFrames; frame++) {
+            const data = new Float32Array(tableSize);
+            const morphAmount = frame / (numFrames - 1);
+
+            for (let i = 0; i < tableSize; i++) {
+                const phase = (i / tableSize) * Math.PI * 2;
+                // Morph from sine to sawtooth
+                const sine = Math.sin(phase);
+                const sawtooth = 2 * ((i / tableSize) % 1) - 1;
+                
+                // Add harmonics based on morph position
+                let sample = sine;
+                for (let h = 2; h <= 8; h++) {
+                    const harmonicGain = morphAmount * (1 / h);
+                    sample += Math.sin(phase * h) * harmonicGain;
+                }
+                
+                data[i] = sample * (1 - morphAmount * 0.5); // Normalize
+            }
+            frames.push(data);
+        }
+
+        return { frames, sampleRate: 44100 };
+    }
+
+    /**
+     * Generate a formant wavetable (vowel-like sounds).
+     * @private
+     */
+    _generateFormantWavetable() {
+        const tableSize = 256;
+        const numFrames = 64;
+        const frames = [];
+
+        // Formant frequencies for different vowels
+        const formants = [
+            [700, 1200, 2500],  // 'a'
+            [400, 2000, 2550],  // 'e'
+            [300, 2300, 2900],  // 'i'
+            [400, 800, 2500],   // 'o'
+            [300, 800, 2400]    // 'u'
+        ];
+
+        for (let frame = 0; frame < numFrames; frame++) {
+            const data = new Float32Array(tableSize);
+            const vowelIndex = (frame / numFrames) * (formants.length - 1);
+            const vowel1 = Math.floor(vowelIndex);
+            const vowel2 = Math.min(vowel1 + 1, formants.length - 1);
+            const blend = vowelIndex - vowel1;
+
+            for (let i = 0; i < tableSize; i++) {
+                const phase = (i / tableSize) * Math.PI * 2;
+                let sample = 0;
+
+                // Blend between formant sets
+                for (let f = 0; f < 3; f++) {
+                    const f1 = formants[vowel1][f];
+                    const f2 = formants[vowel2][f];
+                    const freq = f1 + (f2 - f1) * blend;
+                    sample += Math.sin(phase * (freq / 100)) * 0.3;
+                }
+
+                data[i] = sample;
+            }
+            frames.push(data);
+        }
+
+        return { frames, sampleRate: 44100 };
+    }
+
+    /**
+     * Generate a metallic wavetable (bell-like sounds).
+     * @private
+     */
+    _generateMetallicWavetable() {
+        const tableSize = 256;
+        const numFrames = 64;
+        const frames = [];
+
+        for (let frame = 0; frame < numFrames; frame++) {
+            const data = new Float32Array(tableSize);
+            const brightness = frame / (numFrames - 1);
+
+            for (let i = 0; i < tableSize; i++) {
+                const phase = (i / tableSize) * Math.PI * 2;
+                let sample = 0;
+
+                // Inharmonic partials for metallic sound
+                const partials = [1, 2.4, 5.95, 8.2, 11.45];
+                partials.forEach((p, idx) => {
+                    const gain = 0.5 / (idx + 1) * (1 - brightness * 0.5);
+                    sample += Math.sin(phase * p) * gain;
+                });
+
+                data[i] = sample;
+            }
+            frames.push(data);
+        }
+
+        return { frames, sampleRate: 44100 };
+    }
+
+    /**
+     * Generate a vocal wavetable (singing voice-like).
+     * @private
+     */
+    _generateVocalWavetable() {
+        const tableSize = 256;
+        const numFrames = 64;
+        const frames = [];
+
+        for (let frame = 0; frame < numFrames; frame++) {
+            const data = new Float32Array(tableSize);
+            const openness = frame / (numFrames - 1);
+
+            for (let i = 0; i < tableSize; i++) {
+                const phase = (i / tableSize) * Math.PI * 2;
+                
+                // Fundamental + harmonics with formant-like envelope
+                const fundamental = Math.sin(phase);
+                const h2 = Math.sin(phase * 2) * 0.5 * (1 - openness * 0.5);
+                const h3 = Math.sin(phase * 3) * 0.3 * (1 - openness * 0.7);
+                const h4 = Math.sin(phase * 4) * 0.2 * openness;
+                const h5 = Math.sin(phase * 5) * 0.1 * openness;
+                
+                // Add slight noise for realism
+                const noise = (Math.random() - 0.5) * 0.02;
+                
+                data[i] = fundamental + h2 + h3 + h4 + h5 + noise;
+            }
+            frames.push(data);
+        }
+
+        return { frames, sampleRate: 44100 };
+    }
+
+    /**
+     * Set wavetable position (scans through the table).
+     * @param {number} position - Position in wavetable (0-1)
+     */
+    setWavetablePosition(position) {
+        if (!this.wavetableSynthesis?.enabled) {
+            console.warn(`[Track ${this.id}] Wavetable synthesis not initialized`);
+            return;
+        }
+
+        this.wavetableSynthesis.position = Math.max(0, Math.min(1, position));
+        console.log(`[Track ${this.id}] Wavetable position set to ${position.toFixed(2)}`);
+    }
+
+    /**
+     * Load a wavetable preset.
+     * @param {string} presetName - Name of the preset
+     */
+    loadWavetablePreset(presetName) {
+        const presets = {
+            'sweep': this._generateSweepWavetable(),
+            'formant': this._generateFormantWavetable(),
+            'metallic': this._generateMetallicWavetable(),
+            'vocal': this._generateVocalWavetable()
+        };
+
+        if (presets[presetName] && this.wavetableSynthesis) {
+            this.wavetableSynthesis.wavetable = presets[presetName];
+            this.wavetableSynthesis.wavetableName = presetName;
+            console.log(`[Track ${this.id}] Loaded wavetable preset: ${presetName}`);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get wavetable synthesis settings.
+     * @returns {Object} Current wavetable configuration
+     */
+    getWavetableSettings() {
+        return this.wavetableSynthesis || { enabled: false };
+    }
+
+    /**
+     * Create a custom wavetable from audio buffer.
+     * @param {AudioBuffer} audioBuffer - Source audio buffer
+     * @param {string} name - Name for the custom wavetable
+     */
+    createCustomWavetable(audioBuffer, name) {
+        if (!this.wavetableSynthesis?.enabled) {
+            console.warn(`[Track ${this.id}] Wavetable synthesis not initialized`);
+            return false;
+        }
+
+        const numFrames = 64;
+        const frames = [];
+        const sampleRate = audioBuffer.sampleRate;
+        const channelData = audioBuffer.getChannelData(0);
+        const tableSize = 256;
+
+        // Extract frames from the audio
+        const frameSpacing = Math.floor(channelData.length / numFrames);
+        
+        for (let frame = 0; frame < numFrames; frame++) {
+            const data = new Float32Array(tableSize);
+            const startIdx = frame * frameSpacing;
+
+            // Extract one cycle (assuming periodic content)
+            for (let i = 0; i < tableSize; i++) {
+                const srcIdx = startIdx + Math.floor(i * frameSpacing / tableSize);
+                data[i] = channelData[srcIdx] || 0;
+            }
+
+            frames.push(data);
+        }
+
+        const customWavetable = { frames, sampleRate, name };
+        this.wavetableSynthesis.customWavetables.push(customWavetable);
+
+        console.log(`[Track ${this.id}] Created custom wavetable: ${name}`);
+        return customWavetable;
     }
 }
