@@ -288,7 +288,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -308,8 +308,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -325,8 +325,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -399,21 +399,40 @@ import {
 
     removeCustomDesktopBackground: async () => {
         try {
-            localStorage.removeItem(this.DESKTOP_BACKGROUND_KEY);
-            localStorage.removeItem(this.DESKTOP_BG_TYPE_KEY);
-            await this.bgDb.remove('desktopVideo');
-            applyDesktopBackground(null, null);
-            showSafeNotification("Background removed.", 2000);
+            localStorage.removeItem('snugosDesktopBackground');
+            localStorage.removeItem('snugosDesktopBgType');
+            const db = await (async () => {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('SnugOSBackgrounds', 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('backgrounds')) {
+                            db.createObjectStore('backgrounds');
+                        }
+                    };
+                });
+            })();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('backgrounds', 'readwrite');
+                const store = tx.objectStore('backgrounds');
+                store.delete('desktopVideo');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+            if (typeof applyDesktopBackground === 'function') applyDesktopBackground(null, null);
+            if (typeof showSafeNotification === 'function') showSafeNotification("Background removed.", 2000);
         } catch (e) {
             console.error("Error removing custom background:", e);
-            showSafeNotification("Could not remove background.", 2000);
+            if (typeof showSafeNotification === 'function') showSafeNotification("Could not remove background.", 2000);
         }
     },
     triggerCustomBackgroundUpload: () => {
         if (uiElementsCache.customBgInput) uiElementsCache.customBgInput.click();
         else console.warn("Custom background input element not found in cache.");
     },
-    showSafeNotification(message, duration) {
+    showSafeNotification: (message, duration) => {
         if (typeof utilShowNotification === 'function') {
             utilShowNotification(message, duration);
         } else {
@@ -430,7 +449,7 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
     _isReconstructingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
