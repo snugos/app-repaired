@@ -1577,6 +1577,54 @@ function renderGrooveTemplatesContent() {
     
     html += `
             </div>
+        
+        <div class="mt-4 p-3 bg-purple-50 dark:bg-slate-700 rounded border border-purple-200 dark:border-purple-600">
+            <h3 class="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-2">Custom Groove Drawing</h3>
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                Draw custom groove patterns to create unique timing variations. 
+                Click on the grid to add timing offsets for each 16th note.
+            </p>
+            
+            <div class="flex items-center gap-2 mb-3">
+                <input type="text" id="customGrooveName" placeholder="Pattern name..." 
+                    class="flex-1 p-1 text-xs bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                <button id="saveCustomGrooveBtn" class="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600">
+                    Save Pattern
+                </button>
+            </div>
+            
+            <div id="customGrooveEditor" class="mb-3 p-2 bg-white dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-600">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-600 dark:text-gray-400">16th Note Grid (click to add offset)</span>
+                    <button id="clearGrooveBtn" class="px-1 py-0.5 text-xs bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-300 dark:hover:bg-slate-500">Clear</button>
+                </div>
+                <div id="grooveGrid" class="grid grid-cols-16 gap-1">
+                    ${[...Array(16)].map((_, i) => `<div class="groove-cell w-6 h-6 rounded cursor-pointer flex items-center justify-center text-xs
+                        ${i % 2 === 1 ? 'bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800' : 'bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600'}" 
+                        data-division="${i}" data-offset="0">${i % 2 === 1 ? '·' : ''}</div>`).join('')}
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Swing (odd 16ths)</span>
+                    <input type="range" id="grooveSwingSlider" min="-50" max="50" value="0" class="w-24 h-2">
+                    <span id="grooveSwingValue" class="text-xs text-gray-600 dark:text-gray-400 w-10">0ms</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-3">
+                <label class="text-xs text-gray-600 dark:text-gray-400">Track:</label>
+                <select id="customGrooveTrackSelect" class="flex-1 p-1 text-xs bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                    <option value="">Select a track...</option>
+                    ${tracks.filter(t => t.type !== 'Audio').map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                </select>
+            </div>
+            
+            <div id="customPatternsSection" class="mt-2">            <div id="customPatternsSection" class="mt-2">
+                <h4 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Saved Patterns</h4>
+                <div id="customPatternsList" class="space-y-1 max-h-32 overflow-y-auto">
+                    <div class="text-xs text-gray-400 dark:text-gray-500">No custom patterns saved yet.</div>
+                </div>
+            </div>
+        </div>
         </div>
         
         <div class="mb-3">
@@ -1663,7 +1711,176 @@ function renderGrooveTemplatesContent() {
     });
 }
 
+
 /**
+ * Sets up event handlers for custom groove pattern editor
+ */
+function setupCustomGrooveEditor(container, tracks) {
+    const grid = container.querySelector('#grooveGrid');
+    const saveBtn = container.querySelector('#saveCustomGrooveBtn');
+    const clearBtn = container.querySelector('#clearGrooveBtn');
+    const nameInput = container.querySelector('#customGrooveName');
+    const swingSlider = container.querySelector('#grooveSwingSlider');
+    const swingValue = container.querySelector('#grooveSwingValue');
+    const customPatternsList = container.querySelector('#customPatternsList');
+    
+    let currentPoints = []; // Array of {division, offset, velocity}
+    
+    // Grid cell click handlers
+    if (grid) {
+        grid.querySelectorAll('.groove-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const division = parseInt(cell.dataset.division, 10);
+                const currentOffset = parseInt(cell.dataset.offset, 10) || 0;
+                const newOffset = currentOffset === 0 ? 25 : 0; // Toggle between 0 and 25ms
+                cell.dataset.offset = newOffset;
+                cell.textContent = newOffset !== 0 ? `${newOffset}` : (division % 2 === 1 ? '·' : '');
+                cell.classList.toggle('bg-green-300', newOffset > 0);
+                cell.classList.toggle('dark:bg-green-700', newOffset > 0);
+                
+                // Update currentPoints
+                if (newOffset > 0) {
+                    currentPoints.push({ division, offset: newOffset, velocity: 1 });
+                } else {
+                    currentPoints = currentPoints.filter(p => p.division !== division);
+                }
+            });
+        });
+    }
+    
+    // Swing slider handler
+    if (swingSlider) {
+        swingSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            if (swingValue) swingValue.textContent = `${val}ms`;
+            
+            // Apply swing to odd divisions
+            grid?.querySelectorAll('.groove-cell').forEach(cell => {
+                const division = parseInt(cell.dataset.division, 10);
+                if (division % 2 === 1) {
+                    cell.dataset.offset = val;
+                    cell.textContent = val !== '0' ? val : '·';
+                    cell.classList.toggle('bg-green-300', parseInt(val) !== 0);
+                    cell.classList.toggle('dark:bg-green-700', parseInt(val) !== 0);
+                }
+            });
+        });
+    }
+    
+    // Clear button
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            currentPoints = [];
+            grid?.querySelectorAll('.groove-cell').forEach(cell => {
+                cell.dataset.offset = '0';
+                const division = parseInt(cell.dataset.division, 10);
+                cell.textContent = division % 2 === 1 ? '·' : '';
+                cell.classList.remove('bg-green-300', 'dark:bg-green-700');
+            });
+            if (swingSlider) swingSlider.value = '0';
+            if (swingValue) swingValue.textContent = '0ms';
+        });
+    }
+    
+    // Save button
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const name = nameInput?.value?.trim();
+            if (!name) {
+                showNotification('Please enter a pattern name', 1500);
+                return;
+            }
+            
+            // Collect all points from grid
+            const points = [];
+            grid?.querySelectorAll('.groove-cell').forEach(cell => {
+                const offset = parseInt(cell.dataset.offset, 10) || 0;
+                if (offset !== 0) {
+                    points.push({
+                        division: parseInt(cell.dataset.division, 10),
+                        offset: offset,
+                        velocity: 1
+                    });
+                }
+            });
+            
+            if (localAppServices.saveCustomGroovePattern) {
+                const result = localAppServices.saveCustomGroovePattern(name, 16, points);
+                if (result) {
+                    showNotification(`Groove pattern "${name}" saved`, 1500);
+                    if (nameInput) nameInput.value = '';
+                    currentPoints = [];
+                    updateCustomPatternsList();
+                }
+            }
+        });
+    }
+    
+    // Update custom patterns list
+    function updateCustomPatternsList() {
+        if (!customPatternsList) return;
+        
+        const patternNames = localAppServices.getCustomGroovePatternNames ? 
+            localAppServices.getCustomGroovePatternNames() : [];
+        
+        if (patternNames.length === 0) {
+            customPatternsList.innerHTML = '<div class="text-xs text-gray-400 dark:text-gray-500">No custom patterns saved yet.</div>';
+            return;
+        }
+        
+        customPatternsList.innerHTML = patternNames.map(name => `
+            <div class="flex items-center justify-between p-1 bg-white dark:bg-slate-700 rounded text-xs">
+                <span class="text-gray-700 dark:text-gray-300">${name}</span>
+                <div class="flex gap-1">
+                    <button class="apply-custom-groove px-1 py-0.5 bg-green-500 text-white rounded hover:bg-green-600" data-pattern="${name}">Apply</button>
+                    <button class="delete-custom-groove px-1 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" data-pattern="${name}">X</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Apply button handlers
+        customPatternsList.querySelectorAll('.apply-custom-groove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const patternName = e.target.dataset.pattern;
+                const trackSelect = container.querySelector('#customGrooveTrackSelect');
+                const trackId = trackSelect?.value ? parseInt(trackSelect.value, 10) : null;
+                
+                if (trackId) {
+                    const track = tracks.find(t => t.id === trackId);
+                    if (track && localAppServices.applyCustomGrooveToTrack) {
+                        const result = localAppServices.applyCustomGrooveToTrack(track, patternName);
+                        if (result) {
+                            showNotification(`Applied "${patternName}" to ${track.name}`, 1500);
+                        }
+                    }
+                } else {
+                    showNotification('Select a track first', 1500);
+                }
+            });
+        });
+        
+        // Delete button handlers
+        customPatternsList.querySelectorAll('.delete-custom-groove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const patternName = e.target.dataset.pattern;
+                if (localAppServices.deleteCustomGroovePattern) {
+                    localAppServices.deleteCustomGroovePattern(patternName);
+                    showNotification(`Deleted "${patternName}"`, 1500);
+                    updateCustomPatternsList();
+                }
+            });
+        });
+    }
+    
+    // Initial load of patterns
+    updateCustomPatternsList();
+}
+
+/**
+ * Updates the groove templates panel with current data.
+ */
+export function updateGrooveTemplatesPanel() {
+    const container = document.getElementById('grooveTemplatesContent');/**
  * Updates the groove templates panel with current data.
  */
 export function updateGrooveTemplatesPanel() {

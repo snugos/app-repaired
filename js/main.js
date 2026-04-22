@@ -309,7 +309,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -326,7 +326,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -507,6 +507,15 @@ import {
     openArpeggiatorPanel,
     openScatterPanel,
     openGrooveTemplatesPanel,
+    // Groove Presets
+    getGroovePresets, getGroovePresetById, getGrooveSwingAmount,
+    // Custom Groove Patterns
+    getCustomGroovePatterns,
+    saveCustomGroovePattern,
+    deleteCustomGroovePattern,
+    getCustomGroovePattern,
+    getCustomGroovePatternNames,
+    applyCustomGrooveToTrack,
     openScaleLockPanel,
     openTrackTemplatesPanel,
     openAutomationLanesPanel,

@@ -983,6 +983,35 @@ export class Track {
         return this.groovePreset || 'none';
     }
 
+    // --- Custom Groove Pattern ---
+    // Custom groove pattern allows drawing custom timing offsets per 16th note position
+    setCustomGroovePattern(pattern) {
+        if (pattern) {
+            this.customGroovePattern = JSON.parse(JSON.stringify(pattern));
+            console.log(`[Track ${this.id}] Custom groove pattern set: ${pattern.name}`);
+        } else {
+            this.customGroovePattern = null;
+        }
+    }
+
+    getCustomGroovePattern() {
+        return this.customGroovePattern || null;
+    }
+
+    /**
+     * Get groove offset for a specific note division
+     * Used by sequencer to apply custom groove timing
+     * @param {number} divisionIndex - 0-15 for 16th notes in a bar
+     * @returns {number} Offset in seconds to apply to note time
+     */
+    getGrooveOffsetForDivision(divisionIndex) {
+        if (!this.customGroovePattern || !this.customGroovePattern.points) {
+            return 0;
+        }
+        const point = this.customGroovePattern.points.find(p => p.division === divisionIndex);
+        return point ? (point.offset || 0) : 0;
+    }
+
     // ==================== Pattern Chain Methods ====================
 
     /**
@@ -13673,5 +13702,609 @@ export class Track {
         this.lyrics = [];
         console.log(`[Track ${this.id}] Cleared all lyrics`);
         if (this.appServices.renderTimeline) this.appServices.renderTimeline();
+    }
+}
+    // ===========================================
+    // CLIP CROSSFADE EDITOR
+    // ===========================================
+
+    /**
+     * Initialize the clip crossfade editor for smooth transitions between overlapping clips.
+     */
+    initClipCrossfadeEditor() {
+        this.clipCrossfadeEditor = {
+            enabled: false,
+            crossfades: new Map(), // Map of clipId -> crossfade settings
+            defaultCrossfade: {
+                duration: 0.05, // 50ms default crossfade
+                curve: 'equal_power', // 'equal_power', 'linear', 'exponential', 'custom'
+                inCurve: null, // Custom in curve points
+                outCurve: null, // Custom out curve points
+                overlapOnly: true // Only apply when clips overlap
+            },
+            selectedCrossfadeId: null,
+            previewEnabled: true
+        };
+        console.log(`[Track ${this.id}] Clip crossfade editor initialized`);
+    }
+
+    /**
+     * Set crossfade settings for a clip.
+     * @param {string} clipId - Clip identifier
+     * @param {Object} settings - Crossfade settings
+     */
+    setClipCrossfade(clipId, settings = {}) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+
+        const crossfade = {
+            clipId,
+            duration: settings.duration ?? this.clipCrossfadeEditor.defaultCrossfade.duration,
+            curve: settings.curve || this.clipCrossfadeEditor.defaultCrossfade.curve,
+            inCurve: settings.inCurve || null,
+            outCurve: settings.outCurve || null,
+            overlapOnly: settings.overlapOnly ?? true,
+            fadeInEnabled: settings.fadeInEnabled ?? true,
+            fadeOutEnabled: settings.fadeOutEnabled ?? true,
+            customCurve: settings.customCurve || null
+        };
+
+        this.clipCrossfadeEditor.crossfades.set(clipId, crossfade);
+        console.log(`[Track ${this.id}] Crossfade set for clip ${clipId}: ${crossfade.duration}s ${crossfade.curve}`);
+        return crossfade;
+    }
+
+    /**
+     * Get crossfade settings for a clip.
+     * @param {string} clipId - Clip identifier
+     * @returns {Object|null} Crossfade settings
+     */
+    getClipCrossfade(clipId) {
+        if (!this.clipCrossfadeEditor) return null;
+        return this.clipCrossfadeEditor.crossfades.get(clipId) || null;
+    }
+
+    /**
+     * Remove crossfade from a clip.
+     * @param {string} clipId - Clip identifier
+     */
+    removeClipCrossfade(clipId) {
+        if (!this.clipCrossfadeEditor) return;
+        this.clipCrossfadeEditor.crossfades.delete(clipId);
+        console.log(`[Track ${this.id}] Removed crossfade from clip ${clipId}`);
+    }
+
+    /**
+     * Calculate crossfade curves based on curve type.
+     * @param {string} curveType - Type of curve
+     * @param {number} numPoints - Number of points to generate
+     * @returns {Object} { fadeIn, fadeOut } curve arrays
+     */
+    calculateCrossfadeCurves(curveType = 'equal_power', numPoints = 100) {
+        const fadeIn = new Float32Array(numPoints);
+        const fadeOut = new Float32Array(numPoints);
+
+        switch (curveType) {
+            case 'linear':
+                for (let i = 0; i < numPoints; i++) {
+                    fadeIn[i] = i / (numPoints - 1);
+                    fadeOut[i] = 1 - fadeIn[i];
+                }
+                break;
+
+            case 'exponential':
+                for (let i = 0; i < numPoints; i++) {
+                    const t = i / (numPoints - 1);
+                    fadeIn[i] = Math.pow(t, 2);
+                    fadeOut[i] = Math.pow(1 - t, 2);
+                }
+                break;
+
+            case 'equal_power':
+            default:
+                // Equal power crossfade - maintains constant perceived loudness
+                for (let i = 0; i < numPoints; i++) {
+                    const t = i / (numPoints - 1);
+                    fadeIn[i] = Math.cos(Math.PI / 2 * (1 - t));
+                    fadeOut[i] = Math.cos(Math.PI / 2 * t);
+                }
+                break;
+        }
+
+        return { fadeIn, fadeOut };
+    }
+
+    /**
+     * Apply crossfade between two overlapping clips.
+     * @param {string} clip1Id - First clip ID
+     * @param {string} clip2Id - Second clip ID
+     * @param {Object} overlap - Overlap region { start, end, duration }
+     */
+    applyCrossfadeBetweenClips(clip1Id, clip2Id, overlap) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+
+        const cf1 = this.getClipCrossfade(clip1Id);
+        const cf2 = this.getClipCrossfade(clip2Id);
+
+        if (!cf1 && !cf2) return null;
+
+        // Use the shorter crossfade duration
+        const duration1 = cf1?.duration || this.clipCrossfadeEditor.defaultCrossfade.duration;
+        const duration2 = cf2?.duration || this.clipCrossfadeEditor.defaultCrossfade.duration;
+        const crossfadeDuration = Math.min(duration1, duration2, overlap.duration / 2);
+
+        const curveType = cf1?.curve || cf2?.curve || 'equal_power';
+        const curves = this.calculateCrossfadeCurves(curveType);
+
+        return {
+            clip1Id,
+            clip2Id,
+            crossfadeDuration,
+            overlap,
+            fadeOut: curves.fadeOut,
+            fadeIn: curves.fadeIn,
+            curveType
+        };
+    }
+
+    /**
+     * Create custom crossfade curve from control points.
+     * @param {Array} controlPoints - Array of { time, value } points (0-1 normalized)
+     * @param {number} numPoints - Number of output points
+     * @returns {Float32Array} Interpolated curve
+     */
+    createCustomCrossfadeCurve(controlPoints, numPoints = 100) {
+        if (!controlPoints || controlPoints.length < 2) {
+            return new Float32Array(numPoints).fill(0);
+        }
+
+        // Sort by time
+        const sorted = [...controlPoints].sort((a, b) => a.time - b.time);
+        const curve = new Float32Array(numPoints);
+
+        for (let i = 0; i < numPoints; i++) {
+            const t = i / (numPoints - 1);
+
+            // Find surrounding control points
+            let p0 = sorted[0];
+            let p1 = sorted[sorted.length - 1];
+
+            for (let j = 0; j < sorted.length - 1; j++) {
+                if (t >= sorted[j].time && t <= sorted[j + 1].time) {
+                    p0 = sorted[j];
+                    p1 = sorted[j + 1];
+                    break;
+                }
+            }
+
+            // Linear interpolation
+            const localT = (t - p0.time) / (p1.time - p0.time || 1);
+            curve[i] = p0.value + (p1.value - p0.value) * localT;
+        }
+
+        return curve;
+    }
+
+    /**
+     * Set the crossfade editor enabled state.
+     * @param {boolean} enabled - Enabled state
+     */
+    setClipCrossfadeEditorEnabled(enabled) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+        this.clipCrossfadeEditor.enabled = enabled;
+        console.log(`[Track ${this.id}] Clip crossfade editor ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    /**
+     * Select a clip for crossfade editing.
+     * @param {string} clipId - Clip identifier
+     */
+    selectClipForCrossfadeEdit(clipId) {
+        if (!this.clipCrossfadeEditor) this.initClipCrossfadeEditor();
+        this.clipCrossfadeEditor.selectedCrossfadeId = clipId;
+    }
+
+    /**
+     * Get crossfade editor settings.
+     * @returns {Object} Crossfade editor settings
+     */
+    getClipCrossfadeEditorSettings() {
+        return this.clipCrossfadeEditor || { enabled: false, crossfades: new Map() };
+    }
+
+    // ===========================================
+    // RHYTHMICAL GROOVE DRAWING
+    // ===========================================
+
+    /**
+     * Initialize the rhythmical groove drawing editor.
+     * Allows visual drawing of custom groove patterns with timing offsets.
+     */
+    initRhythmicalGrooveDrawing() {
+        this.grooveDrawing = {
+            enabled: false,
+            // Drawing canvas settings
+            canvas: {
+                width: 800,
+                height: 200,
+                gridSize: 16, // 16th notes per bar
+                snapToGrid: true
+            },
+            // The groove pattern being edited
+            pattern: {
+                id: null,
+                name: 'Custom Groove',
+                bars: 1, // Number of bars
+                resolution: 16, // 16th note resolution
+                points: [] // Array of { bar, division, timing, velocity, duration }
+            },
+            // Visual settings
+            visual: {
+                showGrid: true,
+                showTimingMarkers: true,
+                showVelocityBars: true,
+                showGhostNotes: true,
+                colorScheme: 'default' // 'default', 'pastel', 'neon'
+            },
+            // Drawing tools
+            tools: {
+                current: 'draw', // 'draw', 'erase', 'select', 'move'
+                brushSize: 1,
+                velocityLock: null, // Lock velocity to specific value
+                timingLock: null // Lock timing to specific value
+            },
+            // Selection
+            selection: {
+                points: [],
+                box: null
+            },
+            // History for undo/redo
+            history: [],
+            historyIndex: -1
+        };
+        console.log(`[Track ${this.id}] Rhythmical groove drawing initialized`);
+    }
+
+    /**
+     * Set the groove drawing enabled state.
+     * @param {boolean} enabled - Whether groove drawing is enabled
+     */
+    setGrooveDrawingEnabled(enabled) {
+        if (!this.grooveDrawing) this.initRhythmicalGrooveDrawing();
+        this.grooveDrawing.enabled = enabled;
+        console.log(`[Track ${this.id}] Groove drawing ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    /**
+     * Get groove drawing settings.
+     * @returns {Object} Groove drawing settings
+     */
+    getGrooveDrawingSettings() {
+        return this.grooveDrawing || { enabled: false };
+    }
+
+    /**
+     * Set the groove pattern for drawing.
+     * @param {Object} pattern - The groove pattern
+     */
+    setGroovePattern(pattern) {
+        if (!this.grooveDrawing) this.initRhythmicalGrooveDrawing();
+        this.grooveDrawing.pattern = {
+            id: pattern.id || `groove-${Date.now()}`,
+            name: pattern.name || 'Custom Groove',
+            bars: pattern.bars || 1,
+            resolution: pattern.resolution || 16,
+            points: pattern.points ? JSON.parse(JSON.stringify(pattern.points)) : []
+        };
+        console.log(`[Track ${this.id}] Groove pattern set: ${this.grooveDrawing.pattern.name}`);
+    }
+
+    /**
+     * Get the current groove pattern.
+     * @returns {Object} The groove pattern
+     */
+    getGroovePattern() {
+        if (!this.grooveDrawing) return null;
+        return JSON.parse(JSON.stringify(this.grooveDrawing.pattern));
+    }
+
+    /**
+     * Add a point to the groove pattern.
+     * @param {number} bar - Bar number (0-indexed)
+     * @param {number} division - Division within bar (0-15 for 16th notes)
+     * @param {number} timing - Timing offset (-0.5 to 0.5 beats)
+     * @param {number} velocity - Velocity (0-1)
+     * @param {number} duration - Duration multiplier (0.5-2)
+     * @returns {Object} The created point
+     */
+    addGroovePoint(bar, division, timing = 0, velocity = 0.8, duration = 1) {
+        if (!this.grooveDrawing) this.initRhythmicalGrooveDrawing();
+
+        // Snap to grid if enabled
+        if (this.grooveDrawing.canvas.snapToGrid) {
+            division = Math.round(division);
+        }
+
+        const point = {
+            id: `gp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            bar: Math.max(0, bar),
+            division: Math.max(0, Math.min(this.grooveDrawing.pattern.resolution - 1, division)),
+            timing: Math.max(-0.5, Math.min(0.5, timing)),
+            velocity: Math.max(0, Math.min(1, velocity)),
+            duration: Math.max(0.5, Math.min(2, duration))
+        };
+
+        this.grooveDrawing.pattern.points.push(point);
+        this._saveGrooveDrawingHistory();
+        console.log(`[Track ${this.id}] Added groove point at bar ${bar}, division ${division}`);
+        return point;
+    }
+
+    /**
+     * Update a groove point.
+     * @param {string} pointId - The point ID
+     * @param {Object} updates - Updates to apply
+     * @returns {boolean} True if successful
+     */
+    updateGroovePoint(pointId, updates) {
+        if (!this.grooveDrawing) return false;
+
+        const point = this.grooveDrawing.pattern.points.find(p => p.id === pointId);
+        if (!point) return false;
+
+        if (updates.bar !== undefined) point.bar = Math.max(0, updates.bar);
+        if (updates.division !== undefined) {
+            point.division = this.grooveDrawing.canvas.snapToGrid
+                ? Math.round(updates.division)
+                : Math.max(0, Math.min(this.grooveDrawing.pattern.resolution - 1, updates.division));
+        }
+        if (updates.timing !== undefined) point.timing = Math.max(-0.5, Math.min(0.5, updates.timing));
+        if (updates.velocity !== undefined) point.velocity = Math.max(0, Math.min(1, updates.velocity));
+        if (updates.duration !== undefined) point.duration = Math.max(0.5, Math.min(2, updates.duration));
+
+        this._saveGrooveDrawingHistory();
+        return true;
+    }
+
+    /**
+     * Remove a groove point.
+     * @param {string} pointId - The point ID
+     * @returns {boolean} True if successful
+     */
+    removeGroovePoint(pointId) {
+        if (!this.grooveDrawing) return false;
+
+        const idx = this.grooveDrawing.pattern.points.findIndex(p => p.id === pointId);
+        if (idx === -1) return false;
+
+        this.grooveDrawing.pattern.points.splice(idx, 1);
+        this._saveGrooveDrawingHistory();
+        return true;
+    }
+
+    /**
+     * Clear all groove points.
+     */
+    clearGroovePattern() {
+        if (!this.grooveDrawing) return;
+        this.grooveDrawing.pattern.points = [];
+        this._saveGrooveDrawingHistory();
+        console.log(`[Track ${this.id}] Groove pattern cleared`);
+    }
+
+    /**
+     * Select groove points within a rectangular region.
+     * @param {number} startBar - Starting bar
+     * @param {number} startDivision - Starting division
+     * @param {number} endBar - Ending bar
+     * @param {number} endDivision - Ending division
+     * @returns {Array} Selected points
+     */
+    selectGroovePoints(startBar, startDivision, endBar, endDivision) {
+        if (!this.grooveDrawing) return [];
+
+        const selected = this.grooveDrawing.pattern.points.filter(p => {
+            const pointPos = p.bar * this.grooveDrawing.pattern.resolution + p.division;
+            const startPos = startBar * this.grooveDrawing.pattern.resolution + startDivision;
+            const endPos = endBar * this.grooveDrawing.pattern.resolution + endDivision;
+            return pointPos >= Math.min(startPos, endPos) && pointPos <= Math.max(startPos, endPos);
+        });
+
+        this.grooveDrawing.selection.points = selected;
+        return selected;
+    }
+
+    /**
+     * Move selected groove points.
+     * @param {number} deltaBar - Bars to move
+     * @param {number} deltaDivision - Divisions to move
+     * @returns {boolean} True if successful
+     */
+    moveSelectedGroovePoints(deltaBar, deltaDivision) {
+        if (!this.grooveDrawing || this.grooveDrawing.selection.points.length === 0) return false;
+
+        this.grooveDrawing.selection.points.forEach(point => {
+            point.bar = Math.max(0, point.bar + deltaBar);
+            point.division = Math.max(0, Math.min(
+                this.grooveDrawing.pattern.resolution - 1,
+                point.division + deltaDivision
+            ));
+        });
+
+        this._saveGrooveDrawingHistory();
+        return true;
+    }
+
+    /**
+     * Delete selected groove points.
+     * @returns {number} Number of points deleted
+     */
+    deleteSelectedGroovePoints() {
+        if (!this.grooveDrawing || this.grooveDrawing.selection.points.length === 0) return 0;
+
+        const selectedIds = new Set(this.grooveDrawing.selection.points.map(p => p.id));
+        const initialLength = this.grooveDrawing.pattern.points.length;
+
+        this.grooveDrawing.pattern.points = this.grooveDrawing.pattern.points
+            .filter(p => !selectedIds.has(p.id));
+
+        this.grooveDrawing.selection.points = [];
+        this._saveGrooveDrawingHistory();
+
+        return initialLength - this.grooveDrawing.pattern.points.length;
+    }
+
+    /**
+     * Set groove drawing tool.
+     * @param {string} tool - Tool name ('draw', 'erase', 'select', 'move')
+     */
+    setGrooveDrawingTool(tool) {
+        if (!this.grooveDrawing) this.initRhythmicalGrooveDrawing();
+        if (['draw', 'erase', 'select', 'move'].includes(tool)) {
+            this.grooveDrawing.tools.current = tool;
+            console.log(`[Track ${this.id}] Groove drawing tool set to: ${tool}`);
+        }
+    }
+
+    /**
+     * Set groove drawing visual options.
+     * @param {Object} options - Visual options
+     */
+    setGrooveDrawingVisualOptions(options) {
+        if (!this.grooveDrawing) this.initRhythmicalGrooveDrawing();
+        Object.assign(this.grooveDrawing.visual, options);
+    }
+
+    /**
+     * Apply groove pattern to a sequence.
+     * @param {string} sequenceId - The sequence to apply groove to
+     * @param {number} strength - Groove strength (0-1)
+     * @returns {boolean} True if successful
+     */
+    applyGroovePatternToSequence(sequenceId, strength = 1) {
+        if (!this.grooveDrawing || !this.grooveDrawing.pattern.points.length) return false;
+
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sequence) return false;
+
+        // Apply groove to each note in the sequence
+        sequence.notes.forEach(note => {
+            // Find the groove point for this note's division
+            const noteDivision = Math.floor(note.time * 4) % this.grooveDrawing.pattern.resolution;
+            const groovePoint = this.grooveDrawing.pattern.points.find(p => p.division === noteDivision);
+
+            if (groovePoint) {
+                // Apply timing offset
+                note.time += groovePoint.timing * strength;
+                // Apply velocity adjustment
+                note.velocity = note.velocity * (1 + (groovePoint.velocity - 0.5) * strength);
+                // Apply duration adjustment
+                note.duration *= (1 + (groovePoint.duration - 1) * strength);
+            }
+        });
+
+        this._captureUndoState(`Apply groove to ${sequence.name}`);
+        console.log(`[Track ${this.id}] Applied groove pattern to sequence ${sequenceId} with strength ${strength}`);
+        return true;
+    }
+
+    /**
+     * Generate groove from existing sequence.
+     * @param {string} sequenceId - The sequence to analyze
+     * @returns {Object} Generated groove pattern
+     */
+    generateGrooveFromSequence(sequenceId) {
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+        if (!sequence) return null;
+
+        const groovePoints = [];
+
+        // Group notes by division
+        const divisionNotes = {};
+        sequence.notes.forEach(note => {
+            const division = Math.floor(note.time * 4) % 16;
+            if (!divisionNotes[division]) {
+                divisionNotes[division] = [];
+            }
+            divisionNotes[division].push(note);
+        });
+
+        // Calculate average timing offset and velocity for each division
+        Object.entries(divisionNotes).forEach(([division, notes]) => {
+            const avgTiming = notes.reduce((sum, n) => sum + (n.time * 4 % 1) - 0.5, 0) / notes.length;
+            const avgVelocity = notes.reduce((sum, n) => sum + n.velocity, 0) / notes.length;
+            const avgDuration = notes.reduce((sum, n) => sum + n.duration, 0) / notes.length;
+
+            groovePoints.push({
+                id: `gp-${Date.now()}-${division}`,
+                bar: 0,
+                division: parseInt(division),
+                timing: avgTiming,
+                velocity: avgVelocity,
+                duration: avgDuration
+            });
+        });
+
+        return {
+            id: `groove-${Date.now()}`,
+            name: `Groove from ${sequence.name}`,
+            bars: 1,
+            resolution: 16,
+            points: groovePoints
+        };
+    }
+
+    /**
+     * Save groove drawing history for undo/redo.
+     * @private
+     */
+    _saveGrooveDrawingHistory() {
+        if (!this.grooveDrawing) return;
+
+        // Clone current state
+        const state = JSON.parse(JSON.stringify(this.grooveDrawing.pattern));
+
+        // Remove future history if we're not at the end
+        if (this.grooveDrawing.historyIndex < this.grooveDrawing.history.length - 1) {
+            this.grooveDrawing.history = this.grooveDrawing.history.slice(0, this.grooveDrawing.historyIndex + 1);
+        }
+
+        this.grooveDrawing.history.push(state);
+        this.grooveDrawing.historyIndex = this.grooveDrawing.history.length - 1;
+
+        // Limit history size
+        if (this.grooveDrawing.history.length > 50) {
+            this.grooveDrawing.history.shift();
+            this.grooveDrawing.historyIndex--;
+        }
+    }
+
+    /**
+     * Undo groove drawing.
+     * @returns {boolean} True if successful
+     */
+    undoGrooveDrawing() {
+        if (!this.grooveDrawing || this.grooveDrawing.historyIndex <= 0) return false;
+
+        this.grooveDrawing.historyIndex--;
+        this.grooveDrawing.pattern = JSON.parse(JSON.stringify(
+            this.grooveDrawing.history[this.grooveDrawing.historyIndex]
+        ));
+        return true;
+    }
+
+    /**
+     * Redo groove drawing.
+     * @returns {boolean} True if successful
+     */
+    redoGrooveDrawing() {
+        if (!this.grooveDrawing || this.grooveDrawing.historyIndex >= this.grooveDrawing.history.length - 1) {
+            return false;
+        }
+
+        this.grooveDrawing.historyIndex++;
+        this.grooveDrawing.pattern = JSON.parse(JSON.stringify(
+            this.grooveDrawing.history[this.grooveDrawing.historyIndex]
+        ));
+        return true;
     }
 }
