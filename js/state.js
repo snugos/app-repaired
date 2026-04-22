@@ -1094,6 +1094,8 @@ export function saveTrackTemplate(templateName, trackData) {
             }));
         } else if (trackData.type === 'InstrumentSampler') {
             template.instrumentSamplerSettings = trackData.instrumentSamplerSettings ? JSON.parse(JSON.stringify(trackData.instrumentSamplerSettings)) : {};
+        } else if (trackData.type === 'Lyrics') {
+            // Lyrics track has no special settings to save
         }
         
         trackTemplates[templateName] = template;

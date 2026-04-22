@@ -37,6 +37,10 @@ export class Track {
             this.name = initialData?.name || `MonoSynth ${this.id}`;
         } else if (type === 'Audio') {
             this.name = initialData?.name || `Audio ${this.id}`;
+        } else if (type === 'InstrumentSampler') {
+            this.name = initialData?.name || `Instrument ${this.id}`;
+        } else if (type === 'Lyrics') {
+            this.name = initialData?.name || `Lyrics ${this.id}`;
         }
         console.log(`[Track ${this.id} Constructor] Initializing track "${this.name}" of type "${this.type}". InitialData present: ${!!initialData}`);
 
