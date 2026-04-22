@@ -9718,4 +9718,636 @@ export async function exportWithSettingsInternal(settings = {}) {
 /**
  * Normalizes an audio blob to a target dB level.
  * @param {Blob} audioBlob - The audio blob to normalize
- * @param {number} targetDb - Target peak level in dB (
+ * @param {number} targetDb - Target peak level in dB ( * @returns {Blob} Normalized audio blob
+ */
+export async function normalizeAudioBlob(audioBlob, targetDb) {
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Find peak
+        let peak = 0;
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const data = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < data.length; i++) {
+                const abs = Math.abs(data[i]);
+                if (abs > peak) peak = abs;
+            }
+        }
+        
+        // Calculate gain
+        const targetLinear = Math.pow(10, targetDb / 20);
+        const gain = targetLinear / peak;
+        
+        // Apply gain
+        const offlineContext = new OfflineAudioContext(
+            audioBuffer.numberOfChannels,
+            audioBuffer.length,
+            audioBuffer.sampleRate
+        );
+        
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        
+        const gainNode = offlineContext.createGain();
+        gainNode.gain.value = gain;
+        
+        source.connect(gainNode);
+        gainNode.connect(offlineContext.destination);
+        source.start();
+        
+        const renderedBuffer = await offlineContext.startRendering();
+        
+        // Convert back to WAV blob
+        const wavData = audioBufferToWav(renderedBuffer);
+        return new Blob([wavData], { type: 'audio/wav' });
+        
+    } catch (error) {
+        console.error('[State normalizeAudioBlob] Error:', error);
+        return audioBlob; // Return original on failure
+    }
+}
+
+/**
+ * Convert AudioBuffer to WAV ArrayBuffer.
+ */
+function audioBufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+    
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    // Write audio data
+    const channels = [];
+    for (let i = 0; i < numChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+    }
+    
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+            const sample = Math.max(-1, Math.min(1, channels[channel][i]));
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(offset, intSample, true);
+            offset += 2;
+        }
+    }
+    
+    return arrayBuffer;
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+// =====================================================
+// DRUM DETECTION STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize drum detection for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Detection configuration
+ */
+export function initDrumDetection(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initDrumDetection] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initDrumDetection?.(config) || false;
+}
+
+/**
+ * Detect drum hits in audio.
+ * @param {string} trackId - Track ID
+ * @param {AudioBuffer} audioBuffer - Audio buffer to analyze
+ * @param {Object} options - Detection options
+ */
+export async function detectDrumHits(trackId, audioBuffer, options = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State detectDrumHits] Track ${trackId} not found`);
+        return [];
+    }
+    
+    return await track.detectDrumHits?.(audioBuffer, options) || [];
+}
+
+/**
+ * Convert detected drums to MIDI sequence.
+ * @param {string} trackId - Track ID
+ * @param {number} tempo - Target tempo in BPM
+ * @param {number} quantize - Quantize division
+ */
+export function convertDrumsToMidi(trackId, tempo = 120, quantize = 16) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State convertDrumsToMidi] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.convertHitsToMidiSequence?.(tempo, quantize) || null;
+}
+
+/**
+ * Get drum detection settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getDrumDetectionSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getDrumDetectionSettings?.() || { enabled: false };
+}
+
+// =====================================================
+// VECTOR SYNTHESIS STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize vector synthesis for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Vector synthesis configuration
+ */
+export function initVectorSynthesis(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initVectorSynthesis] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initVectorSynthesis?.(config) || false;
+}
+
+/**
+ * Set vector synthesis position.
+ * @param {string} trackId - Track ID
+ * @param {number} x - X position (0-1)
+ * @param {number} y - Y position (0-1)
+ * @param {boolean} smooth - Whether to smooth transition
+ */
+export function setVectorPosition(trackId, x, y, smooth = true) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State setVectorPosition] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.setVectorPosition?.(x, y, smooth) || null;
+}
+
+/**
+ * Set vector automorph.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Automorph configuration
+ */
+export function setVectorAutomorph(trackId, config) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State setVectorAutomorph] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.setVectorAutomorph?.(config) || null;
+}
+
+/**
+ * Get vector synthesis settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getVectorSynthesisSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.vectorSynthesis || { enabled: false };
+}
+
+// =====================================================
+// WAVETABLE SYNTHESIS STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize wavetable synthesis for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Wavetable configuration
+ */
+export function initWavetableSynthesis(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initWavetableSynthesis] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initWavetableSynthesis?.(config) || false;
+}
+
+/**
+ * Create custom wavetable.
+ * @param {string} trackId - Track ID
+ * @param {string} name - Wavetable name
+ * @param {Array} data - Waveform data
+ */
+export function createCustomWavetable(trackId, name, data) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State createCustomWavetable] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.createCustomWavetable?.(name, data) || null;
+}
+
+/**
+ * Set wavetable position.
+ * @param {string} trackId - Track ID
+ * @param {number} position - Position (0-1)
+ */
+export function setWavetablePosition(trackId, position) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State setWavetablePosition] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.setWavetablePosition?.(position) || null;
+}
+
+/**
+ * Get wavetable synthesis settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getWavetableSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getWavetableSettings?.() || { enabled: false };
+}
+
+// =====================================================
+// MPE STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize MPE support for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - MPE configuration
+ */
+export function initMPESupport(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initMPESupport] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initMPESupport?.(config) || false;
+}
+
+/**
+ * Handle MPE note on.
+ * @param {string} trackId - Track ID
+ * @param {number} note - MIDI note number
+ * @param {number} velocity - Velocity (0-127)
+ * @param {number} channel - MPE channel
+ */
+export function mpeNoteOn(trackId, note, velocity, channel) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.mpeNoteOn?.(note, velocity, channel) || null;
+}
+
+/**
+ * Handle MPE note off.
+ * @param {string} trackId - Track ID
+ * @param {number} note - MIDI note number
+ * @param {number} channel - MPE channel
+ */
+export function mpeNoteOff(trackId, note, channel) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    
+    track.mpeNoteOff?.(note, channel);
+}
+
+/**
+ * Handle MPE pitch bend.
+ * @param {string} trackId - Track ID
+ * @param {number} note - Note to bend
+ * @param {number} value - Pitch bend value
+ */
+export function mpePitchBend(trackId, note, value) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.mpePitchBend?.(note, value) || null;
+}
+
+/**
+ * Handle MPE timbre.
+ * @param {string} trackId - Track ID
+ * @param {number} note - Note to affect
+ * @param {number} value - Timbre value
+ */
+export function mpeTimbre(trackId, note, value) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.mpeTimbre?.(note, value) || null;
+}
+
+/**
+ * Handle MPE pressure.
+ * @param {string} trackId - Track ID
+ * @param {number} note - Note to affect
+ * @param {number} value - Pressure value
+ */
+export function mpePressure(trackId, note, value) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.mpePressure?.(note, value) || null;
+}
+
+/**
+ * Get MPE settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getMPESettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getMPESettings?.() || { enabled: false };
+}
+
+// =====================================================
+// AI COMPOSITION STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize AI composition for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - AI configuration
+ */
+export function initAIComposition(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initAIComposition] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initAIComposition?.(config) || false;
+}
+
+/**
+ * Train AI model on patterns.
+ * @param {string} trackId - Track ID
+ * @param {Array} patterns - Patterns to learn from
+ */
+export function trainAIModel(trackId, patterns) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State trainAIModel] Track ${trackId} not found`);
+        return;
+    }
+    
+    track.trainAIModel?.(patterns);
+}
+
+/**
+ * Generate AI pattern.
+ * @param {string} trackId - Track ID
+ * @param {Object} options - Generation options
+ */
+export function generateAIPattern(trackId, options = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State generateAIPattern] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.generateAIPattern?.(options) || null;
+}
+
+/**
+ * Get AI composition settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getAICompositionSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getAICompositionSettings?.() || { enabled: false };
+}
+
+// =====================================================
+// COLLABORATION STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize collaborative editing for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Collaboration configuration
+ */
+export function initCollaborativeEditing(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initCollaborativeEditing] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initCollaborativeEditing?.(config) || false;
+}
+
+/**
+ * Join collaboration session.
+ * @param {string} trackId - Track ID
+ * @param {string} sessionId - Session ID to join
+ * @param {Object} userInfo - User information
+ */
+export function joinCollaboration(trackId, sessionId, userInfo = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State joinCollaboration] Track ${trackId} not found`);
+        return null;
+    }
+    
+    return track.joinCollaboration?.(sessionId, userInfo) || null;
+}
+
+/**
+ * Leave collaboration session.
+ * @param {string} trackId - Track ID
+ */
+export function leaveCollaboration(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    
+    track.leaveCollaboration?.();
+}
+
+/**
+ * Update presence in collaboration.
+ * @param {string} trackId - Track ID
+ * @param {Object} presence - Presence data
+ */
+export function updateCollaborationPresence(trackId, presence) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    
+    track.updatePresence?.(presence);
+}
+
+/**
+ * Handle remote edit in collaboration.
+ * @param {string} trackId - Track ID
+ * @param {Object} edit - Edit operation
+ */
+export function handleRemoteEdit(trackId, edit) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    
+    track.handleRemoteEdit?.(edit);
+}
+
+/**
+ * Get connected users in collaboration.
+ * @param {string} trackId - Track ID
+ */
+export function getConnectedUsers(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return [];
+    
+    return track.getConnectedUsers?.() || [];
+}
+
+/**
+ * Get collaboration settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getCollaborationSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getCollaborationSettings?.() || { enabled: false };
+}
+
+// =====================================================
+// MOBILE TOUCH STATE FUNCTIONS
+// =====================================================
+
+/**
+ * Initialize mobile touch support for a track.
+ * @param {string} trackId - Track ID
+ * @param {Object} config - Touch configuration
+ */
+export function initMobileTouch(trackId, config = {}) {
+    const track = getTrackById(trackId);
+    if (!track) {
+        console.error(`[State initMobileTouch] Track ${trackId} not found`);
+        return false;
+    }
+    
+    return track.initMobileTouch?.(config) || false;
+}
+
+/**
+ * Handle touch start.
+ * @param {string} trackId - Track ID
+ * @param {Touch} touch - Touch object
+ * @param {Object} context - Touch context
+ */
+export function handleTouchStart(trackId, touch, context = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.handleTouchStart?.(touch, context) || null;
+}
+
+/**
+ * Handle touch move.
+ * @param {string} trackId - Track ID
+ * @param {Touch} touch - Touch object
+ */
+export function handleTouchMove(trackId, touch) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.handleTouchMove?.(touch) || null;
+}
+
+/**
+ * Handle touch end.
+ * @param {string} trackId - Track ID
+ * @param {Touch} touch - Touch object
+ */
+export function handleTouchEnd(trackId, touch) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.handleTouchEnd?.(touch) || null;
+}
+
+/**
+ * Handle multi-touch.
+ * @param {string} trackId - Track ID
+ * @param {Array} touches - Array of touches
+ */
+export function handleMultiTouch(trackId, touches) {
+    const track = getTrackById(trackId);
+    if (!track) return null;
+    
+    return track.handleMultiTouch?.(touches) || null;
+}
+
+/**
+ * Register touch target.
+ * @param {string} trackId - Track ID
+ * @param {string} targetId - Target identifier
+ * @param {Object} callbacks - Callback functions
+ */
+export function registerTouchTarget(trackId, targetId, callbacks = {}) {
+    const track = getTrackById(trackId);
+    if (!track) return;
+    
+    track.registerTouchTarget?.(targetId, callbacks);
+}
+
+/**
+ * Get mobile touch settings for a track.
+ * @param {string} trackId - Track ID
+ */
+export function getMobileTouchSettings(trackId) {
+    const track = getTrackById(trackId);
+    if (!track) return { enabled: false };
+    
+    return track.getMobileTouchSettings?.() || { enabled: false };
+}

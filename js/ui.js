@@ -955,6 +955,301 @@ export function updateArpeggiatorPanel(trackId) {
 
 
 // ==========================================
+// INSTRUMENT RACK PANEL
+// ==========================================
+
+/**
+ * Opens the Instrument Rack panel for a track with layered instruments.
+ */
+export function openInstrumentRackPanel(trackId, savedState = null) {
+    const windowId = `instrumentRack_${trackId}`;
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+    
+    const tracks = localAppServices.getTracks?.() || [];
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        localAppServices.showNotification?.('Track not found', 2000);
+        return;
+    }
+    
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'instrumentRackContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-900 dark:bg-slate-900';
+    
+    const options = { width: 500, height: 450, minWidth: 400, minHeight: 300, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, `Instrument Rack - ${track.name}`, contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderInstrumentRackContent(trackId), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the Instrument Rack panel content.
+ */
+function renderInstrumentRackContent(trackId) {
+    const container = document.getElementById('instrumentRackContent');
+    if (!container) return;
+    
+    const tracks = localAppServices.getTracks?.() || [];
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+    
+    const rackData = track.getInstrumentRack?.() || { enabled: true, layers: [] };
+    const layers = rackData.layers || [];
+    
+    let html = `
+        <div class="mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="rackEnabled" ${rackData.enabled ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
+                    <span class="text-sm font-medium text-white">Enable Rack</span>
+                </label>
+            </div>
+            <button id="addLayerBtn" class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                + Add Layer
+            </button>
+        </div>
+        
+        <div class="text-xs text-gray-400 mb-3">
+            Layer multiple instruments together. Each layer can have its own volume, pan, and note range.
+        </div>
+    `;
+    
+    if (layers.length === 0) {
+        html += `
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No layers in this rack.</p>
+                <p class="text-xs mt-2">Click "Add Layer" to create your first instrument layer.</p>
+            </div>
+        `;
+    } else {
+        html += `<div class="space-y-3">`;
+        
+        layers.forEach((layer, idx) => {
+            const synthTypes = ['MonoSynth', 'PolySynth', 'FMSynth', 'AMSynth'];
+            const layerTypes = ['synth', 'sampler', 'drum'];
+            
+            html += `
+                <div class="p-3 bg-gray-800 rounded border border-gray-700 layer-item" data-layer-id="${layer.id}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" class="layer-enabled-check w-4 h-4" ${layer.enabled ? 'checked' : ''} data-layer-id="${layer.id}">
+                            <input type="text" class="layer-name-input p-1 text-sm bg-gray-700 border border-gray-600 rounded text-white w-28" 
+                                value="${layer.name}" data-layer-id="${layer.id}" placeholder="Layer name">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select class="layer-type-select p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white" data-layer-id="${layer.id}">
+                                ${layerTypes.map(t => `<option value="${t}" ${layer.type === t ? 'selected' : ''}>${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('')}
+                            </select>
+                            <button class="delete-layer-btn px-2 py-1 text-xs text-red-400 hover:text-red-300" data-layer-id="${layer.id}">✕</button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2 mb-2">
+                        <div>
+                            <label class="text-xs text-gray-400">Volume</label>
+                            <input type="range" class="layer-volume-slider w-full h-1" min="0" max="1" step="0.01" 
+                                value="${layer.volume}" data-layer-id="${layer.id}">
+                            <span class="text-xs text-gray-500 font-mono">${Math.round(layer.volume * 100)}%</span>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400">Pan</label>
+                            <input type="range" class="layer-pan-slider w-full h-1" min="-1" max="1" step="0.01" 
+                                value="${layer.pan}" data-layer-id="${layer.id}">
+                            <span class="text-xs text-gray-500 font-mono">${Math.round(layer.pan * 100)}%</span>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400">Muted</label>
+                            <input type="checkbox" class="layer-muted-check w-4 h-4" ${layer.muted ? 'checked' : ''} data-layer-id="${layer.id}">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label class="text-xs text-gray-400">Synth Type</label>
+                            <select class="layer-synth-type-select w-full p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white" data-layer-id="${layer.id}">
+                                ${synthTypes.map(s => `<option value="${s}" ${layer.synthEngineType === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400">MIDI Channel</label>
+                            <select class="layer-midi-channel-select w-full p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white" data-layer-id="${layer.id}">
+                                <option value="0" ${layer.midiChannel === 0 ? 'selected' : ''}>Omni</option>
+                                ${[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].map(c => `<option value="${c}" ${layer.midiChannel === c ? 'selected' : ''}>Ch ${c}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-gray-400">Note Range Low</label>
+                            <input type="number" class="layer-note-low-input w-full p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white" 
+                                min="0" max="127" value="${layer.noteRangeLow}" data-layer-id="${layer.id}">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400">Note Range High</label>
+                            <input type="number" class="layer-note-high-input w-full p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white" 
+                                min="0" max="127" value="${layer.noteRangeHigh}" data-layer-id="${layer.id}">
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Event listeners
+    container.querySelector('#addLayerBtn')?.addEventListener('click', () => {
+        if (typeof track.addInstrumentRackLayer === 'function') {
+            track.addInstrumentRackLayer({ name: `Layer ${layers.length + 1}` });
+            localAppServices.captureStateForUndo?.('Add instrument rack layer');
+            renderInstrumentRackContent(trackId);
+            localAppServices.showNotification?.('Layer added', 1500);
+        }
+    });
+    
+    container.querySelector('#rackEnabled')?.addEventListener('change', (e) => {
+        if (typeof track.setInstrumentRackEnabled === 'function') {
+            track.setInstrumentRackEnabled(e.target.checked);
+        }
+    });
+    
+    container.querySelectorAll('.layer-enabled-check').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.setInstrumentRackLayerEnabled === 'function') {
+                track.setInstrumentRackLayerEnabled(layerId, e.target.checked);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { name: e.target.value });
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-type-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { type: e.target.value });
+                renderInstrumentRackContent(trackId);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-volume-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const layerId = e.target.dataset.layerId;
+            const span = e.target.nextElementSibling;
+            if (span) span.textContent = Math.round(parseFloat(e.target.value) * 100) + '%';
+        });
+        slider.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.setInstrumentRackLayerVolume === 'function') {
+                track.setInstrumentRackLayerVolume(layerId, parseFloat(e.target.value));
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-pan-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const layerId = e.target.dataset.layerId;
+            const span = e.target.nextElementSibling;
+            if (span) span.textContent = Math.round(parseFloat(e.target.value) * 100) + '%';
+        });
+        slider.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.setInstrumentRackLayerPan === 'function') {
+                track.setInstrumentRackLayerPan(layerId, parseFloat(e.target.value));
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-muted-check').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.setInstrumentRackLayerMute === 'function') {
+                track.setInstrumentRackLayerMute(layerId, e.target.checked);
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-synth-type-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { synthEngineType: e.target.value });
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-midi-channel-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { midiChannel: parseInt(e.target.value) });
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-note-low-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { noteRangeLow: parseInt(e.target.value) });
+            }
+        });
+    });
+    
+    container.querySelectorAll('.layer-note-high-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (typeof track.updateInstrumentRackLayer === 'function') {
+                track.updateInstrumentRackLayer(layerId, { noteRangeHigh: parseInt(e.target.value) });
+            }
+        });
+    });
+    
+    container.querySelectorAll('.delete-layer-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const layerId = e.target.dataset.layerId;
+            if (confirm('Delete this layer?') && typeof track.removeInstrumentRackLayer === 'function') {
+                track.removeInstrumentRackLayer(layerId);
+                localAppServices.captureStateForUndo?.('Delete instrument rack layer');
+                renderInstrumentRackContent(trackId);
+                localAppServices.showNotification?.('Layer deleted', 1500);
+            }
+        });
+    });
+}
+
+export function updateInstrumentRackPanel(trackId) {
+    const container = document.getElementById('instrumentRackContent');
+    if (container) renderInstrumentRackContent(trackId);
+}
+
+// ==========================================
 // TRACK GROUPS PANEL
 // ==========================================
 
@@ -2047,22 +2342,15 @@ function renderAutomationLanesContent() {
     ];
 
     let html = `
-        <div class="mb-3 flex justify-between items-center">
-            <div>
-                <select id="automationTrackSelect" class="p-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600">
-                    <option value="">Select Track...</option>
-                    ${tracks.map(t => `<option value="${t.id}" ${t.id === activeTrackId ? 'selected' : ''}>${t.name}</option>`).join('')}
-                </select>
-            </div>
-            <div class="flex gap-2">
-                <select id="automationParamSelect" class="p-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600">
-                    ${automationParams.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                </select>
-                <button id="clearAutomationBtn" class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">
-                    Clear All
-                </button>
+        <div class="mb-3 flex items-center justify-between">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="automationTrackSelect" ${track ? 'checked' : ''} style="width: 18px; height: 18px;">
+                    <span style="font-weight: bold;">Enable Automation</span>
+                </label>
             </div>
         </div>
+        
         <div id="automationCanvasContainer" class="bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 relative" style="height: 300px;">
             <canvas id="automationCanvas" class="w-full h-full"></canvas>
         </div>
@@ -2337,19 +2625,6 @@ function renderMicroTuningPanelContent() {
                     <button id="randomizeCentsBtn" class="flex-1 px-2 py-1 text-xs rounded bg-gray-300 dark:bg-slate-600 dark:text-slate-200 hover:bg-gray-400 dark:hover:bg-slate-500">
                         Randomize ±25
                     </button>
-                </div>
-            </div>
-            
-            <div class="border-t dark:border-slate-600 pt-2">
-                <label class="text-xs font-medium dark:text-slate-300">Current Tuning Table</label>
-                <div class="mt-1 p-2 bg-gray-200 dark:bg-slate-700 rounded text-xs font-mono dark:text-slate-200 overflow-x-auto">
-                    <div class="flex gap-1">
-                        ${noteNames.map((note, i) => `
-                            <span class="flex-shrink-0 px-1 ${currentCents[i] !== 0 ? 'bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-100' : ''}">
-                                ${note}:${currentCents[i] >= 0 ? '+' : ''}${currentCents[i].toFixed(0)}
-                            </span>
-                        `).join('')}
-                    </div>
                 </div>
             </div>
             
@@ -2879,16 +3154,17 @@ export function openRandomPatternGeneratorPanel() {
                     </div>
                 </div>
                 
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Density: <span id="densityValue">${(currentSettings.density || 0.5) * 100}%</span></label>
-                    <input type="range" id="randomPatternDensity" min="0" max="1" step="0.05" value="${currentSettings.density || 0.5}" 
-                        class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Variation: <span id="variationValue">${(currentSettings.variation || 0.3) * 100}%</span></label>
-                    <input type="range" id="randomPatternVariation" min="0" max="1" step="0.05" value="${currentSettings.variation || 0.3}" 
-                        class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Density: <span id="densityValue">${(currentSettings.density || 0.5) * 100}%</span></label>
+                        <input type="range" id="randomPatternDensity" min="0" max="1" step="0.05" value="${currentSettings.density || 0.5}" 
+                            class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Variation: <span id="variationValue">${(currentSettings.variation || 0.3) * 100}%</span></label>
+                        <input type="range" id="randomPatternVariation" min="0" max="1" step="0.05" value="${currentSettings.variation || 0.3}" 
+                            class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
                 </div>
                 
                 <div class="flex items-center gap-2">

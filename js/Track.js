@@ -224,6 +224,14 @@ export class Track {
         this.automation = initialData?.automation ? JSON.parse(JSON.stringify(initialData.automation)) : { volume: [] };
         this.inspectorControls = {};
 
+        // --- Instrument Rack ---
+        // Multi-layered instrument configuration for a single track
+        this.instrumentRack = initialData?.instrumentRack || {
+            enabled: true,
+            layers: []
+        };
+        this.instrumentRackLayerCount = 0; // For generating unique layer IDs
+
         // Audio Track specific
         this.inputChannel = null;
         this.clipPlayers = new Map(); 
@@ -6048,6 +6056,213 @@ export class Track {
         return true;
     }
 
+    // --- Instrument Rack ---
+    /**
+     * Initialize the instrument rack for this track.
+     * @param {Object} options - Initial rack options
+     */
+    initInstrumentRack(options = {}) {
+        this.instrumentRack = {
+            enabled: options.enabled ?? true,
+            layers: []
+        };
+        this.instrumentRackLayerCount = 0;
+        console.log(`[Track ${this.id}] Instrument rack initialized`);
+    }
+
+    /**
+     * Get the instrument rack data.
+     * @returns {Object} The instrument rack configuration
+     */
+    getInstrumentRack() {
+        if (!this.instrumentRack) this.initInstrumentRack();
+        return JSON.parse(JSON.stringify(this.instrumentRack));
+    }
+
+    /**
+     * Set instrument rack enabled state.
+     * @param {boolean} enabled - Whether the rack is enabled
+     */
+    setInstrumentRackEnabled(enabled) {
+        if (!this.instrumentRack) this.initInstrumentRack();
+        this.instrumentRack.enabled = enabled;
+        console.log(`[Track ${this.id}] Instrument rack ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    /**
+     * Add a new layer to the instrument rack.
+     * @param {Object} options - Layer options (name, type, synthEngineType, volume, pan, etc.)
+     * @returns {Object} The created layer
+     */
+    addInstrumentRackLayer(options = {}) {
+        if (!this.instrumentRack) this.initInstrumentRack();
+        
+        this.instrumentRackLayerCount++;
+        const layer = {
+            id: `rack-layer-${this.id}-${this.instrumentRackLayerCount}`,
+            name: options.name || `Layer ${this.instrumentRackLayerCount}`,
+            type: options.type || 'synth', // 'synth', 'sampler', 'drum'
+            enabled: options.enabled ?? true,
+            muted: options.muted ?? false,
+            volume: options.volume ?? 0.7,
+            pan: options.pan ?? 0,
+            midiChannel: options.midiChannel ?? 0,
+            noteRangeLow: options.noteRangeLow ?? 0,
+            noteRangeHigh: options.noteRangeHigh ?? 127,
+            synthEngineType: options.synthEngineType || 'MonoSynth',
+            synthParams: options.synthParams || {},
+            // For sampler type
+            sampleUrl: options.sampleUrl || null,
+            // For drum type
+            drumPadIndex: options.drumPadIndex ?? 0
+        };
+        
+        this.instrumentRack.layers.push(layer);
+        console.log(`[Track ${this.id}] Added instrument rack layer: ${layer.name}`);
+        
+        if (this.appServices.showNotification) {
+            this.appServices.showNotification(`Layer "${layer.name}" added to rack`, 1500);
+        }
+        
+        return layer;
+    }
+
+    /**
+     * Remove a layer from the instrument rack.
+     * @param {string} layerId - The layer ID to remove
+     * @returns {boolean} True if successful
+     */
+    removeInstrumentRackLayer(layerId) {
+        if (!this.instrumentRack || !this.instrumentRack.layers) return false;
+        
+        const index = this.instrumentRack.layers.findIndex(l => l.id === layerId);
+        if (index === -1) {
+            console.warn(`[Track ${this.id}] Layer ${layerId} not found in instrument rack`);
+            return false;
+        }
+        
+        const removed = this.instrumentRack.layers.splice(index, 1)[0];
+        console.log(`[Track ${this.id}] Removed instrument rack layer: ${removed.name}`);
+        return true;
+    }
+
+    /**
+     * Update a layer in the instrument rack.
+     * @param {string} layerId - The layer ID to update
+     * @param {Object} updates - The properties to update
+     * @returns {boolean} True if successful
+     */
+    updateInstrumentRackLayer(layerId, updates) {
+        if (!this.instrumentRack || !this.instrumentRack.layers) return false;
+        
+        const layer = this.instrumentRack.layers.find(l => l.id === layerId);
+        if (!layer) {
+            console.warn(`[Track ${this.id}] Layer ${layerId} not found in instrument rack`);
+            return false;
+        }
+        
+        // Apply updates
+        const allowedUpdates = ['name', 'type', 'enabled', 'muted', 'volume', 'pan', 'midiChannel', 
+                                'noteRangeLow', 'noteRangeHigh', 'synthEngineType', 'synthParams',
+                                'sampleUrl', 'drumPadIndex'];
+        for (const key of allowedUpdates) {
+            if (updates.hasOwnProperty(key)) {
+                layer[key] = updates[key];
+            }
+        }
+        
+        console.log(`[Track ${this.id}] Updated instrument rack layer: ${layer.name}`);
+        return true;
+    }
+
+    /**
+     * Set a layer's enabled state.
+     * @param {string} layerId - The layer ID
+     * @param {boolean} enabled - Whether the layer is enabled
+     */
+    setInstrumentRackLayerEnabled(layerId, enabled) {
+        const layer = this.instrumentRack?.layers?.find(l => l.id === layerId);
+        if (layer) {
+            layer.enabled = enabled;
+            console.log(`[Track ${this.id}] Layer ${layer.name} ${enabled ? 'enabled' : 'disabled'}`);
+        }
+    }
+
+    /**
+     * Set a layer's volume.
+     * @param {string} layerId - The layer ID
+     * @param {number} volume - Volume (0-1)
+     */
+    setInstrumentRackLayerVolume(layerId, volume) {
+        const layer = this.instrumentRack?.layers?.find(l => l.id === layerId);
+        if (layer) {
+            layer.volume = Math.max(0, Math.min(1, volume));
+            console.log(`[Track ${this.id}] Layer ${layer.name} volume: ${layer.volume}`);
+        }
+    }
+
+    /**
+     * Set a layer's pan.
+     * @param {string} layerId - The layer ID
+     * @param {number} pan - Pan (-1 to 1)
+     */
+    setInstrumentRackLayerPan(layerId, pan) {
+        const layer = this.instrumentRack?.layers?.find(l => l.id === layerId);
+        if (layer) {
+            layer.pan = Math.max(-1, Math.min(1, pan));
+            console.log(`[Track ${this.id}] Layer ${layer.name} pan: ${layer.pan}`);
+        }
+    }
+
+    /**
+     * Set a layer's mute state.
+     * @param {string} layerId - The layer ID
+     * @param {boolean} muted - Whether the layer is muted
+     */
+    setInstrumentRackLayerMute(layerId, muted) {
+        const layer = this.instrumentRack?.layers?.find(l => l.id === layerId);
+        if (layer) {
+            layer.muted = muted;
+            console.log(`[Track ${this.id}] Layer ${layer.name} ${muted ? 'muted' : 'unmuted'}`);
+        }
+    }
+
+    /**
+     * Get a layer from the instrument rack by ID.
+     * @param {string} layerId - The layer ID
+     * @returns {Object|null} The layer or null
+     */
+    getInstrumentRackLayer(layerId) {
+        return this.instrumentRack?.layers?.find(l => l.id === layerId) || null;
+    }
+
+    /**
+     * Check if a note is within a layer's note range.
+     * @param {string} layerId - The layer ID
+     * @param {number} note - MIDI note number
+     * @returns {boolean} True if note is in range
+     */
+    isNoteInLayerRange(layerId, note) {
+        const layer = this.getInstrumentRackLayer(layerId);
+        if (!layer) return false;
+        return note >= layer.noteRangeLow && note <= layer.noteRangeHigh;
+    }
+
+    /**
+     * Route a note to the appropriate rack layer based on note range.
+     * @param {number} note - MIDI note number
+     * @param {number} velocity - Velocity (0-1)
+     * @returns {Array} Array of layers that should receive the note
+     */
+    routeNoteToRackLayers(note, velocity) {
+        if (!this.instrumentRack?.enabled || !this.instrumentRack.layers) return [];
+        
+        return this.instrumentRack.layers.filter(layer => {
+            if (!layer.enabled || layer.muted) return false;
+            return this.isNoteInLayerRange(layer.id, note);
+        });
+    }
+
     // --- Arpeggiator ---
     /**
      * Initialize arpeggiator for this track.
@@ -9734,5 +9949,1930 @@ export class Track {
      */
     getAccessibilitySettings() {
         return this.accessibility || { enabled: false };
+    }
+
+    // =====================================================
+    // AUDIO-TO-MIDI DRUM PATTERN DETECTION
+    // =====================================================
+
+    /**
+     * Initialize drum detection settings.
+     * @param {Object} config - Detection configuration
+     */
+    initDrumDetection(config = {}) {
+        this.drumDetection = {
+            enabled: config.enabled ?? true,
+            sensitivity: config.sensitivity ?? 0.5, // 0-1, higher = more sensitive
+            minGap: config.minGap ?? 0.05, // Minimum gap between hits in seconds
+            threshold: config.threshold ?? -30, // dB threshold for hit detection
+            drumTypes: config.drumTypes ?? ['kick', 'snare', 'hihat', 'tom', 'cymbal'],
+            frequencyRanges: config.frequencyRanges ?? {
+                kick: { low: 20, high: 100 },
+                snare: { low: 100, high: 500 },
+                hihat: { low: 5000, high: 20000 },
+                tom: { low: 100, high: 300 },
+                cymbal: { low: 3000, high: 20000 }
+            },
+            midiMapping: config.midiMapping ?? {
+                kick: 36, // C1 - Standard MIDI drum map
+                snare: 38, // D1
+                hihat: 42, // F#1 (closed)
+                tom: 45, // A1 (low tom)
+                cymbal: 49 // C#2 (crash)
+            },
+            detectedHits: [],
+            lastAnalysis: null
+        };
+        
+        console.log(`[Track ${this.id}] Drum detection initialized:`, this.drumDetection.enabled);
+        return this.drumDetection;
+    }
+
+    /**
+     * Analyze audio buffer to detect drum hits.
+     * @param {AudioBuffer} audioBuffer - The audio buffer to analyze
+     * @param {Object} options - Analysis options
+     * @returns {Array} Detected drum hits with timing and type
+     */
+    async detectDrumHits(audioBuffer, options = {}) {
+        if (!audioBuffer) {
+            console.warn(`[Track ${this.id}] No audio buffer for drum detection`);
+            return [];
+        }
+
+        if (!this.drumDetection) {
+            this.initDrumDetection();
+        }
+
+        const settings = { ...this.drumDetection, ...options };
+        const detectedHits = [];
+
+        // Get audio data
+        const channelData = audioBuffer.getChannelData(0);
+        const sampleRate = audioBuffer.sampleRate;
+        const duration = audioBuffer.duration;
+
+        // Perform FFT-based analysis for frequency classification
+        const fftSize = 2048;
+        const hopSize = fftSize / 4;
+        const numFrames = Math.floor((channelData.length - fftSize) / hopSize);
+
+        // Create offline context for FFT analysis
+        const offlineCtx = new OfflineAudioContext(1, fftSize, sampleRate);
+        const analyser = offlineCtx.createAnalyser();
+        analyser.fftSize = fftSize;
+
+        // Detect transients (onsets) using energy-based method
+        const frameSize = 512;
+        const energyFrames = [];
+        
+        for (let i = 0; i < channelData.length - frameSize; i += frameSize) {
+            let energy = 0;
+            for (let j = 0; j < frameSize; j++) {
+                energy += channelData[i + j] * channelData[i + j];
+            }
+            energyFrames.push({
+                time: i / sampleRate,
+                energy: Math.sqrt(energy / frameSize)
+            });
+        }
+
+        // Find peaks (transients) in energy
+        const threshold = this._calculateAdaptiveThreshold(energyFrames, settings.sensitivity);
+        
+        for (let i = 1; i < energyFrames.length - 1; i++) {
+            const frame = energyFrames[i];
+            const prevFrame = energyFrames[i - 1];
+            const nextFrame = energyFrames[i + 1];
+
+            // Check if this is a peak (local maximum above threshold)
+            if (frame.energy > threshold &&
+                frame.energy > prevFrame.energy &&
+                frame.energy > nextFrame.energy) {
+                
+                // Check minimum gap from previous hit
+                const prevHit = detectedHits[detectedHits.length - 1];
+                if (prevHit && (frame.time - prevHit.time) < settings.minGap) {
+                    continue;
+                }
+
+                // Classify drum type based on spectral analysis
+                const drumType = await this._classifyDrumType(
+                    channelData,
+                    Math.floor(frame.time * sampleRate),
+                    sampleRate,
+                    settings
+                );
+
+                detectedHits.push({
+                    time: frame.time,
+                    energy: frame.energy,
+                    type: drumType.type,
+                    confidence: drumType.confidence,
+                    midiNote: settings.midiMapping[drumType.type] || 36,
+                    velocity: Math.min(127, Math.floor(frame.energy * 1000))
+                });
+            }
+        }
+
+        this.drumDetection.detectedHits = detectedHits;
+        this.drumDetection.lastAnalysis = {
+            timestamp: Date.now(),
+            duration: duration,
+            hitCount: detectedHits.length
+        };
+
+        console.log(`[Track ${this.id}] Detected ${detectedHits.length} drum hits in ${duration.toFixed(2)}s`);
+        return detectedHits;
+    }
+
+    /**
+     * Calculate adaptive threshold for peak detection.
+     * @private
+     */
+    _calculateAdaptiveThreshold(energyFrames, sensitivity) {
+        // Sort energies and use percentile-based threshold
+        const sortedEnergies = energyFrames.map(f => f.energy).sort((a, b) => a - b);
+        const percentile = 1 - sensitivity; // Higher sensitivity = lower percentile threshold
+        const index = Math.floor(sortedEnergies.length * percentile);
+        return sortedEnergies[Math.max(0, index)] * 1.5;
+    }
+
+    /**
+     * Classify drum type based on spectral analysis.
+     * @private
+     */
+    async _classifyDrumType(channelData, startIndex, sampleRate, settings) {
+        // Extract a short window around the hit for analysis
+        const windowSize = Math.min(4096, channelData.length - startIndex);
+        const window = channelData.slice(startIndex, startIndex + windowSize);
+
+        // Calculate spectral centroid (brightness)
+        let weightedSum = 0;
+        let sum = 0;
+        const fftSize = windowSize;
+        
+        // Simple FFT approximation using energy distribution
+        const numBands = 8;
+        const bandSize = Math.floor(fftSize / numBands);
+        const bandEnergies = [];
+        
+        for (let band = 0; band < numBands; band++) {
+            let bandEnergy = 0;
+            for (let i = 0; i < bandSize && (band * bandSize + i) < window.length; i++) {
+                bandEnergy += Math.abs(window[band * bandSize + i]);
+            }
+            bandEnergies.push(bandEnergy / bandSize);
+        }
+
+        // Calculate low frequency ratio for classification
+        const lowEnergy = bandEnergies.slice(0, 2).reduce((a, b) => a + b, 0);
+        const midEnergy = bandEnergies.slice(2, 5).reduce((a, b) => a + b, 0);
+        const highEnergy = bandEnergies.slice(5).reduce((a, b) => a + b, 0);
+        const totalEnergy = lowEnergy + midEnergy + highEnergy;
+
+        // Classify based on frequency distribution
+        const lowRatio = lowEnergy / totalEnergy;
+        const midRatio = midEnergy / totalEnergy;
+        const highRatio = highEnergy / totalEnergy;
+
+        // Determine drum type based on ratios
+        let type = 'kick';
+        let confidence = 0.5;
+
+        if (lowRatio > 0.6) {
+            type = 'kick';
+            confidence = lowRatio;
+        } else if (midRatio > 0.5 && lowRatio < 0.4) {
+            type = 'snare';
+            confidence = midRatio;
+        } else if (highRatio > 0.4) {
+            type = 'hihat';
+            confidence = highRatio;
+        } else if (midRatio > 0.4 && highRatio < 0.3) {
+            type = 'tom';
+            confidence = midRatio;
+        } else if (highRatio > 0.3 && midRatio > 0.3) {
+            type = 'cymbal';
+            confidence = (highRatio + midRatio) / 2;
+        }
+
+        return { type, confidence: Math.min(1, confidence) };
+    }
+
+    /**
+     * Convert detected drum hits to MIDI sequence.
+     * @param {number} tempo - Target tempo in BPM
+     * @param {number} quantize - Quantize division (e.g., 16 for 16th notes)
+     * @returns {Object} MIDI sequence data
+     */
+    convertHitsToMidiSequence(tempo = 120, quantize = 16) {
+        if (!this.drumDetection?.detectedHits?.length) {
+            console.warn(`[Track ${this.id}] No drum hits detected for MIDI conversion`);
+            return null;
+        }
+
+        const hits = this.drumDetection.detectedHits;
+        const secondsPerBeat = 60 / tempo;
+        const secondsPerSixteenth = secondsPerBeat / (quantize / 4);
+
+        // Create sequence
+        const sequence = {
+            tempo,
+            quantize,
+            length: Math.ceil(hits[hits.length - 1].time / secondsPerSixteenth) + 1,
+            notes: []
+        };
+
+        // Convert hits to notes
+        hits.forEach(hit => {
+            const step = Math.round(hit.time / secondsPerSixteenth);
+            sequence.notes.push({
+                step,
+                note: hit.midiNote,
+                velocity: hit.velocity,
+                duration: 1, // Default to one step
+                type: hit.type,
+                confidence: hit.confidence
+            });
+        });
+
+        console.log(`[Track ${this.id}] Converted ${hits.length} hits to MIDI sequence (${sequence.length} steps)`);
+        return sequence;
+    }
+
+    /**
+     * Apply detected drum pattern to a sequence.
+     * @param {string} sequenceId - Target sequence ID
+     * @param {Object} options - Apply options
+     */
+    applyDetectedDrumsToSequence(sequenceId, options = {}) {
+        const sequence = this.convertHitsToMidiSequence(options.tempo, options.quantize);
+        if (!sequence) return false;
+
+        // Find or create the target sequence
+        let targetSequence = this.sequences?.find(s => s.id === sequenceId);
+        if (!targetSequence) {
+            targetSequence = {
+                id: sequenceId,
+                name: `Drum Pattern ${sequenceId}`,
+                steps: sequence.length,
+                notes: []
+            };
+            if (!this.sequences) this.sequences = [];
+            this.sequences.push(targetSequence);
+        }
+
+        // Apply notes (merge or replace)
+        if (options.mode === 'merge') {
+            // Merge with existing notes
+            const existingNotes = targetSequence.notes || [];
+            const newNotes = sequence.notes.filter(newNote => 
+                !existingNotes.some(existing => 
+                    existing.step === newNote.step && existing.note === newNote.note
+                )
+            );
+            targetSequence.notes = [...existingNotes, ...newNotes];
+        } else {
+            // Replace existing notes
+            targetSequence.notes = sequence.notes;
+            targetSequence.steps = sequence.length;
+        }
+
+        console.log(`[Track ${this.id}] Applied ${sequence.notes.length} drum hits to sequence ${sequenceId}`);
+        return targetSequence;
+    }
+
+    /**
+     * Get drum detection settings.
+     */
+    getDrumDetectionSettings() {
+        return this.drumDetection || { enabled: false };
+    }
+
+    // =====================================================
+    // VECTOR SYNTHESIS
+    // =====================================================
+
+    /**
+     * Initialize vector synthesis.
+     * @param {Object} config - Vector synthesis configuration
+     */
+    initVectorSynthesis(config = {}) {
+        this.vectorSynthesis = {
+            enabled: config.enabled ?? true,
+            oscillators: config.oscillators ?? [
+                { waveform: 'sine', detune: 0, gain: 0.25 },
+                { waveform: 'triangle', detune: 5, gain: 0.25 },
+                { waveform: 'sawtooth', detune: -5, gain: 0.25 },
+                { waveform: 'square', detune: 10, gain: 0.25 }
+            ],
+            vectorPosition: config.vectorPosition ?? { x: 0.5, y: 0.5 },
+            morphMode: config.morphMode ?? 'linear', // 'linear', 'equal-power', 'crossfade'
+            morphSpeed: config.morphSpeed ?? 0.1, // seconds for morph transitions
+            automorph: config.automorph ?? {
+                enabled: false,
+                xRate: 0.1, // Hz
+                yRate: 0.15,
+                xDepth: 1,
+                yDepth: 1
+            },
+            lastVector: null
+        };
+
+        this._vectorOscillators = [];
+        this._vectorGains = [];
+        
+        console.log(`[Track ${this.id}] Vector synthesis initialized`);
+        return this.vectorSynthesis;
+    }
+
+    /**
+     * Set vector synthesis position.
+     * @param {number} x - X position (0-1)
+     * @param {number} y - Y position (0-1)
+     * @param {boolean} smooth - Whether to smooth transition
+     */
+    setVectorPosition(x, y, smooth = true) {
+        if (!this.vectorSynthesis) {
+            this.initVectorSynthesis();
+        }
+
+        const prevPosition = { ...this.vectorSynthesis.vectorPosition };
+        this.vectorSynthesis.vectorPosition = { x, y };
+
+        // Calculate gains for each oscillator based on vector position
+        const gains = this._calculateVectorGains(x, y);
+        
+        // Apply gains to oscillators
+        if (this._vectorGains.length > 0) {
+            this._vectorGains.forEach((gainNode, i) => {
+                if (smooth) {
+                    gainNode.gain.rampTo(gains[i], this.vectorSynthesis.morphSpeed);
+                } else {
+                    gainNode.gain.value = gains[i];
+                }
+            });
+        }
+
+        this.vectorSynthesis.lastVector = {
+            position: { x, y },
+            gains,
+            timestamp: Date.now()
+        };
+
+        console.log(`[Track ${this.id}] Vector position set to (${x.toFixed(2)}, ${y.toFixed(2)})`);
+        return gains;
+    }
+
+    /**
+     * Calculate gains for vector synthesis.
+     * @private
+     */
+    _calculateVectorGains(x, y) {
+        const mode = this.vectorSynthesis.morphMode;
+        
+        // Calculate distance from each corner (oscillator)
+        // Top-left (osc 0), Top-right (osc 1), Bottom-right (osc 2), Bottom-left (osc 3)
+        const gains = [
+            (1 - x) * (1 - y), // Top-left
+            x * (1 - y),       // Top-right
+            x * y,             // Bottom-right
+            (1 - x) * y        // Bottom-left
+        ];
+
+        if (mode === 'equal-power') {
+            // Apply equal-power crossfade curve
+            return gains.map(g => Math.sqrt(g));
+        } else if (mode === 'crossfade') {
+            // Smooth crossfade with cosine interpolation
+            return gains.map(g => 0.5 * (1 - Math.cos(g * Math.PI)));
+        }
+
+        return gains; // Linear mode
+    }
+
+    /**
+     * Start vector synthesis oscillators.
+     * @param {number} frequency - Base frequency
+     */
+    startVectorOscillators(frequency) {
+        if (!this.vectorSynthesis) {
+            this.initVectorSynthesis();
+        }
+
+        // Create oscillators if not already created
+        if (this._vectorOscillators.length === 0) {
+            this.vectorSynthesis.oscillators.forEach((oscConfig, i) => {
+                const osc = new Tone.Oscillator({
+                    frequency: frequency,
+                    type: oscConfig.waveform,
+                    detune: oscConfig.detune
+                });
+
+                const gain = new Tone.Gain(0.25);
+                osc.connect(gain);
+                
+                this._vectorOscillators.push(osc);
+                this._vectorGains.push(gain);
+            });
+        }
+
+        // Set frequencies and start
+        this._vectorOscillators.forEach((osc, i) => {
+            osc.frequency.value = frequency;
+            osc.detune.value = this.vectorSynthesis.oscillators[i].detune;
+            osc.start();
+        });
+
+        // Apply current vector position
+        const gains = this._calculateVectorGains(
+            this.vectorSynthesis.vectorPosition.x,
+            this.vectorSynthesis.vectorPosition.y
+        );
+        this._vectorGains.forEach((gain, i) => {
+            gain.gain.value = gains[i];
+        });
+
+        console.log(`[Track ${this.id}] Vector oscillators started at ${frequency}Hz`);
+        return this._vectorOscillators;
+    }
+
+    /**
+     * Stop vector synthesis oscillators.
+     */
+    stopVectorOscillators() {
+        this._vectorOscillators.forEach(osc => {
+            try { osc.stop(); } catch (e) {}
+        });
+        console.log(`[Track ${this.id}] Vector oscillators stopped`);
+    }
+
+    /**
+     * Set automorph for vector synthesis.
+     * @param {Object} config - Automorph configuration
+     */
+    setVectorAutomorph(config) {
+        if (!this.vectorSynthesis) {
+            this.initVectorSynthesis();
+        }
+
+        this.vectorSynthesis.automorph = {
+            enabled: config.enabled ?? true,
+            xRate: config.xRate ?? 0.1,
+            yRate: config.yRate ?? 0.15,
+            xDepth: config.xDepth ?? 1,
+            yDepth: config.yDepth ?? 1
+        };
+
+        console.log(`[Track ${this.id}] Vector automorph ${this.vectorSynthesis.automorph.enabled ? 'enabled' : 'disabled'}`);
+        return this.vectorSynthesis.automorph;
+    }
+
+    /**
+     * Update automorph (call this in animation frame).
+     * @param {number} time - Current time in seconds
+     */
+    updateVectorAutomorph(time) {
+        if (!this.vectorSynthesis?.automorph?.enabled) return;
+
+        const auto = this.vectorSynthesis.automorph;
+        const x = 0.5 + 0.5 * auto.xDepth * Math.sin(2 * Math.PI * auto.xRate * time);
+        const y = 0.5 + 0.5 * auto.yDepth * Math.sin(2 * Math.PI * auto.yRate * time);
+
+        this.setVectorPosition(x, y, false);
+    }
+
+    // =====================================================
+    // WAVETABLE SYNTHESIS
+    // =====================================================
+
+    /**
+     * Initialize wavetable synthesis.
+     * @param {Object} config - Wavetable configuration
+     */
+    initWavetableSynthesis(config = {}) {
+        this.wavetableSynthesis = {
+            enabled: config.enabled ?? true,
+            tables: config.tables ?? [
+                { name: 'sine', data: this._generateWavetable('sine') },
+                { name: 'triangle', data: this._generateWavetable('triangle') },
+                { name: 'sawtooth', data: this._generateWavetable('sawtooth') },
+                { name: 'square', data: this._generateWavetable('square') }
+            ],
+            tablePosition: config.tablePosition ?? 0, // 0-1 position between tables
+            interpMode: config.interpMode ?? 'linear', // 'linear', 'spectral', 'morph'
+            spectralMode: config.spectralMode ?? 'magnitude', // 'magnitude', 'phase'
+            customTables: config.customTables ?? [],
+            morphQueue: config.morphQueue ?? [],
+            currentTable: null
+        };
+
+        this._wavetableOscillator = null;
+        this._wavetableBuffer = null;
+
+        console.log(`[Track ${this.id}] Wavetable synthesis initialized`);
+        return this.wavetableSynthesis;
+    }
+
+    /**
+     * Generate a wavetable for a given waveform type.
+     * @private
+     */
+    _generateWavetable(type, tableSize = 256) {
+        const table = new Float32Array(tableSize);
+        
+        switch (type) {
+            case 'sine':
+                for (let i = 0; i < tableSize; i++) {
+                    table[i] = Math.sin(2 * Math.PI * i / tableSize);
+                }
+                break;
+            case 'triangle':
+                for (let i = 0; i < tableSize; i++) {
+                    const phase = i / tableSize;
+                    table[i] = 4 * Math.abs(phase - 0.5) - 1;
+                }
+                break;
+            case 'sawtooth':
+                for (let i = 0; i < tableSize; i++) {
+                    table[i] = 2 * (i / tableSize) - 1;
+                }
+                break;
+            case 'square':
+                for (let i = 0; i < tableSize; i++) {
+                    table[i] = i < tableSize / 2 ? 1 : -1;
+                }
+                break;
+            default:
+                // Default to sine
+                for (let i = 0; i < tableSize; i++) {
+                    table[i] = Math.sin(2 * Math.PI * i / tableSize);
+                }
+        }
+
+        return table;
+    }
+
+    /**
+     * Create a custom wavetable from an array of values.
+     * @param {string} name - Name for the custom table
+     * @param {Float32Array|Array} data - Waveform data
+     */
+    createCustomWavetable(name, data) {
+        if (!this.wavetableSynthesis) {
+            this.initWavetableSynthesis();
+        }
+
+        const tableData = data instanceof Float32Array ? data : new Float32Array(data);
+        
+        this.wavetableSynthesis.customTables.push({
+            name,
+            data: tableData,
+            created: Date.now()
+        });
+
+        console.log(`[Track ${this.id}] Custom wavetable "${name}" created`);
+        return this.wavetableSynthesis.customTables[this.wavetableSynthesis.customTables.length - 1];
+    }
+
+    /**
+     * Set wavetable position for morphing between tables.
+     * @param {number} position - Position 0-1
+     */
+    setWavetablePosition(position) {
+        if (!this.wavetableSynthesis) {
+            this.initWavetableSynthesis();
+        }
+
+        this.wavetableSynthesis.tablePosition = Math.max(0, Math.min(1, position));
+        
+        // Interpolate between tables
+        const interpolatedTable = this._interpolateWavetables(this.wavetableSynthesis.tablePosition);
+        this.wavetableSynthesis.currentTable = interpolatedTable;
+
+        console.log(`[Track ${this.id}] Wavetable position: ${this.wavetableSynthesis.tablePosition.toFixed(2)}`);
+        return interpolatedTable;
+    }
+
+    /**
+     * Interpolate between wavetables.
+     * @private
+     */
+    _interpolateWavetables(position) {
+        const tables = this.wavetableSynthesis.tables;
+        const mode = this.wavetableSynthesis.interpMode;
+        
+        const numTables = tables.length;
+        const scaledPos = position * (numTables - 1);
+        const tableIndex1 = Math.floor(scaledPos);
+        const tableIndex2 = Math.min(tableIndex1 + 1, numTables - 1);
+        const blend = scaledPos - tableIndex1;
+
+        const table1 = tables[tableIndex1].data;
+        const table2 = tables[tableIndex2].data;
+        const tableSize = table1.length;
+        const result = new Float32Array(tableSize);
+
+        if (mode === 'linear') {
+            for (let i = 0; i < tableSize; i++) {
+                result[i] = table1[i] * (1 - blend) + table2[i] * blend;
+            }
+        } else if (mode === 'spectral') {
+            // FFT-based interpolation (simplified)
+            // In practice, you'd use proper FFT here
+            for (let i = 0; i < tableSize; i++) {
+                result[i] = table1[i] * (1 - blend) + table2[i] * blend;
+            }
+        } else if (mode === 'morph') {
+            // Morphing with crossfade
+            for (let i = 0; i < tableSize; i++) {
+                const sign1 = Math.sign(table1[i]);
+                const sign2 = Math.sign(table2[i]);
+                const mag1 = Math.abs(table1[i]);
+                const mag2 = Math.abs(table2[i]);
+                const morphedMag = mag1 * (1 - blend) + mag2 * blend;
+                const morphedSign = blend < 0.5 ? sign1 : sign2;
+                result[i] = morphedSign * morphedMag;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Play a note using wavetable synthesis.
+     * @param {number} frequency - Note frequency
+     * @param {number} duration - Note duration in seconds
+     */
+    playWavetableNote(frequency, duration = 1) {
+        if (!this.wavetableSynthesis) {
+            this.initWavetableSynthesis();
+        }
+
+        const currentTable = this.wavetableSynthesis.currentTable || 
+            this._interpolateWavetables(this.wavetableSynthesis.tablePosition);
+
+        // Create oscillator with the wavetable
+        const osc = new Tone.Oscillator({
+            frequency,
+            type: 'custom',
+            partials: Array.from(currentTable)
+        });
+
+        const envelope = new Tone.AmplitudeEnvelope({
+            attack: 0.01,
+            decay: 0.1,
+            sustain: 0.7,
+            release: 0.2
+        });
+
+        osc.connect(envelope);
+        envelope.connect(Tone.Destination);
+        
+        osc.start();
+        envelope.triggerAttack();
+        
+        // Schedule release
+        setTimeout(() => {
+            envelope.triggerRelease();
+            setTimeout(() => {
+                osc.stop();
+                osc.dispose();
+                envelope.dispose();
+            }, 200);
+        }, duration * 1000);
+
+        console.log(`[Track ${this.id}] Wavetable note: ${frequency.toFixed(1)}Hz for ${duration}s`);
+        return { osc, envelope };
+    }
+
+    /**
+     * Get wavetable synthesis settings.
+     */
+    getWavetableSettings() {
+        return this.wavetableSynthesis || { enabled: false };
+    }
+
+    // =====================================================
+    // MPE (MIDI POLYPHONIC EXPRESSION) SUPPORT
+    // =====================================================
+
+    /**
+     * Initialize MPE support.
+     * @param {Object} config - MPE configuration
+     */
+    initMPESupport(config = {}) {
+        this.mpe = {
+            enabled: config.enabled ?? true,
+            zone: config.zone ?? 'lower', // 'lower', 'upper', 'full'
+            numChannels: config.numChannels ?? 16,
+            pitchBendRange: config.pitchBendRange ?? 48, // semitones
+            timbreRange: config.timbreRange ?? 127,
+            pressureRange: config.pressureRange ?? 127,
+            // Per-note expression storage
+            noteExpression: new Map(),
+            // Channel assignments (note -> channel mapping)
+            channelAssignments: new Map(),
+            nextChannel: 0,
+            // Expression data
+            expressions: {
+                pitchBend: new Map(),
+                timbre: new Map(),
+                pressure: new Map()
+            }
+        };
+
+        console.log(`[Track ${this.id}] MPE support initialized (${this.mpe.zone} zone)`);
+        return this.mpe;
+    }
+
+    /**
+     * Handle MPE note on.
+     * @param {number} note - MIDI note number
+     * @param {number} velocity - Velocity (0-127)
+     * @param {number} channel - MPE channel
+     */
+    mpeNoteOn(note, velocity, channel) {
+        if (!this.mpe) {
+            this.initMPESupport();
+        }
+
+        // Assign channel for this note
+        this.mpe.channelAssignments.set(note, channel);
+        
+        // Initialize expression data for this note
+        this.mpe.noteExpression.set(note, {
+            pitchBend: 0,
+            timbre: 64, // Center value
+            pressure: velocity
+        });
+
+        // Store initial pressure
+        this.mpe.expressions.pressure.set(note, velocity);
+
+        console.log(`[Track ${this.id}] MPE note on: ${note} (ch${channel}, vel${velocity})`);
+        return this.mpe.noteExpression.get(note);
+    }
+
+    /**
+     * Handle MPE note off.
+     * @param {number} note - MIDI note number
+     * @param {number} channel - MPE channel
+     */
+    mpeNoteOff(note, channel) {
+        if (!this.mpe) return;
+
+        // Clean up
+        this.mpe.channelAssignments.delete(note);
+        this.mpe.noteExpression.delete(note);
+        this.mpe.expressions.pitchBend.delete(note);
+        this.mpe.expressions.timbre.delete(note);
+        this.mpe.expressions.pressure.delete(note);
+
+        console.log(`[Track ${this.id}] MPE note off: ${note} (ch${channel})`);
+    }
+
+    /**
+     * Handle MPE pitch bend.
+     * @param {number} note - Note to bend
+     * @param {number} value - Pitch bend value (-8192 to 8191)
+     */
+    mpePitchBend(note, value) {
+        if (!this.mpe) return;
+
+        // Convert to semitones
+        const semitones = (value / 8192) * this.mpe.pitchBendRange;
+        
+        if (this.mpe.noteExpression.has(note)) {
+            this.mpe.noteExpression.get(note).pitchBend = semitones;
+        }
+        this.mpe.expressions.pitchBend.set(note, semitones);
+
+        console.log(`[Track ${this.id}] MPE pitch bend: ${note} → ${semitones.toFixed(2)} st`);
+        return semitones;
+    }
+
+    /**
+     * Handle MPE timbre (CC74).
+     * @param {number} note - Note to affect
+     * @param {number} value - Timbre value (0-127)
+     */
+    mpeTimbre(note, value) {
+        if (!this.mpe) return;
+
+        if (this.mpe.noteExpression.has(note)) {
+            this.mpe.noteExpression.get(note).timbre = value;
+        }
+        this.mpe.expressions.timbre.set(note, value);
+
+        console.log(`[Track ${this.id}] MPE timbre: ${note} → ${value}`);
+        return value;
+    }
+
+    /**
+     * Handle MPE channel pressure.
+     * @param {number} note - Note to affect
+     * @param {number} value - Pressure value (0-127)
+     */
+    mpePressure(note, value) {
+        if (!this.mpe) return;
+
+        if (this.mpe.noteExpression.has(note)) {
+            this.mpe.noteExpression.get(note).pressure = value;
+        }
+        this.mpe.expressions.pressure.set(note, value);
+
+        console.log(`[Track ${this.id}] MPE pressure: ${note} → ${value}`);
+        return value;
+    }
+
+    /**
+     * Get expression data for a note.
+     * @param {number} note - MIDI note number
+     * @returns {Object} Expression data (pitchBend, timbre, pressure)
+     */
+    getMpeNoteExpression(note) {
+        return this.mpe?.noteExpression?.get(note) || {
+            pitchBend: 0,
+            timbre: 64,
+            pressure: 80
+        };
+    }
+
+    /**
+     * Apply MPE expression to a Tone.js instrument.
+     * @param {Object} instrument - Tone.js instrument
+     * @param {number} note - MIDI note
+     */
+    applyMpeToInstrument(instrument, note) {
+        if (!this.mpe || !instrument) return;
+
+        const expression = this.getMpeNoteExpression(note);
+        const baseFreq = Tone.Frequency(note, 'midi').toFrequency();
+
+        // Apply pitch bend
+        const bentFreq = baseFreq * Math.pow(2, expression.pitchBend / 12);
+        
+        // Find the oscillator and set frequency
+        if (instrument.frequency) {
+            instrument.frequency.value = bentFreq;
+        }
+
+        // Apply pressure to volume
+        if (instrument.volume) {
+            const volumeDb = Tone.gainToDb(expression.pressure / 127);
+            instrument.volume.value = volumeDb;
+        }
+
+        // Apply timbre (typically to filter)
+        // This would require a filter in the signal chain
+
+        return { frequency: bentFreq, expression };
+    }
+
+    /**
+     * Get MPE settings.
+     */
+    getMPESettings() {
+        return this.mpe || { enabled: false };
+    }
+
+    // =====================================================
+    // AI-ASSISTED COMPOSITION
+    // =====================================================
+
+    /**
+     * Initialize AI composition assistant.
+     * @param {Object} config - AI configuration
+     */
+    initAIComposition(config = {}) {
+        this.aiComposition = {
+            enabled: config.enabled ?? true,
+            model: config.model ?? 'markov', // 'markov', 'n-gram', 'rule-based'
+            key: config.key ?? 'C',
+            scale: config.scale ?? 'major',
+            tempo: config.tempo ?? 120,
+            style: config.style ?? 'electronic',
+            complexity: config.complexity ?? 0.5, // 0-1
+            creativity: config.creativity ?? 0.5, // 0-1
+            // Training data
+            trainingData: [],
+            // Generated patterns cache
+            generatedPatterns: [],
+            // Suggestion history
+            suggestions: []
+        };
+
+        // Initialize model-specific data
+        this._initAIModel(this.aiComposition.model);
+
+        console.log(`[Track ${this.id}] AI composition initialized (${this.aiComposition.model} model)`);
+        return this.aiComposition;
+    }
+
+    /**
+     * Initialize AI model.
+     * @private
+     */
+    _initAIModel(model) {
+        switch (model) {
+            case 'markov':
+                this._markovChains = {
+                    melody: new Map(),
+                    rhythm: new Map(),
+                    harmony: new Map()
+                };
+                break;
+            case 'n-gram':
+                this._nGrams = {
+                    melody: new Map(),
+                    order: 3
+                };
+                break;
+            case 'rule-based':
+                this._compositionRules = this._getDefaultCompositionRules();
+                break;
+        }
+    }
+
+    /**
+     * Get default composition rules for rule-based model.
+     * @private
+     */
+    _getDefaultCompositionRules() {
+        return {
+            // Voice leading rules
+            voiceLeading: {
+                maxLeap: 7, // semitones
+                preferStepwise: true,
+                avoidParallelFifths: true,
+                avoidParallelOctaves: true
+            },
+            // Harmonic rules
+            harmony: {
+                allowedProgressions: [
+                    ['I', 'IV'], ['I', 'V'], ['I', 'vi'],
+                    ['ii', 'V'], ['ii', 'vi'],
+                    ['IV', 'I'], ['IV', 'V'],
+                    ['V', 'I'], ['V', 'vi'],
+                    ['vi', 'ii'], ['vi', 'IV']
+                ]
+            },
+            // Rhythm rules
+            rhythm: {
+                allowedDurations: [0.25, 0.5, 1, 2], // in beats
+                syncopationLevel: 0.3
+            }
+        };
+    }
+
+    /**
+     * Train AI model on existing patterns.
+     * @param {Array} patterns - Array of note patterns to learn from
+     */
+    trainAIModel(patterns) {
+        if (!this.aiComposition) {
+            this.initAIComposition();
+        }
+
+        const model = this.aiComposition.model;
+
+        patterns.forEach(pattern => {
+            this.aiComposition.trainingData.push(pattern);
+
+            if (model === 'markov') {
+                this._trainMarkovChain(pattern);
+            } else if (model === 'n-gram') {
+                this._trainNGram(pattern);
+            }
+        });
+
+        console.log(`[Track ${this.id}] AI trained on ${patterns.length} patterns (total: ${this.aiComposition.trainingData.length})`);
+    }
+
+    /**
+     * Train Markov chain on a pattern.
+     * @private
+     */
+    _trainMarkovChain(pattern) {
+        const notes = pattern.notes || [];
+        if (notes.length < 2) return;
+
+        // Train melody chain
+        for (let i = 0; i < notes.length - 1; i++) {
+            const current = notes[i].note || notes[i];
+            const next = notes[i + 1].note || notes[i + 1];
+            
+            if (!this._markovChains.melody.has(current)) {
+                this._markovChains.melody.set(current, new Map());
+            }
+            
+            const transitions = this._markovChains.melody.get(current);
+            transitions.set(next, (transitions.get(next) || 0) + 1);
+        }
+
+        // Train rhythm chain
+        for (let i = 0; i < notes.length - 1; i++) {
+            const currentDur = notes[i].duration || 1;
+            const nextDur = notes[i + 1].duration || 1;
+            
+            if (!this._markovChains.rhythm.has(currentDur)) {
+                this._markovChains.rhythm.set(currentDur, new Map());
+            }
+            
+            const transitions = this._markovChains.rhythm.get(currentDur);
+            transitions.set(nextDur, (transitions.get(nextDur) || 0) + 1);
+        }
+    }
+
+    /**
+     * Train n-gram model on a pattern.
+     * @private
+     */
+    _trainNGram(pattern) {
+        const notes = pattern.notes || [];
+        const order = this._nGrams.order;
+        
+        if (notes.length < order) return;
+
+        for (let i = 0; i <= notes.length - order; i++) {
+            const nGram = notes.slice(i, i + order).map(n => n.note || n).join(',');
+            const next = notes[i + order]?.note || notes[i + order];
+            
+            if (!this._nGrams.melody.has(nGram)) {
+                this._nGrams.melody.set(nGram, new Map());
+            }
+            
+            const transitions = this._nGrams.melody.get(nGram);
+            transitions.set(next, (transitions.get(next) || 0) + 1);
+        }
+    }
+
+    /**
+     * Generate a new pattern using AI.
+     * @param {Object} options - Generation options
+     * @returns {Object} Generated pattern
+     */
+    generateAIPattern(options = {}) {
+        if (!this.aiComposition) {
+            this.initAIComposition();
+        }
+
+        const length = options.length ?? 16; // Number of steps
+        const model = this.aiComposition.model;
+        const creativity = options.creativity ?? this.aiComposition.creativity;
+
+        let pattern = null;
+
+        switch (model) {
+            case 'markov':
+                pattern = this._generateFromMarkov(length, creativity);
+                break;
+            case 'n-gram':
+                pattern = this._generateFromNGram(length, creativity);
+                break;
+            case 'rule-based':
+                pattern = this._generateFromRules(length, creativity);
+                break;
+        }
+
+        if (pattern) {
+            pattern.id = `ai-${Date.now()}`;
+            pattern.generated = true;
+            pattern.model = model;
+            this.aiComposition.generatedPatterns.push(pattern);
+        }
+
+        console.log(`[Track ${this.id}] AI generated pattern (${model}, ${length} steps, creativity: ${creativity})`);
+        return pattern;
+    }
+
+    /**
+     * Generate from Markov chain.
+     * @private
+     */
+    _generateFromMarkov(length, creativity) {
+        const notes = [];
+        let currentNote = 60; // Start from middle C
+
+        for (let i = 0; i < length; i++) {
+            // Get possible next notes
+            const transitions = this._markovChains.melody.get(currentNote);
+            
+            if (transitions && transitions.size > 0 && Math.random() > creativity) {
+                // Follow the chain
+                const total = Array.from(transitions.values()).reduce((a, b) => a + b, 0);
+                let rand = Math.random() * total;
+                
+                for (const [note, count] of transitions) {
+                    rand -= count;
+                    if (rand <= 0) {
+                        currentNote = note;
+                        break;
+                    }
+                }
+            } else {
+                // Creative: random note
+                currentNote = this._getRandomNoteInScale(
+                    this.aiComposition.key,
+                    this.aiComposition.scale
+                );
+            }
+
+            notes.push({
+                step: i,
+                note: currentNote,
+                velocity: 80 + Math.floor(Math.random() * 40),
+                duration: 1
+            });
+        }
+
+        return { notes, length };
+    }
+
+    /**
+     * Generate from n-gram model.
+     * @private
+     */
+    _generateFromNGram(length, creativity) {
+        const notes = [];
+        const order = this._nGrams.order;
+        
+        // Start with a random n-gram
+        const startNGrams = Array.from(this._nGrams.melody.keys());
+        let currentNGram = startNGrams[Math.floor(Math.random() * startNGrams.length)];
+        const startNotes = currentNGram.split(',').map(Number);
+        
+        startNotes.forEach((note, i) => {
+            notes.push({
+                step: i,
+                note,
+                velocity: 80,
+                duration: 1
+            });
+        });
+
+        for (let i = order; i < length; i++) {
+            const transitions = this._nGrams.melody.get(currentNGram);
+            
+            let nextNote;
+            if (transitions && transitions.size > 0 && Math.random() > creativity) {
+                // Follow the model
+                const total = Array.from(transitions.values()).reduce((a, b) => a + b, 0);
+                let rand = Math.random() * total;
+                
+                for (const [note, count] of transitions) {
+                    rand -= count;
+                    if (rand <= 0) {
+                        nextNote = note;
+                        break;
+                    }
+                }
+            } else {
+                // Creative: random
+                nextNote = this._getRandomNoteInScale(
+                    this.aiComposition.key,
+                    this.aiComposition.scale
+                );
+            }
+
+            notes.push({
+                step: i,
+                note: nextNote,
+                velocity: 80 + Math.floor(Math.random() * 40),
+                duration: 1
+            });
+
+            // Update n-gram
+            currentNGram = notes.slice(i - order + 1, i + 1).map(n => n.note).join(',');
+        }
+
+        return { notes, length };
+    }
+
+    /**
+     * Generate from rules.
+     * @private
+     */
+    _generateFromRules(length, creativity) {
+        const rules = this._compositionRules;
+        const notes = [];
+        
+        // Get scale notes
+        const scaleNotes = this._getScaleNotes(this.aiComposition.key, this.aiComposition.scale);
+        
+        let lastNote = scaleNotes[0];
+
+        for (let i = 0; i < length; i++) {
+            let note = lastNote;
+
+            if (Math.random() > creativity) {
+                // Follow voice leading rules
+                const maxLeap = rules.voiceLeading.maxLeap;
+                const stepwiseProb = rules.voiceLeading.preferStepwise ? 0.7 : 0.3;
+                
+                if (Math.random() < stepwiseProb) {
+                    // Stepwise motion
+                    const direction = Math.random() > 0.5 ? 1 : -1;
+                    note = lastNote + direction;
+                } else {
+                    // Leap
+                    const leap = Math.floor(Math.random() * maxLeap);
+                    const direction = Math.random() > 0.5 ? 1 : -1;
+                    note = lastNote + direction * leap;
+                }
+                
+                // Quantize to scale
+                note = this._quantizeToScale(note, scaleNotes);
+            } else {
+                // Creative: random from scale
+                note = scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
+            }
+
+            notes.push({
+                step: i,
+                note,
+                velocity: 80 + Math.floor(Math.random() * 40),
+                duration: rules.rhythm.allowedDurations[Math.floor(Math.random() * rules.rhythm.allowedDurations.length)]
+            });
+
+            lastNote = note;
+        }
+
+        return { notes, length };
+    }
+
+    /**
+     * Get random note in scale.
+     * @private
+     */
+    _getRandomNoteInScale(key, scale) {
+        const scaleNotes = this._getScaleNotes(key, scale);
+        return scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
+    }
+
+    /**
+     * Get scale notes.
+     * @private
+     */
+    _getScaleNotes(key, scale) {
+        // Key to MIDI note mapping
+        const keyMap = { 'C': 60, 'C#': 61, 'D': 62, 'D#': 63, 'E': 64, 'F': 65, 'F#': 66, 'G': 67, 'G#': 68, 'A': 69, 'A#': 70, 'B': 71 };
+        const keyNum = keyMap[key] || 60;
+
+        // Scale intervals (semitones from root)
+        const scales = {
+            'major': [0, 2, 4, 5, 7, 9, 11],
+            'minor': [0, 2, 3, 5, 7, 8, 10],
+            'pentatonic': [0, 2, 4, 7, 9],
+            'blues': [0, 3, 5, 6, 7, 10],
+            'dorian': [0, 2, 3, 5, 7, 9, 10],
+            'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+            'lydian': [0, 2, 4, 6, 7, 9, 11]
+        };
+
+        const intervals = scales[scale] || scales.major;
+        return intervals.map(i => keyNum + i);
+    }
+
+    /**
+     * Quantize note to scale.
+     * @private
+     */
+    _quantizeToScale(note, scaleNotes) {
+        let closest = scaleNotes[0];
+        let minDist = Math.abs(note - closest);
+
+        for (const scaleNote of scaleNotes) {
+            const dist = Math.abs(note - scaleNote);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = scaleNote;
+            }
+        }
+
+        return closest;
+    }
+
+    /**
+     * Get AI composition settings.
+     */
+    getAICompositionSettings() {
+        return this.aiComposition || { enabled: false };
+    }
+
+    // =====================================================
+    // COLLABORATIVE EDITING
+    // =====================================================
+
+    /**
+     * Initialize collaborative editing.
+     * @param {Object} config - Collaboration configuration
+     */
+    initCollaborativeEditing(config = {}) {
+        this.collaboration = {
+            enabled: config.enabled ?? true,
+            sessionId: config.sessionId ?? null,
+            userId: config.userId ?? `user-${Date.now()}`,
+            userName: config.userName ?? 'Anonymous',
+            // Connected users
+            users: new Map(),
+            // Edit history for sync
+            editHistory: [],
+            // Conflict resolution
+            conflictResolution: config.conflictResolution ?? 'last-write-wins', // 'last-write-wins', 'operational-transform'
+            // Presence (cursor, selection)
+            presence: {
+                cursor: null,
+                selection: null,
+                lastUpdate: Date.now()
+            },
+            // Permissions
+            permissions: config.permissions ?? 'edit', // 'view', 'comment', 'edit', 'admin'
+            // Real-time sync
+            syncEnabled: config.syncEnabled ?? true,
+            syncInterval: config.syncInterval ?? 100, // ms
+            lastSync: Date.now()
+        };
+
+        // Initialize operational transform if needed
+        if (this.collaboration.conflictResolution === 'operational-transform') {
+            this._initOperationalTransform();
+        }
+
+        console.log(`[Track ${this.id}] Collaborative editing initialized`);
+        return this.collaboration;
+    }
+
+    /**
+     * Initialize operational transform.
+     * @private
+     */
+    _initOperationalTransform() {
+        this._ot = {
+            pendingOps: [],
+            appliedOps: [],
+            version: 0
+        };
+    }
+
+    /**
+     * Join a collaboration session.
+     * @param {string} sessionId - Session ID to join
+     * @param {Object} userInfo - User information
+     */
+    joinCollaboration(sessionId, userInfo = {}) {
+        if (!this.collaboration) {
+            this.initCollaborativeEditing();
+        }
+
+        this.collaboration.sessionId = sessionId;
+        this.collaboration.userId = userInfo.userId || this.collaboration.userId;
+        this.collaboration.userName = userInfo.userName || this.collaboration.userName;
+
+        // Broadcast join to other users
+        this._broadcastPresence({
+            type: 'join',
+            userId: this.collaboration.userId,
+            userName: this.collaboration.userName,
+            timestamp: Date.now()
+        });
+
+        console.log(`[Track ${this.id}] Joined collaboration: ${sessionId} as ${this.collaboration.userName}`);
+        return this.collaboration;
+    }
+
+    /**
+     * Leave collaboration session.
+     */
+    leaveCollaboration() {
+        if (!this.collaboration) return;
+
+        // Broadcast leave
+        this._broadcastPresence({
+            type: 'leave',
+            userId: this.collaboration.userId,
+            timestamp: Date.now()
+        });
+
+        this.collaboration.sessionId = null;
+        this.collaboration.users.clear();
+
+        console.log(`[Track ${this.id}] Left collaboration`);
+    }
+
+    /**
+     * Handle remote user join.
+     * @param {Object} user - User data
+     */
+    handleRemoteUserJoin(user) {
+        if (!this.collaboration) return;
+
+        this.collaboration.users.set(user.userId, {
+            ...user,
+            presence: {
+                cursor: null,
+                selection: null,
+                lastUpdate: Date.now()
+            }
+        });
+
+        console.log(`[Track ${this.id}] Remote user joined: ${user.userName}`);
+    }
+
+    /**
+     * Handle remote user leave.
+     * @param {string} userId - User ID
+     */
+    handleRemoteUserLeave(userId) {
+        if (!this.collaboration) return;
+
+        this.collaboration.users.delete(userId);
+        console.log(`[Track ${this.id}] Remote user left: ${userId}`);
+    }
+
+    /**
+     * Update presence (cursor position, selection).
+     * @param {Object} presence - Presence data
+     */
+    updatePresence(presence) {
+        if (!this.collaboration) return;
+
+        this.collaboration.presence = {
+            ...presence,
+            lastUpdate: Date.now()
+        };
+
+        // Broadcast presence update
+        this._broadcastPresence({
+            type: 'presence',
+            userId: this.collaboration.userId,
+            presence: this.collaboration.presence,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * Handle remote presence update.
+     * @param {string} userId - User ID
+     * @param {Object} presence - Presence data
+     */
+    handleRemotePresence(userId, presence) {
+        if (!this.collaboration) return;
+
+        const user = this.collaboration.users.get(userId);
+        if (user) {
+            user.presence = {
+                ...presence,
+                lastUpdate: Date.now()
+            };
+        }
+    }
+
+    /**
+     * Record an edit for synchronization.
+     * @param {Object} edit - Edit operation
+     */
+    recordEdit(edit) {
+        if (!this.collaboration?.syncEnabled) return;
+
+        const editRecord = {
+            id: `edit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            userId: this.collaboration.userId,
+            operation: edit.operation,
+            target: edit.target,
+            value: edit.value,
+            previousValue: edit.previousValue,
+            timestamp: Date.now(),
+            version: this._ot?.version || 0
+        };
+
+        this.collaboration.editHistory.push(editRecord);
+
+        // Keep history bounded
+        if (this.collaboration.editHistory.length > 1000) {
+            this.collaboration.editHistory = this.collaboration.editHistory.slice(-500);
+        }
+
+        // Broadcast edit
+        this._broadcastEdit(editRecord);
+
+        // Increment version for OT
+        if (this._ot) {
+            this._ot.version++;
+            this._ot.appliedOps.push(editRecord);
+        }
+
+        return editRecord;
+    }
+
+    /**
+     * Handle remote edit.
+     * @param {Object} edit - Remote edit operation
+     */
+    handleRemoteEdit(edit) {
+        if (!this.collaboration) return;
+
+        // Conflict resolution
+        if (this.collaboration.conflictResolution === 'last-write-wins') {
+            // Simply apply the edit
+            this._applyEdit(edit);
+        } else if (this.collaboration.conflictResolution === 'operational-transform') {
+            // Transform and apply
+            this._transformAndApply(edit);
+        }
+
+        // Record in history
+        this.collaboration.editHistory.push(edit);
+    }
+
+    /**
+     * Apply an edit operation.
+     * @private
+     */
+    _applyEdit(edit) {
+        switch (edit.operation) {
+            case 'note-add':
+                // Add note to sequence
+                if (this.sequences && edit.target?.sequenceId) {
+                    const seq = this.sequences.find(s => s.id === edit.target.sequenceId);
+                    if (seq) {
+                        seq.notes.push(edit.value);
+                    }
+                }
+                break;
+            case 'note-remove':
+                // Remove note from sequence
+                if (this.sequences && edit.target?.sequenceId) {
+                    const seq = this.sequences.find(s => s.id === edit.target.sequenceId);
+                    if (seq) {
+                        seq.notes = seq.notes.filter(n => 
+                            !(n.step === edit.value.step && n.note === edit.value.note)
+                        );
+                    }
+                }
+                break;
+            case 'note-update':
+                // Update note in sequence
+                if (this.sequences && edit.target?.sequenceId) {
+                    const seq = this.sequences.find(s => s.id === edit.target.sequenceId);
+                    if (seq) {
+                        const note = seq.notes.find(n => 
+                            n.step === edit.target.step && n.note === edit.target.note
+                        );
+                        if (note) {
+                            Object.assign(note, edit.value);
+                        }
+                    }
+                }
+                break;
+            // Add more operations as needed
+        }
+    }
+
+    /**
+     * Transform and apply edit (OT).
+     * @private
+     */
+    _transformAndApply(edit) {
+        // Simplified OT: check for conflicts with pending ops
+        let transformedEdit = { ...edit };
+
+        if (this._ot) {
+            for (const pending of this._ot.pendingOps) {
+                transformedEdit = this._transformOperation(transformedEdit, pending);
+            }
+        }
+
+        this._applyEdit(transformedEdit);
+    }
+
+    /**
+     * Transform one operation against another.
+     * @private
+     */
+    _transformOperation(op1, op2) {
+        // Simplified transformation logic
+        // In a full implementation, this would handle all operation types
+        if (op1.operation === op2.operation && 
+            op1.target?.step === op2.target?.step &&
+            op1.target?.note === op2.target?.note) {
+            // Conflict: use timestamp to resolve
+            return op1.timestamp > op2.timestamp ? op1 : op2;
+        }
+        return op1;
+    }
+
+    /**
+     * Broadcast presence to other users.
+     * @private
+     */
+    _broadcastPresence(data) {
+        // In a real implementation, this would use WebRTC or WebSocket
+        // For now, we just log it
+        console.log(`[Track ${this.id}] Broadcasting presence:`, data);
+        
+        // Emit custom event for external handling
+        if (this.appServices?.broadcastPresence) {
+            this.appServices.broadcastPresence(data);
+        }
+    }
+
+    /**
+     * Broadcast edit to other users.
+     * @private
+     */
+    _broadcastEdit(edit) {
+        // In a real implementation, this would use WebRTC or WebSocket
+        console.log(`[Track ${this.id}] Broadcasting edit:`, edit.id);
+        
+        if (this.appServices?.broadcastEdit) {
+            this.appServices.broadcastEdit(edit);
+        }
+    }
+
+    /**
+     * Get connected users.
+     * @returns {Array} Array of connected users
+     */
+    getConnectedUsers() {
+        if (!this.collaboration) return [];
+        return Array.from(this.collaboration.users.values());
+    }
+
+    /**
+     * Get collaboration settings.
+     */
+    getCollaborationSettings() {
+        return this.collaboration || { enabled: false };
+    }
+
+    // =====================================================
+    // MOBILE TOUCH OPTIMIZATION
+    // =====================================================
+
+    /**
+     * Initialize mobile touch support.
+     * @param {Object} config - Touch configuration
+     */
+    initMobileTouch(config = {}) {
+        this.mobileTouch = {
+            enabled: config.enabled ?? true,
+            touchSensitivity: config.touchSensitivity ?? 1.0,
+            gestureRecognition: config.gestureRecognition ?? true,
+            multiTouch: config.multiTouch ?? true,
+            maxTouchPoints: config.maxTouchPoints ?? 10,
+            // Gesture thresholds
+            gestureThresholds: config.gestureThresholds ?? {
+                tapMaxTime: 300, // ms
+                tapMaxDistance: 10, // pixels
+                swipeMinDistance: 50,
+                swipeMaxTime: 500,
+                pinchMinDistance: 20,
+                rotateThreshold: 5 // degrees
+            },
+            // Active touches
+            activeTouches: new Map(),
+            // Gesture history
+            gestureHistory: [],
+            // Touch targets
+            touchTargets: new Map(),
+            // Haptic feedback
+            hapticFeedback: config.hapticFeedback ?? true
+        };
+
+        console.log(`[Track ${this.id}] Mobile touch initialized`);
+        return this.mobileTouch;
+    }
+
+    /**
+     * Handle touch start.
+     * @param {Touch} touch - Touch object
+     * @param {Object} context - Touch context
+     */
+    handleTouchStart(touch, context = {}) {
+        if (!this.mobileTouch?.enabled) return null;
+
+        const touchId = touch.identifier;
+        const touchData = {
+            id: touchId,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            startTime: Date.now(),
+            currentX: touch.clientX,
+            currentY: touch.clientY,
+            target: touch.target,
+            context
+        };
+
+        this.mobileTouch.activeTouches.set(touchId, touchData);
+
+        // Haptic feedback
+        if (this.mobileTouch.hapticFeedback && navigator.vibrate) {
+            navigator.vibrate(10);
+        }
+
+        return touchData;
+    }
+
+    /**
+     * Handle touch move.
+     * @param {Touch} touch - Touch object
+     */
+    handleTouchMove(touch) {
+        if (!this.mobileTouch?.enabled) return null;
+
+        const touchId = touch.identifier;
+        const touchData = this.mobileTouch.activeTouches.get(touchId);
+        
+        if (!touchData) return null;
+
+        // Update position
+        touchData.currentX = touch.clientX;
+        touchData.currentY = touch.clientY;
+        touchData.lastUpdate = Date.now();
+
+        // Calculate delta
+        touchData.deltaX = touchData.currentX - touchData.startX;
+        touchData.deltaY = touchData.currentY - touchData.startY;
+
+        // Check for gesture
+        const gesture = this._detectGesture(touchData);
+        
+        if (gesture) {
+            touchData.gesture = gesture;
+            this.mobileTouch.gestureHistory.push({
+                ...gesture,
+                touchId,
+                timestamp: Date.now()
+            });
+        }
+
+        return touchData;
+    }
+
+    /**
+     * Handle touch end.
+     * @param {Touch} touch - Touch object
+     */
+    handleTouchEnd(touch) {
+        if (!this.mobileTouch?.enabled) return null;
+
+        const touchId = touch.identifier;
+        const touchData = this.mobileTouch.activeTouches.get(touchId);
+        
+        if (!touchData) return null;
+
+        const duration = Date.now() - touchData.startTime;
+        const distance = Math.sqrt(
+            Math.pow(touch.clientX - touchData.startX, 2) +
+            Math.pow(touch.clientY - touchData.startY, 2)
+        );
+
+        // Finalize gesture
+        let finalGesture = null;
+        const thresholds = this.mobileTouch.gestureThresholds;
+
+        if (duration < thresholds.tapMaxTime && distance < thresholds.tapMaxDistance) {
+            finalGesture = {
+                type: 'tap',
+                x: touchData.startX,
+                y: touchData.startY,
+                duration
+            };
+        } else if (distance > thresholds.swipeMinDistance && duration < thresholds.swipeMaxTime) {
+            const angle = Math.atan2(
+                touch.clientY - touchData.startY,
+                touch.clientX - touchData.startX
+            ) * 180 / Math.PI;
+            
+            finalGesture = {
+                type: 'swipe',
+                direction: this._getSwipeDirection(angle),
+                distance,
+                angle,
+                duration
+            };
+        }
+
+        // Remove touch
+        this.mobileTouch.activeTouches.delete(touchId);
+
+        if (finalGesture) {
+            this.mobileTouch.gestureHistory.push(finalGesture);
+        }
+
+        console.log(`[Track ${this.id}] Touch ended: ${finalGesture?.type || 'none'}`);
+        return finalGesture;
+    }
+
+    /**
+     * Detect gesture during touch move.
+     * @private
+     */
+    _detectGesture(touchData) {
+        const thresholds = this.mobileTouch.gestureThresholds;
+        const distance = Math.sqrt(
+            Math.pow(touchData.deltaX || 0, 2) +
+            Math.pow(touchData.deltaY || 0, 2)
+        );
+
+        if (distance > thresholds.swipeMinDistance) {
+            return {
+                type: 'drag',
+                startX: touchData.startX,
+                startY: touchData.startY,
+                currentX: touchData.currentX,
+                currentY: touchData.currentY,
+                distance
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Get swipe direction from angle.
+     * @private
+     */
+    _getSwipeDirection(angle) {
+        if (angle >= -45 && angle < 45) return 'right';
+        if (angle >= 45 && angle < 135) return 'down';
+        if (angle >= -135 && angle < -45) return 'up';
+        return 'left';
+    }
+
+    /**
+     * Handle multi-touch (pinch/rotate).
+     * @param {Array} touches - Array of active touches
+     */
+    handleMultiTouch(touches) {
+        if (!this.mobileTouch?.multiTouch || touches.length < 2) return null;
+
+        const t1 = this.mobileTouch.activeTouches.get(touches[0].identifier);
+        const t2 = this.mobileTouch.activeTouches.get(touches[1].identifier);
+
+        if (!t1 || !t2) return null;
+
+        // Calculate pinch scale
+        const currentDistance = Math.sqrt(
+            Math.pow(t2.currentX - t1.currentX, 2) +
+            Math.pow(t2.currentY - t1.currentY, 2)
+        );
+
+        const startDistance = Math.sqrt(
+            Math.pow(t2.startX - t1.startX, 2) +
+            Math.pow(t2.startY - t1.startY, 2)
+        );
+
+        const scale = currentDistance / startDistance;
+
+        // Calculate rotation
+        const currentAngle = Math.atan2(t2.currentY - t1.currentY, t2.currentX - t1.currentX);
+        const startAngle = Math.atan2(t2.startY - t1.startY, t2.startX - t1.startX);
+        const rotation = (currentAngle - startAngle) * 180 / Math.PI;
+
+        return {
+            type: 'multi-touch',
+            scale,
+            rotation,
+            center: {
+                x: (t1.currentX + t2.currentX) / 2,
+                y: (t1.currentY + t2.currentY) / 2
+            }
+        };
+    }
+
+    /**
+     * Register touch target.
+     * @param {string} targetId - Target identifier
+     * @param {Object} callbacks - Callback functions
+     */
+    registerTouchTarget(targetId, callbacks = {}) {
+        if (!this.mobileTouch) {
+            this.initMobileTouch();
+        }
+
+        this.mobileTouch.touchTargets.set(targetId, {
+            id: targetId,
+            callbacks: {
+                onTap: callbacks.onTap,
+                onSwipe: callbacks.onSwipe,
+                onPinch: callbacks.onPinch,
+                onRotate: callbacks.onRotate,
+                onLongPress: callbacks.onLongPress,
+                onDrag: callbacks.onDrag
+            }
+        });
+
+        console.log(`[Track ${this.id}] Touch target registered: ${targetId}`);
+    }
+
+    /**
+     * Get mobile touch settings.
+     */
+    getMobileTouchSettings() {
+        return this.mobileTouch || { enabled: false };
     }
 }
