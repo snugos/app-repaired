@@ -4,13 +4,23 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Graffiti** - Freehand drawing/memo overlay on audio clips
+1. **Track Mute Groups** - Create mute groups where only one track plays at a time
+2. **Audio Batch Export** - Export all tracks/stems in one operation
+3. **Pattern Morphing** - Smooth transition between two patterns
+4. **Clip Transpose Envelope** - Pitch automation on audio clips over time
+5. **Harmonic Editor** - Edit individual harmonics of sounds
+6. **Sample Slicer** - Auto-slice loops into individual hits
+7. **Beatbox Detection** - Convert beatboxing audio to drum MIDI
+8. **Vocal Harmony Generator** - Auto-generate harmony vocals from melody
+9. **BPM Detector** - Auto-detect tempo from audio files
+10. **Clip Stutter Effect** - Real-time stutter/repeat effect on clips
 
 ## Completed Features
 
 - **MIDI Chord Player** - On-screen piano that plays chords from single key press ✅ COMPLETED (2026-04-23)
 - **AI Mastering** - Apply AI-driven loudness normalization and EQ matching ✅ COMPLETED (2026-04-23)
 - **Mixdown Visualizer** - Real-time stereo field and correlation meter ✅ COMPLETED
+- **Clip Graffiti** - Freehand drawing and memo overlay on audio clips ✅ COMPLETED (2026-04-23)
 
 ## Workflow
 
