@@ -6474,3 +6474,175 @@ async function renderProjectStatisticsContent() {
 
     container.innerHTML = html;
 }
+// --- Track Color Gradient Panel ---
+
+export function openTrackColorGradientPanel(savedState = null) {
+    const windowId = 'trackColorGradient';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        updateTrackColorGradientPanel();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'trackColorGradientContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { width: 480, height: 550, minWidth: 400, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Track Color Gradient', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderTrackColorGradientContent(), 50);
+    }
+    return win;
+}
+
+function renderTrackColorGradientContent() {
+    const container = document.getElementById('trackColorGradientContent');
+    if (!container) return;
+
+    const tracks = (localAppServices.getTracksState) ? localAppServices.getTracksState() : [];
+    const gradientSettings = localAppServices.getTrackGradientSettings ? localAppServices.getTrackGradientSettings() : {};
+    const gradientPresets = localAppServices.getGradientPresets ? localAppServices.getGradientPresets() : [];
+
+    const gradientOptions = gradientPresets.map(p => 
+        `<option value="${p.id}">${p.name}</option>`
+    ).join('');
+
+    let html = `
+        <div class="space-y-4">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Apply gradient backgrounds to tracks for better visual organization.
+            </div>
+    `;
+
+    if (tracks.length === 0) {
+        html += `<div class="text-center text-gray-500 py-8">No tracks available. Create a track first.</div>`;
+    } else {
+        tracks.forEach(track => {
+            const currentGradient = gradientSettings[track.id] || { id: 'none', type: 'solid' };
+            const trackColor = track.color || '#3b82f6';
+            
+            html += `
+                <div class="bg-white dark:bg-slate-700 rounded-lg p-3 shadow">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-4 h-4 rounded" style="background-color: ${trackColor}"></div>
+                        <span class="font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">${track.name}</span>
+                        <span class="text-xs text-gray-500">ID: ${track.id}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Gradient Style</label>
+                            <select id="gradient-preset-${track.id}" class="w-full p-2 text-sm bg-gray-50 dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                                ${gradientOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Preview</label>
+                            <div id="gradient-preview-${track.id}" class="h-8 rounded border border-gray-200 dark:border-slate-500" style="background: ${trackColor}"></div>
+                        </div>
+                    </div>
+                    <div class="mt-2 flex justify-end">
+                        <button class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 clear-gradient-btn" data-track-id="${track.id}">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Track gradient settings are saved with project.
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Add event listeners
+    tracks.forEach(track => {
+        const selectEl = document.getElementById(`gradient-preset-${track.id}`);
+        if (selectEl) {
+            const currentPreset = gradientSettings[track.id] || { id: 'none' };
+            selectEl.value = currentPreset.id || 'none';
+            
+            selectEl.addEventListener('change', (e) => {
+                const presetId = e.target.value;
+                const preset = gradientPresets.find(p => p.id === presetId) || gradientPresets[0];
+                
+                if (localAppServices.setTrackGradientPreset) {
+                    localAppServices.setTrackGradientPreset(track.id, preset);
+                }
+                
+                if (localAppServices.applyGradientToTrackElement) {
+                    const trackEl = document.querySelector(`.timeline-track-lane[data-track-id="${track.id}"]`);
+                    if (trackEl) {
+                        localAppServices.applyGradientToTrackElement(track.id, track.color, trackEl);
+                    }
+                }
+                
+                updateGradientPreview(track.id, track.color, preset);
+            });
+        }
+        
+        const clearBtn = container.querySelector(`.clear-gradient-btn[data-track-id="${track.id}"]`);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (localAppServices.clearTrackGradient) {
+                    localAppServices.clearTrackGradient(track.id);
+                }
+                
+                const selectEl = document.getElementById(`gradient-preset-${track.id}`);
+                if (selectEl) selectEl.value = 'none';
+                
+                const trackEl = document.querySelector(`.timeline-track-lane[data-track-id="${track.id}"]`);
+                if (trackEl && localAppServices.applyGradientToTrackElement) {
+                    localAppServices.applyGradientToTrackElement(track.id, track.color, trackEl);
+                }
+                
+                updateGradientPreview(track.id, track.color, { id: 'none', type: 'solid' });
+            });
+        }
+    });
+}
+
+function updateGradientPreview(trackId, trackColor, preset) {
+    const previewEl = document.getElementById(`gradient-preview-${trackId}`);
+    if (!previewEl) return;
+    
+    const baseColor = trackColor || '#3b82f6';
+    
+    if (!preset || preset.type === 'solid') {
+        previewEl.style.background = baseColor;
+    } else if (preset.type === 'linear') {
+        const direction = preset.direction || 'to bottom';
+        previewEl.style.background = `linear-gradient(${direction}, ${baseColor}, ${adjustColorBrightness(baseColor, -20)})`;
+    } else if (preset.type === 'radial') {
+        previewEl.style.background = `radial-gradient(circle, ${baseColor}, ${adjustColorBrightness(baseColor, -30)})`;
+    }
+}
+
+function adjustColorBrightness(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+    const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+    const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+    return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1).padStart(6, '0')}`;
+}
+
+function updateTrackColorGradientPanel() {
+    const container = document.getElementById('trackColorGradientContent');
+    if (container) {
+        renderTrackColorGradientContent();
+    }
+}

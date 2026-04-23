@@ -1,91 +1,31 @@
-## Task: Snaw Feature Builder Agent
+## New Feature Queue (2026-04-23 21:45 UTC)
 
-You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
+When all queues are empty, implement these new features:
 
-## Current Feature Queue
-
-**NEW FEATURES (2026-04-23 20:10 UTC)**
-
-1. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
-2. **Track Stack** - Collapse/expand multi-track arrangements
-3. **Splice Detector** - Auto-detect and mark transient events in audio
-4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
-5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
-6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
-7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
-8. **One-Knob Master** - Single knob for "loudness maximization" chain
+1. **Auto-Spill** - Auto-duplicate clips to fill timeline regions ✅ COMPLETED
+2. **Track Stack** - Collapse/expand multi-track arrangements ✅ COMPLETED
+3. **Splice Detector** - Auto-detect and mark transient events in audio ✅ COMPLETED
+4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects ✅ COMPLETED
+5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody ✅ COMPLETED
+6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content ✅ COMPLETED
+7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat) ✅ COMPLETED
+8. **One-Knob Master** - Single knob for "loudness maximization" chain ✅ COMPLETED
 
 **Status: All browser-implementable features from previous queues are COMPLETE ✅**
 
-## Recently Completed
+---
 
-- **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback ✅ COMPLETED (2026-04-23)
-  - Created `js/RhythmCoach.js` with timing accuracy tracking
-  - Session statistics (accuracy, deviation, worst timing)
-  - Visual feedback with color-coded ratings
-  - Integration with MIDI input
+## New Feature Queue (2026-04-23 21:45 UTC)
 
-- **Ambience Maker** - Generate ambient drone layers from any audio input ✅ COMPLETED (2026-04-23)
-  - Created `js/AmbienceMaker.js` with granular synthesis engine
-  - Layered pitch-shifted textures with modulation
-  - Integrated into main.js exports
+When all queues are empty, implement these new features:
 
-## Workflow
-
-### Step 1: Pick Next Feature
-- Read this instruction to see which feature you're on
-- Work on features IN ORDER (1, then 2, then 3...)
-
-### Step 2: Implement Feature
-- Keep it SIMPLE and MINIMAL
-- Follow existing code patterns
-- Add necessary UI, state, and audio logic
-- Test locally before committing
-
-### Step 3: Commit & Push
-- Commit: `feat: [feature name]`
-- Push to `LWB-with-Bugs` branch
-- Wait ~60 seconds for GitHub Pages deploy
-
-### Step 4: Verify
-- Open https://snugos.github.io/snaw/ in browser
-- Test the new feature works
-- Check console for errors
-
-### Step 5: Update Queue
-After successfully implementing a feature:
-- Remove it from the queue
-- Renumber the remaining features
-- Update this instruction with new queue
-
-## When Queue is Empty
-
-Run this brainstorming process:
-
-```
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-
-Generate 10 NEW feature ideas that are:
-1. Achievable in a single session
-2. Complement existing features
-3. Enhance creative workflow
-
-Output as numbered list and update this instruction.
-```
-
-## Rules
-
-- ONE feature per run
-- NO bug fixing (that's the other agent's job)
-- If you can't complete a feature, skip it and move to next
-- Always commit working code
-- Keep features minimal and focused
-
-## Context Files
-- Repo: `/home/workspace/app-repaired`
-- Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
+1. **Frequency Masking** - Visual display showing frequency masking between tracks
+2. **Sample Chop Mode** - Quick slicer mode for chopping samples with markers
+3. **Envelope Follower** - Audio-driven envelope for effect modulation
+4. **Track Noise Gate** - Gate effect with frequency focus option
+5. **Stereo Width Meter** - Visual meter showing stereo width correlation
+6. **Clip Ripple Delete** - Delete clips with automatic gap close
+7. **MIDI Chord Splitter** - Split polyphonic MIDI into separate notes
+8. **Tempo Fades** - Apply crossfade curves to tempo changes
+9. **Phase Scope** - Real-time phase correlation display
+10. **Track Color Gradient** - Apply gradient colors to track backgrounds

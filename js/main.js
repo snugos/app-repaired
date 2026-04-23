@@ -9,6 +9,8 @@ import { openRhythmCoachPanel, initRhythmCoach } from './RhythmCoach.js';
 import { initTrackStack, openTrackStackPanel, getTrackStacks, setTrackStacksState } from './TrackStack.js';
 import { openAutoSpillPanel, initAutoSpill } from './AutoSpill.js';
 import { openSpliceDetectorPanel, initSpliceDetector } from './SpliceDetector.js';
+import { PhaseScope, openPhaseScopePanel } from './PhaseScope.js';
+import { getTrackGradientSettings, setTrackGradientSettings, getGradientPresets, getTrackGradientPreset, setTrackGradientPreset, clearTrackGradient, applyGradientToTrackElement, exportGradientData, importGradientData } from './TrackColorGradient.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -384,8 +386,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -404,7 +406,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -421,8 +423,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -645,6 +647,12 @@ import {
     // Project Statistics
     openProjectStatisticsPanel,
 
+    // Phase Scope
+    openPhaseScopePanel,
+
+    // Track Color Gradient
+    openTrackColorGradientPanel,
+
     // Rhythm Coach
     openRhythmCoachPanel,
     autoSpillSelectedClip,
@@ -831,6 +839,9 @@ async function initializeSnugOS() {
         if (typeof initializeAudioModule === 'function') initializeAudioModule(appServices); else console.error("initializeAudioModule is not a function");
         if (typeof initializeEventHandlersModule === 'function') initializeEventHandlersModule(appServices); else console.error("initializeEventHandlersModule is not a function");
         if (typeof initRhythmCoach === 'function') initRhythmCoach(appServices); else console.error("initRhythmCoach is not a function");
+
+        // Initialize Track Stack feature
+        if (typeof initTrackStack === 'function') initTrackStack(appServices); else console.error("initTrackStack is not a function");
 
         // Initialize Auto-Spill feature
         if (typeof initAutoSpill === 'function') initAutoSpill(appServices); else console.error("initAutoSpill is not a function");
