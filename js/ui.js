@@ -5612,3 +5612,320 @@ export function openPatternVariationsPanel(trackId, sequenceId) {
         panel.querySelector('#close-variations').onclick = () => panel.remove();
     });
 }
+
+/**
+ * Open Collaboration Panel - Real-time collaborative editing
+ */
+export function openCollaborationPanel() {
+    import('./CollaborationManager.js').then(module => {
+        const { CollaborationManager, CollaborationRole, collaborationManager } = module;
+        
+        // Create panel
+        const panel = document.createElement('div');
+        panel.id = 'collaboration-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10000;
+            min-width: 500px;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            color: #fff;
+        `;
+        
+        let sessionState = {
+            initialized: false,
+            session: null,
+            participants: [],
+            cursors: []
+        };
+        
+        function renderPanel() {
+            const isHost = sessionState.session?.ownerId === collaborationManager.localUser?.userId;
+            
+            panel.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="color: #fff; margin: 0;">Real-time Collaboration</h3>
+                    <button id="close-collab" style="background: none; border: none; color: #888; font-size: 20px; cursor: pointer;">&times;</button>
+                </div>
+                
+                ${!sessionState.initialized ? `
+                    <div style="margin-bottom: 20px;">
+                        <p style="color: #aaa; margin-bottom: 15px;">Collaborate with others in real-time. Share your project and edit together.</p>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="collab-username" placeholder="Your name" 
+                                style="flex: 1; padding: 10px; background: #2a2a3e; border: 1px solid #444; border-radius: 4px; color: #fff;">
+                        </div>
+                        <button id="init-collab" style="width: 100%; margin-top: 10px; padding: 12px; background: #4a9eff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                            Initialize Collaboration
+                        </button>
+                    </div>
+                ` : !sessionState.session ? `
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="session-name" placeholder="Session name" value="My DAW Session"
+                                style="flex: 1; padding: 10px; background: #2a2a3e; border: 1px solid #444; border-radius: 4px; color: #fff;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="create-session" style="flex: 1; padding: 12px; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                Create Session
+                            </button>
+                            <button id="join-session" style="flex: 1; padding: 12px; background: #FF9800; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                Join Session
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="join-form" style="display: none; margin-bottom: 20px; padding: 15px; background: #2a2a3e; border-radius: 4px;">
+                        <p style="color: #aaa; margin-bottom: 10px;">Paste invite code or URL:</p>
+                        <input type="text" id="invite-code" placeholder="Invite code or URL"
+                            style="width: 100%; padding: 10px; background: #1a1a2e; border: 1px solid #444; border-radius: 4px; color: #fff; margin-bottom: 10px;">
+                        <button id="confirm-join" style="width: 100%; padding: 10px; background: #FF9800; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+                            Join
+                        </button>
+                    </div>
+                ` : `
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2a2a3e; border-radius: 4px;">
+                            <span style="color: #4CAF50;">● Connected</span>
+                            <span style="color: #888;">Session: ${sessionState.session.name}</span>
+                        </div>
+                    </div>
+                    
+                    ${isHost ? `
+                        <div style="margin-bottom: 15px;">
+                            <p style="color: #aaa; margin-bottom: 8px;">Share this invite link:</p>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="invite-link" readonly 
+                                    style="flex: 1; padding: 8px; background: #1a1a2e; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 12px;"
+                                    value="${sessionState.inviteUrl || 'Generate invite...'}">
+                                <button id="copy-invite" style="padding: 8px 16px; background: #4a9eff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Copy</button>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <label style="color: #aaa; font-size: 12px;">
+                                    <select id="invite-role" style="margin-left: 5px; padding: 4px; background: #2a2a3e; border: 1px solid #444; color: #fff; border-radius: 4px;">
+                                        <option value="viewer">Viewer</option>
+                                        <option value="contributor">Contributor</option>
+                                        <option value="editor">Editor</option>
+                                    </select>
+                                    Default role for new participants
+                                </label>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div style="margin-bottom: 15px;">
+                        <h4 style="color: #fff; margin-bottom: 10px;">Participants (${sessionState.participants.length})</h4>
+                        <div id="participants-list" style="max-height: 150px; overflow-y: auto; background: #2a2a3e; border-radius: 4px; padding: 10px;">
+                            ${sessionState.participants.map(p => `
+                                <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #333;">
+                                    <div style="width: 12px; height: 12px; border-radius: 50%; background: ${p.userColor};"></div>
+                                    <span style="flex: 1; color: #fff;">${p.userName}</span>
+                                    <span style="color: #888; font-size: 11px; text-transform: uppercase;">${p.role}</span>
+                                    <span style="color: ${p.isOnline ? '#4CAF50' : '#888'}; font-size: 11px;">
+                                        ${p.isOnline ? '● Online' : '○ Offline'}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <h4 style="color: #fff; margin-bottom: 10px;">Activity</h4>
+                        <div id="activity-log" style="max-height: 100px; overflow-y: auto; background: #2a2a3e; border-radius: 4px; padding: 10px; font-size: 12px; color: #888;">
+                            <div>● Session created</div>
+                            ${sessionState.session?.stateVersion ? `<div>● State version: ${sessionState.session.stateVersion}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 12px;">
+                            <input type="checkbox" id="show-cursors" checked style="accent-color: #4a9eff;">
+                            Show collaborator cursors
+                        </label>
+                    </div>
+                `}
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    ${sessionState.session ? `
+                        <button id="leave-session" style="flex: 1; padding: 10px; background: #f44336; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+                            Leave Session
+                        </button>
+                    ` : ''}
+                    <button id="close-panel" style="${sessionState.session ? '' : 'flex: 1;'} padding: 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            // Add event listeners
+            const closeBtn = panel.querySelector('#close-collab');
+            if (closeBtn) closeBtn.onclick = () => panel.remove();
+            
+            const closePanel = panel.querySelector('#close-panel');
+            if (closePanel) closePanel.onclick = () => panel.remove();
+            
+            const initBtn = panel.querySelector('#init-collab');
+            if (initBtn) {
+                initBtn.onclick = async () => {
+                    const username = panel.querySelector('#collab-username').value || 'Anonymous';
+                    try {
+                        await collaborationManager.initialize(username);
+                        sessionState.initialized = true;
+                        renderPanel();
+                    } catch (e) {
+                        console.error('[Collaboration] Init failed:', e);
+                        alert('Failed to initialize collaboration: ' + e.message);
+                    }
+                };
+            }
+            
+            const createBtn = panel.querySelector('#create-session');
+            if (createBtn) {
+                createBtn.onclick = async () => {
+                    const sessionName = panel.querySelector('#session-name').value || 'My DAW Session';
+                    try {
+                        const session = await collaborationManager.createSession(sessionName, 'current-project');
+                        sessionState.session = session.toJSON();
+                        
+                        // Generate invite link
+                        const invite = collaborationManager.generateInviteLink(CollaborationRole.EDITOR);
+                        if (invite) {
+                            sessionState.inviteUrl = invite.url;
+                        }
+                        
+                        sessionState.participants = collaborationManager.getParticipants();
+                        renderPanel();
+                    } catch (e) {
+                        console.error('[Collaboration] Create session failed:', e);
+                        alert('Failed to create session: ' + e.message);
+                    }
+                };
+            }
+            
+            const joinBtn = panel.querySelector('#join-session');
+            if (joinBtn) {
+                joinBtn.onclick = () => {
+                    const joinForm = panel.querySelector('#join-form');
+                    if (joinForm) {
+                        joinForm.style.display = joinForm.style.display === 'none' ? 'block' : 'none';
+                    }
+                };
+            }
+            
+            const confirmJoin = panel.querySelector('#confirm-join');
+            if (confirmJoin) {
+                confirmJoin.onclick = async () => {
+                    const inviteCode = panel.querySelector('#invite-code').value;
+                    if (!inviteCode) {
+                        alert('Please enter an invite code');
+                        return;
+                    }
+                    
+                    try {
+                        const inviteData = CollaborationManager.parseInviteLink(inviteCode);
+                        if (inviteData) {
+                            await collaborationManager.joinSession(
+                                inviteData.sessionId,
+                                inviteData.hostPeerId,
+                                collaborationManager.localUser?.userName || 'Anonymous',
+                                inviteData.token
+                            );
+                            sessionState.session = collaborationManager.getSessionInfo();
+                            sessionState.participants = collaborationManager.getParticipants();
+                            renderPanel();
+                        } else {
+                            alert('Invalid invite code');
+                        }
+                    } catch (e) {
+                        console.error('[Collaboration] Join failed:', e);
+                        alert('Failed to join session: ' + e.message);
+                    }
+                };
+            }
+            
+            const copyBtn = panel.querySelector('#copy-invite');
+            if (copyBtn) {
+                copyBtn.onclick = () => {
+                    const inviteInput = panel.querySelector('#invite-link');
+                    if (inviteInput && inviteInput.value) {
+                        navigator.clipboard.writeText(inviteInput.value);
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+                    }
+                };
+            }
+            
+            const leaveBtn = panel.querySelector('#leave-session');
+            if (leaveBtn) {
+                leaveBtn.onclick = async () => {
+                    try {
+                        await collaborationManager.leaveSession();
+                        sessionState.session = null;
+                        sessionState.participants = [];
+                        sessionState.inviteUrl = null;
+                        renderPanel();
+                    } catch (e) {
+                        console.error('[Collaboration] Leave failed:', e);
+                    }
+                };
+            }
+            
+            // Set up callbacks for real-time updates
+            collaborationManager.onUserJoined = (user) => {
+                sessionState.participants = collaborationManager.getParticipants();
+                renderPanel();
+            };
+            
+            collaborationManager.onUserLeft = (userId) => {
+                sessionState.participants = collaborationManager.getParticipants();
+                renderPanel();
+            };
+            
+            collaborationManager.onCursorUpdated = (cursor) => {
+                // Update cursor display in timeline/piano roll
+                console.log('[Collaboration] Cursor update:', cursor.userName);
+            };
+        }
+        
+        renderPanel();
+        document.body.appendChild(panel);
+        
+    }).catch(err => {
+        console.error('[Collaboration] Failed to load module:', err);
+        
+        // Fallback - show basic info
+        const panel = document.createElement('div');
+        panel.id = 'collaboration-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10000;
+            min-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            color: #fff;
+        `;
+        panel.innerHTML = `
+            <h3 style="color: #fff; margin-bottom: 15px;">Real-time Collaboration</h3>
+            <p style="color: #aaa; margin-bottom: 15px;">Collaboration features require PeerJS. Include the PeerJS library to enable real-time collaboration.</p>
+            <p style="color: #888; font-size: 12px;">Add to your HTML:</p>
+            <code style="display: block; background: #2a2a3e; padding: 10px; border-radius: 4px; font-size: 11px; margin-bottom: 15px;">
+                &lt;script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"&gt;&lt;/script&gt;
+            </code>
+            <button onclick="this.parentElement.remove()" style="width: 100%; padding: 10px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+        `;
+        document.body.appendChild(panel);
+    });
+}
