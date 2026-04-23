@@ -4,22 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-**ALL FEATURES COMPLETE ✅** (2026-04-23 13:00 UTC)
-
-The following features have been verified and implemented:
-
-| Feature | Status |
-|---------|--------|
-| Reverb Pool | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Tempo Nudge | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Track Mirror | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Audio Tap Tempo | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Clip Governor | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Signal Flow Diagram | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| MIDI Input Filter | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Waveform Overlay | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| EQ Preset Library | ✅ COMPLETE (`js/FeatureAdditions.js`) |
-| Scale Highlight Mode | ✅ COMPLETE (`js/state.js`, `js/MIDIChordPlayer.js`) |
+1. **Audio Phase Meter** - Real-time phase correlation meter for mix balance (0 to +1, with correlation color bar)
+2. **Quick Stack Layouts** - Save and recall preset window arrangements
+3. **Track Export Preview** - Preview track in isolation without affecting main mix
+4. **Bookmark System** - Add named bookmarks on timeline for quick navigation
+5. **Batch Clip Renaming** - Bulk rename clips using pattern templates
+6. **Clip Opacity Control** - Adjust visual opacity of clips on timeline
+7. **Rhythm Trainer Mode** - Practice mode with timing scoring and tempo guidance
+8. **MIDI Latency Calibration** - Calibrate MIDI input timing
+9. **Auto Gain Staging** - Automatically set track gains based on signal level
+10. **Ghost Track** - Create a ghost/reference track that plays audio but isn't in main mix
 
 ## Workflow
 
