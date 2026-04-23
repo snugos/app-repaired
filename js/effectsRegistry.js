@@ -31,164 +31,229 @@ if (typeof Tone !== 'undefined') {
 // Multi-band Compressor - 3-band dynamics processor
 class MultibandCompressor extends Tone.Gain {
     constructor(initialParams = {}) {
-        super(initialParams.gain || 1);
-
-        // Split into 3 bands using EQ3
-        this._lowBand = new Tone.Filter({
-            type: 'lowpass',
-            frequency: initialParams.lowCrossover || 250,
-            rolloff: -48
-        });
-        this._midBand = new Tone.Filter({
-            type: 'bandpass',
-            frequency: initialParams.lowCrossover || 250,
-            highFrequency: initialParams.highCrossover || 4000,
-            rolloff: -48
-        });
-        this._highBand = new Tone.Filter({
-            type: 'highpass',
-            frequency: initialParams.highCrossover || 4000,
-            rolloff: -48
-        });
-
-        // Individual compressors per band
+        super(1.0);
+        
         this._lowComp = new Tone.Compressor({
-            threshold: initialParams.lowThreshold || -24,
-            ratio: initialParams.lowRatio || 4,
-            attack: initialParams.lowAttack || 0.003,
-            release: initialParams.lowRelease || 0.25
+            threshold: initialParams.lowThreshold !== undefined ? initialParams.lowThreshold : -24,
+            ratio: initialParams.lowRatio !== undefined ? initialParams.lowRatio : 4,
+            attack: 0.003,
+            release: 0.25
         });
         this._midComp = new Tone.Compressor({
-            threshold: initialParams.midThreshold || -24,
-            ratio: initialParams.midRatio || 4,
-            attack: initialParams.midAttack || 0.003,
-            release: initialParams.midRelease || 0.25
+            threshold: initialParams.midThreshold !== undefined ? initialParams.midThreshold : -24,
+            ratio: initialParams.midRatio !== undefined ? initialParams.midRatio : 4,
+            attack: 0.003,
+            release: 0.25
         });
         this._highComp = new Tone.Compressor({
-            threshold: initialParams.highThreshold || -24,
-            ratio: initialParams.highRatio || 4,
-            attack: initialParams.highAttack || 0.003,
-            release: initialParams.highRelease || 0.25
+            threshold: initialParams.highThreshold !== undefined ? initialParams.highThreshold : -24,
+            ratio: initialParams.highRatio !== undefined ? initialParams.highRatio : 4,
+            attack: 0.003,
+            release: 0.25
         });
-
-        // Make-up gain per band
-        this._lowGain = new Tone.Gain(initialParams.lowMakeup || 1);
-        this._midGain = new Tone.Gain(initialParams.midMakeup || 1);
-        this._highGain = new Tone.Gain(initialParams.highMakeup || 1);
-
-        // Dry/wet mix
-        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1);
-        this._dryGain = new Tone.Gain(1);
-
-        // Internal state for crossover params
-        this._lowCrossover = initialParams.lowCrossover || 250;
-        this._highCrossover = initialParams.highCrossover || 4000;
-
-        // Routing: input -> splits -> compressors -> makeup -> merge -> wet/dry
-        this._splitter = new Tone.Gain();
-
-        // Connect bands in parallel: input -> splitter -> 3 bands in parallel
-        this.connect(this._splitter);
-
-        // Low band chain
-        this._splitter.connect(this._lowBand);
-        this._lowBand.connect(this._lowComp);
+        
+        this._lowFilter = new Tone.Filter(initialParams.lowCrossover || 250, 'lowpass');
+        this._midFilter = new Tone.Filter(initialParams.lowCrossover || 250, 'bandpass');
+        this._midFilter.frequency.value = initialParams.midFrequency || 1000;
+        this._highFilter = new Tone.Filter(initialParams.highCrossover || 4000, 'highpass');
+        
+        this._lowGain = new Tone.Gain(initialParams.lowMakeup || 1.0);
+        this._midGain = new Tone.Gain(initialParams.midMakeup || 1.0);
+        this._highGain = new Tone.Gain(initialParams.highMakeup || 1.0);
+        
+        this._splitter = new Tone.Splitter(3);
+        
+        // Low band
+        this._splitter.connect(this._lowFilter, 0);
+        this._lowFilter.connect(this._lowComp);
         this._lowComp.connect(this._lowGain);
-
-        // Mid band chain
-        this._splitter.connect(this._midBand);
-        this._midBand.connect(this._midComp);
+        
+        // Mid band
+        this._splitter.connect(this._midFilter, 1);
+        this._midFilter.connect(this._midComp);
         this._midComp.connect(this._midGain);
-
-        // High band chain
-        this._splitter.connect(this._highBand);
-        this._highBand.connect(this._highComp);
+        
+        // High band
+        this._splitter.connect(this._highFilter, 2);
+        this._highFilter.connect(this._highComp);
         this._highComp.connect(this._highGain);
-
-        // Merge via summer gain nodes
-        this._lowGain.connect(this._wetGain);
-        this._midGain.connect(this._wetGain);
-        this._highGain.connect(this._wetGain);
-
-        // Dry path
-        this.connect(this._dryGain);
-        this._dryGain.connect(this._wetGain);
-
-        // Final output
-        this._wetGain.connect(Tone.context.destination);
+        
+        this._merger = new Tone.Merger();
+        this._lowGain.connect(this._merger, 0, 0);
+        this._midGain.connect(this._merger, 0, 1);
+        this._highGain.connect(this._merger, 0, 2);
+        
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(1.0);
+        this._merger.connect(this._wetGain);
+        this._merger.connect(this._dryGain);
+        
+        this._splitter.connect(this);
     }
-
-    getLowCrossover() { return this._lowCrossover; }
-    getHighCrossover() { return this._highCrossover; }
-
+    
+    static getMetronomeAudioLabel() { return 'Multiband Compressor'; }
+    
     setLowCrossover(freq) {
-        this._lowCrossover = freq;
-        this._lowBand.frequency.value = freq;
-        this._midBand.frequency.value = freq;
+        this._lowFilter.frequency.value = freq;
+        this._midFilter.frequency.value = freq * 4;
     }
-
+    
     setHighCrossover(freq) {
-        this._highCrossover = freq;
-        this._midBand.highFrequency.value = freq;
-        this._highBand.frequency.value = freq;
+        this._highFilter.frequency.value = freq;
     }
-
-    setLowThreshold(db) { this._lowComp.threshold.value = db; }
-    setLowRatio(r) { this._lowComp.ratio.value = r; }
-    setLowAttack(s) { this._lowComp.attack.value = s; }
-    setLowRelease(s) { this._lowComp.release.value = s; }
-    setLowMakeup(g) { this._lowGain.gain.value = g; }
-
-    setMidThreshold(db) { this._midComp.threshold.value = db; }
-    setMidRatio(r) { this._midComp.ratio.value = r; }
-    setMidAttack(s) { this._midComp.attack.value = s; }
-    setMidRelease(s) { this._midComp.release.value = s; }
-    setMidMakeup(g) { this._midGain.gain.value = g; }
-
-    setHighThreshold(db) { this._highComp.threshold.value = db; }
-    setHighRatio(r) { this._highComp.ratio.value = r; }
-    setHighAttack(s) { this._highComp.attack.value = s; }
-    setHighRelease(s) { this._highComp.release.value = s; }
-    setHighMakeup(g) { this._highGain.gain.value = g; }
-
+    
     dispose() {
-        [this._lowBand, this._midBand, this._highBand,
-         this._lowComp, this._midComp, this._highComp,
-         this._lowGain, this._midGain, this._highGain,
-         this._wetGain, this._dryGain, this._splitter].forEach(n => {
-            if (n && !n.disposed) n.dispose();
-        });
+        this._lowComp.dispose();
+        this._midComp.dispose();
+        this._highComp.dispose();
+        this._lowFilter.dispose();
+        this._midFilter.dispose();
+        this._highFilter.dispose();
+        this._lowGain.dispose();
+        this._midGain.dispose();
+        this._highGain.dispose();
+        this._splitter.dispose();
+        this._merger.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
         super.dispose();
     }
 }
 
-if (typeof Tone !== 'undefined') {
-    Tone.MultibandCompressor = MultibandCompressor;
+Tone.MultibandCompressor = MultibandCompressor;
+
+// AI Mastering Effect - Auto-loudness normalization and tonal balance
+class AIMasteringEffect extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        // Analysis
+        this._analyser = new Tone.Analyser('fft', 256);
+        
+        // EQ3 for tonal balance
+        this._eq = new Tone.EQ3({
+            low: initialParams.eqLow !== undefined ? initialParams.eqLow : 0,
+            lowFrequency: initialParams.eqLowFreq || 200,
+            mid: initialParams.eqMid !== undefined ? initialParams.eqMid : 0,
+            high: initialParams.eqHigh !== undefined ? initialParams.eqHigh : 0,
+            highFrequency: initialParams.eqHighFreq || 3000
+        });
+        
+        // Dynamics compressor
+        this._compressor = new Tone.Compressor({
+            threshold: initialParams.threshold || -20,
+            ratio: initialParams.ratio || 3,
+            attack: 0.003,
+            release: 0.2,
+            knee: 10
+        });
+        
+        // Input gain for auto-level
+        this._inputGain = new Tone.Gain(initialParams.inputGain || 1.0);
+        
+        // Wet/dry
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(1.0);
+        
+        // State
+        this._targetLUFS = initialParams.targetLUFS || -14;
+        this._lastGain = 1.0;
+        this._analyzeCount = 0;
+        this._isAnalyzing = false;
+        this._enabled = true;
+        
+        // Chain: input -> inputGain -> eq -> compressor -> wet path
+        this._inputGain.connect(this._eq);
+        this._eq.connect(this._compressor);
+        this._compressor.connect(this._wetGain);
+        
+        // Also connect to dry path
+        this._inputGain.connect(this._dryGain);
+        
+        this.connect(this._wetGain);
+    }
+    
+    static getMetronomeAudioLabel() { return 'AI Mastering'; }
+    
+    start() {
+        this._analyser.initialize();
+        this._isAnalyzing = true;
+        return super.start();
+    }
+    
+    stop() {
+        this._isAnalyzing = false;
+        return super.stop();
+    }
+    
+    setEnabled(enabled) {
+        this._enabled = enabled;
+        if (enabled) {
+            this._wetGain.gain.value = 1.0;
+            this._dryGain.gain.value = 0.0;
+        } else {
+            this._wetGain.gain.value = 0.0;
+            this._dryGain.gain.value = 1.0;
+        }
+    }
+    
+    setTargetLUFS(lufs) {
+        this._targetLUFS = Math.max(-30, Math.min(-6, lufs));
+    }
+    
+    getTargetLUFS() {
+        return this._targetLUFS;
+    }
+    
+    // Analyze spectrum and auto-adjust
+    _analyzeSpectrum() {
+        if (!this._isAnalyzing || !this._enabled) return;
+        
+        const values = this._analyser.getValue();
+        if (!values || values.length === 0) return;
+        
+        // RMS level
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+            const db = values[i];
+            const linear = Math.pow(10, db / 20);
+            sum += linear * linear;
+        }
+        const rms = Math.sqrt(sum / values.length);
+        const dbLevel = 20 * Math.log10(Math.max(rms, 0.0001));
+        
+        // Auto-gain adjustment every 10 frames
+        this._analyzeCount++;
+        if (this._analyzeCount % 10 === 0) {
+            const targetLinear = Math.pow(10, this._targetLUFS / 20);
+            const currentLinear = Math.pow(10, dbLevel / 20);
+            
+            if (currentLinear > 0.0001) {
+                let neededGain = targetLinear / currentLinear;
+                neededGain = Math.min(Math.max(neededGain, 0.1), 10);
+                
+                // Smooth transition
+                this._lastGain = this._lastGain * 0.95 + neededGain * 0.05;
+                this._inputGain.gain.value = this._lastGain;
+            }
+        }
+    }
+    
+    dispose() {
+        this._analyser.dispose();
+        this._eq.dispose();
+        this._compressor.dispose();
+        this._inputGain.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        super.dispose();
+    }
 }
 
-export const synthEngineControlDefinitions = {
-    MonoSynth: [
-        { idPrefix: 'portamento', label: 'Porta', type: 'knob', min: 0, max: 0.2, step: 0.001, defaultValue: 0.01, decimals: 3, path: 'portamento' },
-        { idPrefix: 'oscType', label: 'Osc Type', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'pwm'], defaultValue: 'sine', path: 'oscillator.type' }, // MODIFIED
-        { idPrefix: 'envAttack', label: 'Attack', type: 'knob', min: 0.001, max: 2, step: 0.001, defaultValue: 0.005, decimals: 3, path: 'envelope.attack' },
-        { idPrefix: 'envDecay', label: 'Decay', type: 'knob', min: 0.01, max: 2, step: 0.01, defaultValue: 2, decimals: 2, path: 'envelope.decay' }, // MODIFIED
-        { idPrefix: 'envSustain', label: 'Sustain', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, path: 'envelope.sustain' }, // MODIFIED
-        { idPrefix: 'envRelease', label: 'Release', type: 'knob', min: 0.01, max: 5, step: 0.01, defaultValue: 1, decimals: 2, path: 'envelope.release' },
-        { idPrefix: 'filtType', label: 'Filt Type', type: 'select', options: ['lowpass', 'highpass', 'bandpass', 'lowshelf', 'highshelf', 'notch', 'allpass', 'peaking'], defaultValue: 'lowpass', path: 'filter.type' },
-        { idPrefix: 'filtFreq', label: 'Filt Freq', type: 'knob', min: 20, max: 20000, step: 1, defaultValue: 1000, decimals: 0, path: 'filter.frequency.value' },
-        { idPrefix: 'filtQ', label: 'Filt Q', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 1, decimals: 1, path: 'filter.Q.value' },
-        { idPrefix: 'filtEnvAttack', label: 'F.Atk', type: 'knob', min:0.001, max:2, step:0.001, defaultValue:0.06, decimals:3, path:'filterEnvelope.attack'},
-        { idPrefix: 'filtEnvDecay', label: 'F.Dec', type: 'knob', min:0.01, max:2, step:0.01, defaultValue:0.2, decimals:2, path:'filterEnvelope.decay'},
-        { idPrefix: 'filtEnvSustain', label: 'F.Sus', type: 'knob', min:0, max:1, step:0.01, defaultValue:0.5, decimals:2, path:'filterEnvelope.sustain'},
-        { idPrefix: 'filtEnvRelease', label: 'F.Rel', type: 'knob', min:0.01, max:5, step:0.01, defaultValue:2, decimals:2, path:'filterEnvelope.release'},
-        { idPrefix: 'filtEnvBaseFreq', label: 'F.Base', type: 'knob', min:20, max:5000, step:1, defaultValue:200, decimals:0, path:'filterEnvelope.baseFrequency'},
-        { idPrefix: 'filtEnvOctaves', label: 'F.Oct', type: 'knob', min:0, max:10, step:0.1, defaultValue:7, decimals:1, path:'filterEnvelope.octaves'},
-    ]
-    // Add other synth engine definitions here
-};
+Tone.AIMasteringEffect = AIMasteringEffect;
 
-// ScatterEffect - Effect for randomizing note timing, velocity, and presence
-export const ScatterEffectDefinition = {
+// ScatterEffect definition
+const ScatterEffectDefinition = {
     ScatterEffect: {
         displayName: 'Scatter',
         toneClass: 'ScatterEffect',
@@ -425,7 +490,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'low', label: 'Low Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
             { key: 'mid', label: 'Mid Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
             { key: 'high', label: 'High Gain', type: 'knob', min: -40, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: true },
-            { key: 'lowFrequency', label: 'Low Freq', type: 'knob', min: 20, max: 800, step: 10, defaultValue: 400, decimals: 0, displaySuffix: 'Hz', isSignal: true }, 
+            { key: 'lowFrequency', label: 'Low Freq', type: 'knob', min: 20, max: 800, step: 1, defaultValue: 400, decimals: 0, displaySuffix: 'Hz', isSignal: true }, 
             { key: 'highFrequency', label: 'High Freq', type: 'knob', min: 800, max: 18000, step: 100, defaultValue: 2500, decimals: 0, displaySuffix: 'Hz', isSignal: true }, 
         ]
     },
@@ -476,6 +541,19 @@ export const AVAILABLE_EFFECTS = {
             { key: 'highRatio', label: 'High Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
             { key: 'highMakeup', label: 'High Makeup', type: 'knob', min: 0, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    AIMastering: {
+        displayName: 'AI Mastering',
+        toneClass: 'AIMasteringEffect',
+        params: [
+            { key: 'targetLUFS', label: 'Target', type: 'knob', min: -30, max: -6, step: 1, defaultValue: -14, decimals: 0, displaySuffix: ' LUFS', isSignal: false },
+            { key: 'threshold', label: 'Thresh', type: 'knob', min: -40, max: 0, step: 1, defaultValue: -20, decimals: 0, displaySuffix: ' dB', isSignal: false },
+            { key: 'ratio', label: 'Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 3, decimals: 1, isSignal: false },
+            { key: 'eqLow', label: 'Low EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
+            { key: 'eqMid', label: 'Mid EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
+            { key: 'eqHigh', label: 'High EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
+            { key: 'inputGain', label: 'Input', type: 'knob', min: 0.1, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
         ]
     },
 };
