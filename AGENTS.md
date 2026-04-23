@@ -4,20 +4,26 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-**NEW FEATURES (2026-04-23 18:45 UTC)**
+**NEW FEATURES (2026-04-23 19:35 UTC)**
 
-1. **Ambience Maker** - Generate ambient drone layers from any audio input
-2. **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback
-3. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
-4. **Track Stack** - Collapse/expand multi-track arrangements
-5. **Splice Detector** - Auto-detect and mark transient events in audio
-6. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
-7. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
-8. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
-9. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
-10. **One-Knob Master** - Single knob for "loudness maximization" chain
+1. **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback
+2. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
+3. **Track Stack** - Collapse/expand multi-track arrangements
+4. **Splice Detector** - Auto-detect and mark transient events in audio
+5. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
+6. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
+7. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
+8. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
+9. **One-Knob Master** - Single knob for "loudness maximization" chain
 
 **Status: All browser-implementable features from previous queues are COMPLETE ✅**
+
+## Recently Completed
+
+- **Ambience Maker** - Generate ambient drone layers from any audio input ✅ COMPLETED (2026-04-23)
+  - Created `js/AmbienceMaker.js` with granular synthesis engine
+  - Layered pitch-shifted textures with modulation
+  - Integrated into main.js exports
 
 ## Workflow
 
