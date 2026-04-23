@@ -4487,3 +4487,261 @@ export function resetTapTempo() {
         tapTempoState.timeout = null;
     }
 }
+
+// ==========================================
+// MIDI CHORD PLAYER PANEL
+// ==========================================
+
+/**
+ * Opens the MIDI Chord Player panel for playing chords from single key presses.
+ */
+export function openMIDIChordPlayerPanel(savedState = null) {
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    const existingWin = openWindows.get('midiChordPlayer');
+    if (existingWin) {
+        localAppServices.focusWindow?.(existingWin);
+        return;
+    }
+    
+    const contentContainer = `<div id="midiChordPlayerContent" style="padding: 12px; color: #e5e5e5;"></div>`;
+    const options = { width: 500, height: 550, x: 300, y: 100 };
+    
+    const win = localAppServices.createWindow('midiChordPlayer', 'MIDI Chord Player', contentContainer, options);
+    
+    if (win) {
+        setTimeout(renderMIDIChordPlayerContent, 50);
+    }
+}
+
+/**
+ * Renders the MIDI Chord Player panel content.
+ */
+function renderMIDIChordPlayerContent() {
+    const container = document.getElementById('midiChordPlayerContent');
+    if (!container) return;
+    
+    const tracks = localAppServices.getTracks?.() || [];
+    const instrumentTracks = tracks.filter(t => t.type !== 'Audio');
+    const armedTrackId = localAppServices.getArmedTrackId?.();
+    
+    // Get current chord player settings
+    const settings = localAppServices.getMidiChordPlayerSettings?.() || {
+        chordType: 'major',
+        inversion: 0,
+        voicing: 'close',
+        octave: 4,
+        velocity: 0.8
+    };
+    
+    const trackOptions = instrumentTracks.map(t => 
+        `<option value="${t.id}" ${t.id === armedTrackId ? 'selected' : ''}>${t.name}</option>`
+    ).join('');
+    
+    const chordTypeOptions = [
+        'major', 'minor', 'diminished', 'augmented', 
+        'major7', 'minor7', 'dominant7', 'diminished7', 
+        'halfDiminished7', 'sus2', 'sus4', 'power'
+    ].map(c => 
+        `<option value="${c}" ${settings.chordType === c ? 'selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1).replace(/([A-Z])/g, ' $1').trim()}</option>`
+    ).join('');
+    
+    const inversionOptions = [-2, -1, 0, 1, 2, 3].map(i => 
+        `<option value="${i}" ${settings.inversion === i ? 'selected' : ''}>${i === 0 ? 'Root Position' : i > 0 ? `${i}${i === 1 ? 'st' : i === 2 ? 'nd' : i === 3 ? 'rd' : 'th'} Inversion` : `${Math.abs(i)} Bass Drop`}</option>`
+    ).join('');
+    
+    const voicingOptions = ['close', 'open', 'drop2', 'drop3'].map(v => 
+        `<option value="${v}" ${settings.voicing === v ? 'selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`
+    ).join('');
+    
+    // Piano keyboard HTML
+    const pianoKeys = generatePianoKeyboardHTML(settings.octave);
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: #aaa;">Target Track</h3>
+            <select id="chordPlayerTrackSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                ${trackOptions || '<option value="">No instrument tracks available</option>'}
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Chord Type</label>
+                <select id="chordTypeSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    ${chordTypeOptions}
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Octave</label>
+                <input type="range" id="chordOctaveSlider" min="1" max="7" value="${settings.octave}" style="width: 100%;"
+                    oninput="document.getElementById('chordOctaveVal').textContent = this.value">
+                <span id="chordOctaveVal" style="font-size: 12px; color: #888;">${settings.octave}</span>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Inversion</label>
+                <select id="chordInversionSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    ${inversionOptions}
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Voicing</label>
+                <select id="chordVoicingSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    ${voicingOptions}
+                </select>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: #aaa;">Velocity</label>
+            <input type="range" id="chordVelocitySlider" min="0.1" max="1" step="0.05" value="${settings.velocity}" style="width: 100%;"
+                oninput="document.getElementById('chordVelocityVal').textContent = Math.round(this.value * 127)">
+            <span id="chordVelocityVal" style="font-size: 12px; color: #888;">${Math.round(settings.velocity * 127)}</span>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: #aaa;">On-Screen Piano <span style="font-size: 11px; color: #666;">(Click a key to play chord)</span></h3>
+            <div id="pianoKeyboard" style="position: relative; height: 100px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+                ${pianoKeys}
+            </div>
+        </div>
+        
+        <div id="currentChordDisplay" style="padding: 12px; background: #222; border-radius: 4px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 24px; font-weight: bold; color: #4fc3f7;" id="currentChordName">-</div>
+            <div style="font-size: 12px; color: #888;" id="currentChordNotes">Click a piano key to play</div>
+        </div>
+        
+        <div style="display: flex; gap: 8px;">
+            <button id="chordPlayerStopBtn" class="px-3 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600">Stop All</button>
+            <button id="chordPlayerSettingsBtn" class="px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Save Settings</button>
+        </div>
+    `;
+    
+    // Attach event listeners
+    attachMIDIChordPlayerEventListeners(container);
+}
+
+/**
+ * Generates HTML for the on-screen piano keyboard.
+ */
+function generatePianoKeyboardHTML(octave) {
+    const whiteNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const blackNotes = ['C#', 'D#', null, 'F#', 'G#', 'A#', null];
+    
+    let html = '<div style="display: flex; height: 100%;">';
+    
+    // White keys
+    whiteNotes.forEach((note, i) => {
+        const fullNote = `${note}${octave}`;
+        html += `<div class="piano-white-key" data-note="${fullNote}" data-root="${note}"
+            style="flex: 1; background: linear-gradient(to bottom, #f5f5f5, #e0e0e0); border: 1px solid #333; cursor: pointer; position: relative;"
+            onmousedown="this.style.background='linear-gradient(to bottom, #4fc3f7, #29b6f6)'"
+            onmouseup="this.style.background='linear-gradient(to bottom, #f5f5f5, #e0e0e0)'"
+            onmouseleave="this.style.background='linear-gradient(to bottom, #f5f5f5, #e0e0e0)'">
+            <span style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #333;">${note}</span>
+        </div>`;
+    });
+    
+    html += '</div>';
+    
+    // Black keys overlay
+    html += '<div style="position: absolute; top: 0; left: 0; right: 0; height: 60%; display: flex; pointer-events: none;">';
+    let blackKeyPos = 0;
+    blackNotes.forEach((note, i) => {
+        if (note) {
+            const fullNote = `${note}${octave}`;
+            const leftPos = (blackKeyPos + 0.65) * (100 / 7);
+            html += `<div class="piano-black-key" data-note="${fullNote}" data-root="${note}"
+                style="width: ${100/14}%; position: absolute; left: ${leftPos}%; height: 100%; background: linear-gradient(to bottom, #333, #1a1a1a); border-radius: 0 0 4px 4px; cursor: pointer; pointer-events: auto;"
+                onmousedown="this.style.background='linear-gradient(to bottom, #4fc3f7, #29b6f6)'"
+                onmouseup="this.style.background='linear-gradient(to bottom, #333, #1a1a1a)'"
+                onmouseleave="this.style.background='linear-gradient(to bottom, #333, #1a1a1a)'">
+            </div>`;
+        }
+        blackKeyPos++;
+    });
+    html += '</div>';
+    
+    return html;
+}
+
+/**
+ * Attaches event listeners for the MIDI Chord Player panel.
+ */
+function attachMIDIChordPlayerEventListeners(container) {
+    // Piano key clicks
+    container.querySelectorAll('.piano-white-key, .piano-black-key').forEach(key => {
+        key.addEventListener('mousedown', (e) => {
+            const rootNote = e.target.dataset.root;
+            const octave = container.querySelector('#chordOctaveSlider')?.value || 4;
+            const chordType = container.querySelector('#chordTypeSelect')?.value || 'major';
+            const inversion = parseInt(container.querySelector('#chordInversionSelect')?.value || 0);
+            const voicing = container.querySelector('#chordVoicingSelect')?.value || 'close';
+            const velocity = parseFloat(container.querySelector('#chordVelocitySlider')?.value || 0.8);
+            const trackSelect = container.querySelector('#chordPlayerTrackSelect');
+            const trackId = trackSelect?.value ? parseInt(trackSelect.value) : null;
+            
+            if (!trackId) {
+                localAppServices.showNotification?.('Select an instrument track first', 2000);
+                return;
+            }
+            
+            // Play the chord
+            const chordResult = localAppServices.playMidiChord?.(trackId, rootNote, parseInt(octave), chordType, {
+                inversion,
+                voicing,
+                velocity
+            });
+            
+            if (chordResult) {
+                const nameDisplay = container.querySelector('#currentChordName');
+                const notesDisplay = container.querySelector('#currentChordNotes');
+                if (nameDisplay) nameDisplay.textContent = `${rootNote} ${chordType.charAt(0).toUpperCase() + chordType.slice(1)}`;
+                if (notesDisplay) notesDisplay.textContent = chordResult.notes.join(', ');
+            }
+        });
+        
+        key.addEventListener('mouseup', (e) => {
+            const trackSelect = container.querySelector('#chordPlayerTrackSelect');
+            const trackId = trackSelect?.value ? parseInt(trackSelect.value) : null;
+            if (trackId) {
+                localAppServices.stopMidiChord?.(trackId);
+            }
+        });
+    });
+    
+    // Stop button
+    const stopBtn = container.querySelector('#chordPlayerStopBtn');
+    stopBtn?.addEventListener('click', () => {
+        const trackSelect = container.querySelector('#chordPlayerTrackSelect');
+        const trackId = trackSelect?.value ? parseInt(trackSelect.value) : null;
+        if (trackId) {
+            localAppServices.stopMidiChord?.(trackId);
+        }
+        localAppServices.showNotification?.('All notes stopped', 1500);
+    });
+    
+    // Save settings button
+    const settingsBtn = container.querySelector('#chordPlayerSettingsBtn');
+    settingsBtn?.addEventListener('click', () => {
+        const settings = {
+            chordType: container.querySelector('#chordTypeSelect')?.value || 'major',
+            inversion: parseInt(container.querySelector('#chordInversionSelect')?.value || 0),
+            voicing: container.querySelector('#chordVoicingSelect')?.value || 'close',
+            octave: parseInt(container.querySelector('#chordOctaveSlider')?.value || 4),
+            velocity: parseFloat(container.querySelector('#chordVelocitySlider')?.value || 0.8)
+        };
+        localAppServices.setMidiChordPlayerSettings?.(settings);
+        localAppServices.showNotification?.('Chord player settings saved', 1500);
+    });
+}
+
+/**
+ * Updates the MIDI Chord Player panel.
+ */
+export function updateMIDIChordPlayerPanel() {
+    const container = document.getElementById('midiChordPlayerContent');
+    if (container) renderMIDIChordPlayerContent();
+}
