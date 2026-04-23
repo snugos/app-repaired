@@ -6383,3 +6383,94 @@ Implied chords: ${analysis.impliedChords.length > 0 ? analysis.impliedChords.map
     renderPanel();
     document.body.appendChild(panel);
 }
+
+// ===========================================
+// PROJECT STATISTICS PANEL
+// ===========================================
+
+/**
+ * Opens the Project Statistics panel showing detailed project stats.
+ */
+export function openProjectStatisticsPanel(savedState = null) {
+    const windowId = 'projectStatistics';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'projectStatsContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { width: 420, height: 500, minWidth: 350, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Project Statistics', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderProjectStatisticsContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the Project Statistics content.
+ */
+async function renderProjectStatisticsContent() {
+    const container = document.getElementById('projectStatsContent');
+    if (!container) return;
+
+    // Dynamic import to get calculateProjectStatistics
+    let calculateFn, formatFn;
+    try {
+        const module = await import('./FeatureAdditions.js');
+        calculateFn = module.calculateProjectStatistics;
+        formatFn = module.formatProjectStatistics;
+    } catch (e) {
+        container.innerHTML = '<div class="text-red-500 p-4">Error loading statistics module.</div>';
+        return;
+    }
+
+    if (!calculateFn || !formatFn) {
+        container.innerHTML = '<div class="text-red-500 p-4">Statistics functions not available.</div>';
+        return;
+    }
+
+    const tracks = (localAppServices.getTracksState) ? localAppServices.getTracksState() : [];
+    const playbackPosition = (typeof getPlaybackPosition === 'function') ? getPlaybackPosition() : 0;
+    const stats = calculateFn(tracks, playbackPosition);
+    const formatted = formatFn(stats);
+
+    const formatValue = (v) => {
+        if (typeof v === 'object' && v !== null) {
+            return Object.entries(v).map(([k, val]) => `<div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">${k}:</span><span class="font-medium">${val}</span></div>`).join('');
+        }
+        return `<span class="font-medium">${v}</span>`;
+    };
+
+    let html = `
+        <div class="space-y-4 text-sm">
+    `;
+
+    for (const [section, data] of Object.entries(formatted)) {
+        html += `
+            <div class="bg-white dark:bg-slate-700 rounded-lg p-3 shadow">
+                <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-2 border-b border-gray-200 dark:border-slate-600 pb-1">${section}</h3>
+                <div class="space-y-1">${formatValue(data)}</div>
+            </div>
+        `;
+    }
+
+    html += `
+        <div class="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+            Last updated: ${new Date(stats.lastCalculated).toLocaleTimeString()}
+        </div>
+    `;
+
+    container.innerHTML = html;
+}

@@ -633,6 +633,9 @@ import {
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
+
+    // Project Statistics
+    openProjectStatisticsPanel,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
