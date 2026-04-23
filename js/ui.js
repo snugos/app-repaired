@@ -4745,3 +4745,177 @@ export function updateMIDIChordPlayerPanel() {
     const container = document.getElementById('midiChordPlayerContent');
     if (container) renderMIDIChordPlayerContent();
 }
+
+// --- Mute Groups Panel ---
+
+/**
+ * Opens the Mute Groups panel for managing exclusive mute groups.
+ */
+export function openMuteGroupsPanel(savedState = null) {
+    const windowId = 'muteGroups';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'muteGroupsContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+
+    const options = { width: 500, height: 450, minWidth: 400, minHeight: 300, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Mute Groups', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderMuteGroupsContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the mute groups panel content.
+ */
+function renderMuteGroupsContent() {
+    const container = document.getElementById('muteGroupsContent');
+    if (!container) return;
+
+    const muteGroups = localAppServices.getMuteGroups ? localAppServices.getMuteGroups() : [];
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+
+    let groupsHtml = '';
+    if (muteGroups.length === 0) {
+        groupsHtml = '<div class="text-gray-500 text-sm text-center py-8">No mute groups created yet.</div>';
+    } else {
+        muteGroups.forEach(group => {
+            const groupTracks = group.trackIds.map(id => tracks.find(t => t.id === id)).filter(Boolean);
+            groupsHtml += `
+                <div class="bg-slate-800 rounded-lg p-3 mb-2 border border-slate-700" style="border-left: 4px solid ${group.color}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-white text-sm">${group.name}</span>
+                        <div class="flex gap-1">
+                            <button class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-gray-300 toggle-mute-group-btn" data-group-id="${group.id}" title="Cycle active track">↻</button>
+                            <button class="px-2 py-1 text-xs bg-red-600/20 hover:bg-red-600/40 rounded text-red-400 remove-mute-group-btn" data-group-id="${group.id}" title="Remove group">✕</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        ${groupTracks.map(track => `
+                            <button class="px-2 py-1 text-xs rounded transition-colors mute-group-track-btn ${track.id === group.activeTrackId ? 'bg-green-600 text-white' : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}" 
+                                data-group-id="${group.id}" data-track-id="${track.id}">
+                                ${track.name}
+                            </button>
+                        `).join('')}
+                        ${groupTracks.length === 0 ? '<span class="text-gray-500 text-xs">No tracks in group</span>' : ''}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-white font-medium text-sm">Mute Groups</h3>
+            <button id="createMuteGroupBtn" class="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-500 rounded text-white font-medium">
+                + New Group
+            </button>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Only one track in each group plays at a time. Click a track to activate it.</p>
+        
+        <div class="flex-1 overflow-y-auto mb-3">
+            ${groupsHtml}
+        </div>
+        
+        <div class="border-t border-slate-700 pt-3">
+            <div class="text-xs text-gray-500 mb-2">Add Track to Group:</div>
+            <div class="flex gap-2">
+                <select id="muteGroupSelect" class="flex-1 p-2 text-sm bg-slate-800 border border-slate-600 rounded text-white">
+                    <option value="">Select group...</option>
+                    ${muteGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
+                </select>
+                <select id="trackToAddSelect" class="flex-1 p-2 text-sm bg-slate-800 border border-slate-600 rounded text-white">
+                    <option value="">Select track...</option>
+                    ${tracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                </select>
+                <button id="addTrackToGroupBtn" class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 rounded text-white">Add</button>
+            </div>
+        </div>
+    `;
+
+    setupMuteGroupsEvents(container);
+}
+
+/**
+ * Sets up event handlers for the mute groups panel.
+ */
+function setupMuteGroupsEvents(container) {
+    // Create new group
+    const createBtn = container.querySelector('#createMuteGroupBtn');
+    createBtn?.addEventListener('click', () => {
+        const name = `Mute Group ${Date.now() % 1000}`;
+        if (localAppServices.createMuteGroup) {
+            localAppServices.createMuteGroup(name, [], '#ec4899');
+            renderMuteGroupsContent();
+        }
+    });
+
+    // Add track to group
+    const addBtn = container.querySelector('#addTrackToGroupBtn');
+    addBtn?.addEventListener('click', () => {
+        const groupSelect = container.querySelector('#muteGroupSelect');
+        const trackSelect = container.querySelector('#trackToAddSelect');
+        const groupId = parseInt(groupSelect?.value);
+        const trackId = parseInt(trackSelect?.value);
+        
+        if (groupId && trackId && localAppServices.addTrackToMuteGroup) {
+            localAppServices.addTrackToMuteGroup(groupId, trackId);
+            renderMuteGroupsContent();
+        }
+    });
+
+    // Track buttons - set active
+    container.querySelectorAll('.mute-group-track-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(btn.dataset.groupId);
+            const trackId = parseInt(btn.dataset.trackId);
+            if (groupId && trackId && localAppServices.setActiveTrackInMuteGroup) {
+                localAppServices.setActiveTrackInMuteGroup(groupId, trackId);
+                renderMuteGroupsContent();
+            }
+        });
+    });
+
+    // Toggle next in group
+    container.querySelectorAll('.toggle-mute-group-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(btn.dataset.groupId);
+            if (groupId && localAppServices.toggleNextInMuteGroup) {
+                localAppServices.toggleNextInMuteGroup(groupId);
+                renderMuteGroupsContent();
+            }
+        });
+    });
+
+    // Remove group
+    container.querySelectorAll('.remove-mute-group-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const groupId = parseInt(btn.dataset.groupId);
+            if (groupId && localAppServices.removeMuteGroup) {
+                localAppServices.removeMuteGroup(groupId);
+                renderMuteGroupsContent();
+            }
+        });
+    });
+}
+
+/**
+ * Updates the Mute Groups panel.
+ */
+export function updateMuteGroupsPanel() {
+    const container = document.getElementById('muteGroupsContent');
+    if (container) renderMuteGroupsContent();
+}
