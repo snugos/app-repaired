@@ -8824,3 +8824,60 @@ export function stopMidiChord(trackId) {
     activeNotes.clear();
     console.log(`[State stopMidiChord] Stopped chord on track ${trackId}`);
 }
+
+// ==========================================
+// TRACK MUTE GROUPS
+// ==========================================
+let muteGroups = [];
+let muteGroupIdCounter = 1;
+
+export function getMuteGroups() { return [...muteGroups]; }
+export function getMuteGroupById(groupId) { return muteGroups.find(g => g.id === groupId) || null; }
+export function addMuteGroup(name = 'Mute Group', trackIds = []) {
+    const group = { id: muteGroupIdCounter++, name, trackIds: [...trackIds], exclusive: true };
+    muteGroups.push(group);
+    return group;
+}
+export function removeMuteGroup(groupId) {
+    const idx = muteGroups.findIndex(g => g.id === groupId);
+    if (idx !== -1) muteGroups.splice(idx, 1);
+    return idx !== -1;
+}
+export function updateMuteGroup(groupId, updates) {
+    const group = muteGroups.find(g => g.id === groupId);
+    if (!group) return false;
+    if (updates.name !== undefined) group.name = updates.name;
+    if (updates.trackIds !== undefined) group.trackIds = [...updates.trackIds];
+    if (updates.exclusive !== undefined) group.exclusive = updates.exclusive;
+    return true;
+}
+export function addTrackToMuteGroup(groupId, trackId) {
+    const group = muteGroups.find(g => g.id === groupId);
+    if (!group || group.trackIds.includes(trackId)) return false;
+    group.trackIds.push(trackId);
+    return true;
+}
+export function removeTrackFromMuteGroup(groupId, trackId) {
+    const group = muteGroups.find(g => g.id === groupId);
+    if (!group) return false;
+    const idx = group.trackIds.indexOf(trackId);
+    if (idx !== -1) group.trackIds.splice(idx, 1);
+    return idx !== -1;
+}
+export function getMuteGroupForTrack(trackId) { return muteGroups.find(g => g.trackIds.includes(trackId)) || null; }
+export function handleMuteGroupExclusiveUnmute(trackId) {
+    const group = getMuteGroupForTrack(trackId);
+    if (!group || !group.exclusive) return;
+    const tracks = getTracksState();
+    group.trackIds.forEach(tid => {
+        if (tid !== trackId) {
+            const track = tracks.find(t => t.id === tid);
+            if (track && !track.isMuted) {
+                track.isMuted = true;
+                track.applyMuteState();
+                if (appServices.updateTrackUI) appServices.updateTrackUI(tid, 'muteChanged');
+            }
+        }
+    });
+}
+export function clearAllMuteGroups() { muteGroups = []; muteGroupIdCounter = 1; }

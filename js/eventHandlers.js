@@ -220,6 +220,10 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openTrackGroupsPanel?.();
                 } catch(e) { console.error('[Menu] Track Groups error:', e); }
             },
+            menuMuteGroups: () => {
+                console.log("[Menu] Mute Groups clicked");
+                try { services.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }
+            },
             menuScaleHint: () => {
                 console.log('[Menu] Scale Hint Overlay clicked');
                 try {
