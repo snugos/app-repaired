@@ -5317,3 +5317,254 @@ function applyEQToInstance(eqInstance, preset) {
         console.error('[EQPresetLibrary] Error applying EQ preset:', e);
     }
 }
+/**
+ * Sample Library Browser Panel
+ * Opens a panel to browse and preview samples from the built-in library.
+ */
+export function openSampleLibraryBrowserPanel(savedState = null) {
+    const windowId = 'sampleLibraryBrowser';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'sampleLibraryContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { width: 750, height: 550, minWidth: 500, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Sample Library', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderSampleLibraryContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the Sample Library Browser content.
+ */
+function renderSampleLibraryContent() {
+    // Dynamically import SampleLibraryBrowser module
+    import('./SampleLibraryBrowser.js').then(module => {
+        const { getSampleCategories, getSamplesByCategory, searchSamples, getFavoriteSamples, toggleSampleFavorite, previewSample, stopSamplePreview, loadSampleToTrack } = module;
+        
+        const container = document.getElementById('sampleLibraryContent');
+        if (!container) return;
+        
+        let currentCategory = 'drums';
+        let searchQuery = '';
+        let showFavorites = false;
+        
+        function renderSampleList() {
+            let samples;
+            
+            if (showFavorites) {
+                samples = getFavoriteSamples();
+            } else if (searchQuery) {
+                samples = searchSamples(searchQuery);
+            } else {
+                samples = getSamplesByCategory(currentCategory);
+            }
+            
+            let listHtml = '';
+            
+            if (samples.length === 0) {
+                listHtml = `
+                    <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                        <p class="text-lg">No samples found</p>
+                        <p class="text-sm mt-2">Try a different search or category</p>
+                    </div>
+                `;
+            } else {
+                listHtml = `<div class="grid grid-cols-3 gap-2">`;
+                samples.forEach(sample => {
+                    listHtml += `
+                        <div class="sample-item bg-white dark:bg-slate-700 rounded-lg p-3 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600 transition-colors group border border-gray-200 dark:border-slate-600" data-sample-id="${sample.id}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm text-gray-800 dark:text-gray-200 truncate">${sample.name}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${sample.categoryName || 'Custom'}</p>
+                                    <div class="flex flex-wrap gap-1 mt-2">
+                                        ${sample.tags.slice(0, 2).map(tag => `
+                                            <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-600 rounded text-xs text-gray-600 dark:text-gray-300">${tag}</span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <button class="favorite-btn p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-500 ${sample.isFavorite ? 'text-yellow-500' : 'text-gray-400'}" data-sample-id="${sample.id}">
+                                    <svg class="w-4 h-4" fill="${sample.isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="preview-btn flex-1 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600" data-sample-url="${sample.url}" data-sample-name="${sample.name}">Preview</button>
+                                <button class="load-btn flex-1 px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600" data-sample-id="${sample.id}" data-sample-url="${sample.url}" data-sample-name="${sample.name}">Load</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                listHtml += '</div>';
+            }
+            
+            // Update the list container
+            const listContainer = container.querySelector('#sampleListContainer');
+            if (listContainer) {
+                listContainer.innerHTML = listHtml;
+                attachSampleEventListeners();
+            }
+        }
+        
+        function attachSampleEventListeners() {
+            // Preview buttons
+            container.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const url = btn.dataset.sampleUrl;
+                    const name = btn.dataset.sampleName;
+                    
+                    btn.textContent = 'Loading...';
+                    btn.disabled = true;
+                    
+                    const audioContext = localAppServices.audioContext || (typeof Tone !== 'undefined' ? Tone.context : null);
+                    const success = await previewSample({ url, name }, audioContext);
+                    
+                    btn.textContent = success ? 'Playing...' : 'Failed';
+                    setTimeout(() => {
+                        btn.textContent = 'Preview';
+                        btn.disabled = false;
+                    }, 3000);
+                });
+            });
+            
+            // Load buttons
+            container.querySelectorAll('.load-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const url = btn.dataset.sampleUrl;
+                    const name = btn.dataset.sampleName;
+                    
+                    const selectedTrack = localAppServices.getSelectedTrack ? localAppServices.getSelectedTrack() : null;
+                    if (!selectedTrack) {
+                        if (localAppServices.showNotification) {
+                            localAppServices.showNotification('Please select a sampler track first', 3000);
+                        }
+                        return;
+                    }
+                    
+                    btn.textContent = 'Loading...';
+                    btn.disabled = true;
+                    
+                    const success = await loadSampleToTrack({ url, name }, selectedTrack.id, 0, localAppServices);
+                    
+                    btn.textContent = success ? 'Loaded!' : 'Failed';
+                    setTimeout(() => {
+                        btn.textContent = 'Load';
+                        btn.disabled = false;
+                    }, 2000);
+                });
+            });
+            
+            // Favorite buttons
+            container.querySelectorAll('.favorite-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sampleId = btn.dataset.sampleId;
+                    const isFav = toggleSampleFavorite(sampleId);
+                    
+                    const svg = btn.querySelector('svg');
+                    svg.setAttribute('fill', isFav ? 'currentColor' : 'none');
+                    btn.className = `favorite-btn p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-500 ${isFav ? 'text-yellow-500' : 'text-gray-400'}`;
+                });
+            });
+        }
+        
+        const categories = getSampleCategories();
+        
+        container.innerHTML = `
+            <div class="mb-3">
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="sampleSearchInput" placeholder="Search samples..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200">
+                    <button id="showFavoritesBtn" class="px-3 py-2 bg-white dark:bg-slate-700 rounded text-sm hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200">
+                        ⭐ Favorites
+                    </button>
+                </div>
+                
+                <div class="flex gap-2 overflow-x-auto pb-2" id="categoryTabsContainer">
+                    ${categories.map(cat => `
+                        <button class="category-tab px-3 py-1.5 rounded text-sm whitespace-nowrap ${cat.id === currentCategory ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'}" data-category="${cat.id}">
+                            ${cat.icon} ${cat.name}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div id="sampleListContainer" class="flex-1 overflow-y-auto">
+                <!-- Samples will be rendered here -->
+            </div>
+            
+            <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Click Preview to listen, or select a sampler track and click Load to add to your project.
+            </div>
+        `;
+        
+        // Render initial samples
+        renderSampleList();
+        
+        // Search input
+        container.querySelector('#sampleSearchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            showFavorites = false;
+            container.querySelector('#showFavoritesBtn').classList.remove('bg-yellow-100', 'dark:bg-yellow-900');
+            renderSampleList();
+        });
+        
+        // Favorites toggle
+        container.querySelector('#showFavoritesBtn').addEventListener('click', () => {
+            showFavorites = !showFavorites;
+            searchQuery = '';
+            container.querySelector('#sampleSearchInput').value = '';
+            
+            const btn = container.querySelector('#showFavoritesBtn');
+            if (showFavorites) {
+                btn.classList.add('bg-yellow-100', 'dark:bg-yellow-900');
+            } else {
+                btn.classList.remove('bg-yellow-100', 'dark:bg-yellow-900');
+            }
+            
+            renderSampleList();
+        });
+        
+        // Category tabs
+        container.querySelectorAll('.category-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                currentCategory = tab.dataset.category;
+                showFavorites = false;
+                searchQuery = '';
+                container.querySelector('#sampleSearchInput').value = '';
+                container.querySelector('#showFavoritesBtn').classList.remove('bg-yellow-100', 'dark:bg-yellow-900');
+                
+                // Update tab styles
+                container.querySelectorAll('.category-tab').forEach(t => {
+                    t.className = `category-tab px-3 py-1.5 rounded text-sm whitespace-nowrap ${t.dataset.category === currentCategory ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'}`;
+                });
+                
+                renderSampleList();
+            });
+        });
+        
+    }).catch(err => {
+        console.error('[SampleLibrary] Failed to load module:', err);
+        const container = document.getElementById('sampleLibraryContent');
+        if (container) {
+            container.innerHTML = '<div class="text-red-500 p-4">Failed to load Sample Library.</div>';
+        }
+    });
+}
