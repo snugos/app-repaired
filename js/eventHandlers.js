@@ -35,7 +35,9 @@ import {
     setSelectedNotesVelocity, setSelectedNotesGate, humanizeSelectedNotes,
     copySelectedNotes, cutSelectedNotes, pasteNotes,
     moveSelectedClips, groupEditClips, copySelectedClips, cutSelectedClips, pasteClips,
-    getNotesClipboard, getClipsClipboard
+    getNotesClipboard, getClipsClipboard,
+    // Mute Groups
+    handleMuteGroupExclusiveUnmute
 } from './state.js';
 
 let localAppServices = {};
@@ -1260,6 +1262,12 @@ export function handleTrackMute(trackId) {
         captureStateForUndo(`Toggle Mute for ${track.name}`);
         track.isMuted = !track.isMuted;
         track.applyMuteState();
+        
+        // Handle mute group exclusive mode - unmute others in group when this track is unmuted
+        if (!track.isMuted) {
+            handleMuteGroupExclusiveUnmute(trackId);
+        }
+        
         if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(trackId, 'muteChanged');
     } catch (error) { console.error(`[EventHandlers handleTrackMute] Error for track ${trackId}:`, error); }
 }
@@ -1657,7 +1665,7 @@ export function handleMIDIDrop(event) {
 
             // Get the active sequence
             const activeSeq = targetTrack.getActiveSequence();
-            if (!activeSeq) {
+            if (!activeSeq || !activeSeq.data) {
                 if (localAppServices.showNotification) {
                     localAppServices.showNotification('Track has no sequence to import to.', 3000);
                 }

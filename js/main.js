@@ -15,6 +15,7 @@ import {
     handleRemoveTrack as eventHandleRemoveTrack,
     handleTrackArchive as eventHandleTrackArchive,
     handleTrackFreeze as eventHandleTrackFreeze,
+    handleDuplicateTrack as eventHandleDuplicateTrack,
     handleOpenTrackInspector as eventHandleOpenTrackInspector,
     handleOpenEffectsRack as eventHandleOpenEffectsRack,
     handleOpenSequencer as eventHandleOpenSequencer,
@@ -68,6 +69,7 @@ import {
     handleRemoveTrack: eventHandleRemoveTrack,
     handleTrackArchive: eventHandleTrackArchive,
     handleTrackFreeze: eventHandleTrackFreeze,
+    handleDuplicateTrack: eventHandleDuplicateTrack,
     handleOpenTrackInspector: eventHandleOpenTrackInspector,
     handleOpenEffectsRack: eventHandleOpenEffectsRack,
     handleOpenSequencer: eventHandleOpenSequencer,
@@ -377,7 +379,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingtDAW ? appServices.getIsReconstructingtDAW() : false;
             if (!isReconstructingt && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -397,7 +399,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingtDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingtDAW ? appServices.getIsReconstructingtDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
