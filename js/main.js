@@ -6,7 +6,7 @@ import * as Constants from './constants.js';
 import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
 import { AmbienceMaker, openAmbienceMakerPanel } from './AmbienceMaker.js';
 import { openRhythmCoachPanel, initRhythmCoach } from './RhythmCoach.js';
-// setupGenericDropZoneListeners is imported here but used via appServices by ui.js
+import { initTrackStack, openTrackStackPanel, getTrackStacks, setTrackStacksState } from './TrackStack.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -382,7 +382,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
