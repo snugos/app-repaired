@@ -4,6 +4,7 @@
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
+import { AmbienceMaker, openAmbienceMakerPanel } from './AmbienceMaker.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
@@ -417,7 +418,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructingt && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -580,6 +581,7 @@ import {
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
+    openAmbienceMakerPanel,
     openProjectTemplatesPanel,
     openMarkersPanel,
     openTempoAutomationPanel,
@@ -633,6 +635,9 @@ import {
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
+
+    // Ambience Maker
+    openAmbienceMakerPanel,
 
     // Project Statistics
     openProjectStatisticsPanel,

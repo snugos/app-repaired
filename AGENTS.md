@@ -4,39 +4,20 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-**ALL FEATURES COMPLETE ✅** (2026-04-23 12:25 UTC)
+**NEW FEATURES (2026-04-23 18:45 UTC)**
 
-The following features from the previous queue have been verified as implemented:
+1. **Ambience Maker** - Generate ambient drone layers from any audio input
+2. **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback
+3. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
+4. **Track Stack** - Collapse/expand multi-track arrangements
+5. **Splice Detector** - Auto-detect and mark transient events in audio
+6. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
+7. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
+8. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
+9. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
+10. **One-Knob Master** - Single knob for "loudness maximization" chain
 
-| Feature | Status |
-|---------|--------|
-| Track Lane Resize | ✅ EXISTS (`js/TrackLaneResize.js`) |
-| Snap-to-Grid Options | ✅ EXISTS (`js/Track.js`) |
-| Audio Spectrum Analyzer | ✅ EXISTS (`js/ui.js`) |
-| MIDI CC Keyboard Map | ✅ EXISTS (`js/ui.js`) |
-| Track Solo Groups | ✅ EXISTS (`js/state.js`) |
-| Audio Bitcrusher Effect | ✅ COMPLETED (2026-04-23) |
-| Clip Fade Curves | ✅ EXISTS (`js/Track.js`) |
-| Project Auto-save | ✅ EXISTS (`js/state.js`) |
-| Tempo Tap Calculator | ✅ EXISTS (`js/ui.js`) |
-| Keyboard Shortcut Customizer | ✅ EXISTS (`js/Track.js`, `js/ui.js`) |
-
-### Conclusion
-
-All browser-implementable features have been completed. The codebase is feature-complete with **126+ features** implemented.
-
-Features requiring native bridges (NOT IMPLEMENTABLE in browser):
-- VST3 Plugin Loading
-- AU Plugin Support
-- ReWire Support
-
-## Completed Features
-
-- **MIDI Chord Player** - On-screen piano that plays chords from single key press ✅ COMPLETED (2026-04-23)
-- **AI Mastering** - Apply AI-driven loudness normalization and EQ matching ✅ COMPLETED (2026-04-23)
-- **Mixdown Visualizer** - Real-time stereo field and correlation meter ✅ COMPLETED
-- **Clip Graffiti** - Freehand drawing and memo overlay on audio clips ✅ COMPLETED (2026-04-23)
-- **Audio Bitcrusher Effect** - Lo-fi bitcrush effect for distortion ✅ COMPLETED (2026-04-23)
+**Status: All browser-implementable features from previous queues are COMPLETE ✅**
 
 ## Workflow
 
@@ -97,42 +78,3 @@ Output as numbered list and update this instruction.
 ## Context Files
 - Repo: `/home/workspace/app-repaired`
 - Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
-
-## New Feature Queue (2026-04-23 17:55 UTC)
-
-**ALL FEATURES COMPLETE ✅**
-
-All features from the previous queues have been verified as implemented:
-
-| Feature | Status |
-|---------|--------|
-| Sample Library Browser | ✅ EXISTS (`js/SampleLibraryBrowser.js`) |
-| Pattern Variations System | ✅ EXISTS (`js/PatternVariations.js`) |
-| Clip Color Coding | ✅ EXISTS (`js/FeatureAdditions.js`) |
-| Track Notes | ✅ EXISTS (`js/FeatureAdditions.js`, `js/Track.js`) |
-| Project Statistics Panel | ✅ EXISTS (`js/FeatureAdditions.js`) |
-| Quick Actions Menu | ✅ EXISTS (`js/FeatureAdditions.js`) |
-| Visualization Modes | ✅ EXISTS (`js/FeatureAdditions.js`) |
-| Export Format Options | ✅ EXISTS (`js/ExportDialog.js`, `js/StemExporter.js`) |
-| Collaboration Invite | ✅ EXISTS (`js/FeatureAdditions.js`, `js/CollaborationManager.js`) |
-| Performance Mode | ✅ EXISTS (`js/FeatureAdditions.js`) |
-
-**Status: All browser-implementable features from all queues are COMPLETE ✅**
-
-Features requiring native bridges (NOT IMPLEMENTABLE in browser):
-- VST3 Plugin Loading
-- AU Plugin Support
-- ReWire Support
-
-## Session: 2026-04-23 17:35 UTC
-
-**Feature Completed:** Modular Routing
-- Created `js/ModularRouting.js` with full routing engine
-- Node types: Input, Output, Bus, Send, Return, Splitter, Merger, Meter
-- Routing presets: Default, Parallel Processing, Sidechain Setup, Multiband Split, Send/Return Chain, Monitor Chain
-- Undo/redo support for routing changes
-- Save custom routing presets
-- Visual routing panel UI
-- Integrated with Start Menu
-
-**Total Features: 147+**
