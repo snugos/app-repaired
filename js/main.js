@@ -8,6 +8,7 @@ import { AmbienceMaker, openAmbienceMakerPanel } from './AmbienceMaker.js';
 import { openRhythmCoachPanel, initRhythmCoach } from './RhythmCoach.js';
 import { initTrackStack, openTrackStackPanel, getTrackStacks, setTrackStacksState } from './TrackStack.js';
 import { openAutoSpillPanel, initAutoSpill } from './AutoSpill.js';
+import { openSpliceDetectorPanel, initSpliceDetector } from './SpliceDetector.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -403,7 +404,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -420,7 +421,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -648,7 +649,9 @@ import {
     openRhythmCoachPanel,
     autoSpillSelectedClip,
     openAutoSpillPanel,
-    initAutoSpill
+    initAutoSpill,
+    openSpliceDetectorPanel,
+    initSpliceDetector
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
@@ -831,6 +834,9 @@ async function initializeSnugOS() {
 
         // Initialize Auto-Spill feature
         if (typeof initAutoSpill === 'function') initAutoSpill(appServices); else console.error("initAutoSpill is not a function");
+
+        // Initialize Splice Detector feature
+        if (typeof initSpliceDetector === 'function') initSpliceDetector(appServices); else console.error("initSpliceDetector is not a function");
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
