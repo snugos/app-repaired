@@ -4,13 +4,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Scale Highlight Mode** - Highlight valid scale notes in piano roll
-2. **Clip Graffiti** - Freehand drawing/memo overlay on audio clips
-3. **Track Headroom Meter** - Per-track input headroom display for recording
-4. **Sample Browser Search** - Filter and search sound library by tags/keywords
-5. **Project Version History** - Save multiple named versions of a project
-6. **Timestretch Preview** - Preview audio at different speeds before applying
-7. **MIDI Velocity Curve** - Remap velocity response curve for MIDI input
+1. **Clip Graffiti** - Freehand drawing/memo overlay on audio clips
 
 ## Completed Features
 
