@@ -3,6 +3,7 @@
 // --- Module Imports ---
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
+import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
@@ -400,7 +401,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingtDAW ? appServices.getIsReconstructingtDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -528,8 +529,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -578,6 +579,7 @@ import {
     openUndoHistoryPanel,
     openMidiMappingsPanel,
     openExportPresetsPanel,
+    openAICompositionPanel,
     openProjectTemplatesPanel,
     openMarkersPanel,
     openTempoAutomationPanel,

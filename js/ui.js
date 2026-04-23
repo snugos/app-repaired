@@ -5929,3 +5929,457 @@ export function openCollaborationPanel() {
         document.body.appendChild(panel);
     });
 }
+
+/**
+ * Open AI Composition Panel - AI-powered melody and chord suggestions
+ */
+export function openAICompositionPanel(savedState = null) {
+    // Remove existing panel if open
+    const existing = document.getElementById('ai-composition-panel');
+    if (existing) existing.remove();
+    
+    const panel = document.createElement('div');
+    panel.id = 'ai-composition-panel';
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #1a1a2e;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 20px;
+        z-index: 10000;
+        min-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    let currentTrackId = null;
+    let generatedMelody = null;
+    let generatedBass = null;
+    let generatedChords = null;
+    
+    // Get appServices for DAW integration
+    const appServices = window.appServices || {};
+    const getCurrentTrack = appServices.getCurrentTrackId || (() => null);
+    const getTrack = appServices.getTrack || (() => null);
+    const showNotification = appServices.showNotification || console.log;
+    
+    const renderPanel = () => {
+        panel.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #fff; margin: 0;">🎵 AI Composition Engine</h3>
+                <button id="closeAICompositionPanel" style="background: transparent; border: none; color: #888; font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">Root Note</label>
+                    <select id="aiRootNote" style="width: 100%; padding: 8px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                        ${NOTE_NAMES.map((name, i) => 
+                            `<option value="${i}" ${i === 0 ? 'selected' : ''}>${name}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">Scale</label>
+                    <select id="aiScale" style="width: 100%; padding: 8px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                        <option value="major">Major</option>
+                        <option value="minor">Minor</option>
+                        <option value="harmonicMinor">Harmonic Minor</option>
+                        <option value="melodicMinor">Melodic Minor</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="phrygian">Phrygian</option>
+                        <option value="lydian">Lydian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                        <option value="pentatonicMajor">Pentatonic Major</option>
+                        <option value="pentatonicMinor">Pentatonic Minor</option>
+                        <option value="blues">Blues</option>
+                    </select>
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">Progression Style</label>
+                    <select id="aiProgressionStyle" style="width: 100%; padding: 8px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                        <option value="pop">Pop</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="blues">Blues</option>
+                        <option value="classical">Classical</option>
+                    </select>
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">Melodic Contour</label>
+                    <select id="aiContour" style="width: 100%; padding: 8px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                        <option value="balanced">Balanced</option>
+                        <option value="ascending">Ascending</option>
+                        <option value="descending">Descending</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">
+                        Octave Range: <span id="octaveRangeValue">2</span>
+                    </label>
+                    <input type="range" id="aiOctaveRange" min="1" max="4" value="2" style="width: 100%;">
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">
+                        Rhythm Density: <span id="rhythmDensityValue">50%</span>
+                    </label>
+                    <input type="range" id="aiRhythmDensity" min="10" max="100" value="50" style="width: 100%;">
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">
+                        Melody Length: <span id="melodyLengthValue">16</span> notes
+                    </label>
+                    <input type="range" id="aiMelodyLength" min="8" max="64" value="16" step="4" style="width: 100%;">
+                </div>
+                
+                <div style="background: #252538; padding: 15px; border-radius: 6px;">
+                    <label style="display: block; color: #888; margin-bottom: 5px; font-size: 12px;">
+                        Progression Length: <span id="progressionLengthValue">4</span> chords
+                    </label>
+                    <input type="range" id="aiProgressionLength" min="2" max="16" value="4" style="width: 100%;">
+                </div>
+            </div>
+            
+            <div style="background: #252538; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <label style="display: block; color: #888; margin-bottom: 10px; font-size: 12px;">Target Track</label>
+                <select id="aiTargetTrack" style="width: 100%; padding: 8px; background: #1a1a2e; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                    <option value="">-- Select Track --</option>
+                </select>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                <button id="generateMelody" style="padding: 12px; background: #4a9eff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    🎵 Generate Melody
+                </button>
+                <button id="generateBass" style="padding: 12px; background: #2a7fff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    🎸 Generate Bass
+                </button>
+                <button id="generateChords" style="padding: 12px; background: #1a5fcc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    🎹 Generate Chords
+                </button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;">
+                <button id="generateVariation" style="padding: 10px; background: #3a3a5a; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">
+                    Create Variation
+                </button>
+                <button id="analyzeHarmony" style="padding: 10px; background: #3a3a5a; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">
+                    Analyze Harmony
+                </button>
+                <button id="applyToTrack" style="padding: 10px; background: #28a745; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">
+                    Apply to Track
+                </button>
+                <button id="previewGenerated" style="padding: 10px; background: #3a3a5a; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">
+                    ▶ Preview
+                </button>
+            </div>
+            
+            <div id="aiOutput" style="background: #1a1a2e; border: 1px solid #444; border-radius: 4px; padding: 15px; min-height: 100px; max-height: 200px; overflow-y: auto;">
+                <p style="color: #888; margin: 0; text-align: center;">Generate content to see results here</p>
+            </div>
+            
+            <div id="aiSuggestions" style="margin-top: 15px; display: none;">
+                <h4 style="color: #888; font-size: 12px; margin-bottom: 10px;">Note Suggestions (click to preview)</h4>
+                <div id="suggestionButtons" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+            </div>
+        `;
+        
+        // Close button
+        panel.querySelector('#closeAICompositionPanel').onclick = () => panel.remove();
+        
+        // Range input handlers
+        panel.querySelector('#aiOctaveRange').oninput = (e) => {
+            panel.querySelector('#octaveRangeValue').textContent = e.target.value;
+        };
+        panel.querySelector('#aiRhythmDensity').oninput = (e) => {
+            panel.querySelector('#rhythmDensityValue').textContent = e.target.value + '%';
+        };
+        panel.querySelector('#aiMelodyLength').oninput = (e) => {
+            panel.querySelector('#melodyLengthValue').textContent = e.target.value;
+        };
+        panel.querySelector('#aiProgressionLength').oninput = (e) => {
+            panel.querySelector('#progressionLengthValue').textContent = e.target.value;
+        };
+        
+        // Populate track dropdown
+        const trackSelect = panel.querySelector('#aiTargetTrack');
+        if (appServices.getTracks) {
+            const tracks = appServices.getTracks();
+            tracks.forEach(track => {
+                const opt = document.createElement('option');
+                opt.value = track.id;
+                opt.textContent = `${track.name || 'Track'} (${track.id})`;
+                trackSelect.appendChild(opt);
+            });
+        }
+        
+        // Generate Melody button
+        panel.querySelector('#generateMelody').onclick = async () => {
+            try {
+                const { aiComposition } = await import('./AIComposition.js');
+                
+                const rootNote = parseInt(panel.querySelector('#aiRootNote').value) + 60;
+                const scale = panel.querySelector('#aiScale').value;
+                const contour = panel.querySelector('#aiContour').value;
+                const octaveRange = parseInt(panel.querySelector('#aiOctaveRange').value);
+                const rhythmDensity = parseInt(panel.querySelector('#aiRhythmDensity').value) / 100;
+                const length = parseInt(panel.querySelector('#aiMelodyLength').value);
+                
+                generatedMelody = aiComposition.generateMelody({
+                    rootNote,
+                    scaleType: scale,
+                    length,
+                    octaveRange,
+                    rhythmDensity,
+                    contour
+                });
+                
+                displayOutput('Melody Generated', generatedMelody.map(n => 
+                    n.note ? NOTE_NAMES[n.note % 12] + Math.floor(n.note / 12) : '—'
+                ).join(' '));
+                
+                showNotification('Melody generated! Click "Apply to Track" to use it.', 2000);
+            } catch (err) {
+                console.error('AI Composition error:', err);
+                showNotification('Error generating melody', 2000);
+            }
+        };
+        
+        // Generate Bass button
+        panel.querySelector('#generateBass').onclick = async () => {
+            try {
+                const { aiComposition } = await import('./AIComposition.js');
+                
+                const rootNote = parseInt(panel.querySelector('#aiRootNote').value) + 60;
+                const scale = panel.querySelector('#aiScale').value;
+                const style = panel.querySelector('#aiProgressionStyle').value;
+                const progLength = parseInt(panel.querySelector('#aiProgressionLength').value);
+                
+                // Generate progression first if not exists
+                if (!generatedChords) {
+                    generatedChords = aiComposition.generateChordProgression(rootNote, scale, style, progLength);
+                }
+                
+                generatedBass = aiComposition.generateBassLine(generatedChords, { style: 'walking' });
+                
+                displayOutput('Bass Line Generated', generatedBass.map(n => 
+                    n.note ? NOTE_NAMES[n.note % 12] + Math.floor(n.note / 12) : '—'
+                ).join(' '));
+                
+                showNotification('Bass line generated!', 2000);
+            } catch (err) {
+                console.error('AI Composition error:', err);
+                showNotification('Error generating bass line', 2000);
+            }
+        };
+        
+        // Generate Chords button
+        panel.querySelector('#generateChords').onclick = async () => {
+            try {
+                const { aiComposition } = await import('./AIComposition.js');
+                
+                const rootNote = parseInt(panel.querySelector('#aiRootNote').value) + 60;
+                const scale = panel.querySelector('#aiScale').value;
+                const style = panel.querySelector('#aiProgressionStyle').value;
+                const length = parseInt(panel.querySelector('#aiProgressionLength').value);
+                
+                generatedChords = aiComposition.generateChordProgression(rootNote, scale, style, length);
+                
+                const chordText = generatedChords.map(c => 
+                    `${NOTE_NAMES[c.root % 12]}${c.type === 'minor' ? 'm' : c.type === 'dim' ? '°' : ''}`
+                ).join(' → ');
+                
+                displayOutput('Chord Progression Generated', chordText);
+                
+                showNotification('Chord progression generated!', 2000);
+            } catch (err) {
+                console.error('AI Composition error:', err);
+                showNotification('Error generating chords', 2000);
+            }
+        };
+        
+        // Create Variation button
+        panel.querySelector('#generateVariation').onclick = async () => {
+            if (!generatedMelody) {
+                showNotification('Generate a melody first', 2000);
+                return;
+            }
+            
+            try {
+                const { aiComposition } = await import('./AIComposition.js');
+                
+                // Random variation options
+                const variations = {
+                    transpose: Math.random() < 0.3 ? (Math.random() < 0.5 ? 12 : -12) : 0,
+                    retrograde: Math.random() < 0.3,
+                    invert: Math.random() < 0.2,
+                    augment: Math.random() < 0.2,
+                    addOrnaments: Math.random() < 0.4
+                };
+                
+                const varied = aiComposition.applyVariations(generatedMelody, variations);
+                generatedMelody = varied;
+                
+                displayOutput('Variation Applied', varied.map(n => 
+                    n.note ? NOTE_NAMES[n.note % 12] + Math.floor(n.note / 12) : '—'
+                ).join(' '));
+                
+                showNotification('Variation created!', 2000);
+            } catch (err) {
+                console.error('Variation error:', err);
+                showNotification('Error creating variation', 2000);
+            }
+        };
+        
+        // Analyze Harmony button
+        panel.querySelector('#analyzeHarmony').onclick = async () => {
+            const trackId = trackSelect.value;
+            if (!trackId) {
+                showNotification('Select a track first', 2000);
+                return;
+            }
+            
+            try {
+                const { aiComposition } = await import('./AIComposition.js');
+                const track = getTrack ? getTrack(parseInt(trackId)) : null;
+                
+                if (!track || !track.sequences || track.sequences.length === 0) {
+                    showNotification('Track has no sequences to analyze', 2000);
+                    return;
+                }
+                
+                const seq = track.sequences[0];
+                const notes = seq.notes.map(n => n.note);
+                
+                const rootNote = parseInt(panel.querySelector('#aiRootNote').value) + 60;
+                const scale = panel.querySelector('#aiScale').value;
+                
+                const analysis = aiComposition.analyzeHarmony(notes, rootNote, scale);
+                
+                displayOutput('Harmonic Analysis', `
+Key: ${analysis.key} ${analysis.scale}
+Contour: ${analysis.contour}
+Scale tones: ${analysis.notesUsed.filter(n => n.isScaleTone).map(n => n.name).join(', ')}
+Non-scale notes: ${analysis.nonScaleNotes.length > 0 ? analysis.nonScaleNotes.map(n => n.name).join(', ') : 'None'}
+Implied chords: ${analysis.impliedChords.length > 0 ? analysis.impliedChords.map(c => NOTE_NAMES[c.root % 12] + c.type).join(', ') : 'None detected'}
+                `.trim());
+                
+            } catch (err) {
+                console.error('Analysis error:', err);
+                showNotification('Error analyzing harmony', 2000);
+            }
+        };
+        
+        // Apply to Track button
+        panel.querySelector('#applyToTrack').onclick = () => {
+            const trackId = trackSelect.value;
+            if (!trackId) {
+                showNotification('Select a target track first', 2000);
+                return;
+            }
+            
+            if (!generatedMelody && !generatedBass) {
+                showNotification('Generate content first', 2000);
+                return;
+            }
+            
+            const track = getTrack ? getTrack(parseInt(trackId)) : null;
+            if (!track) {
+                showNotification('Track not found', 2000);
+                return;
+            }
+            
+            try {
+                const content = generatedMelody || generatedBass;
+                const sequence = {
+                    id: Date.now(),
+                    notes: content.filter(n => n.note !== null).map((n, i) => ({
+                        note: n.note,
+                        start: i * 0.25, // 16th note timing
+                        duration: n.duration * 0.25,
+                        velocity: n.velocity
+                    }))
+                };
+                
+                // Add to track
+                if (track.addSequence) {
+                    track.addSequence(sequence);
+                } else if (track.sequences) {
+                    track.sequences.push(sequence);
+                }
+                
+                showNotification(`Applied ${content.length} notes to track!`, 2000);
+            } catch (err) {
+                console.error('Apply error:', err);
+                showNotification('Error applying to track', 2000);
+            }
+        };
+        
+        // Preview button
+        panel.querySelector('#previewGenerated').onclick = async () => {
+            if (!generatedMelody && !generatedBass) {
+                showNotification('Generate content first', 2000);
+                return;
+            }
+            
+            try {
+                const content = generatedMelody || generatedBass;
+                
+                // Play preview using Tone.js
+                if (typeof Tone !== 'undefined' && Tone.Transport) {
+                    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                    
+                    content.filter(n => n.note !== null).forEach((n, i) => {
+                        Tone.Transport.scheduleOnce((time) => {
+                            synth.triggerAttackRelease(n.note, n.duration * 0.25, time, n.velocity);
+                        }, i * 0.25);
+                    });
+                    
+                    Tone.Transport.start();
+                    
+                    // Stop after preview
+                    const totalDuration = content.length * 0.25 + 1;
+                    setTimeout(() => {
+                        Tone.Transport.stop();
+                        Tone.Transport.cancel();
+                        synth.dispose();
+                    }, totalDuration * 1000);
+                    
+                    showNotification('Previewing...', Math.floor(totalDuration * 1000));
+                } else {
+                    showNotification('Tone.js not available for preview', 2000);
+                }
+            } catch (err) {
+                console.error('Preview error:', err);
+                showNotification('Error during preview', 2000);
+            }
+        };
+    };
+    
+    const displayOutput = (title, content) => {
+        const output = panel.querySelector('#aiOutput');
+        output.innerHTML = `
+            <h4 style="color: #4a9eff; margin: 0 0 10px 0; font-size: 14px;">${title}</h4>
+            <p style="color: #fff; margin: 0; font-family: monospace; font-size: 13px; line-height: 1.6;">${content}</p>
+        `;
+    };
+    
+    renderPanel();
+    document.body.appendChild(panel);
+}

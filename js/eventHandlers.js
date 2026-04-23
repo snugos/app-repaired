@@ -210,6 +210,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openMIDIChordPlayerPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Chord Player error:', e); }
             },
+            menuAIComposition: () => {
+                console.log('[Menu] AI Composition Assistant clicked');
+                try {
+                    services.openAICompositionPanel?.();
+                } catch(e) { console.error('[Menu] AI Composition error:', e); }
+            },
             menuTempoAutomation: () => {
                 console.log('[Menu] Tempo Automation clicked');
                 try {
