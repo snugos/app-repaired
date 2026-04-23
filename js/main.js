@@ -382,7 +382,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -419,7 +419,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -645,6 +645,9 @@ import {
 
     // Rhythm Coach
     openRhythmCoachPanel,
+    autoSpillSelectedClip,
+    openAutoSpillPanel,
+    initAutoSpill
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
@@ -824,6 +827,9 @@ async function initializeSnugOS() {
         if (typeof initializeAudioModule === 'function') initializeAudioModule(appServices); else console.error("initializeAudioModule is not a function");
         if (typeof initializeEventHandlersModule === 'function') initializeEventHandlersModule(appServices); else console.error("initializeEventHandlersModule is not a function");
         if (typeof initRhythmCoach === 'function') initRhythmCoach(appServices); else console.error("initRhythmCoach is not a function");
+
+        // Initialize Auto-Spill feature
+        if (typeof initAutoSpill === 'function') initAutoSpill(appServices); else console.error("initAutoSpill is not a function");
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
