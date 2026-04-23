@@ -48,7 +48,13 @@ export class Track {
         // Each lyric entry: { id, time (seconds), text, duration (seconds) }
         this.lyrics = initialData?.lyrics ? JSON.parse(JSON.stringify(initialData.lyrics)) : [];
 
+
+        // --- Track Notes ---
+        // Free-form text notes for documentation and annotation
+        this.trackNotes = initialData?.trackNotes || '';
+
         // Track color for visual grouping
+
         this.color = initialData?.color || getRandomTrackColor();
 
         this.isMuted = initialData?.isMuted || false;

@@ -1984,6 +1984,7 @@ export function gatherProjectDataInternal() {
                 }
                 const trackData = { // Base data
                     id: track.id, type: track.type, name: track.name,
+                    trackNotes: track.trackNotes || '',
                     isMuted: track.isMuted,
                     volume: track.previousVolumeBeforeMute, // Store the actual volume, not the muted one
                     activeEffects: (track.activeEffects || []).map(effect => ({
@@ -4410,6 +4411,7 @@ export function gatherProjectDataInternal() {
                 }
                 const trackData = { // Base data
                     id: track.id, type: track.type, name: track.name,
+                    trackNotes: track.trackNotes || '',
                     isMuted: track.isMuted,
                     volume: track.previousVolumeBeforeMute, // Store the actual volume, not the muted one
                     activeEffects: (track.activeEffects || []).map(effect => ({
@@ -6835,6 +6837,7 @@ export function gatherProjectDataInternal() {
                 }
                 const trackData = { // Base data
                     id: track.id, type: track.type, name: track.name,
+                    trackNotes: track.trackNotes || '',
                     isMuted: track.isMuted,
                     volume: track.previousVolumeBeforeMute, // Store the actual volume, not the muted one
                     activeEffects: (track.activeEffects || []).map(effect => ({
