@@ -517,6 +517,39 @@ export class Track {
             case 'stretch':
                 this._transformStretch(newData, options.factor || 2);
                 break;
+            case 'euclidean':
+                this._transformEuclidean(newData, options);
+                break;
+            case 'ghost':
+                this._transformGhostNotes(newData, options);
+                break;
+            case 'flams':
+                this._transformFlams(newData, options);
+                break;
+            case 'rolls':
+                this._transformRolls(newData, options);
+                break;
+            case 'accent':
+                this._transformAccent(newData, options);
+                break;
+            case 'velocityRamp':
+                this._transformVelocityRamp(newData, options);
+                break;
+            case 'scale':
+                this._transformScaleQuantize(newData, options);
+                break;
+            case 'probability':
+                this._transformProbability(newData, options);
+                break;
+            case 'groove':
+                this._transformGroove(newData, options);
+                break;
+            case 'octave':
+                this._transformOctave(newData, options);
+                break;
+            case 'stretch_OLD':
+                this._transformStretch(newData, options.factor || 2);
+                break;
             default:
                 console.warn(`[Track ${this.id}] Unknown transform type: ${transform}`);
         }
@@ -573,7 +606,17 @@ export class Track {
             'velocity': () => this._transformVelocity(activeSeq.data, options.amount ?? 0.2),
             'invert': () => this._transformInvert(activeSeq.data),
             'retrograde': () => this._transformRetrograde(activeSeq.data),
-            'stretch': () => this._transformStretch(activeSeq.data, options.factor || 2)
+            'stretch': () => this._transformStretch(activeSeq.data, options.factor || 2),
+            'euclidean': () => this._transformEuclidean(activeSeq.data, options),
+            'ghost': () => this._transformGhostNotes(activeSeq.data, options),
+            'flams': () => this._transformFlams(activeSeq.data, options),
+            'rolls': () => this._transformRolls(activeSeq.data, options),
+            'accent': () => this._transformAccent(activeSeq.data, options),
+            'velocityRamp': () => this._transformVelocityRamp(activeSeq.data, options),
+            'scale': () => this._transformScaleQuantize(activeSeq.data, options),
+            'probability': () => this._transformProbability(activeSeq.data, options),
+            'groove': () => this._transformGroove(activeSeq.data, options),
+            'octave': () => this._transformOctave(activeSeq.data, options)
         };
 
         if (transformFn[transform]) {
@@ -14314,3 +14357,215 @@ export class Track {
         return true;
     }
 }
+
+    // --- Enhanced Pattern Variation Transforms ---
+
+    _transformEuclidean(data, options = {}) {
+        const hits = options.hits || 4;
+        const rotation = options.rotation || 0;
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            const positions = [];
+            for (let i = 0; i < hits; i++) {
+                const pos = Math.floor((i * numCols) / hits);
+                positions.push(pos);
+            }
+            for (let col = 0; col < numCols; col++) {
+                const rotatedPos = (col + rotation) % numCols;
+                if (positions.includes(rotatedPos)) {
+                    if (!data[row][col]) {
+                        data[row][col] = { active: true, velocity: 0.7 + Math.random() * 0.3, duration: 1 };
+                    }
+                }
+            }
+        }
+    }
+
+    _transformGhostNotes(data, options = {}) {
+        const probability = options.probability ?? 0.3;
+        const velocityMultiplier = options.velocityMultiplier ?? 0.3;
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const vel = data[row][col].velocity || 0.8;
+                    if (col + 1 < numCols && !data[row][col + 1] && Math.random() < probability) {
+                        data[row][col + 1] = { active: true, velocity: vel * velocityMultiplier, duration: 0.5, ghost: true };
+                    }
+                }
+            }
+        }
+    }
+
+    _transformFlams(data, options = {}) {
+        const probability = options.probability ?? 0.5;
+        const flamOffset = options.offset ?? 0.05;
+        const numRows = data.length;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < (data[row]?.length || 0); col++) {
+                if (data[row][col] && data[row][col].active && Math.random() < probability) {
+                    data[row][col].flam = true;
+                    data[row][col].flamVelocity = (data[row][col].velocity || 0.8) * 0.6;
+                    data[row][col].flamOffset = flamOffset;
+                }
+            }
+        }
+    }
+
+    _transformRolls(data, options = {}) {
+        const probability = options.probability ?? 0.3;
+        const rollLength = options.length ?? 3;
+        const subdivision = options.subdivision ?? 2;
+        const numRows = data.length;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < (data[row]?.length || 0); col++) {
+                if (data[row][col] && data[row][col].active && Math.random() < probability) {
+                    data[row][col].roll = true;
+                    data[row][col].rollLength = rollLength;
+                    data[row][col].rollSubdivision = subdivision;
+                }
+            }
+        }
+    }
+
+    _transformAccent(data, options = {}) {
+        const pattern = options.pattern || 'strong-weak';
+        const boost = options.boost ?? 0.25;
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    let multiplier = 1;
+                    switch (pattern) {
+                        case 'strong-weak': multiplier = col % 4 === 0 ? 1 + boost : 1 - boost * 0.5; break;
+                        case 'syncopated': multiplier = col % 4 === 0 ? 1 - boost * 0.5 : 1 + boost; break;
+                        case 'crescendo': multiplier = 1 + (col / numCols) * boost; break;
+                        case 'decrescendo': multiplier = 1 + ((numCols - col) / numCols) * boost; break;
+                    }
+                    const currentVel = data[row][col].velocity || 0.8;
+                    data[row][col].velocity = Math.max(0.1, Math.min(1, currentVel * multiplier));
+                }
+            }
+        }
+    }
+
+    _transformVelocityRamp(data, options = {}) {
+        const startVel = options.startVelocity ?? 0.3;
+        const endVel = options.endVelocity ?? 1.0;
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const t = col / (numCols - 1);
+                    data[row][col].velocity = startVel + (endVel - startVel) * t;
+                }
+            }
+        }
+    }
+
+    _transformScaleQuantize(data, options = {}) {
+        const scale = options.scale || 'major';
+        const root = options.root || 0;
+        
+        const scales = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            blues: [0, 3, 5, 6, 7, 10],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10]
+        };
+        
+        const scaleNotes = scales[scale] || scales.major;
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const noteInOctave = (row + root) % 12;
+                    const nearest = scaleNotes.reduce((prev, curr) => {
+                        const prevDist = Math.min(Math.abs(noteInOctave - prev), 12 - Math.abs(noteInOctave - prev));
+                        const currDist = Math.min(Math.abs(noteInOctave - curr), 12 - Math.abs(noteInOctave - curr));
+                        return currDist < prevDist ? curr : prev;
+                    });
+                    const octave = Math.floor((row + root) / 12);
+                    const newRow = nearest - root + octave * 12;
+                    if (newRow >= 0 && newRow < numRows && newRow !== row && !data[newRow][col]) {
+                        data[newRow][col] = { ...data[row][col], quantized: true };
+                        data[row][col] = null;
+                    }
+                }
+            }
+        }
+    }
+
+    _transformProbability(data, options = {}) {
+        const baseProb = options.probability ?? 0.8;
+        const variation = options.variation ?? 0.2;
+        const numRows = data.length;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < (data[row]?.length || 0); col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const prob = baseProb + (Math.random() - 0.5) * variation * 2;
+                    data[row][col].probability = Math.max(0, Math.min(1, prob));
+                }
+            }
+        }
+    }
+
+    _transformGroove(data, options = {}) {
+        const template = options.template || 'swing';
+        const amount = options.amount ?? 0.5;
+        const numCols = data[0]?.length || 16;
+        
+        const grooves = {
+            straight: new Array(numCols).fill(0),
+            swing: [0, 0.1, 0, 0.1, 0, 0.1, 0, 0.1, 0, 0.1, 0, 0.1, 0, 0.1, 0, 0.1],
+            shuffle: [0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15],
+            latin: [0, 0, 0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05, 0]
+        };
+        
+        const offsets = grooves[template] || grooves.straight;
+        const numRows = data.length;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    data[row][col].timingOffset = (offsets[col % offsets.length] || 0) * amount;
+                }
+            }
+        }
+    }
+
+    _transformOctave(data, options = {}) {
+        const octaves = options.octaves ?? 1;
+        const direction = options.direction || 'up';
+        const numRows = data.length;
+        const numCols = data[0]?.length || 16;
+        
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                if (data[row][col] && data[row][col].active) {
+                    const targetRow = direction === 'up' 
+                        ? Math.min(numRows - 1, row + octaves * 12)
+                        : Math.max(0, row - octaves * 12);
+                    if (targetRow !== row && !data[targetRow][col]) {
+                        data[targetRow][col] = { ...data[row][col], octaveShifted: true };
+                        data[row][col] = null;
+                    }
+                }
+            }
+        }
+    }

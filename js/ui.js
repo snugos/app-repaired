@@ -5568,3 +5568,47 @@ function renderSampleLibraryContent() {
         }
     });
 }
+
+/**
+ * Open Pattern Variations Panel
+ */
+export function openPatternVariationsPanel(trackId, sequenceId) {
+    import('./PatternVariationsEnhanced.js').then(module => {
+        module.openPatternVariationsPanel(trackId, sequenceId);
+    }).catch(err => {
+        console.error('[PatternVariations] Failed to load module:', err);
+        // Fallback - create basic panel
+        const panel = document.createElement('div');
+        panel.id = 'pattern-variations-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10000;
+            min-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        `;
+        panel.innerHTML = `
+            <h3 style="color: #fff; margin-bottom: 15px;">Pattern Variations</h3>
+            <p style="color: #aaa; margin-bottom: 15px;">Transform your patterns with various effects.</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                <button data-transform="euclidean" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Euclidean</button>
+                <button data-transform="ghost" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Ghost Notes</button>
+                <button data-transform="flams" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Flams</button>
+                <button data-transform="rolls" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Rolls</button>
+                <button data-transform="accent" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Accent</button>
+                <button data-transform="groove" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Groove</button>
+                <button data-transform="scale" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Scale</button>
+                <button data-transform="velocityRamp" style="padding: 8px 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer;">Crescendo</button>
+            </div>
+            <button id="close-variations" style="width: 100%; padding: 10px; background: #4a9eff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+        `;
+        document.body.appendChild(panel);
+        panel.querySelector('#close-variations').onclick = () => panel.remove();
+    });
+}
