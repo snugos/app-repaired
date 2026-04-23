@@ -775,6 +775,44 @@ input::placeholder,
     min-width: var(--timeline-track-name-width);
     max-width: var(--timeline-track-name-width);
 }
+
+/* --- Track Lane Resize --- */
+.track-lane-resize-handle {
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    cursor: ns-resize;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.track-lane-resize-handle:hover,
+.track-lane-resize-handle.active {
+    opacity: 1;
+}
+
+.track-lane-resize-bar {
+    width: 40px;
+    height: 4px;
+    background-color: #5a5a5a;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+.track-lane-resize-handle:hover .track-lane-resize-bar {
+    background-color: #888;
+}
+
+.track-lane-resize-handle.active .track-lane-resize-bar {
+    background-color: #E0BBE4;
+}
+
 /* --- Drum Sampler Pad Drag & Drop Feedback --- */
 .drum-pad {
     /* Existing pad styles... */
