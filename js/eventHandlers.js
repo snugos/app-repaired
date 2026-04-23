@@ -202,6 +202,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openChordMemoryPanel?.();
                 } catch(e) { console.error('[Menu] Chord Memory error:', e); }
             },
+            menuMidiChordPlayer: () => {
+                console.log('[Menu] MIDI Chord Player clicked');
+                try {
+                    services.openMIDIChordPlayerPanel?.();
+                } catch(e) { console.error('[Menu] MIDI Chord Player error:', e); }
+            },
             menuTempoAutomation: () => {
                 console.log('[Menu] Tempo Automation clicked');
                 try {

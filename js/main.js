@@ -289,7 +289,7 @@ import {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -326,7 +326,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -405,7 +405,7 @@ import {
         try {
             localStorage.removeItem('snugosDesktopBackground');
             localStorage.removeItem('snugosDesktopBgType');
-            const db = await appServices.bgDb.init();
+            const db = await this.bgDb.init();
             await new Promise((resolve, reject) => {
                 const tx = db.transaction('backgrounds', 'readwrite');
                 const store = tx.objectStore('backgrounds');
@@ -921,7 +921,7 @@ async function restoreDesktopBackground() {
     
     if (bgType === 'video') {
         try {
-            const videoBlob = await appServices.bgDb.get('desktopVideo');
+            const videoBlob = await this.bgDb.get('desktopVideo');
             if (videoBlob) {
                 const objectUrl = URL.createObjectURL(videoBlob);
                 applyDesktopBackground(objectUrl, 'video');

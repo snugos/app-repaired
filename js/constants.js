@@ -137,3 +137,37 @@ export function getScaleNotes(keyRoot, scaleIntervals) {
         return NOTE_NAMES[noteIndex < 0 ? noteIndex + 12 : noteIndex];
     });
 }
+
+// --- MIDI Chord Player Constants ---
+// Chord voicings mapped to root note semitone offset
+export const CHORD_PATTERNS = {
+    major: { name: 'Major', intervals: [0, 4, 7] },
+    minor: { name: 'Minor', intervals: [0, 3, 7] },
+    maj7: { name: 'Major 7th', intervals: [0, 4, 7, 11] },
+    min7: { name: 'Minor 7th', intervals: [0, 3, 7, 10] },
+    dom7: { name: 'Dominant 7th', intervals: [0, 4, 7, 10] },
+    dim: { name: 'Diminished', intervals: [0, 3, 6] },
+    aug: { name: 'Augmented', intervals: [0, 4, 8] },
+    sus2: { name: 'Suspended 2nd', intervals: [0, 2, 7] },
+    sus4: { name: 'Suspended 4th', intervals: [0, 5, 7] },
+    add9: { name: 'Add 9', intervals: [0, 4, 7, 14] },
+    min9: { name: 'Minor 9th', intervals: [0, 3, 7, 10, 14] },
+    maj9: { name: 'Major 9th', intervals: [0, 4, 7, 11, 14] },
+    '6': { name: '6th', intervals: [0, 4, 7, 9] },
+    m6: { name: 'Minor 6th', intervals: [0, 3, 7, 9] }
+};
+
+export const MIDI_CHORD_ROOT_NOTES = [
+    { note: 'C', semitone: 0 },
+    { note: 'C#', semitone: 1 },
+    { note: 'D', semitone: 2 },
+    { note: 'D#', semitone: 3 },
+    { note: 'E', semitone: 4 },
+    { note: 'F', semitone: 5 },
+    { note: 'F#', semitone: 6 },
+    { note: 'G', semitone: 7 },
+    { note: 'G#', semitone: 8 },
+    { note: 'A', semitone: 9 },
+    { note: 'A#', semitone: 10 },
+    { note: 'B', semitone: 11 }
+];
