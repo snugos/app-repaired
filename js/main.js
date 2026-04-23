@@ -10,6 +10,7 @@ import { initTrackStack, openTrackStackPanel, getTrackStacks, setTrackStacksStat
 import { openAutoSpillPanel, initAutoSpill } from './AutoSpill.js';
 import { openSpliceDetectorPanel, initSpliceDetector } from './SpliceDetector.js';
 import { PhaseScope, openPhaseScopePanel } from './PhaseScope.js';
+import { frequencyMasking as freqMaskingInstance, openFrequencyMaskingPanel } from './FrequencyMasking.js';
 import { getTrackGradientSettings, setTrackGradientSettings, getGradientPresets, getTrackGradientPreset, setTrackGradientPreset, clearTrackGradient, applyGradientToTrackElement, exportGradientData, importGradientData } from './TrackColorGradient.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
@@ -386,8 +387,8 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -423,8 +424,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -649,6 +650,9 @@ import {
 
     // Phase Scope
     openPhaseScopePanel,
+
+    // Frequency Masking
+    openFrequencyMaskingPanel,
 
     // Track Color Gradient
     openTrackColorGradientPanel,

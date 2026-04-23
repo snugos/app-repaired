@@ -142,40 +142,216 @@ export class PhaseScope {
     }
 }
 
+// --- SnugOS Integrated Phase Scope Panel ---
+let phaseScopeWindow = null;
+
 export function openPhaseScopePanel() {
-    if (window相位ScopePanel) {
-        window相位ScopePanel.focus();
-        return;
+    const windowId = 'phaseScope';
+    const openWindows = localAppServices?.getOpenWindows?.() || new Map();
+    
+    if (openWindows.has(windowId)) {
+        const win = openWindows.get(windowId);
+        win?.restore();
+        return win;
     }
     
-    const panel = window相位ScopePanel = window.open('', 'PhaseScope', 'width=600,height=300,resizable=yes');
-    panel.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Phase Scope</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { background: #0a0a12; color: #eee; font-family: monospace; padding: 10px; }
-            h2 { font-size: 14px; margin-bottom: 8px; color: #888; }
-            canvas { width: 100%; height: 200px; background: #0a0a12; border: 1px solid #333; }
-            .info { font-size: 11px; color: #666; margin-top: 8px; }
-            .legend { display: flex; gap: 20px; margin-top: 8px; }
-            .legend span { font-size: 11px; }
-            .cyan { color: #00d4ff; }
-            .magenta { color: #ff00aa; }
-        </style>
-    </head>
-    <body>
-        <h2>ⓟ Phase Scope</h2>
-        <canvas id="scope" width="560" height="200"></canvas>
-        <div class="legend">
-            <span class="cyan">■ Left</span>
-            <span class="magenta">■ Right</span>
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'phaseScopeContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+    
+    contentContainer.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                <select id="phaseScopeSource" class="p-2 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="master">Master Output</option>
+                </select>
+                <button id="phaseScopeToggle" class="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Start
+                </button>
+            </div>
+            <div id="phaseCorrelationDisplay" class="text-sm font-mono text-green-400">
+                φ --.-- 
+            </div>
         </div>
-        <div class="info">Phase correlation: 1.0 = perfectly in phase, 0 = uncorrelated, -1 = anti-phase</div>
-    </body>
-    </html>
-    `);
-    panel.document.close();
+        <div id="phaseScopeCanvasContainer" class="flex-1 bg-black rounded border border-gray-700 relative overflow-hidden">
+            <canvas id="phaseScopeCanvas" class="w-full h-full"></canvas>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs">
+            <div class="flex items-center gap-2">
+                <span class="text-cyan-400">■ Left</span>
+                <span class="text-pink-400">■ Right</span>
+            </div>
+            <div id="phaseStatusDisplay" class="font-mono">STEREO</div>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            Phase correlation: 1.0 = perfectly in phase, 0 = uncorrelated, -1 = anti-phase
+        </div>
+    `;
+    
+    const options = { 
+        width: 550, height: 350, minWidth: 400, minHeight: 280, 
+        initialContentKey: windowId, closable: true, minimizable: true, resizable: true 
+    };
+    
+    const win = localAppServices?.createWindow?.(windowId, 'Phase Scope', contentContainer, options);
+    
+    if (win?.element) {
+        setTimeout(() => setupPhaseScopeVisualization(), 50);
+    }
+    
+    return win;
+}
+
+function setupPhaseScopeVisualization() {
+    const canvas = document.getElementById('phaseScopeCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('phaseScopeCanvasContainer');
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    let isRunning = false;
+    let animationId = null;
+    let sourceNode = null;
+    let analyserL = null;
+    let analyserR = null;
+    let splitter = null;
+    let dataArrayL = null;
+    let dataArrayR = null;
+    
+    function initAudio() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Get master output node
+            if (typeof Tone !== 'undefined' && Tone.getDestination) {
+                sourceNode = Tone.getDestination();
+            }
+            
+            // Create analysers
+            analyserL = audioCtx.createAnalyser();
+            analyserR = audioCtx.createAnalyser();
+            analyserL.fftSize = 2048;
+            analyserR.fftSize = 2048;
+            
+            splitter = audioCtx.createChannelSplitter(2);
+            
+            dataArrayL = new Uint8Array(analyserL.frequencyBinCount);
+            dataArrayR = new Uint8Array(analyserR.frequencyBinCount);
+            
+            return true;
+        } catch (e) {
+            console.error('[PhaseScope] Audio init error:', e);
+            return false;
+        }
+    }
+    
+    function draw() {
+        if (!isRunning) return;
+        
+        analyserL?.getByteTimeDomainData(dataArrayL);
+        analyserR?.getByteTimeDomainData(dataArrayR);
+        
+        // Clear
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const w = canvas.width;
+        const h = canvas.height;
+        const centerY = h / 2;
+        
+        // Draw grid
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(w, centerY);
+        ctx.stroke();
+        
+        // Calculate phase correlation
+        let correlation = 0;
+        if (dataArrayL && dataArrayR) {
+            let sum = 0;
+            for (let i = 0; i < dataArrayL.length; i++) {
+                const l = (dataArrayL[i] - 128) / 128;
+                const r = (dataArrayR[i] - 128) / 128;
+                sum += l * r;
+            }
+            correlation = sum / dataArrayL.length;
+        }
+        
+        // Draw waveforms
+        ctx.lineWidth = 1.5;
+        
+        // Left channel - cyan
+        if (dataArrayL) {
+            ctx.strokeStyle = '#00d4ff';
+            ctx.beginPath();
+            const sliceWidth = w / dataArrayL.length;
+            let x = 0;
+            for (let i = 0; i < dataArrayL.length; i++) {
+                const v = (dataArrayL[i] - 128) / 128;
+                const y = centerY + v * (h * 0.4);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            ctx.stroke();
+        }
+        
+        // Right channel - magenta
+        if (dataArrayR) {
+            ctx.strokeStyle = '#ff00aa';
+            ctx.beginPath();
+            const sliceWidth = w / dataArrayR.length;
+            let x = 0;
+            for (let i = 0; i < dataArrayR.length; i++) {
+                const v = (dataArrayR[i] - 128) / 128;
+                const y = centerY + v * (h * 0.4);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            ctx.stroke();
+        }
+        
+        // Update correlation display
+        const corrDisplay = document.getElementById('phaseCorrelationDisplay');
+        const statusDisplay = document.getElementById('phaseStatusDisplay');
+        if (corrDisplay) {
+            corrDisplay.textContent = `φ ${correlation.toFixed(3)}`;
+            corrDisplay.style.color = correlation > 0.9 ? '#00ff88' : correlation > 0.5 ? '#ffaa00' : '#ff4444';
+        }
+        if (statusDisplay) {
+            const statusText = correlation > 0.95 ? 'MONO' : correlation < 0.3 ? 'ANTI-PHASE' : 'STEREO';
+            statusDisplay.textContent = statusText;
+            statusDisplay.style.color = correlation > 0.95 ? '#ffaa00' : correlation < 0.3 ? '#ff4444' : '#00ff88';
+        }
+        
+        animationId = requestAnimationFrame(draw);
+    }
+    
+    // Toggle button handler
+    const toggleBtn = document.getElementById('phaseScopeToggle');
+    toggleBtn?.addEventListener('click', () => {
+        if (!isRunning) {
+            if (initAudio()) {
+                isRunning = true;
+                toggleBtn.textContent = 'Stop';
+                toggleBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                toggleBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                draw();
+            }
+        } else {
+            isRunning = false;
+            if (animationId) cancelAnimationFrame(animationId);
+            toggleBtn.textContent = 'Start';
+            toggleBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+            toggleBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+        }
+    });
 }

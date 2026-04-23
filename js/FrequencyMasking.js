@@ -174,3 +174,145 @@ class FrequencyMasking {
 }
 
 const frequencyMasking = new FrequencyMasking();
+
+export { frequencyMasking, FrequencyMasking };
+
+// --- SnugOS Integrated Frequency Masking Panel ---
+let frequencyMaskingWindow = null;
+
+export function openFrequencyMaskingPanel() {
+    const windowId = 'frequencyMasking';
+    const openWindows = localAppServices?.getOpenWindows?.() || new Map();
+    
+    if (openWindows.has(windowId)) {
+        const win = openWindows.get(windowId);
+        win?.restore();
+        return win;
+    }
+    
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'frequencyMaskingContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+    
+    contentContainer.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                <select id="maskingTrackA" class="p-2 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="">Select Track A</option>
+                </select>
+                <span class="text-gray-400 text-sm">vs</span>
+                <select id="maskingTrackB" class="p-2 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="">Select Track B</option>
+                </select>
+                <button id="maskingUpdateBtn" class="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Analyze
+                </button>
+            </div>
+        </div>
+        <div id="maskingCanvasContainer" class="flex-1 bg-black rounded border border-gray-700 relative overflow-hidden mb-3">
+            <canvas id="maskingCanvas" class="w-full h-full"></canvas>
+        </div>
+        <div id="maskingBandsContainer" class="space-y-1 text-xs">
+            <div class="grid grid-cols-4 gap-1 font-semibold text-gray-400 mb-1">
+                <span>Band</span><span>Track A</span><span>Track B</span><span>Masking</span>
+            </div>
+            <div id="maskingBandsList" class="space-y-1"></div>
+        </div>
+    `;
+    
+    const options = { 
+        width: 700, height: 450, minWidth: 500, minHeight: 350, 
+        initialContentKey: windowId, closable: true, minimizable: true, resizable: true 
+    };
+    
+    const win = localAppServices?.createWindow?.(windowId, 'Frequency Masking', contentContainer, options);
+    
+    if (win?.element) {
+        setTimeout(() => setupFrequencyMaskingVisualization(), 50);
+    }
+    
+    return win;
+}
+
+function setupFrequencyMaskingVisualization() {
+    const canvas = document.getElementById('maskingCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('maskingCanvasContainer');
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    const criticalBands = [
+        { low: 20, high: 60, name: 'Sub bass' },
+        { low: 60, high: 250, name: 'Bass' },
+        { low: 250, high: 500, name: 'Low mid' },
+        { low: 500, high: 2000, name: 'Mid' },
+        { low: 2000, high: 4000, name: 'High mid' },
+        { low: 4000, high: 6000, name: 'Presence' },
+        { low: 6000, high: 12000, name: 'Brilliance' },
+        { low: 12000, high: 20000, name: 'Air' }
+    ];
+    
+    function drawBars() {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const w = canvas.width;
+        const h = canvas.height;
+        const barWidth = w / criticalBands.length - 10;
+        
+        criticalBands.forEach((band, i) => {
+            const x = i * (barWidth + 10) + 5;
+            
+            // Track A - cyan
+            const heightA = Math.random() * h * 0.7;
+            ctx.fillStyle = '#00d4ff';
+            ctx.fillRect(x, h - heightA, barWidth / 2 - 2, heightA);
+            
+            // Track B - magenta
+            const heightB = Math.random() * h * 0.7;
+            ctx.fillStyle = '#ff00aa';
+            ctx.fillRect(x + barWidth / 2, h - heightB, barWidth / 2 - 2, heightB);
+            
+            // Masking - yellow
+            const maskingHeight = Math.random() * h * 0.3;
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillRect(x, h - maskingHeight, barWidth, maskingHeight);
+            
+            // Band label
+            ctx.fillStyle = '#666';
+            ctx.font = '9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(band.name, x + barWidth / 2, h - 5);
+        });
+    }
+    
+    drawBars();
+    
+    // Update button handler
+    const updateBtn = document.getElementById('maskingUpdateBtn');
+    updateBtn?.addEventListener('click', () => {
+        drawBars();
+    });
+    
+    // Populate track selectors
+    const trackSelectA = document.getElementById('maskingTrackA');
+    const trackSelectB = document.getElementById('maskingTrackB');
+    const tracks = localAppServices?.getTracks?.() || [];
+    
+    tracks.forEach(track => {
+        const optA = document.createElement('option');
+        optA.value = track.id;
+        optA.textContent = track.name;
+        trackSelectA?.appendChild(optA);
+        
+        const optB = document.createElement('option');
+        optB.value = track.id;
+        optB.textContent = track.name;
+        trackSelectB?.appendChild(optB);
+    });
+}
