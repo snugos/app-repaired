@@ -252,80 +252,115 @@ class AIMasteringEffect extends Tone.Gain {
 
 Tone.AIMasteringEffect = AIMasteringEffect;
 
-// Bitcrusher Effect - Lo-fi distortion via bit depth and sample rate reduction
-class Bitcrusher extends Tone.Gain {
+// One-Knob Master - All-in-one loudness maximization chain
+// Combines EQ, Compressor, and Limiter into a single "loudness" knob
+class OneKnobMaster extends Tone.Gain {
     constructor(initialParams = {}) {
         super(1.0);
         
-        this._bitDepth = initialParams.bitDepth !== undefined ? initialParams.bitDepth : 8;
-        this._sampleRateReduction = initialParams.sampleRateReduction !== undefined ? initialParams.sampleRateReduction : 1;
+        // Master intensity (0-1 maps to all internal parameters)
+        this._intensity = initialParams.intensity !== undefined ? initialParams.intensity : 0.5;
         
-        // Dry/wet mix
-        this._dryGain = new Tone.Gain(1.0);
-        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1.0);
+        // EQ3 for tonal balance
+        this._eq = new Tone.EQ3({
+            low: this._computeEQLow(),
+            lowFrequency: 200,
+            mid: 0,
+            high: this._computeEQHigh(),
+            highFrequency: 3000
+        });
         
-        // Sample rate reduction state
-        this._lastSample = 0;
-        this._sampleCount = 0;
-        this._phase = 0;
+        // Dynamics compressor
+        this._compressor = new Tone.Compressor({
+            threshold: this._computeThreshold(),
+            ratio: this._computeRatio(),
+            attack: 0.003,
+            release: 0.2,
+            knee: 10
+        });
         
-        // Connect dry path
-        this.connect(this._dryGain);
+        // Brickwall limiter for loudness
+        this._limiter = new Tone.Limiter(-0.3);
         
-        // Wet path uses custom processing
-        this._wetGain.connect(this);
-    }
-    
-    static getMetronomeAudioLabel() { return 'Bitcrusher'; }
-    
-    setBitDepth(depth) {
-        this._bitDepth = Math.max(1, Math.min(16, Math.floor(depth)));
-    }
-    
-    getBitDepth() {
-        return this._bitDepth;
-    }
-    
-    setSampleRateReduction(reduction) {
-        this._sampleRateReduction = Math.max(1, Math.min(100, reduction));
-    }
-    
-    getSampleRateReduction() {
-        return this._sampleRateReduction;
-    }
-    
-    // Quantize a sample to the current bit depth
-    _quantize(sample) {
-        const steps = Math.pow(2, this._bitDepth);
-        return Math.floor(sample * steps + 0.5) / steps;
-    }
-    
-    // Process a buffer of samples
-    _processBuffer(inputBuffer, outputBuffer) {
-        const reduction = this._sampleRateReduction;
-        const input = inputBuffer.getChannelData(0);
-        const output = outputBuffer.getChannelData(0);
+        // Input gain (drives the chain)
+        this._inputGain = new Tone.Gain(1.0);
         
-        for (let i = 0; i < input.length; i++) {
-            // Sample rate reduction: hold samples for 'reduction' samples
-            this._phase++;
-            if (this._phase >= reduction) {
-                this._phase = 0;
-                this._lastSample = input[i];
-            }
-            // Bit depth reduction: quantize to fewer bits
-            output[i] = this._quantize(this._lastSample);
-        }
+        // Chain: input -> inputGain -> eq -> compressor -> limiter -> output
+        this._inputGain.connect(this._eq);
+        this._eq.connect(this._compressor);
+        this._compressor.connect(this._limiter);
+        this._limiter.connect(this);
+        
+        // Connect input to output as bypass
+        this._inputGain.connect(this);
     }
+    
+    // Compute EQ low based on intensity
+    _computeEQLow() {
+        // At 0: flat, at 0.5: +2dB, at 1: +4dB
+        return (this._intensity - 0.5) * 8;
+    }
+    
+    // Compute EQ high based on intensity
+    _computeEQHigh() {
+        // At 0: flat, at 0.5: +1dB, at 1: +3dB
+        return (this._intensity - 0.5) * 4;
+    }
+    
+    // Compute compressor threshold
+    _computeThreshold() {
+        // At 0: -30dB (gentle), at 0.5: -20dB, at 1: -10dB (aggressive)
+        return -30 + (this._intensity * 20);
+    }
+    
+    // Compute compressor ratio
+    _computeRatio() {
+        // At 0: 2:1, at 0.5: 4:1, at 1: 12:1 (brickwall)
+        return 2 + (this._intensity * 10);
+    }
+    
+    // Compute input gain
+    _computeInputGain() {
+        // Subtle input boost at higher intensity
+        return 1.0 + (this._intensity * 0.5);
+    }
+    
+    // Update all parameters based on intensity
+    _updateParams() {
+        this._eq.low.value = this._computeEQLow();
+        this._eq.high.value = this._computeEQHigh();
+        this._compressor.threshold.value = this._computeThreshold();
+        this._compressor.ratio.value = this._computeRatio();
+        this._inputGain.gain.value = this._computeInputGain();
+        
+        // Limiter gets more aggressive at high intensity
+        this._limiter.threshold.value = -0.3 - (this._intensity * 3);
+    }
+    
+    setIntensity(value) {
+        this._intensity = Math.max(0, Math.min(1, value));
+        this._updateParams();
+    }
+    
+    getIntensity() {
+        return this._intensity;
+    }
+    
+    static getMetronomeAudioLabel() { return 'One-Knob Master'; }
     
     dispose() {
-        this._dryGain.dispose();
-        this._wetGain.dispose();
+        this._eq.dispose();
+        this._compressor.dispose();
+        this._limiter.dispose();
+        this._inputGain.dispose();
         super.dispose();
     }
 }
 
-// AudioWorklet-based Bitcrusher for better performance
+// Register on Tone namespace
+Tone.OneKnobMaster = OneKnobMaster;
+
+// Bitcrusher Worklet Effect - Lo-fi bitcrush effect
 class BitcrusherWorklet extends Tone.Gain {
     constructor(initialParams = {}) {
         super(1.0);
@@ -790,6 +825,13 @@ export const AVAILABLE_EFFECTS = {
             { key: 'bitDepth', label: 'Bits', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 8, decimals: 0, displaySuffix: ' bit', isSignal: false },
             { key: 'sampleRateReduction', label: 'Downsample', type: 'knob', min: 1, max: 100, step: 1, defaultValue: 1, decimals: 0, displaySuffix: 'x', isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    OneKnobMaster: {
+        displayName: 'One-Knob Master',
+        toneClass: 'OneKnobMaster',
+        params: [
+            { key: 'intensity', label: 'Loudness', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false }
         ]
     },
 };
