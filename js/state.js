@@ -8881,3 +8881,52 @@ export function handleMuteGroupExclusiveUnmute(trackId) {
     });
 }
 export function clearAllMuteGroups() { muteGroups = []; muteGroupIdCounter = 1; }
+
+export function setActiveTrackInMuteGroup(groupId, trackId) {
+    const group = muteGroups.find(g => g.id === groupId);
+    if (!group) return false;
+    group.activeTrackId = trackId;
+    return true;
+}
+
+export function toggleNextInMuteGroup(groupId) {
+    const group = muteGroups.find(g => g.id === groupId);
+    if (!group || group.trackIds.length === 0) return;
+    
+    const currentIndex = group.activeTrackId ? group.trackIds.indexOf(group.activeTrackId) : -1;
+    const nextIndex = (currentIndex + 1) % group.trackIds.length;
+    const nextTrackId = group.trackIds[nextIndex];
+    
+    // Unmute next track
+    const tracks = getTracksState();
+    const nextTrack = tracks.find(t => t.id === nextTrackId);
+    if (nextTrack && nextTrack.isMuted) {
+        nextTrack.isMuted = false;
+        nextTrack.applyMuteState();
+        if (appServices.updateTrackUI) appServices.updateTrackUI(nextTrackId, 'muteChanged');
+    }
+    
+    // Mute all others in group
+    group.trackIds.forEach(tid => {
+        if (tid !== nextTrackId) {
+            const track = tracks.find(t => t.id === tid);
+            if (track && !track.isMuted) {
+                track.isMuted = true;
+                track.applyMuteState();
+                if (appServices.updateTrackUI) appServices.updateTrackUI(tid, 'muteChanged');
+            }
+        }
+    });
+    
+    group.activeTrackId = nextTrackId;
+    return true;
+}
+
+export function getActiveTrackInMuteGroup(groupId) {
+    const group = muteGroups.find(g => g.id === groupId);
+    return group ? group.activeTrackId : null;
+}
+
+export function createMuteGroup(name, trackIds, color) {
+    return addMuteGroup(name, trackIds);
+}
