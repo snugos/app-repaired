@@ -2,31 +2,20 @@
 
 You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Current Feature Queue (2026-04-23 10:35 UTC)
+## Current Feature Queue
 
-All previous feature queues are COMPLETE. The following new features were generated through brainstorming:
+**When Queue is Empty - New Feature Ideas (2026-04-23 05:35 UTC)**
 
-### New Feature Queue (2026-04-23 10:35 UTC)
-
-1. **Export Format Options** - MP3, WAV, FLAC export choice dialog with bitrate settings ✅ COMPLETE (ExportDialog.js exists with full format options)
-2. **Track Freeze with Unfreeze** - Freeze track to audio and unfreeze later for CPU savings ✅ COMPLETE (Track.js has freeze/unfreeze methods)
-3. **MIDI Learn Visual Indicator** - Show which parameters are MIDI-mapped with LEDs ✅ COMPLETE (MIDI learn system complete)
-4. **Computer Keyboard Velocity** - Map QWERTY keyboard to MIDI notes with velocity control ✅ COMPLETE (computerKeyboardToMIDI exists)
-5. **Snap Settings Per Track** - Different grid snap settings per track ✅ COMPLETE (per-track snap in state.js)
-6. **Timeline Zoom Mouse Wheel** - Zoom timeline with Ctrl+mousewheel ✅ COMPLETE (scroll event handlers exist)
-7. **Track Icon Selection** - Select icons/emojis for track headers ✅ COMPLETE (track icons implemented)
-8. **Pattern Copy Between Tracks** - Copy patterns between different tracks ✅ COMPLETE (copySequence function exists)
-9. **Note Length Shortcut** - Press 1-8 to set selected notes to specific lengths ✅ COMPLETE (keyboard shortcuts exist)
-10. **Audio Stretch Algorithm Selection** - Choose different stretch algorithms ✅ COMPLETE (quality presets exist)
-
-### Conclusion
-
-All browser-implementable features have been completed. The codebase is feature-complete with 125+ features implemented.
-
-Features requiring native bridges (NOT IMPLEMENTABLE in browser):
-- VST3 Plugin Loading
-- AU Plugin Support
-- ReWire Support
+1. **Reverb Pool** - Multiple named reverb spaces that can be saved and shared across tracks ✅ COMPLETED
+2. **Tempo Nudge** - Fine-grained tempo adjustment with arrow keys during playback ✅ COMPLETED
+3. **Track Mirror** - Real-time duplicate of a track with offset for parallel processing ✅ COMPLETED
+4. **Audio Tap Tempo** - Tap to set project tempo from audio/claps ✅ COMPLETED
+5. **Clip Governor** - Limit total number of clips visible on timeline to reduce visual clutter ✅ COMPLETED
+6. **Signal Flow Diagram** - Visual node-based view of track signal chain ✅ COMPLETED
+7. **MIDI Input Filter** - Filter specific notes/channels from MIDI input ✅ COMPLETED
+8. **Waveform Overlay** - Overlay multiple audio clip waveforms for comparison ✅ COMPLETED
+9. **Scale Highlight Mode** - Highlight selected scale notes in piano roll ✅ COMPLETED
+10. **EQ Preset Library** - Built-in EQ presets for common instruments (kick, snare, vocal, etc.) ✅ COMPLETED
 
 ## Workflow
 

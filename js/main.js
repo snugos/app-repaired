@@ -624,7 +624,10 @@ import {
     // Instrument Rack
     openInstrumentRackPanel,
     updateInstrumentRackPanel,
-    openMIDIChordPlayerPanel
+    openMIDIChordPlayerPanel,
+
+    // EQ Preset Library
+    openEQPresetLibraryPanel,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

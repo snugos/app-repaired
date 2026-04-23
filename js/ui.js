@@ -5152,3 +5152,168 @@ export function updateMidiMappingsPanel() {
     const container = document.getElementById('midiMappingsContent');
     if (container) renderMidiMappingsContent();
 }
+
+// ==========================================
+// EQ PRESET LIBRARY PANEL
+// ==========================================
+
+/**
+ * Opens the EQ Preset Library panel for applying instrument-specific EQ presets.
+ */
+export function openEQPresetLibraryPanel(savedState = null) {
+    const windowId = 'eqPresetLibrary';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'eqPresetLibraryContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { width: 480, height: 550, minWidth: 380, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'EQ Preset Library', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderEQPresetLibraryContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the EQ Preset Library content.
+ */
+function renderEQPresetLibraryContent() {
+    const container = document.getElementById('eqPresetLibraryContent');
+    if (!container) return;
+
+    // Dynamically import EQ preset data
+    import('./EQPresetLibrary.js').then(module => {
+        const { EQ_PRESETS, getEQPresetCategories } = module;
+        const categories = getEQPresetCategories();
+
+        let html = `
+            <div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+                Select a track EQ to apply a preset, or use the global EQ from the master chain.
+            </div>
+            <div class="mb-3">
+                <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Apply to:</label>
+                <select id="eqPresetTarget" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-800 dark:text-gray-200">
+                    <option value="master">Master Chain EQ</option>
+                </select>
+            </div>
+        `;
+
+        categories.forEach(category => {
+            const presetsInCategory = Object.entries(EQ_PRESETS).filter(([, p]) => p.category === category);
+            
+            html += `<div class="mb-4">
+                <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2 px-1">${category}</div>
+                <div class="grid grid-cols-2 gap-2">`;
+            
+            presetsInCategory.forEach(([id, preset]) => {
+                html += `
+                    <button class="eq-preset-btn p-2 text-left text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded hover:border-blue-400 dark:hover:border-blue-500 transition-colors" data-preset-id="${id}">
+                        <div class="font-medium text-gray-800 dark:text-gray-200 text-xs">${preset.name}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Low: ${preset.low > 0 ? '+' : ''}${preset.low}dB | Mid: ${preset.mid > 0 ? '+' : ''}${preset.mid}dB | High: ${preset.high > 0 ? '+' : ''}${preset.high}dB
+                        </div>
+                    </button>
+                `;
+            });
+            
+            html += '</div></div>';
+        });
+
+        container.innerHTML = html;
+
+        // Add event listeners to preset buttons
+        container.querySelectorAll('.eq-preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const presetId = e.currentTarget.dataset.presetId;
+                applyEQPresetToTarget(presetId);
+            });
+        });
+
+    }).catch(err => {
+        console.error('[EQPresetLibrary] Failed to load presets:', err);
+        container.innerHTML = '<div class="text-red-500">Failed to load EQ presets.</div>';
+    });
+}
+
+/**
+ * Applies the selected EQ preset to the target (master or track).
+ */
+function applyEQPresetToTarget(presetId) {
+    import('./EQPresetLibrary.js').then(module => {
+        const { EQ_PRESETS } = module;
+        const preset = EQ_PRESETS[presetId];
+        if (!preset) return;
+
+        // Get the master effects chain
+        const masterEffects = localAppServices.getMasterEffectsState ? localAppServices.getMasterEffectsState() : [];
+        const targetSelect = document.getElementById('eqPresetTarget');
+        const target = targetSelect ? targetSelect.value : 'master';
+
+        if (target === 'master') {
+            // Find the EQ3 effect in master chain
+            const eqEffect = masterEffects.find(e => e.type === 'EQ3');
+            if (eqEffect && eqEffect.toneNode) {
+                applyEQToInstance(eqEffect.toneNode, preset);
+                localAppServices.showNotification?.(`Applied "${preset.name}" to Master EQ`, 2000);
+            } else {
+                localAppServices.showNotification?.('No Master EQ found. Add a 3-Band EQ to the master chain first.', 3000);
+            }
+        } else {
+            // Track EQ - get from track's active effects
+            const trackId = parseInt(target, 10);
+            const tracks = localAppServices.getTracks?.() || [];
+            const track = tracks.find(t => t.id === trackId);
+            if (track && track.activeEffects) {
+                const eqEffect = track.activeEffects.find(e => e.type === 'EQ3');
+                if (eqEffect && eqEffect.toneNode) {
+                    applyEQToInstance(eqEffect.toneNode, preset);
+                    localAppServices.showNotification?.(`Applied "${preset.name}" to ${track.name}`, 2000);
+                } else {
+                    localAppServices.showNotification?.(`Track "${track.name}" has no EQ3 effect. Add one first.`, 3000);
+                }
+            }
+        }
+    }).catch(err => {
+        console.error('[EQPresetLibrary] Failed to apply preset:', err);
+    });
+}
+
+/**
+ * Applies EQ preset values to a Tone.EQ3 instance.
+ */
+function applyEQToInstance(eqInstance, preset) {
+    if (!eqInstance || !preset) return;
+
+    try {
+        if (typeof eqInstance.low?.value !== 'undefined') {
+            eqInstance.low.value = preset.low;
+        }
+        if (typeof eqInstance.mid?.value !== 'undefined') {
+            eqInstance.mid.value = preset.mid;
+        }
+        if (typeof eqInstance.high?.value !== 'undefined') {
+            eqInstance.high.value = preset.high;
+        }
+        if (typeof eqInstance.lowFrequency?.value !== 'undefined') {
+            eqInstance.lowFrequency.value = preset.lowFrequency;
+        }
+        if (typeof eqInstance.highFrequency?.value !== 'undefined') {
+            eqInstance.highFrequency.value = preset.highFrequency;
+        }
+    } catch (e) {
+        console.error('[EQPresetLibrary] Error applying EQ preset:', e);
+    }
+}
