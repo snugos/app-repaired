@@ -150,6 +150,95 @@ import {
         }
     },
 
+    // MIDI Chord Player Services
+    playMidiChord: (trackId, rootNote, octave, chordType, options = {}) => {
+        const track = getTrackByIdState(trackId);
+        if (!track) return null;
+        
+        const pattern = Constants.CHORD_PATTERNS[chordType];
+        if (!pattern) {
+            console.warn(`[MIDIChordPlayer] Unknown chord type: ${chordType}`);
+            return null;
+        }
+        
+        const rootSemitone = Constants.MIDI_CHORD_ROOT_NOTES.find(n => n.note === rootNote)?.semitone ?? 0;
+        const rootMidi = (octave + 1) * 12 + rootSemitone;
+        const notes = pattern.intervals.map(interval => rootMidi + interval);
+        
+        // Apply inversion if specified
+        const inversion = options.inversion || 0;
+        let invertedNotes = [...notes];
+        if (inversion !== 0) {
+            for (let i = 0; i < Math.abs(inversion); i++) {
+                if (inversion > 0) {
+                    // Move bottom note up an octave
+                    const lowest = invertedNotes.shift();
+                    invertedNotes.push(lowest + 12);
+                } else {
+                    // Move top note down an octave
+                    const highest = invertedNotes.pop();
+                    invertedNotes.unshift(highest - 12);
+                }
+            }
+        }
+        
+        // Apply voicing
+        const voicing = options.voicing || 'close';
+        // For now, just use the notes as-is
+        const velocity = options.velocity || 0.8;
+        
+        const now = Tone.now();
+        const midiNotes = invertedNotes.map(n => ({
+            pitch: n,
+            freq: Tone.Frequency(n, 'midi').toFrequency()
+        }));
+        
+        // Play all notes
+        midiNotes.forEach(({ pitch, freq }) => {
+            if (track.playNote) {
+                track.playNote(pitch, now, undefined, velocity);
+            } else if (track.instrument?.triggerAttack) {
+                track.instrument.triggerAttack(freq, now, velocity);
+            }
+        });
+        
+        // Store active notes for later release
+        track._activeChordNotes = invertedNotes;
+        track._chordPlayerActive = true;
+        
+        return { notes: invertedNotes.map(n => Tone.Frequency(n, 'midi').toNote()), root: `${rootNote}${octave}` };
+    },
+    
+    stopMidiChord: (trackId) => {
+        const track = getTrackByIdState(trackId);
+        if (!track || !track._chordPlayerActive) return;
+        
+        const now = Tone.now();
+        const notes = track._activeChordNotes || [];
+        
+        notes.forEach(pitch => {
+            if (track.releaseNote) {
+                track.releaseNote(pitch, now);
+            } else if (track.instrument?.triggerRelease) {
+                const freq = Tone.Frequency(pitch, 'midi').toFrequency();
+                track.instrument.triggerRelease(freq, now);
+            }
+        });
+        
+        track._chordPlayerActive = false;
+        track._activeChordNotes = [];
+    },
+    
+    getMidiChordPlayerSettings: () => {
+        return localStorage.getItem('midiChordPlayerSettings') ? 
+            JSON.parse(localStorage.getItem('midiChordPlayerSettings')) : 
+            { chordType: 'major', inversion: 0, voicing: 'close', octave: 4, velocity: 0.8 };
+    },
+    
+    setMidiChordPlayerSettings: (settings) => {
+        localStorage.setItem('midiChordPlayerSettings', JSON.stringify(settings));
+    },
+    
     // MODIFICATION: Refined Panic Stop Service
     panicStopAllAudio: () => {
         console.log("[AppServices] Panic Stop All Audio requested.");
@@ -288,7 +377,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructingt && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -308,7 +397,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingtDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -437,8 +526,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingtDAW_flag === true, 
+    _isReconstructingtDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
