@@ -471,6 +471,56 @@ export function setScaleLockType(type) { scaleLockType = type || 'major'; }
 export function getScaleLockMode() { return scaleLockMode; }
 export function setScaleLockMode(mode) { scaleLockMode = mode === 'block' ? 'block' : 'snap'; }
 
+// --- Scale Highlight Mode State ---
+// Scale Highlight Mode visually highlights notes that belong to the current scale
+let scaleHighlightEnabled = false;
+
+export function getScaleHighlightEnabled() { return scaleHighlightEnabled; }
+export function setScaleHighlightEnabled(enabled) {
+    scaleHighlightEnabled = !!enabled;
+    console.log(`[State] Scale Highlight Mode ${scaleHighlightEnabled ? 'enabled' : 'disabled'}`);
+    // Trigger UI update if appServices is available
+    if (typeof window !== 'undefined' && window.updateScaleHighlight) {
+        window.updateScaleHighlight();
+    }
+}
+
+/**
+ * Get all MIDI note numbers for the current scale across all octaves.
+ * Returns an array of MIDI note numbers that are in the current scale lock scale.
+ */
+export function getScaleHighlightNotes() {
+    if (!scaleHighlightEnabled && !scaleLockEnabled) return [];
+    
+    const root = scaleLockRoot;
+    const type = scaleLockType;
+    const intervals = SCALE_INTERVALS[type] || SCALE_INTERVALS.major;
+    const rootIndex = NOTE_NAMES.indexOf(root);
+    
+    // Generate all notes in the scale across MIDI range (0-127)
+    const scaleNotes = [];
+    for (let octave = 0; octave <= 10; octave++) {
+        const baseNote = octave * 12;
+        intervals.forEach(interval => {
+            const note = baseNote + ((rootIndex + interval) % 12);
+            if (note >= 0 && note <= 127) {
+                scaleNotes.push(note);
+            }
+        });
+    }
+    return [...new Set(scaleNotes)].sort((a, b) => a - b);
+}
+
+/**
+ * Check if a note name (e.g., "C", "C#") is in the current scale.
+ */
+export function isNoteNameInScale(noteName) {
+    const root = scaleLockRoot;
+    const type = scaleLockType;
+    const scaleNotes = getScaleNotes(root, type);
+    return scaleNotes.includes(noteName);
+}
+
 /**
  * Quantize a MIDI note to the nearest in-scale note.
  * Returns the quantized MIDI note number, or the original if it's already in scale.
