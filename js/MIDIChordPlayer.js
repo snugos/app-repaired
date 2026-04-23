@@ -1,6 +1,6 @@
 // js/MIDIChordPlayer.js - On-screen MIDI Chord Player
 import * as Constants from './constants.js';
-import { getTracksState as getTracks } from './state.js';
+import { getTracksState as getTracks, getScaleHighlightEnabled, setScaleHighlightEnabled, getScaleLockRoot, getScaleLockType, isNoteInScale, getScaleHighlightNotes } from './state.js';
 
 // --- Local App Services ---
 let localAppServices = {};
@@ -204,6 +204,9 @@ function renderChordPlayerContent(container) {
     
     const tracks = typeof getTracks === 'function' ? getTracks() : [];
     const instrumentTracks = tracks.filter(t => t.type !== 'Audio');
+    const scaleHighlightEnabled = getScaleHighlightEnabled();
+    const scaleLockRoot = getScaleLockRoot();
+    const scaleLockType = getScaleLockType();
     
     let html = `
         <div id="midiChordPlayerContent" style="padding: 12px; color: #e5e5e5; height: 100%; display: flex; flex-direction: column;">
@@ -232,6 +235,13 @@ function renderChordPlayerContent(container) {
                     <span id="chordPlayerOctaveValue" style="font-size: 12px; color: #aaa; min-width: 30px;">${currentOctave}</span>
                 </div>
                 
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <button id="scaleHighlightToggle" style="padding: 4px 8px; border-radius: 4px; border: 1px solid ${scaleHighlightEnabled ? '#00b0b0' : '#444'}; background: ${scaleHighlightEnabled ? '#004040' : '#222'}; color: ${scaleHighlightEnabled ? '#00b0b0' : '#888'}; font-size: 11px; cursor: pointer;">
+                        Scale: ${scaleHighlightEnabled ? 'ON' : 'OFF'}
+                    </button>
+                    <span style="font-size: 10px; color: #666;">${scaleLockRoot} ${scaleLockType}</span>
+                </div>
+                
                 <div style="font-size: 10px; color: #666; margin-bottom: 4px;">
                     Click a key to play a chord. Release to stop.
                 </div>
@@ -253,6 +263,10 @@ function renderChordPlayerContent(container) {
     const pianoContainer = container.querySelector('#chordPlayerPianoContainer');
     if (pianoContainer) {
         renderPianoKeys(pianoContainer);
+        // Apply scale highlight if enabled
+        if (scaleHighlightEnabled) {
+            updatePianoKeyScaleHighlight(pianoContainer);
+        }
     }
     
     // Attach event listeners
@@ -288,6 +302,19 @@ function attachChordPlayerEventListeners(container) {
         if (pianoContainer) {
             renderPianoKeys(pianoContainer);
         }
+    });
+    
+    // Scale highlight toggle
+    const scaleToggle = container.querySelector('#scaleHighlightToggle');
+    scaleToggle?.addEventListener('click', () => {
+        const pianoContainer = container.querySelector('#chordPlayerPianoContainer');
+        const newState = toggleScaleHighlight(pianoContainer);
+        // Update button appearance
+        scaleToggle.style.borderColor = newState ? '#00b0b0' : '#444';
+        scaleToggle.style.background = newState ? '#004040' : '#222';
+        scaleToggle.style.color = newState ? '#00b0b0' : '#888';
+        scaleToggle.textContent = `Scale: ${newState ? 'ON' : 'OFF'}`;
+        localAppServices.showNotification?.(`Scale Highlight: ${newState ? 'ON' : 'OFF'}`, 1000);
     });
 }
 
@@ -368,6 +395,18 @@ export function openMIDIChordPlayerPanel() {
             .piano-key.active {
                 background: #00b0b0 !important;
             }
+            .piano-key.in-scale.white {
+                background: linear-gradient(180deg, #a0e0a0 0%, #80c880 100%) !important;
+            }
+            .piano-key.in-scale.black {
+                background: linear-gradient(180deg, #2a5a2a 0%, #1a3a1a 100%) !important;
+            }
+            .piano-key.out-of-scale.white {
+                background: linear-gradient(180deg, #808080 0%, #606060 100%) !important;
+            }
+            .piano-key.out-of-scale.black {
+                background: linear-gradient(180deg, #404040 0%, #202020 100%) !important;
+            }
         `;
         win.element.appendChild(style);
         
@@ -391,4 +430,43 @@ export function closeMIDIChordPlayerPanel() {
     releaseAllNotes();
     isPanelOpen = false;
     currentTrackId = null;
+}
+
+// --- Scale Highlight Toggle for Piano Keys ---
+function updatePianoKeyScaleHighlight(container) {
+    if (!container) return;
+    const scaleEnabled = getScaleHighlightEnabled();
+    const scaleNotes = getScaleHighlightNotes();
+    const keys = container.querySelectorAll('.piano-key');
+    
+    keys.forEach(key => {
+        const pitch = parseInt(key.dataset.displayPitch);
+        const isInScale = scaleNotes.includes(pitch);
+        
+        if (scaleEnabled) {
+            if (isInScale) {
+                key.classList.add('in-scale');
+            } else {
+                key.classList.add('out-of-scale');
+            }
+        } else {
+            key.classList.remove('in-scale', 'out-of-scale');
+        }
+    });
+}
+
+// --- Toggle Scale Highlight Mode ---
+function toggleScaleHighlight(container) {
+    const current = getScaleHighlightEnabled();
+    setScaleHighlightEnabled(!current);
+    updatePianoKeyScaleHighlight(container);
+    return !current;
+}
+
+// --- Update Piano Key Colors After Scale/Harmonic Mode Change ---
+export function updateChordPlayerScaleHighlight() {
+    const container = document.getElementById('chordPlayerPianoContainer');
+    if (container) {
+        updatePianoKeyScaleHighlight(container);
+    }
 }
