@@ -252,6 +252,232 @@ class AIMasteringEffect extends Tone.Gain {
 
 Tone.AIMasteringEffect = AIMasteringEffect;
 
+// Bitcrusher Effect - Lo-fi distortion via bit depth and sample rate reduction
+class Bitcrusher extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        this._bitDepth = initialParams.bitDepth !== undefined ? initialParams.bitDepth : 8;
+        this._sampleRateReduction = initialParams.sampleRateReduction !== undefined ? initialParams.sampleRateReduction : 1;
+        
+        // Dry/wet mix
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1.0);
+        
+        // Sample rate reduction state
+        this._lastSample = 0;
+        this._sampleCount = 0;
+        this._phase = 0;
+        
+        // Connect dry path
+        this.connect(this._dryGain);
+        
+        // Wet path uses custom processing
+        this._wetGain.connect(this);
+    }
+    
+    static getMetronomeAudioLabel() { return 'Bitcrusher'; }
+    
+    setBitDepth(depth) {
+        this._bitDepth = Math.max(1, Math.min(16, Math.floor(depth)));
+    }
+    
+    getBitDepth() {
+        return this._bitDepth;
+    }
+    
+    setSampleRateReduction(reduction) {
+        this._sampleRateReduction = Math.max(1, Math.min(100, reduction));
+    }
+    
+    getSampleRateReduction() {
+        return this._sampleRateReduction;
+    }
+    
+    // Quantize a sample to the current bit depth
+    _quantize(sample) {
+        const steps = Math.pow(2, this._bitDepth);
+        return Math.floor(sample * steps + 0.5) / steps;
+    }
+    
+    // Process a buffer of samples
+    _processBuffer(inputBuffer, outputBuffer) {
+        const reduction = this._sampleRateReduction;
+        const input = inputBuffer.getChannelData(0);
+        const output = outputBuffer.getChannelData(0);
+        
+        for (let i = 0; i < input.length; i++) {
+            // Sample rate reduction: hold samples for 'reduction' samples
+            this._phase++;
+            if (this._phase >= reduction) {
+                this._phase = 0;
+                this._lastSample = input[i];
+            }
+            // Bit depth reduction: quantize to fewer bits
+            output[i] = this._quantize(this._lastSample);
+        }
+    }
+    
+    dispose() {
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        super.dispose();
+    }
+}
+
+// AudioWorklet-based Bitcrusher for better performance
+class BitcrusherWorklet extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        this._bitDepth = initialParams.bitDepth !== undefined ? initialParams.bitDepth : 8;
+        this._sampleRateReduction = initialParams.sampleRateReduction !== undefined ? initialParams.sampleRateReduction : 1;
+        this._wet = initialParams.wet !== undefined ? initialParams.wet : 1.0;
+        
+        this._workletNode = null;
+        this._isWorkletLoaded = false;
+        
+        // Fallback: dry/wet gains
+        this._dryGain = new Tone.Gain(1 - this._wet);
+        this._wetGain = new Tone.Gain(this._wet);
+        
+        this.connect(this._dryGain);
+        this.connect(this._wetGain);
+        
+        this._initWorklet();
+    }
+    
+    static getMetronomeAudioLabel() { return 'Bitcrusher'; }
+    
+    async _initWorklet() {
+        const workletCode = `
+            class BitcrusherProcessor extends AudioWorkletProcessor {
+                static get parameterDescriptors() {
+                    return [
+                        { name: 'bitDepth', defaultValue: 8, minValue: 1, maxValue: 16 },
+                        { name: 'sampleRateReduction', defaultValue: 1, minValue: 1, maxValue: 100 },
+                        { name: 'wet', defaultValue: 1, minValue: 0, maxValue: 1 }
+                    ];
+                }
+                
+                constructor() {
+                    super();
+                    this.phase = 0;
+                    this.lastSample = 0;
+                }
+                
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    const output = outputs[0];
+                    if (!input || !input[0]) return true;
+                    
+                    const bitDepth = parameters.bitDepth[0] || 8;
+                    const reduction = parameters.sampleRateReduction[0] || 1;
+                    const wet = parameters.wet[0] || 1;
+                    
+                    const steps = Math.pow(2, Math.floor(bitDepth));
+                    
+                    for (let channel = 0; channel < input.length; channel++) {
+                        const inputChannel = input[channel];
+                        const outputChannel = output[channel];
+                        
+                        for (let i = 0; i < inputChannel.length; i++) {
+                            // Sample rate reduction
+                            this.phase++;
+                            if (this.phase >= reduction) {
+                                this.phase = 0;
+                                this.lastSample = inputChannel[i];
+                            }
+                            
+                            // Bit depth reduction (quantization)
+                            const quantized = Math.floor(this.lastSample * steps + 0.5) / steps;
+                            
+                            // Mix dry/wet
+                            outputChannel[i] = inputChannel[i] * (1 - wet) + quantized * wet;
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('bitcrusher-processor', BitcrusherProcessor);
+        `;
+        
+        try {
+            const blob = new Blob([workletCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await Tone.context.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+            
+            this._workletNode = new AudioWorkletNode(Tone.context, 'bitcrusher-processor', {
+                parameterData: {
+                    bitDepth: this._bitDepth,
+                    sampleRateReduction: this._sampleRateReduction,
+                    wet: this._wet
+                }
+            });
+            
+            // Disconnect fallback path, use worklet
+            this.disconnect(this._wetGain);
+            this.connect(this._workletNode);
+            this._workletNode.connect(Tone.context.destination);
+            
+            this._isWorkletLoaded = true;
+        } catch (e) {
+            console.warn('[BitcrusherWorklet] AudioWorklet not supported, using fallback:', e.message);
+            this._isWorkletLoaded = false;
+        }
+    }
+    
+    setBitDepth(depth) {
+        this._bitDepth = Math.max(1, Math.min(16, Math.floor(depth)));
+        if (this._workletNode && this._workletNode.parameters) {
+            this._workletNode.parameters.get('bitDepth').setValueAtTime(this._bitDepth, Tone.context.currentTime);
+        }
+    }
+    
+    getBitDepth() {
+        return this._bitDepth;
+    }
+    
+    setSampleRateReduction(reduction) {
+        this._sampleRateReduction = Math.max(1, Math.min(100, reduction));
+        if (this._workletNode && this._workletNode.parameters) {
+            this._workletNode.parameters.get('sampleRateReduction').setValueAtTime(this._sampleRateReduction, Tone.context.currentTime);
+        }
+    }
+    
+    getSampleRateReduction() {
+        return this._sampleRateReduction;
+    }
+    
+    set wet(value) {
+        this._wet = Math.max(0, Math.min(1, value));
+        if (this._workletNode && this._workletNode.parameters) {
+            this._workletNode.parameters.get('wet').setValueAtTime(this._wet, Tone.context.currentTime);
+        } else {
+            this._dryGain.gain.value = 1 - this._wet;
+            this._wetGain.gain.value = this._wet;
+        }
+    }
+    
+    get wet() {
+        return this._wet;
+    }
+    
+    dispose() {
+        if (this._workletNode) {
+            this._workletNode.disconnect();
+            this._workletNode = null;
+        }
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        super.dispose();
+    }
+}
+
+// Register on Tone namespace
+Tone.BitcrusherWorklet = BitcrusherWorklet;
+
 // ScatterEffect definition
 const ScatterEffectDefinition = {
     ScatterEffect: {
@@ -308,10 +534,11 @@ export const AVAILABLE_EFFECTS = {
         ]
     },
     BitCrusher: {
-        displayName: 'Bit Crusher',
-        toneClass: 'BitCrusher',
+        displayName: 'Bitcrusher',
+        toneClass: 'BitcrusherWorklet',
         params: [
-            { key: 'bits', label: 'Bits', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 4, decimals: 0, isSignal: true }, 
+            { key: 'bitDepth', label: 'Bits', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 8, decimals: 0, displaySuffix: ' bit', isSignal: false },
+            { key: 'sampleRateReduction', label: 'Downsample', type: 'knob', min: 1, max: 100, step: 1, defaultValue: 1, decimals: 0, displaySuffix: 'x', isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
@@ -554,6 +781,15 @@ export const AVAILABLE_EFFECTS = {
             { key: 'eqMid', label: 'Mid EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
             { key: 'eqHigh', label: 'High EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
             { key: 'inputGain', label: 'Input', type: 'knob', min: 0.1, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    Bitcrusher: {
+        displayName: 'Bitcrusher',
+        toneClass: 'BitcrusherWorklet',
+        params: [
+            { key: 'bitDepth', label: 'Bits', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 8, decimals: 0, displaySuffix: ' bit', isSignal: false },
+            { key: 'sampleRateReduction', label: 'Downsample', type: 'knob', min: 1, max: 100, step: 1, defaultValue: 1, decimals: 0, displaySuffix: 'x', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
 };
