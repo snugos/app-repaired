@@ -401,7 +401,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingtDAW ? appServices.getIsReconstructingtDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -529,8 +529,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
-    _isReconstructingingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingtDAW_flag === true, 
+    _isReconstructingtDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -630,6 +630,9 @@ import {
 
     // EQ Preset Library
     openEQPresetLibraryPanel,
+
+    // Sample Library Browser
+    openSampleLibraryBrowserPanel,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

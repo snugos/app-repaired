@@ -102,10 +102,70 @@ export function searchSamples(query) {
     );
 }
 
-// Preview a sample (synthesized preview since no real samples)
-export function previewSample(sampleId) {
-    // Stop any currently playing preview
-    stopPreview();
+// Get sample for drag/drop
+export function getSampleForDrag(sampleId) {
+    const sample = findSampleById(sampleId);
+    if (!sample) return null;
+    
+    return {
+        type: 'sample-library-item',
+        id: sample.id,
+        name: sample.name,
+        category: sample.category,
+        file: sample.file,
+        duration: sample.duration,
+        source: 'sample-library-browser'
+    };
+}
+
+// Favorite samples management
+let favoriteSamples = new Set(JSON.parse(localStorage.getItem('snugosFavoriteSamples') || '[]'));
+
+export function getFavoriteSamples() {
+    const allSamples = getAllSamples();
+    return allSamples.filter(s => favoriteSamples.has(s.id));
+}
+
+export function toggleSampleFavorite(sampleId) {
+    if (favoriteSamples.has(sampleId)) {
+        favoriteSamples.delete(sampleId);
+    } else {
+        favoriteSamples.add(sampleId);
+    }
+    localStorage.setItem('snugosFavoriteSamples', JSON.stringify([...favoriteSamples]));
+    return favoriteSamples.has(sampleId);
+}
+
+export function isSampleFavorite(sampleId) {
+    return favoriteSamples.has(sampleId);
+}
+
+// Load sample to track (creates a track and adds sample)
+export async function loadSampleToTrack(trackId, sampleId) {
+    const sample = findSampleById(sampleId);
+    if (!sample) {
+        console.warn('[SampleLibraryBrowser] Sample not found:', sampleId);
+        return null;
+    }
+    
+    // If no trackId provided, create a new audio track
+    let targetTrackId = trackId;
+    
+    // For now, return sample info that can be used to add to a track
+    return {
+        success: true,
+        sample: sample,
+        message: `Sample "${sample.name}" ready to load. Create an Audio track and drag this sample to it.`
+    };
+}
+
+// Play preview using Tone.js (better audio synthesis)
+let previewSynth = null;
+let previewTimeout = null;
+
+export function previewSampleWithTone(sampleId) {
+    // Stop any existing preview
+    stopPreviewWithTone();
     
     const sample = findSampleById(sampleId);
     if (!sample) {
@@ -115,7 +175,106 @@ export function previewSample(sampleId) {
     
     currentlyPlayingSampleId = sampleId;
     
-    // Create a simple synthesized preview sound using Web Audio
+    try {
+        if (typeof Tone !== 'undefined') {
+            // Create appropriate synth based on category
+            const category = sample.category;
+            
+            if (category === 'drums') {
+                // Kick-like sound with pitch envelope
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.volume.value = -6;
+                synth.triggerAttackRelease(60, '8n');
+                previewSynth = synth;
+            } else if (category === 'bass') {
+                // Sub bass sound
+                const synth = new Tone.MonoSynth({
+                    oscillator: { type: 'sawtooth' },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.3 },
+                    filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.2, baseFrequency: 200, octaves: 2 }
+                }).toDestination();
+                synth.triggerAttackRelease('C2', '8n');
+                previewSynth = synth;
+            } else if (category === 'synth' || category === 'keys') {
+                // Bright synth stab
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -8;
+                synth.triggerAttackRelease(['C4', 'E4', 'G4'], '16n');
+                previewSynth = synth;
+            } else if (category === 'vocals') {
+                // Formant-ish pad
+                const synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'sawtooth' },
+                    envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 0.4 }
+                }).toDestination();
+                synth.volume.value = -10;
+                synth.triggerAttackRelease('A3', '8n');
+                previewSynth = synth;
+            } else if (category === 'fx') {
+                // Filter sweep sound
+                const synth = new Tone.FMSynth().toDestination();
+                synth.volume.value = -8;
+                synth.triggerAttackRelease('C5', '4n');
+                previewSynth = synth;
+            } else {
+                // Default synth tone
+                const synth = new Tone.Synth().toDestination();
+                synth.triggerAttackRelease('C4', '8n');
+                previewSynth = synth;
+            }
+            
+            // Auto-stop after a reasonable time
+            const duration = Math.min(sample.duration || 1, 3);
+            previewTimeout = setTimeout(() => {
+                stopPreviewWithTone();
+            }, duration * 1000 + 200);
+            
+            console.log(`[SampleLibraryBrowser] Previewing sample: ${sample.name} (${category})`);
+        } else {
+            // Fallback to basic Web Audio preview
+            previewSample(sampleId);
+        }
+    } catch (e) {
+        console.error('[SampleLibraryBrowser] Tone.js preview error:', e);
+        // Fallback to basic preview
+        previewSample(sampleId);
+    }
+}
+
+export function stopPreviewWithTone() {
+    if (previewTimeout) {
+        clearTimeout(previewTimeout);
+        previewTimeout = null;
+    }
+    if (previewSynth) {
+        try {
+            previewSynth.dispose();
+        } catch (e) {}
+        previewSynth = null;
+    }
+    currentlyPlayingSampleId = null;
+}
+
+// Enhanced preview that uses both Tone.js and basic synthesis
+export function previewSample(sampleId) {
+    // Try Tone.js first for better quality
+    if (typeof Tone !== 'undefined') {
+        previewSampleWithTone(sampleId);
+    } else {
+        // Fallback to basic Web Audio
+        previewSampleBasic(sampleId);
+    }
+}
+
+// Basic Web Audio preview (fallback)
+function previewSampleBasic(sampleId) {
+    stopPreview();
+    
+    const sample = findSampleById(sampleId);
+    if (!sample) return;
+    
+    currentlyPlayingSampleId = sampleId;
+    
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -124,10 +283,8 @@ export function previewSample(sampleId) {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        // Different sounds for different categories
         switch (sample.category) {
             case 'drums':
-                // Kick-like sound
                 oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
                 oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.1);
                 gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
@@ -136,7 +293,6 @@ export function previewSample(sampleId) {
                 oscillator.stop(audioContext.currentTime + 0.3);
                 break;
             case 'bass':
-                // Low bass sound
                 oscillator.type = 'sawtooth';
                 oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
@@ -145,7 +301,7 @@ export function previewSample(sampleId) {
                 oscillator.stop(audioContext.currentTime + 0.5);
                 break;
             case 'synth':
-                // Synth stab
+            case 'keys':
                 oscillator.type = 'square';
                 oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
@@ -153,27 +309,7 @@ export function previewSample(sampleId) {
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.2);
                 break;
-            case 'vocals':
-                // Formant-like sound
-                oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
-                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.4);
-                break;
-            case 'fx':
-                // Filtered noise-like
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.5);
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-                break;
             default:
-                // Generic synth tone
                 oscillator.type = 'triangle';
                 oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
@@ -190,15 +326,14 @@ export function previewSample(sampleId) {
 
 // Stop preview
 export function stopPreview() {
+    stopPreviewWithTone();
     if (currentlyPlayingSampleId) {
-        console.log(`[SampleLibraryBrowser] Stopped preview: ${currentlyPlayingSampleId}`);
         currentlyPlayingSampleId = null;
     }
-    if (previewPlayer) {
-        previewPlayer.stop();
-        previewPlayer = null;
-    }
 }
+
+// Alias for stopPreview (used by UI)
+export const stopSamplePreview = stopPreview;
 
 // Find sample by ID
 function findSampleById(sampleId) {
@@ -225,20 +360,4 @@ export async function loadSamplePack(packName, zipBlob) {
 // Get loaded sample packs
 export function getLoadedSamplePacks() {
     return Object.keys(loadedSamplePacks);
-}
-
-// Get sample for drag/drop
-export function getSampleForDrag(sampleId) {
-    const sample = findSampleById(sampleId);
-    if (!sample) return null;
-    
-    return {
-        type: 'sample-library-item',
-        id: sample.id,
-        name: sample.name,
-        category: sample.category,
-        file: sample.file,
-        duration: sample.duration,
-        source: 'sample-library-browser'
-    };
 }
