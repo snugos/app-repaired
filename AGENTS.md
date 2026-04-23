@@ -4,21 +4,26 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-**NEW FEATURES (2026-04-23 19:35 UTC)**
+**NEW FEATURES (2026-04-23 20:10 UTC)**
 
-1. **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback
-2. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
-3. **Track Stack** - Collapse/expand multi-track arrangements
-4. **Splice Detector** - Auto-detect and mark transient events in audio
-5. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
-6. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
-7. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
-8. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
-9. **One-Knob Master** - Single knob for "loudness maximization" chain
+1. **Auto-Spill** - Auto-duplicate clips to fill timeline regions
+2. **Track Stack** - Collapse/expand multi-track arrangements
+3. **Splice Detector** - Auto-detect and mark transient events in audio
+4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
+5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
+6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
+7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
+8. **One-Knob Master** - Single knob for "loudness maximization" chain
 
 **Status: All browser-implementable features from previous queues are COMPLETE ✅**
 
 ## Recently Completed
+
+- **Rhythm Coach** - Visual metronome trainer with timing accuracy feedback ✅ COMPLETED (2026-04-23)
+  - Created `js/RhythmCoach.js` with timing accuracy tracking
+  - Session statistics (accuracy, deviation, worst timing)
+  - Visual feedback with color-coded ratings
+  - Integration with MIDI input
 
 - **Ambience Maker** - Generate ambient drone layers from any audio input ✅ COMPLETED (2026-04-23)
   - Created `js/AmbienceMaker.js` with granular synthesis engine
