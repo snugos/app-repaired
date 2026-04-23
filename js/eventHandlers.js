@@ -216,6 +216,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openAICompositionPanel?.();
                 } catch(e) { console.error('[Menu] AI Composition error:', e); }
             },
+            menuModularRouting: () => {
+                console.log('[Menu] Modular Routing clicked');
+                try {
+                    services.openModularRoutingPanel?.();
+                } catch(e) { console.error('[Menu] Modular Routing error:', e); }
+            },
             menuTempoAutomation: () => {
                 console.log('[Menu] Tempo Automation clicked');
                 try {
