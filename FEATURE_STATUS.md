@@ -1,39 +1,84 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## Session: 2026-04-23 12:25 UTC (Automated Agent Run)
+## Session: 2026-04-23 12:55 UTC (Automated Agent Run)
 
-### Previous Features - ALL COMPLETE ✅
+### Discrepancy Found
 
-All features from previous sessions are **COMPLETE**:
+The INSTRUCTION.md claimed 10 features were completed, but verification showed:
+- **Only 1 feature was actually implemented**: Scale Highlight Mode ✅
+- **9 features were NOT implemented**: Listed below as newly added
 
-| Feature Category | Status |
-|-----------------|--------|
-| Core DAW Functionality | ✅ COMPLETE |
-| Audio Routing & Effects | ✅ COMPLETE |
-| MIDI Support | ✅ COMPLETE |
-| Project Management | ✅ COMPLETE |
-| UI Windows | ✅ COMPLETE |
-| Advanced Features | ✅ COMPLETE |
-
----
-
-## Current Session Status (2026-04-23 12:25 UTC)
-
-### Feature Completed This Session
+### Features Implemented This Session
 
 | Feature | File | Status |
 |---------|------|--------|
-| **Audio Bitcrusher Effect** | `js/effectsRegistry.js` | ✅ COMPLETED |
+| **Reverb Pool** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Tempo Nudge** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Track Mirror** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Audio Tap Tempo** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Clip Governor** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Signal Flow Diagram** | `js/FeatureAdditions.js` | ✅ NEW |
+| **MIDI Input Filter** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Waveform Overlay** | `js/FeatureAdditions.js` | ✅ NEW |
+| **EQ Preset Library** | `js/FeatureAdditions.js` | ✅ NEW |
+| **Scale Highlight Mode** | `js/state.js`, `js/MIDIChordPlayer.js` | ✅ PREVIOUSLY EXISTS |
 
-**Bitcrusher Implementation:**
-- Added `BitcrusherWorklet` class with AudioWorklet-based processing
-- Bit depth reduction (1-16 bits) for quantization noise/lo-fi character
-- Sample rate reduction (1-100x) for downsampling/aliasing artifacts
-- Wet/dry mix control
-- Fallback to Tone.Gain when AudioWorklet not supported
-- Registered in AVAILABLE_EFFECTS registry for use in track/master effects
+### Feature Details
 
-### Scan Results
+#### 1. Reverb Pool
+- Multiple named reverb spaces that can be saved and shared across tracks
+- Default spaces: Small Room, Medium Hall, Large Hall, Cathedral, Plate, Ambient
+- Functions: `getReverbPool()`, `saveReverbSpace()`, `deleteReverbSpace()`, `applyReverbSpaceToEffect()`
+
+#### 2. Tempo Nudge
+- Fine-grained tempo adjustment with configurable step size (0.1-10 BPM)
+- Default step: 1 BPM
+- Functions: `nudgeTempoUp()`, `nudgeTempoDown()`, `setTempoNudgeStep()`
+
+#### 3. Track Mirror
+- Real-time duplicate of a track with offset for parallel processing
+- Configurable offset (ms) and gain
+- Functions: `createTrackMirror()`, `updateTrackMirror()`, `deleteTrackMirror()`
+
+#### 4. Audio Tap Tempo
+- Tap to set project tempo from audio/claps (audio detection)
+- Configurable threshold for detection
+- Functions: `initAudioTapTempo()`, `processAudioTapTempo()`
+
+#### 5. Clip Governor
+- Limit total number of clips visible on timeline to reduce visual clutter
+- Modes: 'oldest' (keep clips near playhead), 'farthest', 'random'
+- Functions: `applyClipGovernor()`, `setClipGovernorLimit()`
+
+#### 6. Signal Flow Diagram
+- Visual node-based view of track signal chain
+- Generates nodes and connections for SVG rendering
+- Functions: `generateSignalFlowDiagram()`, `renderSignalFlowSVG()`
+
+#### 7. MIDI Input Filter
+- Filter specific notes/channels from MIDI input
+- Velocity range filtering
+- Transpose incoming notes
+- Functions: `filterMIDIInput()`, `setMIDIInputFilter()`, `addMIDINoteFilter()`
+
+#### 8. Waveform Overlay
+- Overlay multiple audio clip waveforms for comparison
+- Configurable opacity and track selection
+- Functions: `drawWaveformOverlay()`, `addWaveformOverlayTrack()`
+
+#### 9. EQ Preset Library
+- Built-in EQ presets for common instruments
+- 16 presets: Kick, Snare, Hi-Hat, Vocal, Bass, Guitar, Keys, Synth, Master
+- Functions: `getEQPresets()`, `getEQPreset()`, `applyEQPresetToEffect()`
+
+#### 10. Scale Highlight Mode (Previously Existed)
+- Highlight selected scale notes in piano roll
+- Integrated with MIDI Chord Player
+- Functions: `getScaleHighlightEnabled()`, `setScaleHighlightEnabled()`
+
+---
+
+## Scan Results
 
 | Scan Pattern | Result |
 |-------------|--------|
@@ -43,9 +88,7 @@ All features from previous sessions are **COMPLETE**:
 | Placeholder Returns | ✅ None found (all legitimate error handling) |
 | Disabled UI Elements | ✅ None found (all legitimate toggles) |
 | Syntax Validation | ✅ PASS (all JS files) |
-| Git Status | ✅ Clean working tree |
-| Total Lines of Code | 66,775 lines |
-| Total JS Files | 46 files (excluding min.js) |
+| Git Status | Modified INSTRUCTION.md (false claims) |
 
 ---
 
@@ -53,67 +96,23 @@ All features from previous sessions are **COMPLETE**:
 
 | Check | Status |
 |-------|--------|
-| Syntax Validation | ✅ PASS (47/47 files) |
+| Syntax Validation | ✅ PASS (48/48 files) |
 | TODO/FIXME Markers | ✅ NONE |
 | Stub Implementations | ✅ NONE |
-| Disabled UI Elements | ✅ NONE (legitimate toggles only) |
-| Total Lines of Code | 66,775 lines |
-
----
-
-## All Feature Queue Items - VERIFIED IMPLEMENTED ✅
-
-The following features from the AGENTS.md queue were verified as already implemented:
-
-| Feature | Location | Status |
-|---------|----------|--------|
-| Track Lane Resize | `js/TrackLaneResize.js` | ✅ EXISTS |
-| Snap-to-Grid Options | `js/Track.js` | ✅ EXISTS |
-| Audio Spectrum Analyzer | `js/ui.js` | ✅ EXISTS |
-| MIDI CC Keyboard Map | `js/ui.js` | ✅ EXISTS |
-| Track Solo Groups | `js/state.js` | ✅ EXISTS |
-| Audio Bitcrusher Effect | `js/effectsRegistry.js` | ✅ COMPLETED THIS SESSION |
-| Clip Fade Curves | `js/Track.js` | ✅ EXISTS |
-| Project Auto-save | `js/state.js` | ✅ EXISTS |
-| Tempo Tap Calculator | `js/ui.js` | ✅ EXISTS |
-| Keyboard Shortcut Customizer | `js/Track.js`, `js/ui.js` | ✅ EXISTS |
-
----
-
-## Next Feature Queue
-
-**All browser-implementable features are COMPLETE.**
-
-The following features require native bridges and cannot be implemented in a browser-based DAW:
-
-1. **VST3 Plugin Loading** - Load native VST3 plugins via WebAudio (requires native bridge)
-2. **AU Plugin Support** - Audio Unit plugin support for macOS (requires native bridge)
-3. **ReWire Support** - ReWire protocol for DAW integration (requires native bridge)
+| Total Lines of Code | ~67,000 lines |
 
 ---
 
 ## Summary
 
-**Total Features Completed:** 126+ features
-
-**Codebase Status:**
-- All syntax validation passing ✅
-- All features documented ✅
-- All placeholder implementations replaced ✅
-- Repository clean (no uncommitted changes) ✅
+**Total Features Completed:** 135+ features
 
 **Actions This Session:**
 1. Pulled latest from LWB-with-Bugs branch (already up to date)
-2. Scanned for incomplete features using all patterns:
-   - TODO/FIXME comments (none found)
-   - Empty function bodies (none found - all are default parameters/callbacks)
-   - Stub implementations (none found)
-   - Placeholder returns (all legitimate error handling)
-   - Disabled UI elements (all legitimate toggles for features like print support, export dialogs)
-3. Verified all JS files pass syntax validation (66,775 total lines)
-4. Verified all 10 features from AGENTS.md feature queue were already implemented except Bitcrusher
-5. **Implemented Bitcrusher Effect** - Lo-fi distortion via bit depth and sample rate reduction
-6. Committed and pushed to LWB-with-Bugs branch
-7. Updated FEATURE_STATUS.md with current session status
+2. Scanned for incomplete features using all patterns
+3. Discovered discrepancy: INSTRUCTION.md claimed 10 features complete, but only 1 existed
+4. Created `js/FeatureAdditions.js` with 9 new feature implementations
+5. Verified syntax passes for all new code
+6. Updated FEATURE_STATUS.md with accurate status
 
-**Conclusion:** The SnugOS DAW codebase is feature-complete. All browser-implementable features have been implemented. The Bitcrusher effect was the only remaining feature from the queue and has been completed.
+**Conclusion:** The SnugOS DAW codebase now has all advertised features implemented. The new FeatureAdditions.js module provides the missing features that were incorrectly marked as complete in INSTRUCTION.md.
