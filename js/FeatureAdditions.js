@@ -573,3 +573,838 @@ export function applyEQPresetToEffect(effect, presetName) {
 }
 
 console.log('[FeatureAdditions] All features loaded');
+
+// ===========================================
+// TRACK NOTES
+// Add text notes to tracks for documentation
+// ===========================================
+
+let trackNotes = {}; // { trackId: { text, createdAt, updatedAt } }
+
+export function getTrackNotes() { return JSON.parse(JSON.stringify(trackNotes)); }
+
+export function getTrackNote(trackId) {
+    return trackNotes[trackId] ? JSON.parse(JSON.stringify(trackNotes[trackId])) : null;
+}
+
+export function setTrackNote(trackId, text) {
+    if (!trackId) return false;
+    
+    const now = new Date().toISOString();
+    
+    if (trackNotes[trackId]) {
+        trackNotes[trackId].text = text;
+        trackNotes[trackId].updatedAt = now;
+    } else {
+        trackNotes[trackId] = {
+            text,
+            createdAt: now,
+            updatedAt: now
+        };
+    }
+    
+    console.log(`[TrackNotes] Set note for track ${trackId}`);
+    return true;
+}
+
+export function deleteTrackNote(trackId) {
+    if (trackNotes[trackId]) {
+        delete trackNotes[trackId];
+        console.log(`[TrackNotes] Deleted note for track ${trackId}`);
+        return true;
+    }
+    return false;
+}
+
+export function clearAllTrackNotes() {
+    trackNotes = {};
+    console.log('[TrackNotes] Cleared all track notes');
+}
+
+// ===========================================
+// PROJECT STATISTICS PANEL
+// Show detailed project stats (tracks, clips, notes, duration)
+// ===========================================
+
+export function calculateProjectStatistics(tracks, playbackPosition = 0) {
+    const stats = {
+        trackCount: 0,
+        clipCount: 0,
+        noteCount: 0,
+        audioClipCount: 0,
+        midiClipCount: 0,
+        totalDuration: 0,
+        totalSize: 0,
+        effectsCount: 0,
+        armedTracks: 0,
+        soloedTracks: 0,
+        mutedTracks: 0,
+        averageNotesPerTrack: 0,
+        longestClip: null,
+        shortestClip: null,
+        tracksByType: {
+            Audio: 0,
+            Synth: 0,
+            DrumSampler: 0,
+            InstrumentSampler: 0,
+            Lyrics: 0,
+            Other: 0
+        },
+        estimatedMemoryUsage: 0,
+        lastCalculated: new Date().toISOString()
+    };
+    
+    if (!tracks || !Array.isArray(tracks)) return stats;
+    
+    stats.trackCount = tracks.length;
+    
+    let totalNotes = 0;
+    let clipDurations = [];
+    
+    tracks.forEach(track => {
+        // Track type counts
+        if (stats.tracksByType[track.type] !== undefined) {
+            stats.tracksByType[track.type]++;
+        } else {
+            stats.tracksByType.Other++;
+        }
+        
+        // Track states
+        if (track.isMuted) stats.mutedTracks++;
+        if (track.isSoloed) stats.soloedTracks++;
+        if (track.armed) stats.armedTracks++;
+        
+        // Effects count
+        if (track.effects && Array.isArray(track.effects)) {
+            stats.effectsCount += track.effects.length;
+        }
+        
+        // Clips from sequences
+        if (track.sequences && Array.isArray(track.sequences)) {
+            track.sequences.forEach(seq => {
+                stats.clipCount++;
+                if (seq.startTime !== undefined && seq.duration !== undefined) {
+                    const endTime = seq.startTime + seq.duration;
+                    if (endTime > stats.totalDuration) {
+                        stats.totalDuration = endTime;
+                    }
+                    clipDurations.push({ duration: seq.duration, trackName: track.name, seq });
+                }
+                
+                // Notes in sequences
+                if (seq.notes && Array.isArray(seq.notes)) {
+                    totalNotes += seq.notes.length;
+                    stats.noteCount += seq.notes.length;
+                }
+            });
+        }
+        
+        // Audio clips
+        if (track.audioClips && Array.isArray(track.audioClips)) {
+            track.audioClips.forEach(clip => {
+                stats.clipCount++;
+                stats.audioClipCount++;
+                if (clip.startTime !== undefined && clip.duration !== undefined) {
+                    const endTime = clip.startTime + clip.duration;
+                    if (endTime > stats.totalDuration) {
+                        stats.totalDuration = endTime;
+                    }
+                    clipDurations.push({ duration: clip.duration, trackName: track.name, clip });
+                }
+            });
+        }
+        
+        // Timeline clips
+        if (track.clips && Array.isArray(track.clips)) {
+            track.clips.forEach(clip => {
+                stats.clipCount++;
+                if (clip.startTime !== undefined && clip.duration !== undefined) {
+                    const endTime = clip.startTime + clip.duration;
+                    if (endTime > stats.totalDuration) {
+                        stats.totalDuration = endTime;
+                    }
+                    clipDurations.push({ duration: clip.duration, trackName: track.name, clip });
+                }
+            });
+        }
+        
+        // Memory estimation (rough)
+        if (track.audioBuffer) {
+            const sampleCount = track.audioBuffer.length;
+            const channels = track.audioBuffer.numberOfChannels;
+            stats.estimatedMemoryUsage += sampleCount * channels * 4; // 4 bytes per float32
+        }
+    });
+    
+    // Calculate averages and extremes
+    if (tracks.length > 0) {
+        stats.averageNotesPerTrack = Math.round(totalNotes / tracks.length);
+    }
+    
+    if (clipDurations.length > 0) {
+        clipDurations.sort((a, b) => a.duration - b.duration);
+        stats.shortestClip = clipDurations[0];
+        stats.longestClip = clipDurations[clipDurations.length - 1];
+    }
+    
+    // Convert memory to MB
+    stats.estimatedMemoryUsageMB = Math.round(stats.estimatedMemoryUsage / (1024 * 1024) * 100) / 100;
+    
+    return stats;
+}
+
+export function formatProjectStatistics(stats) {
+    return {
+        'Project Overview': {
+            'Total Tracks': stats.trackCount,
+            'Total Clips': stats.clipCount,
+            'Audio Clips': stats.audioClipCount,
+            'MIDI Clips': stats.midiClipCount,
+            'Total Notes': stats.noteCount,
+            'Project Duration': `${Math.round(stats.totalDuration * 10) / 10}s`
+        },
+        'Track Types': stats.tracksByType,
+        'Track States': {
+            'Armed': stats.armedTracks,
+            'Soloed': stats.soloedTracks,
+            'Muted': stats.mutedTracks
+        },
+        'Effects': {
+            'Total Effects': stats.effectsCount,
+            'Avg per Track': stats.trackCount > 0 ? Math.round(stats.effectsCount / stats.trackCount * 10) / 10 : 0
+        },
+        'Memory': {
+            'Estimated Usage': `${stats.estimatedMemoryUsageMB} MB`
+        }
+    };
+}
+
+// ===========================================
+// QUICK ACTIONS MENU
+// Context menu for common actions
+// ===========================================
+
+const QUICK_ACTIONS = [
+    { id: 'new-track', label: 'New Track', icon: '➕', shortcut: 'T', action: 'createTrack' },
+    { id: 'delete-track', label: 'Delete Track', icon: '🗑️', shortcut: 'Del', action: 'deleteTrack' },
+    { id: 'duplicate-track', label: 'Duplicate Track', icon: '📋', shortcut: 'Ctrl+D', action: 'duplicateTrack' },
+    { id: 'divider-1', label: '---', icon: '', shortcut: '', action: null },
+    { id: 'play-pause', label: 'Play/Pause', icon: '▶️', shortcut: 'Space', action: 'togglePlayback' },
+    { id: 'stop', label: 'Stop', icon: '⏹️', shortcut: 'Enter', action: 'stopPlayback' },
+    { id: 'divider-2', label: '---', icon: '', shortcut: '', action: null },
+    { id: 'undo', label: 'Undo', icon: '↩️', shortcut: 'Ctrl+Z', action: 'undo' },
+    { id: 'redo', label: 'Redo', icon: '↪️', shortcut: 'Ctrl+Y', action: 'redo' },
+    { id: 'divider-3', label: '---', icon: '', shortcut: '', action: null },
+    { id: 'save', label: 'Save Project', icon: '💾', shortcut: 'Ctrl+S', action: 'saveProject' },
+    { id: 'export', label: 'Export Audio', icon: '📤', shortcut: 'Ctrl+E', action: 'exportAudio' },
+    { id: 'divider-4', label: '---', icon: '', shortcut: '', action: null },
+    { id: 'metronome', label: 'Toggle Metronome', icon: '🔔', shortcut: 'M', action: 'toggleMetronome' },
+    { id: 'loop', label: 'Toggle Loop', icon: '🔄', shortcut: 'L', action: 'toggleLoop' },
+    { id: 'divider-5', label: '---', icon: '', shortcut: '', action: null },
+    { id: 'quantize', label: 'Quantize Selection', icon: '📏', shortcut: 'Q', action: 'quantize' },
+    { id: 'transpose-up', label: 'Transpose +1', icon: '⬆️', shortcut: 'Shift+Up', action: 'transposeUp' },
+    { id: 'transpose-down', label: 'Transpose -1', icon: '⬇️', shortcut: 'Shift+Down', action: 'transposeDown' }
+];
+
+export function getQuickActions() { return [...QUICK_ACTIONS]; }
+
+export function getQuickActionById(id) {
+    return QUICK_ACTIONS.find(a => a.id === id) || null;
+}
+
+export function executeQuickAction(actionId, callbacks) {
+    const action = getQuickActionById(actionId);
+    if (!action || !action.action) return false;
+    
+    const callback = callbacks[action.action];
+    if (typeof callback === 'function') {
+        callback();
+        console.log(`[QuickActions] Executed: ${action.label}`);
+        return true;
+    }
+    
+    console.warn(`[QuickActions] No callback for action: ${action.action}`);
+    return false;
+}
+
+// ===========================================
+// VISUALIZATION MODES
+// Different visualization modes for waveforms
+// ===========================================
+
+const VISUALIZATION_MODES = [
+    { id: 'waveform', name: 'Classic Waveform', description: 'Standard amplitude display' },
+    { id: 'spectrogram', name: 'Spectrogram', description: 'Frequency over time display' },
+    { id: 'frequency-bars', name: 'Frequency Bars', description: 'Real-time frequency analysis' },
+    { id: 'oscilloscope', name: 'Oscilloscope', description: 'Real-time waveform display' },
+    { id: 'vu-meter', name: 'VU Meter', description: 'Volume unit meter display' },
+    { id: 'phase-scope', name: 'Phase Scope', description: 'Stereo phase correlation' },
+    { id: 'spectrum', name: 'Spectrum Analyzer', description: 'Full frequency spectrum' },
+    { id: 'waterfall', name: 'Waterfall', description: '3D frequency waterfall' }
+];
+
+let currentVisualizationMode = 'waveform';
+let visualizationSettings = {
+    fftSize: 2048,
+    smoothing: 0.8,
+    colorScheme: 'default', // 'default', 'rainbow', 'monochrome', 'heat'
+    showGrid: true,
+    showPeaks: true,
+    holdPeaks: false,
+    peakDecay: 0.95
+};
+
+export function getVisualizationModes() { return [...VISUALIZATION_MODES]; }
+export function getCurrentVisualizationMode() { return currentVisualizationMode; }
+export function setCurrentVisualizationMode(modeId) {
+    if (VISUALIZATION_MODES.find(m => m.id === modeId)) {
+        currentVisualizationMode = modeId;
+        console.log(`[Visualization] Mode set to: ${modeId}`);
+        return true;
+    }
+    return false;
+}
+
+export function getVisualizationSettings() { return JSON.parse(JSON.stringify(visualizationSettings)); }
+export function setVisualizationSettings(settings) {
+    visualizationSettings = { ...visualizationSettings, ...settings };
+}
+
+export function drawVisualization(ctx, width, height, analyserNode, mode = null) {
+    if (!analyserNode) return;
+    
+    const activeMode = mode || currentVisualizationMode;
+    
+    switch (activeMode) {
+        case 'waveform':
+            drawWaveformVisualization(ctx, width, height, analyserNode);
+            break;
+        case 'spectrogram':
+            drawSpectrogramVisualization(ctx, width, height, analyserNode);
+            break;
+        case 'frequency-bars':
+            drawFrequencyBarsVisualization(ctx, width, height, analyserNode);
+            break;
+        case 'oscilloscope':
+            drawOscilloscopeVisualization(ctx, width, height, analyserNode);
+            break;
+        case 'vu-meter':
+            drawVUMeterVisualization(ctx, width, height, analyserNode);
+            break;
+        case 'spectrum':
+            drawSpectrumVisualization(ctx, width, height, analyserNode);
+            break;
+        default:
+            drawWaveformVisualization(ctx, width, height, analyserNode);
+    }
+}
+
+function drawWaveformVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = visualizationSettings.colorScheme === 'rainbow' 
+        ? `hsl(${Date.now() % 360}, 70%, 50%)` 
+        : '#00ff88';
+    ctx.beginPath();
+    
+    const sliceWidth = width / bufferLength;
+    let x = 0;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * height / 2;
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        x += sliceWidth;
+    }
+    
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+}
+
+function drawSpectrogramVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    const barWidth = width / bufferLength;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * height;
+        const hue = (i / bufferLength) * 360;
+        
+        ctx.fillStyle = visualizationSettings.colorScheme === 'heat'
+            ? `rgb(${dataArray[i]}, ${dataArray[i] * 0.5}, ${dataArray[i] * 0.2})`
+            : `hsl(${hue}, 70%, 50%)`;
+        
+        ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+    }
+}
+
+function drawFrequencyBarsVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    const numBars = 32;
+    const barWidth = width / numBars - 2;
+    const step = Math.floor(bufferLength / numBars);
+    
+    for (let i = 0; i < numBars; i++) {
+        const value = dataArray[i * step];
+        const barHeight = (value / 255) * height * 0.9;
+        
+        const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+        gradient.addColorStop(0, '#00ff88');
+        gradient.addColorStop(0.5, '#00cc66');
+        gradient.addColorStop(1, '#008844');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(i * (barWidth + 2) + 1, height - barHeight, barWidth, barHeight);
+    }
+}
+
+function drawOscilloscopeVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Float32Array(bufferLength);
+    analyser.getFloatTimeDomainData(dataArray);
+    
+    ctx.fillStyle = '#0a0a15';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Grid
+    if (visualizationSettings.showGrid) {
+        ctx.strokeStyle = '#1a1a3a';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * width / 10, 0);
+            ctx.lineTo(i * width / 10, height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, i * height / 10);
+            ctx.lineTo(width, i * height / 10);
+            ctx.stroke();
+        }
+    }
+    
+    // Center line
+    ctx.strokeStyle = '#333';
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+    
+    // Waveform
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    const sliceWidth = width / bufferLength;
+    let x = 0;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const y = (dataArray[i] + 1) * height / 2;
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        x += sliceWidth;
+    }
+    
+    ctx.stroke();
+}
+
+function drawVUMeterVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Calculate RMS
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+    }
+    const rms = Math.sqrt(sum / dataArray.length);
+    const level = rms / 255;
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw VU meter
+    const meterWidth = width * 0.8;
+    const meterHeight = 30;
+    const meterX = width * 0.1;
+    const meterY = height / 2 - meterHeight / 2;
+    
+    // Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+    
+    // Level
+    const levelWidth = level * meterWidth;
+    const gradient = ctx.createLinearGradient(meterX, 0, meterX + meterWidth, 0);
+    gradient.addColorStop(0, '#00ff00');
+    gradient.addColorStop(0.7, '#ffff00');
+    gradient.addColorStop(0.85, '#ff8800');
+    gradient.addColorStop(1, '#ff0000');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(meterX, meterY, levelWidth, meterHeight);
+    
+    // Scale marks
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+        const x = meterX + (i / 10) * meterWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, meterY + meterHeight);
+        ctx.lineTo(x, meterY + meterHeight + 5);
+        ctx.stroke();
+    }
+    
+    // dB label
+    const db = 20 * Math.log10(level || 0.0001);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${db.toFixed(1)} dB`, width / 2, meterY - 10);
+}
+
+function drawSpectrumVisualization(ctx, width, height, analyser) {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    ctx.fillStyle = '#0a0a15';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Logarithmic frequency scale
+    const logMin = Math.log10(20);
+    const logMax = Math.log10(20000);
+    const logRange = logMax - logMin;
+    
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const freq = (i / bufferLength) * 22050; // Nyquist
+        if (freq < 20) continue;
+        
+        const logFreq = Math.log10(freq);
+        const x = ((logFreq - logMin) / logRange) * width;
+        const y = height - (dataArray[i] / 255) * height;
+        
+        ctx.lineTo(x, y);
+    }
+    
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, '#ff0000');
+    gradient.addColorStop(0.25, '#ff8800');
+    gradient.addColorStop(0.5, '#ffff00');
+    gradient.addColorStop(0.75, '#00ff00');
+    gradient.addColorStop(1, '#0088ff');
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+}
+
+// ===========================================
+// COLLABORATION INVITE
+// Generate invite links for collaboration
+// ===========================================
+
+let collaborationInvites = {}; // { inviteId: { projectId, createdBy, createdAt, expiresAt, permissions } }
+let inviteIdCounter = 0;
+
+export function createCollaborationInvite(projectId, options = {}) {
+    const inviteId = `invite_${Date.now()}_${++inviteIdCounter}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (options.expiresInHours || 24) * 60 * 60 * 1000);
+    
+    collaborationInvites[inviteId] = {
+        id: inviteId,
+        projectId,
+        createdBy: options.createdBy || 'unknown',
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        permissions: options.permissions || ['read', 'write'],
+        maxUses: options.maxUses || 5,
+        currentUses: 0,
+        active: true
+    };
+    
+    console.log(`[CollaborationInvite] Created invite: ${inviteId}`);
+    return inviteId;
+}
+
+export function getCollaborationInvite(inviteId) {
+    const invite = collaborationInvites[inviteId];
+    if (!invite) return null;
+    
+    // Check expiration
+    if (new Date(invite.expiresAt) < new Date()) {
+        invite.active = false;
+    }
+    
+    return JSON.parse(JSON.stringify(invite));
+}
+
+export function useCollaborationInvite(inviteId) {
+    const invite = collaborationInvites[inviteId];
+    if (!invite) {
+        console.warn(`[CollaborationInvite] Invite not found: ${inviteId}`);
+        return { success: false, reason: 'not_found' };
+    }
+    
+    if (!invite.active) {
+        return { success: false, reason: 'inactive' };
+    }
+    
+    if (new Date(invite.expiresAt) < new Date()) {
+        invite.active = false;
+        return { success: false, reason: 'expired' };
+    }
+    
+    if (invite.currentUses >= invite.maxUses) {
+        invite.active = false;
+        return { success: false, reason: 'max_uses_reached' };
+    }
+    
+    invite.currentUses++;
+    console.log(`[CollaborationInvite] Used invite ${inviteId} (${invite.currentUses}/${invite.maxUses})`);
+    
+    return { success: true, projectId: invite.projectId, permissions: invite.permissions };
+}
+
+export function revokeCollaborationInvite(inviteId) {
+    if (collaborationInvites[inviteId]) {
+        collaborationInvites[inviteId].active = false;
+        console.log(`[CollaborationInvite] Revoked invite: ${inviteId}`);
+        return true;
+    }
+    return false;
+}
+
+export function getActiveInvitesForProject(projectId) {
+    return Object.values(collaborationInvites)
+        .filter(inv => inv.projectId === projectId && inv.active && new Date(inv.expiresAt) > new Date())
+        .map(inv => JSON.parse(JSON.stringify(inv)));
+}
+
+export function generateInviteURL(inviteId, baseUrl = 'https://snugos.github.io/snaw/') {
+    const invite = getCollaborationInvite(inviteId);
+    if (!invite) return null;
+    return `${baseUrl}?invite=${inviteId}`;
+}
+
+// ===========================================
+// PERFORMANCE MODE
+// Live performance interface with scene triggering
+// ===========================================
+
+let performanceModeEnabled = false;
+let performanceSettings = {
+    autoAdvance: false,
+    autoAdvanceDelay: 0,
+    showCountdown: true,
+    countdownDuration: 4,
+    quantizeToBar: true,
+    fadeBetweenScenes: false,
+    fadeDuration: 500
+};
+
+let performanceState = {
+    currentSceneIndex: -1,
+    nextSceneIndex: -1,
+    isPlaying: false,
+    countdownActive: false,
+    countdownRemaining: 0
+};
+
+export function getPerformanceModeEnabled() { return performanceModeEnabled; }
+export function setPerformanceModeEnabled(enabled) { 
+    performanceModeEnabled = enabled;
+    console.log(`[PerformanceMode] ${enabled ? 'Enabled' : 'Disabled'}`);
+}
+
+export function getPerformanceSettings() { return JSON.parse(JSON.stringify(performanceSettings)); }
+export function setPerformanceSettings(settings) {
+    performanceSettings = { ...performanceSettings, ...settings };
+}
+
+export function getPerformanceState() { return JSON.parse(JSON.stringify(performanceState)); }
+
+export function triggerScene(sceneIndex, callbacks) {
+    if (!performanceModeEnabled) return false;
+    
+    performanceState.currentSceneIndex = sceneIndex;
+    console.log(`[PerformanceMode] Triggered scene ${sceneIndex}`);
+    
+    if (callbacks && callbacks.onSceneTrigger) {
+        callbacks.onSceneTrigger(sceneIndex);
+    }
+    
+    return true;
+}
+
+export function advanceToNextScene(callbacks) {
+    performanceState.nextSceneIndex = performanceState.currentSceneIndex + 1;
+    
+    if (performanceSettings.showCountdown) {
+        startCountdown(callbacks);
+    } else {
+        performanceState.currentSceneIndex = performanceState.nextSceneIndex;
+        if (callbacks && callbacks.onSceneTrigger) {
+            callbacks.onSceneTrigger(performanceState.currentSceneIndex);
+        }
+    }
+}
+
+function startCountdown(callbacks) {
+    performanceState.countdownActive = true;
+    performanceState.countdownRemaining = performanceSettings.countdownDuration;
+    
+    if (callbacks && callbacks.onCountdownStart) {
+        callbacks.onCountdownStart(performanceState.countdownRemaining);
+    }
+    
+    const countdownInterval = setInterval(() => {
+        performanceState.countdownRemaining--;
+        
+        if (callbacks && callbacks.onCountdownTick) {
+            callbacks.onCountdownTick(performanceState.countdownRemaining);
+        }
+        
+        if (performanceState.countdownRemaining <= 0) {
+            clearInterval(countdownInterval);
+            performanceState.countdownActive = false;
+            performanceState.currentSceneIndex = performanceState.nextSceneIndex;
+            
+            if (callbacks && callbacks.onSceneTrigger) {
+                callbacks.onSceneTrigger(performanceState.currentSceneIndex);
+            }
+        }
+    }, 1000);
+}
+
+export function stopPerformance() {
+    performanceState.isPlaying = false;
+    performanceState.countdownActive = false;
+    console.log('[PerformanceMode] Performance stopped');
+}
+
+export function getPerformanceKeyboardMappings() {
+    return [
+        { key: '1', action: 'trigger_scene_0' },
+        { key: '2', action: 'trigger_scene_1' },
+        { key: '3', action: 'trigger_scene_2' },
+        { key: '4', action: 'trigger_scene_3' },
+        { key: '5', action: 'trigger_scene_4' },
+        { key: '6', action: 'trigger_scene_5' },
+        { key: '7', action: 'trigger_scene_6' },
+        { key: '8', action: 'trigger_scene_7' },
+        { key: 'Space', action: 'toggle_playback' },
+        { key: 'Enter', action: 'advance_scene' },
+        { key: 'Escape', action: 'stop_performance' }
+    ];
+}
+
+// ===========================================
+// CLIP COLOR CODING
+// Assign colors to clips for visual organization
+// ===========================================
+
+const CLIP_COLOR_PALETTE = [
+    '#ef4444', // red
+    '#f97316', // orange
+    '#eab308', // yellow
+    '#22c55e', // green
+    '#14b8a6', // teal
+    '#3b82f6', // blue
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#6366f1', // indigo
+    '#84cc16', // lime
+    '#06b6d4', // cyan
+    '#a855f7', // purple
+    '#f43f5e', // rose
+    '#10b981', // emerald
+    '#64748b', // slate
+    '#78716c'  // stone
+];
+
+let clipColors = {}; // { clipId: color }
+
+export function getClipColorPalette() { return [...CLIP_COLOR_PALETTE]; }
+
+export function getClipColor(clipId) {
+    return clipColors[clipId] || null;
+}
+
+export function setClipColor(clipId, color) {
+    // Validate color
+    if (!CLIP_COLOR_PALETTE.includes(color) && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        console.warn(`[ClipColors] Invalid color: ${color}`);
+        return false;
+    }
+    
+    clipColors[clipId] = color;
+    console.log(`[ClipColors] Set color for clip ${clipId} to ${color}`);
+    return true;
+}
+
+export function removeClipColor(clipId) {
+    if (clipColors[clipId]) {
+        delete clipColors[clipId];
+        console.log(`[ClipColors] Removed color for clip ${clipId}`);
+        return true;
+    }
+    return false;
+}
+
+export function clearAllClipColors() {
+    clipColors = {};
+    console.log('[ClipColors] Cleared all clip colors');
+}
+
+export function getRandomClipColor() {
+    return CLIP_COLOR_PALETTE[Math.floor(Math.random() * CLIP_COLOR_PALETTE.length)];
+}
+
+export function getAllClipColors() {
+    return JSON.parse(JSON.stringify(clipColors));
+}
+
+export function applyClipColorToElement(clipId, element) {
+    const color = getClipColor(clipId);
+    if (color && element) {
+        element.style.backgroundColor = color;
+        element.style.opacity = '0.8';
+        return true;
+    }
+    return false;
+}
+
+console.log('[FeatureAdditions] All additional features loaded (Track Notes, Project Statistics, Quick Actions, Visualization Modes, Collaboration Invite, Performance Mode, Clip Color Coding)');
