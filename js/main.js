@@ -7,6 +7,7 @@ import { AICompositionAssistant, openAICompositionPanel } from './AICompositionA
 import { AmbienceMaker, openAmbienceMakerPanel } from './AmbienceMaker.js';
 import { openRhythmCoachPanel, initRhythmCoach } from './RhythmCoach.js';
 import { initTrackStack, openTrackStackPanel, getTrackStacks, setTrackStacksState } from './TrackStack.js';
+import { openAutoSpillPanel, initAutoSpill } from './AutoSpill.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -382,7 +383,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
