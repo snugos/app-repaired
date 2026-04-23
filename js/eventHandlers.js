@@ -216,6 +216,12 @@ export function initializePrimaryEventListeners(appContext) {
                     services.openAICompositionPanel?.();
                 } catch(e) { console.error('[Menu] AI Composition error:', e); }
             },
+            menuRhythmCoach: () => {
+                console.log('[Menu] Rhythm Coach clicked');
+                try {
+                    services.openRhythmCoachPanel?.();
+                } catch(e) { console.error('[Menu] Rhythm Coach error:', e); }
+            },
             menuModularRouting: () => {
                 console.log('[Menu] Modular Routing clicked');
                 try {
