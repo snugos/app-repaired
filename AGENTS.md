@@ -4,17 +4,17 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI Chord Player** - On-screen piano that plays chords from single key press
-2. **Scale Highlight Mode** - Highlight valid scale notes in piano roll
-3. **Clip Graffiti** - Freehand drawing/memo overlay on audio clips
-4. **Track Headroom Meter** - Per-track input headroom display for recording
-5. **Sample Browser Search** - Filter and search sound library by tags/keywords
-6. **Project Version History** - Save multiple named versions of a project
-7. **Timestretch Preview** - Preview audio at different speeds before applying
-8. **MIDI Velocity Curve** - Remap velocity response curve for MIDI input
+1. **Scale Highlight Mode** - Highlight valid scale notes in piano roll
+2. **Clip Graffiti** - Freehand drawing/memo overlay on audio clips
+3. **Track Headroom Meter** - Per-track input headroom display for recording
+4. **Sample Browser Search** - Filter and search sound library by tags/keywords
+5. **Project Version History** - Save multiple named versions of a project
+6. **Timestretch Preview** - Preview audio at different speeds before applying
+7. **MIDI Velocity Curve** - Remap velocity response curve for MIDI input
 
 ## Completed Features
 
+- **MIDI Chord Player** - On-screen piano that plays chords from single key press ✅ COMPLETED (2026-04-23)
 - **AI Mastering** - Apply AI-driven loudness normalization and EQ matching ✅ COMPLETED (2026-04-23)
 - **Mixdown Visualizer** - Real-time stereo field and correlation meter ✅ COMPLETED
 
