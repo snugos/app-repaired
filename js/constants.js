@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.2.4"; // Added tap tempo functions handleTapTempo and resetTapTempo
+export const APP_VERSION = "0.2.5"; // Daily sync 2026-04-23 - All features verified present
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
