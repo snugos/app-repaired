@@ -1,262 +1,154 @@
-/**
- * VocoderEffect - Classic vocoder with filter bank analysis and synthesis
- * Uses modulator signal to shape carrier through filter bank
- */
+// js/Vocoder.js - Vocoder effect for robot/voice effects
+// A vocoder analyzes the spectral content of the modulator (voice)
+// and applies it to the carrier (synthesizer)
 
-export class VocoderEffect {
-    constructor(audioContext, options = {}) {
-        this.audioContext = audioContext;
-        this.input = audioContext.createGain();
-        this.output = audioContext.createGain();
-        this.modulatorInput = audioContext.createGain();
-        this.carrierInput = audioContext.createGain();
+class Vocoder {
+    constructor(initialParams = {}) {
+        // Get number of frequency bands (4-64)
+        this._bandCount = initialParams.bandCount !== undefined ? initialParams.bandCount : 28;
         
-        // Parameters
-        this.bands = options.bands ?? 16;
-        this.lowFreq = options.lowFreq ?? 80;
-        this.highFreq = options.highFreq ?? 8000;
-        this.filterQ = options.filterQ ?? 5;
-        this.mix = options.mix ?? 1.0;
-        this.carrierLevel = options.carrierLevel ?? 1.0;
-        this.modulatorLevel = options.modulatorLevel ?? 1.0;
-        this.envelopeFollow = options.envelopeFollow ?? 0.3;
-        this.presets = options.presets ?? 'robot';
+        // Analyze filters
+        this._analyzer = new Tone.FFT(this._bandCount);
         
-        // Internal state
-        this._analyzers = [];
-        this._carrierFilters = [];
-        this._modulatorFilters = [];
-        this._envelopeFollowers = [];
-        this._carrierGains = [];
-        this._dryGain = audioContext.createGain();
-        this._wetGain = audioContext.createGain();
+        // Resolution mapping for band visualization
+        this._bandCount = Math.max(4, Math.min(64, this._bandCount));
         
-        this._buildFilterBank();
-        this._connect();
-        this.updateParameters();
-    }
-    
-    _buildFilterBank() {
-        const bandCount = this.bands;
-        const lowLog = Math.log2(this.lowFreq);
-        const highLog = Math.log2(this.highFreq);
-        const logStep = (highLog - lowLog) / bandCount;
+        // Create bandpass filters for each frequency band
+        this._filters = [];
+        this._filterGains = [];
         
-        this._splitter = this.audioContext.createChannelMerger(2);
-        this._modulatorSplitter = this.audioContext.createChannelMerger(1);
-        this._carrierSplitter = this.audioContext.createChannelMerger(1);
-        this._merger = this.audioContext.createChannelMerger(bandCount);
+        // Build frequency band filters (logarithmic distribution from 100Hz to 8kHz)
+        const minFreq = 100;
+        const maxFreq = 8000;
+        const logMin = Math.log10(minFreq);
+        const logMax = Math.log10(maxFreq);
         
-        // Modulator analysis path
-        for (let i = 0; i < bandCount; i++) {
-            const freq = Math.pow(2, lowLog + (i + 0.5) * logStep);
+        for (let i = 0; i < this._bandCount; i++) {
+            const ratio = i / (this._bandCount - 1);
+            const freq = Math.pow(10, logMin + ratio * (logMax - logMin));
             
-            // Analyzer filter
-            const modFilter = this.audioContext.createBiquadFilter();
-            modFilter.type = 'bandpass';
-            modFilter.frequency.value = freq;
-            modFilter.Q.value = this.filterQ;
-            this._modulatorFilters.push(modFilter);
+            const filter = new Tone.BiquadFilter({
+                type: 'bandpass',
+                frequency: freq,
+                Q: 5
+            });
             
-            // Envelope follower
-            const envGain = this.audioContext.createGain();
-            envGain.gain.value = this.envelopeFollow;
-            this._envelopeFollowers.push(envGain);
+            const gain = new Tone.Gain(0);
             
-            // Analyzer
-            const analyser = this.audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.8;
-            this._analyzers.push(analyser);
-            
-            this._modulatorSplitter.connect(modFilter, 0);
-            modFilter.connect(envGain);
-            envGain.connect(analyser);
+            this._filters.push(filter);
+            this._filterGains.push(gain);
         }
         
-        // Carrier synthesis path
-        for (let i = 0; i < bandCount; i++) {
-            const freq = Math.pow(2, lowLog + (i + 0.5) * logStep);
-            
-            // Carrier filter
-            const carFilter = this.audioContext.createBiquadFilter();
-            carFilter.type = 'bandpass';
-            carFilter.frequency.value = freq;
-            carFilter.Q.value = this.filterQ;
-            this._carrierFilters.push(carFilter);
-            
-            // Gain modulated by analyzer
-            const carGain = this.audioContext.createGain();
-            this._carrierGains.push(carGain);
-            
-            this._carrierSplitter.connect(carFilter, 0);
-            carFilter.connect(carGain);
-            carGain.connect(this._merger, 0, i);
-        }
-    }
-    
-    _connect() {
-        // Modulator (voice/sound to analyze) -> modulator path
-        this.modulatorInput.connect(this._modulatorSplitter);
+        // Wet/dry mix
+        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1);
+        this._dryGain = new Tone.Gain(1 - (initialParams.wet !== undefined ? initialParams.wet : 1));
         
-        // Carrier (sound to be modulated) -> carrier path
-        this.carrierInput.connect(this._carrierSplitter);
+        // Input gains for carrier/modulator
+        this._carrierGain = new Tone.Gain(initialParams.carrierGain !== undefined ? initialParams.carrierGain : 1);
+        this._modulatorGain = new Tone.Gain(initialParams.modulatorGain !== undefined ? initialParams.modulatorGain : 1);
         
-        // Mixed output
-        this._merger.connect(this._wetGain);
-        this._dryGain.connect(this.output);
+        // Built vocoder from Tone.js
+        this._vocoder = new Tone.Vocoder(this._bandCount);
+        
+        // Connect carrier gain to vocoder carrier input
+        this._carrierGain.connect(this._vocoder.carrier);
+        
+        // Connect modulator gain to vocoder modulator input  
+        this._modulatorGain.connect(this._vocoder.modulator);
+        
+        // Connect vocoder output through wet/dry
+        this._vocoder.connect(this._wetGain);
+        this._vocoder.connect(this._dryGain);
+        
+        // Dry passthrough from carrier
+        this._carrierGain.connect(this._dryGain);
+        
+        // The vocoder's built-in analyzer
+        this._analyzerFFT = new Tone.Analyser('fft', 128);
+        this._vocoder.connect(this._analyzerFFT);
+        
+        // Input nodes
+        this.input = this._carrierGain;
+        this.modulatorInput = this._modulatorGain;
+        
+        // Output node
+        this.output = new Tone.Gain(1);
         this._wetGain.connect(this.output);
+        this._dryGain.connect(this.output);
         
-        // Start modulation loop
-        this._startModulation();
+        // Set initial wet/dry mix
+        this._wet = initialParams.wet !== undefined ? initialParams.wet : 1;
+        this._dry = 1 - this._wet;
     }
     
-    _startModulation() {
-        const updateLoop = () => {
-            for (let i = 0; i < this.bands; i++) {
-                const analyser = this._analyzers[i];
-                const dataArray = new Float32Array(analyser.frequencyBinCount);
-                analyser.getFloatTimeDomainData(dataArray);
-                
-                // Compute RMS level
-                let sum = 0;
-                for (let j = 0; j < dataArray.length; j++) {
-                    sum += dataArray[j] * dataArray[j];
-                }
-                const rms = Math.sqrt(sum / dataArray.length);
-                const level = Math.min(rms * 10, 1.0); // Scale and clamp
-                
-                // Modulate carrier filter gain
-                this._carrierGains[i].gain.setTargetAtTime(level * this.carrierLevel, this.audioContext.currentTime, 0.01);
-                
-                // Modulate filter frequency slightly based on envelope
-                const freqMod = 1.0 + (level * 0.1);
-                const baseFreq = this._carrierFilters[i].frequency.value;
-                this._carrierFilters[i].frequency.setTargetAtTime(baseFreq * freqMod, this.audioContext.currentTime, 0.05);
-            }
-            
-            this._modulationRAF = requestAnimationFrame(updateLoop);
+    // Get current analyzer values for visualization
+    getAnalyzers() {
+        return {
+            fft: this._analyzerFFT.getValue()
         };
-        
-        this._modulationRAF = requestAnimationFrame(updateLoop);
     }
     
-    updateParameters() {
-        const mix = this.mix;
-        this._wetGain.gain.setTargetAtTime(mix, this.audioContext.currentTime, 0.01);
-        this._dryGain.gain.setTargetAtTime(1 - mix, this.audioContext.currentTime, 0.01);
+    // Get frequency bands for visualization
+    getFrequencyBands() {
+        return this._filters.map(f => f.frequency.value);
     }
     
-    setMix(value) {
-        this.mix = Math.max(0, Math.min(1, value));
-        this.updateParameters();
+    // Set wet/dry mix
+    set wet(value) {
+        this._wet = value;
+        this._wetGain.gain.value = value;
+        this._dryGain.gain.value = 1 - value;
     }
     
-    setBands(value) {
-        // Rebuild if band count changes
+    get wet() {
+        return this._wet;
     }
     
+    // Set carrier gain
+    set carrierGain(value) {
+        this._carrierGain.gain.value = value;
+    }
+    
+    get carrierGain() {
+        return this._carrierGain.gain.value;
+    }
+    
+    // Set modulator gain
+    set modulatorGain(value) {
+        this._modulatorGain.gain.value = value;
+    }
+    
+    get modulatorGain() {
+        return this._modulatorGain.gain.value;
+    }
+    
+    // Set number of bands (rebuilds filters)
+    set bandCount(value) {
+        // Note: band count cannot be changed after construction in Tone.Vocoder
+        this._bandCount = Math.max(4, Math.min(64, value));
+    }
+    
+    get bandCount() {
+        return this._bandCount;
+    }
+    
+    // Dispose of all nodes
     dispose() {
-        if (this._modulationRAF) {
-            cancelAnimationFrame(this._modulationRAF);
-        }
-        this._modulatorFilters.forEach(f => f.disconnect());
-        this._carrierFilters.forEach(f => f.disconnect());
-        this._envelopeFollowers.forEach(g => g.disconnect());
-        this._carrierGains.forEach(g => g.disconnect());
-        this._analyzers.forEach(a => a.disconnect());
-        this._splitter.disconnect();
-        this._merger.disconnect();
-        this._dryGain.disconnect();
-        this._wetGain.disconnect();
-        this.input.disconnect();
-        this.output.disconnect();
-        this.modulatorInput.disconnect();
-        this.carrierInput.disconnect();
+        if (this._analyzer) this._analyzer.dispose();
+        if (this._vocoder) this._vocoder.dispose();
+        if (this._carrierGain) this._carrierGain.dispose();
+        if (this._modulatorGain) this._modulatorGain.dispose();
+        if (this._wetGain) this._wetGain.dispose();
+        if (this._dryGain) this._dryGain.dispose();
+        if (this._analyzerFFT) this._analyzerFFT.dispose();
+        this._filters.forEach(f => f.dispose());
+        this._filterGains.forEach(g => g.dispose());
     }
 }
 
-export function openVocoderPanel() {
-    if (typeof showEffectPanel === 'function') {
-        showEffectPanel('Vocoder', {
-            type: 'vocoder',
-            params: {
-                bands: 16,
-                lowFreq: 80,
-                highFreq: 8000,
-                filterQ: 5,
-                mix: 1.0,
-                carrierLevel: 1.0,
-                modulatorLevel: 1.0,
-                envelopeFollow: 0.3,
-                presets: 'robot'
-            },
-            onParamChange: (param, value) => {
-                // Handle parameter changes
-            }
-        });
-    }
-    
-    // Create panel directly if showEffectPanel not available
-    let panel = document.getElementById('vocoder-panel');
-    if (!panel) {
-        panel = document.createElement('div');
-        panel.id = 'vocoder-panel';
-        panel.className = 'effect-panel';
-        panel.style.cssText = `
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #1a1a2e; border: 1px solid #444; border-radius: 8px;
-            padding: 20px; z-index: 1000; min-width: 300px; color: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        `;
-        document.body.appendChild(panel);
-    }
-    
-    panel.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-            <h3 style="margin:0;">Vocoder</h3>
-            <button onclick="document.getElementById('vocoder-panel').remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:20px;">×</button>
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Bands: <span id="vocoder-bands-val">16</span></label>
-            <input type="range" min="4" max="32" value="16" id="vocoder-bands" style="width:100%"
-                oninput="document.getElementById('vocoder-bands-val').textContent=this.value">
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Filter Q: <span id="vocoder-q-val">5</span></label>
-            <input type="range" min="1" max="20" value="5" id="vocoder-q" style="width:100%"
-                oninput="document.getElementById('vocoder-q-val').textContent=this.value">
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Mix: <span id="vocoder-mix-val">1.0</span></label>
-            <input type="range" min="0" max="1" step="0.01" value="1" id="vocoder-mix" style="width:100%"
-                oninput="document.getElementById('vocoder-mix-val').textContent=parseFloat(this.value).toFixed(2)">
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Carrier Level: <span id="vocoder-carrier-val">1.0</span></label>
-            <input type="range" min="0" max="2" step="0.01" value="1" id="vocoder-carrier" style="width:100%"
-                oninput="document.getElementById('vocoder-carrier-val').textContent=parseFloat(this.value).toFixed(2)">
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Envelope Follow: <span id="vocoder-env-val">0.3</span></label>
-            <input type="range" min="0.01" max="1" step="0.01" value="0.3" id="vocoder-env" style="width:100%"
-                oninput="document.getElementById('vocoder-env-val').textContent=parseFloat(this.value).toFixed(2)">
-        </div>
-        <div style="margin-bottom:15px;">
-            <label style="display:block;margin-bottom:5px;font-size:12px;">Presets</label>
-            <select id="vocoder-presets" style="width:100%;padding:5px;background:#2a2a4a;color:white;border:1px solid #555;">
-                <option value="robot">Robot</option>
-                <option value="talkbox">Talkbox</option>
-                <option value="choir">Choir</option>
-                <option value="sci-fi">Sci-Fi</option>
-                <option value="vintage">Vintage</option>
-            </select>
-        </div>
-        <div style="display:flex;gap:10px;">
-            <button onclick="alert('Vocoder applied to track')" style="flex:1;padding:8px;background:#6366f1;border:none;border-radius:4px;color:white;cursor:pointer;">Apply</button>
-            <button onclick="document.getElementById('vocoder-panel').remove()" style="flex:1;padding:8px;background:#444;border:none;border-radius:4px;color:white;cursor:pointer;">Cancel</button>
-        </div>
-    `;
-    
-    return panel;
+// Register on Tone namespace if available
+if (typeof Tone !== 'undefined') {
+    Tone.VocoderWorklet = Vocoder;
 }
+
+export { Vocoder };

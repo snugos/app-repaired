@@ -16,6 +16,7 @@ import { SubHarmonicGenerator } from './SubHarmonicGenerator.js';
 import { NoiseGateEnhancement } from './NoiseGateEnhancement.js';
 import { MidSideEncoderDecoder } from './MidSideEncoderDecoder.js';
 import { TimestretchDisplay } from './TimestretchDisplay.js';
+import { Vocoder } from './Vocoder.js';
 
 // Register new effects on Tone namespace
 import { FrequencySplitter } from './FrequencySplitter.js';
@@ -1185,6 +1186,16 @@ export const AVAILABLE_EFFECTS = {
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
+    Vocoder: {
+        displayName: 'Vocoder',
+        toneClass: 'Vocoder',
+        params: [
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'carrierGain', label: 'Carrier', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'modulatorGain', label: 'Modulator', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'bandCount', label: 'Bands', type: 'knob', min: 4, max: 64, step: 1, defaultValue: 28, decimals: 0, isSignal: false },
+        ]
+    },
     ClipGlitchEffect: {
         displayName: 'Clip Glitch',
         toneClass: 'ClipGlitchEffect',
@@ -1455,7 +1466,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'highGain', label: 'High Band', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
             { key: 'lowCrossover', label: 'Low Xover', type: 'knob', min: 60, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
             { key: 'highCrossover', label: 'High Xover', type: 'knob', min: 1000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
-            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.01, decimals: 4, displaySuffix: 's', isSignal: false },
             { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.2, decimals: 2, displaySuffix: 's', isSignal: false },
         ]
     },
@@ -1794,11 +1805,7 @@ if (typeof window !== 'undefined') {
     window.CustomEffect = CustomEffect;
 }
 
-// ClipGlitchEffect - Register for effects registry
-import { ClipGlitchEffect } from './ClipGlitchEffect.js';
-import { ClipSilenceDetector } from './ClipSilenceDetector.js';
-
+// Register Vocoder on Tone namespace
 if (typeof Tone !== 'undefined') {
-    Tone.ClipGlitchEffect = ClipGlitchEffect;
-    Tone.ClipSilenceDetector = ClipSilenceDetector;
+    Tone.VocoderWorklet = Vocoder;
 }
