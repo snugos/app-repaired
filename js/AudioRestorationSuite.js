@@ -318,7 +318,7 @@ class AudioRestorationSuite {
     // De-clip
     applyDeClip(data) {
         const threshold = this.tools.deClip.threshold;
-        const reconstruct = this this.tools.deClip.reconstruct;
+        const reconstruct = this.tools.deClip.reconstruct;
         
         // Find clipped samples
         const clipLevel = Math.pow(10, threshold / 20);
