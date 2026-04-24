@@ -21,6 +21,7 @@ import { TrackDelayCompensation, openTrackDelayPanel } from './TrackDelayCompens
 import { MultiOutputInstrument, openMultiOutputPanel } from './MultiOutputInstrument.js';
 import { ClipReverseSelection, openClipReversePanel } from './ClipReverseSelection.js';
 import { MIDITransposeTrack, openMIDITransposePanel } from './MIDITransposeTrack.js';
+import { initMixdownGhost, openMixdownGhostPanel } from './MixdownGhost.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -396,7 +397,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -699,7 +700,10 @@ import {
     openAutoSpillPanel,
     initAutoSpill,
     openSpliceDetectorPanel,
-    initSpliceDetector
+    initSpliceDetector,
+    // Mixdown Ghost
+    openMixdownGhostPanel,
+    initMixdownGhost
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
@@ -888,6 +892,9 @@ async function initializeSnugOS() {
 
         // Initialize Splice Detector feature
         if (typeof initSpliceDetector === 'function') initSpliceDetector(appServices); else console.error("initSpliceDetector is not a function");
+
+        // Initialize Mixdown Ghost feature
+        if (typeof initMixdownGhost === 'function') initMixdownGhost(appServices); else console.error("initMixdownGhost is not a function");
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);

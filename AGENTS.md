@@ -1,3 +1,18 @@
+## New Feature Queue (2026-04-24 01:10 UTC)
+
+When all queues are empty, implement these new features:
+
+1. **Audio Limiter** - Brick-wall limiter with lookahead and release
+2. **MIDI Channel Filter** - Filter MIDI by channel with pass/block lists
+3. **Track Freeze All** - Freeze all tracks at once for CPU savings
+4. **Clip Stretch Markers** - Add stretch markers to audio clips for time manipulation
+5. **Harmonic Exciter** - Add harmonic content for brightness enhancement
+6. **MIDI Learn All** - Batch MIDI learn for all visible parameters
+7. **Sidechain Visualizer** - Visualize sidechain signal in real-time
+8. **Audio Pitch Envelope** - Draw pitch changes over audio clips
+9. **Track Routing Presets** - Save/load track routing configurations
+10. **Clip Gain Automation** - Draw gain automation directly on clips
+
 ## New Feature Queue (2026-04-24 01:55 UTC)
 
 When all queues are empty, implement these new features:
