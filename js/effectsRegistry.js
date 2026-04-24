@@ -1361,6 +1361,19 @@ export const AVAILABLE_EFFECTS = {
             { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
         ]
     },
+    ChorusEnsemble: {
+        displayName: 'Chorus Ensemble',
+        toneClass: 'ChorusEnsemble',
+        params: [
+            { key: 'voiceCount', label: 'Voices', type: 'knob', min: 1, max: 8, step: 1, defaultValue: 3, decimals: 0, isSignal: false },
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.7, decimals: 2, isSignal: false },
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 1, max: 30, step: 0.1, defaultValue: 7, decimals: 1, displaySuffix: 'ms', isSignal: false },
+            { key: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 0.9, step: 0.01, defaultValue: 0.3, decimals: 2, isSignal: false },
+            { key: 'tone', label: 'Tone', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+        ]
+    },
 };
 
 // Merge ScatterEffect into AVAILABLE_EFFECTS
