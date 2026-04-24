@@ -11,6 +11,19 @@ import { AudioLimiter } from './AudioLimiter.js';
 import { ClipGlitchEffect } from './ClipGlitchEffect.js';
 import { ClipSilenceDetector } from './ClipSilenceDetector.js';
 
+// Register new effects on Tone namespace
+import { FrequencySplitter } from './FrequencySplitter.js';
+import { HarmonicExciter } from './HarmonicExciter.js';
+import { PitchDrift } from './PitchDrift.js';
+import { SampleSlicer } from './SampleSlicer.js';
+
+if (typeof Tone !== 'undefined') {
+    Tone.FrequencySplitter = FrequencySplitter;
+    Tone.HarmonicExciter = HarmonicExciter;
+    Tone.PitchDrift = PitchDrift;
+    Tone.SampleSlicer = SampleSlicer;
+}
+
 // Mid-Side Effect - Stereo manipulation using M/S encoding
 class MidSideEffect extends Tone.Gain {
     constructor(initialParams = {}) {
@@ -1431,7 +1444,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'highGain', label: 'High Band', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
             { key: 'lowCrossover', label: 'Low Xover', type: 'knob', min: 60, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
             { key: 'highCrossover', label: 'High Xover', type: 'knob', min: 1000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
-            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.1, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
             { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.2, decimals: 2, displaySuffix: 's', isSignal: false },
         ]
     },
@@ -1499,6 +1512,48 @@ export const AVAILABLE_EFFECTS = {
             { key: 'threshold', label: 'Threshold', type: 'knob', min: -80, max: 0, step: 0.5, defaultValue: -60, decimals: 1, displaySuffix: 'dB', isSignal: false },
             { key: 'minDuration', label: 'Min Duration', type: 'knob', min: 0.1, max: 5, step: 0.1, defaultValue: 0.5, decimals: 1, displaySuffix: 's', isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    FrequencySplitter: {
+        displayName: 'Freq Splitter',
+        toneClass: 'FrequencySplitter',
+        params: [
+            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 20, max: 500, step: 1, defaultValue: 80, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'midFreq', label: 'Mid Freq', type: 'knob', min: 200, max: 5000, step: 10, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 2000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lowGain', label: 'Low Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'midGain', label: 'Mid Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'highGain', label: 'High Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    HarmonicExciter: {
+        displayName: 'Harm Exciter',
+        toneClass: 'HarmonicExciter',
+        params: [
+            { key: 'amount', label: 'Amount', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'frequency', label: 'Freq', type: 'knob', min: 500, max: 12000, step: 100, defaultValue: 3000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'oddEvenMix', label: 'Character', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+        ]
+    },
+    PitchDrift: {
+        displayName: 'Pitch Drift',
+        toneClass: 'PitchDrift',
+        params: [
+            { key: 'driftAmount', label: 'Amount', type: 'knob', min: 0, max: 12, step: 0.1, defaultValue: 2, decimals: 1, displaySuffix: 'st', isSignal: false },
+            { key: 'driftRate', label: 'Rate', type: 'knob', min: 0.01, max: 10, step: 0.01, defaultValue: 0.5, decimals: 2, displaySuffix: 'Hz', isSignal: false },
+            { key: 'driftShape', label: 'Shape', type: 'select', options: ['sine', 'triangle', 'saw', 'square'], defaultValue: 'sine', isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+        ]
+    },
+    SampleSlicer: {
+        displayName: 'Sample Slicer',
+        toneClass: 'SampleSlicer',
+        params: [
+            { key: 'threshold', label: 'Threshold', type: 'knob', min: 0.1, max: 1, step: 0.05, defaultValue: 0.3, decimals: 2, isSignal: false },
+            { key: 'minSliceLength', label: 'Min Length', type: 'knob', min: 0.01, max: 0.5, step: 0.01, defaultValue: 0.05, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'fadeLength', label: 'Fade', type: 'knob', min: 0.001, max: 0.05, step: 0.001, defaultValue: 0.005, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'zeroCrossing', label: 'Zero Cross', type: 'select', options: ['true', 'false'], defaultValue: 'true', isSignal: false },
         ]
     },
 };
