@@ -70,6 +70,21 @@ When all queues are empty, implement these new features:
 9. **Clip Reverse Selection** - Reverse selected portion of clip
 10. **MIDI Transpose Track** - Transpose MIDI by track setting
 
+## New Feature Queue (2026-04-24 01:30 UTC)
+
+When all queues are empty, implement these new features:
+
+1. **Multiband Compression** - 3-band compressor for master or tracks
+2. **Transient Designer** - Attack/sustain control for dynamics
+3. **Stereo Imager** - Width control per frequency band
+4. **De-Esser** - Frequency-conscious sibilance reduction
+5. **MIDI Event Monitor** - Real-time MIDI message viewer
+6. **Clip Fades Presets** - Quick apply common fade curves
+7. **Track Templates Library** - Pre-configured track setups
+8. **Pattern Length Editor** - Edit pattern length non-destructively
+9. **Audio Region Loop** - Loop audio regions within clips
+10. **Note Velocity LFO** - LFO modulation on note velocities
+
 ## Scheduled Agent Run (2026-04-23 23:40 UTC)
 
 **Bug Fix:** `getIsReconstructingingDAW` typo (triple g) on line 390 in `addMasterEffect`
