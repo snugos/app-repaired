@@ -13,6 +13,10 @@ import { PhaseScope, openPhaseScopePanel } from './PhaseScope.js';
 import { frequencyMasking as freqMaskingInstance, openFrequencyMaskingPanel } from './FrequencyMasking.js';
 import { getTrackGradientSettings, setTrackGradientSettings, getGradientPresets, getTrackGradientPreset, setTrackGradientPreset, clearTrackGradient, applyGradientToTrackElement, exportGradientData, importGradientData } from './TrackColorGradient.js';
 import { openNoiseGatePanel } from './TrackNoiseGate.js';
+import { SidechainEQ, openSidechainEQPanel } from './SidechainEQ.js';
+import { AudioSpectrumFreeze, openSpectrumFreezePanel } from './AudioSpectrumFreeze.js';
+import { BatchExport, openBatchExportPanel } from './BatchExport.js';
+import { SampleRateConverter, openSampleRateConverterPanel } from './SampleRateConverter.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -388,7 +392,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -408,8 +412,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -425,7 +429,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -657,6 +661,18 @@ import {
 
     // Track Noise Gate
     openNoiseGatePanel,
+
+    // Sidechain EQ
+    openSidechainEQPanel,
+
+    // Audio Spectrum Freeze
+    openSpectrumFreezePanel,
+
+    // Batch Export
+    openBatchExportPanel,
+
+    // Sample Rate Converter
+    openSampleRateConverterPanel,
 
     // Track Color Gradient
     openTrackColorGradientPanel,
