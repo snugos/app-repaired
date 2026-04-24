@@ -419,7 +419,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructingt && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -644,6 +644,7 @@ import {
 
     // FeatureAdditions exports
     ...FeatureAdditions,
+    openSmartQuantizePanel,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {

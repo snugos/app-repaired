@@ -1,5 +1,10 @@
 // js/FeatureAdditions.js - Additional feature implementations for SnugOS DAW
 
+// Import new feature modules
+export { VisualizationModes, VISUALIZATION_MODES, COLOR_SCHEMES, openVisualizationModesPanel } from './VisualizationModes.js';
+export { PerformanceMode, Scene, SCENE_TYPES, TRIGGER_MODES, initPerformanceMode, openPerformanceModePanel } from './PerformanceMode.js';
+export { SmartQuantize, QUANTIZE_MODES, GROOVE_TEMPLATES, quantizeNotes, analyzeNotes, openSmartQuantizePanel } from './SmartQuantize.js';
+
 // ===========================================
 // REVERB POOL
 // Multiple named reverb spaces that can be saved and shared across tracks

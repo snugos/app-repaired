@@ -6646,3 +6646,241 @@ function updateTrackColorGradientPanel() {
         renderTrackColorGradientContent();
     }
 }
+
+// ===========================================
+// SMART QUANTIZE PANEL
+// Intelligent quantization with strength, humanization, and groove preservation
+// ===========================================
+
+export function openSmartQuantizePanel() {
+    const winId = 'smartQuantizeWindow';
+    const existingWin = localAppServices.getWindowByIdState?.(winId);
+    if (existingWin) {
+        localAppServices.focusWindow?.(winId);
+        return;
+    }
+    
+    const content = document.createElement('div');
+    content.id = 'smartQuantizeContent';
+    content.className = 'p-4 space-y-4 bg-gray-900 dark:bg-slate-800 h-full overflow-y-auto';
+    
+    content.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-purple-400">Smart Quantize</h3>
+            <button id="closeSmartQuantizeBtn" class="text-gray-400 hover:text-gray-200">✕</button>
+        </div>
+        
+        <div class="space-y-3">
+            <p class="text-xs text-gray-400">Select notes in the piano roll, then apply smart quantization that preserves musical feel.</p>
+            
+            <!-- Strength Slider -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Strength: <span id="sq-strength-value">60%</span></label>
+                <input type="range" id="sq-strength" min="0" max="100" value="60" 
+                    class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <!-- Humanization Slider -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Humanize: <span id="sq-humanize-value">3%</span></label>
+                <input type="range" id="sq-humanize" min="0" max="10" value="3" 
+                    class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <!-- Swing Amount -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Swing: <span id="sq-swing-value">0%</span></label>
+                <input type="range" id="sq-swing" min="0" max="50" value="0" 
+                    class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <!-- Preserve Groove Toggle -->
+            <div class="form-group flex items-center gap-2">
+                <input type="checkbox" id="sq-preserve-groove" checked 
+                    class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-400">
+                <label for="sq-preserve-groove" class="text-xs text-gray-400">Preserve existing groove</label>
+            </div>
+            
+            <!-- Time Signature -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Time Signature</label>
+                <select id="sq-time-sig" class="w-full p-2 text-sm bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="4/4" selected>4/4</option>
+                    <option value="3/4">3/4</option>
+                    <option value="6/8">6/8</option>
+                    <option value="5/4">5/4</option>
+                    <option value="7/8">7/8</option>
+                </select>
+            </div>
+            
+            <!-- Resolution -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Grid Resolution</label>
+                <select id="sq-resolution" class="w-full p-2 text-sm bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="4">1/4 (Quarter notes)</option>
+                    <option value="8">1/8 (Eighth notes)</option>
+                    <option value="16" selected>1/16 (Sixteenth notes)</option>
+                    <option value="32">1/32 (Thirty-second notes)</option>
+                </select>
+            </div>
+            
+            <!-- Preset Buttons -->
+            <div class="flex flex-wrap gap-2 mt-2">
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="subtle">Subtle</button>
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="moderate">Moderate</button>
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="tight">Tight</button>
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="loose">Loose</button>
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="humanize">Humanize</button>
+                <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="strict">Strict</button>
+            </div>
+            
+            <!-- Apply Button -->
+            <button id="sq-apply" class="w-full mt-3 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded">
+                Apply Smart Quantize
+            </button>
+            
+            <!-- Preview Info -->
+            <div id="sq-preview-info" class="text-xs text-gray-500 mt-2 p-2 bg-gray-800 rounded hidden"></div>
+        </div>
+    `;
+    
+    const options = {
+        width: 380,
+        height: 480,
+        minWidth: 320,
+        minHeight: 400,
+        initialContentKey: winId,
+        closable: true,
+        minimizable: true,
+        resizable: true
+    };
+    
+    const win = localAppServices.createWindow(winId, 'Smart Quantize', content, options);
+    
+    if (win?.element) {
+        setTimeout(() => initSmartQuantizePanelHandlers(), 50);
+    }
+    
+    return win;
+}
+
+function initSmartQuantizePanelHandlers() {
+    const strengthSlider = document.getElementById('sq-strength');
+    const humanizeSlider = document.getElementById('sq-humanize');
+    const swingSlider = document.getElementById('sq-swing');
+    const preserveGrooveCheck = document.getElementById('sq-preserve-groove');
+    const timeSigSelect = document.getElementById('sq-time-sig');
+    const resolutionSelect = document.getElementById('sq-resolution');
+    const applyBtn = document.getElementById('sq-apply');
+    const closeBtn = document.getElementById('closeSmartQuantizeBtn');
+
+    if (!strengthSlider) return;
+
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            const win = localAppServices.getWindowByIdState?.('smartQuantizeWindow');
+            if (win?.close) win.close();
+        });
+    }
+
+    // Update labels
+    strengthSlider.addEventListener('input', () => {
+        const val = document.getElementById('sq-strength-value');
+        if (val) val.textContent = strengthSlider.value + '%';
+    });
+
+    humanizeSlider.addEventListener('input', () => {
+        const val = document.getElementById('sq-humanize-value');
+        if (val) val.textContent = humanizeSlider.value + '%';
+    });
+
+    swingSlider.addEventListener('input', () => {
+        const val = document.getElementById('sq-swing-value');
+        if (val) val.textContent = swingSlider.value + '%';
+    });
+
+    // Preset buttons
+    const presets = {
+        subtle: { strength: 0.8, humanize: 0.02, preserveGroove: true },
+        moderate: { strength: 0.6, humanize: 0.03, preserveGroove: true },
+        tight: { strength: 0.9, humanize: 0.01, preserveGroove: true },
+        loose: { strength: 0.4, humanize: 0.05, preserveGroove: false },
+        humanize: { strength: 0.0, humanize: 0.04, preserveGroove: true },
+        strict: { strength: 1.0, humanize: 0.0, preserveGroove: false }
+    };
+
+    document.querySelectorAll('.sq-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const preset = presets[btn.dataset.preset];
+            if (preset) {
+                strengthSlider.value = preset.strength * 100;
+                document.getElementById('sq-strength-value').textContent = Math.round(preset.strength * 100) + '%';
+                
+                humanizeSlider.value = preset.humanize * 100;
+                document.getElementById('sq-humanize-value').textContent = Math.round(preset.humanize * 100) + '%';
+                
+                preserveGrooveCheck.checked = preset.preserveGroove;
+            }
+        });
+    });
+
+    // Apply button
+    applyBtn.addEventListener('click', () => {
+        // Get selected notes from the active sequencer
+        const selectedNotes = localAppServices.getSelectedNotesInSequencer?.();
+        
+        if (!selectedNotes || selectedNotes.length === 0) {
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification('No notes selected. Select notes in piano roll first.', 2000);
+            }
+            return;
+        }
+
+        const options = {
+            resolution: parseInt(resolutionSelect?.value) || 16,
+            strength: parseInt(strengthSlider.value) / 100,
+            humanize: parseInt(humanizeSlider.value) / 100,
+            swingAmount: parseInt(swingSlider.value) / 100,
+            preserveGroove: preserveGrooveCheck.checked,
+            timeSignature: timeSigSelect?.value || '4/4'
+        };
+
+        // Import and use SmartQuantize
+        import('./SmartQuantize.js').then(module => {
+            const { smartQuantizeNotes } = module;
+            
+            // Convert selected notes to the format expected by smartQuantize
+            const notesToQuantize = selectedNotes.map(note => ({
+                time: note.col,  // col represents time position
+                pitch: note.row,
+                velocity: note.velocity || 100,
+                duration: note.duration || 1
+            }));
+            
+            const quantized = smartQuantizeNotes(notesToQuantize, options);
+            
+            // Apply quantized positions back
+            if (localAppServices.applySmartQuantizeToNotes) {
+                localAppServices.applySmartQuantizeToNotes(selectedNotes, quantized);
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification(`Smart quantized ${quantized.length} notes`, 2000);
+                }
+            } else {
+                console.warn('[SmartQuantize] applySmartQuantizeToNotes not available');
+                if (localAppServices.showNotification) {
+                    localAppServices.showNotification('Smart quantize applied (UI update not available)', 2000);
+                }
+            }
+            
+            // Close panel on success
+            const win = localAppServices.getWindowByIdState?.('smartQuantizeWindow');
+            if (win?.close) win.close();
+        }).catch(err => {
+            console.error('[SmartQuantize] Error applying:', err);
+            if (localAppServices.showNotification) {
+                localAppServices.showNotification('Error applying smart quantize', 2000);
+            }
+        });
+    });
+}
