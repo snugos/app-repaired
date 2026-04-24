@@ -448,6 +448,134 @@ class OneKnobMaster extends Tone.Gain {
 // Register on Tone namespace
 Tone.OneKnobMaster = OneKnobMaster;
 
+// Adaptive Q Effect - Auto-adjusts EQ Q based on frequency content
+// Higher Q when frequency band is empty, lower Q when it's busy
+class AdaptiveQEffect extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        // Parameters
+        this._baseQ = initialParams.baseQ !== undefined ? initialParams.baseQ : 1.0;
+        this._minQ = initialParams.minQ !== undefined ? initialParams.minQ : 0.3;
+        this._maxQ = initialParams.maxQ !== undefined ? initialParams.maxQ : 8.0;
+        this._sensitivity = initialParams.sensitivity !== undefined ? initialParams.sensitivity : 0.5;
+        this._enabled = true;
+        
+        // Create the EQ band
+        this._eq = new Tone.EQ3({
+            low: initialParams.lowGain !== undefined ? initialParams.lowGain : 0,
+            lowFrequency: initialParams.lowFrequency || 200,
+            mid: initialParams.midGain !== undefined ? initialParams.midGain : 0,
+            midFrequency: initialParams.midFrequency || 1000,
+            high: initialParams.highGain !== undefined ? initialParams.highGain : 0,
+            highFrequency: initialParams.highFrequency || 3000
+        });
+        
+        // Analysis nodes
+        this._analyser = new Tone.Analyser('fft', 256);
+        this._smoothing = 0.9;
+        this._currentEnergy = 0;
+        this._targetQ = this._baseQ;
+        
+        // Dry/wet mix for effect
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(0.0);
+        
+        // Connect chain
+        this.connect(this._eq);
+        this._eq.connect(this._analyser);
+        this._eq.connect(this._dryGain);
+        this._eq.connect(this._wetGain);
+        
+        this._dryGain.connect(this);
+        this._wetGain.connect(this);
+    }
+    
+    static getMetronomeAudioLabel() { return 'Adaptive Q'; }
+    
+    setEnabled(enabled) {
+        this._enabled = enabled;
+    }
+    
+    setBaseQ(q) {
+        this._baseQ = Math.max(this._minQ, Math.min(this._maxQ, q));
+    }
+    
+    getBaseQ() {
+        return this._baseQ;
+    }
+    
+    setSensitivity(sensitivity) {
+        this._sensitivity = Math.max(0, Math.min(1, sensitivity));
+    }
+    
+    getSensitivity() {
+        return this._sensitivity;
+    }
+    
+    setMinQ(q) {
+        this._minQ = Math.max(0.1, q);
+    }
+    
+    setMaxQ(q) {
+        this._maxQ = Math.max(this._minQ, q);
+    }
+    
+    // Update Q based on frequency content
+    _updateQ() {
+        if (!this._enabled) return;
+        
+        const values = this._analyser.getValue();
+        if (!values || values.length === 0) return;
+        
+        // Calculate RMS energy in mid band (roughly 200Hz - 4kHz)
+        const startBin = Math.floor(values.length * 0.1);
+        const endBin = Math.floor(values.length * 0.4);
+        let sum = 0;
+        for (let i = startBin; i < endBin; i++) {
+            const db = values[i];
+            const linear = Math.pow(10, db / 20);
+            sum += linear * linear;
+        }
+        const rms = Math.sqrt(sum / (endBin - startBin));
+        const energy = Math.min(1, rms * 10);
+        
+        // Smooth energy
+        this._currentEnergy = this._currentEnergy * this._smoothing + energy * (1 - this._smoothing);
+        
+        // Map energy to Q: high energy (busy) = low Q, low energy (quiet) = high Q
+        const range = this._maxQ - this._baseQ;
+        const targetQ = this._baseQ + range * (1 - this._currentEnergy) * this._sensitivity;
+        
+        // Smooth Q transition
+        this._targetQ = this._targetQ * 0.9 + targetQ * 0.1;
+        
+        // Apply to mid band
+        if (this._eq.mid && typeof this._eq.mid.Q !== 'undefined') {
+            this._eq.mid.Q.value = Math.max(this._minQ, Math.min(this._maxQ, this._targetQ));
+        }
+    }
+    
+    getCurrentQ() {
+        if (this._eq.mid && typeof this._eq.mid.Q !== 'undefined') {
+            return this._eq.mid.Q.value;
+        }
+        return this._baseQ;
+    }
+    
+    dispose() {
+        this._analyser.dispose();
+        this._eq.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.AdaptiveQEffect = AdaptiveQEffect;
+}
+
 // Transient Shaper - Shape attack and sustain portions of audio
 class TransientShaper extends Tone.Gain {
     constructor(initialParams = {}) {
@@ -1071,6 +1199,18 @@ export const AVAILABLE_EFFECTS = {
         toneClass: 'OneKnobMaster',
         params: [
             { key: 'intensity', label: 'Loudness', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false }
+        ]
+    },
+    AdaptiveQ: {
+        displayName: 'Adaptive Q',
+        toneClass: 'AdaptiveQEffect',
+        params: [
+            { key: 'baseQ', label: 'Base Q', type: 'knob', min: 0.3, max: 8, step: 0.1, defaultValue: 1.0, decimals: 1, isSignal: false },
+            { key: 'sensitivity', label: 'Sensitivity', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'midGain', label: 'Mid Gain', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'midFrequency', label: 'Mid Freq', type: 'knob', min: 200, max: 8000, step: 100, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lowGain', label: 'Low Gain', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'highGain', label: 'High Gain', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
         ]
     },
 };
