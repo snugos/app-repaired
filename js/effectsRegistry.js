@@ -1374,6 +1374,21 @@ export const AVAILABLE_EFFECTS = {
             { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
         ]
     },
+    PhaserEnsemble: {
+        displayName: 'Phaser Ensemble',
+        toneClass: 'PhaserEnsemble',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.01, max: 20, step: 0.01, defaultValue: 1.0, decimals: 2, displaySuffix: 'Hz', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.7, decimals: 2, isSignal: false },
+            { key: 'stages', label: 'Stages', type: 'knob', min: 2, max: 24, step: 1, defaultValue: 8, decimals: 0, isSignal: false },
+            { key: 'baseFrequency', label: 'Base Freq', type: 'knob', min: 100, max: 5000, step: 10, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'octaves', label: 'Octaves', type: 'knob', min: 1, max: 6, step: 0.1, defaultValue: 3, decimals: 1, isSignal: false },
+            { key: 'Q', label: 'Q', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 1.5, decimals: 1, isSignal: false },
+            { key: 'stereo', label: 'Stereo', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'syncToBPM', label: 'Sync', type: 'checkbox', defaultValue: false, isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+        ]
+    },
 };
 
 // Merge ScatterEffect into AVAILABLE_EFFECTS
