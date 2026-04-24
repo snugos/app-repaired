@@ -97,3 +97,32 @@ Generate 10 NEW feature ideas that are:
 - VST3 Plugin Loading (requires native bridge)
 - AU Plugin Support (requires native bridge)
 - ReWire Support (requires native bridge)
+
+---
+
+## New Feature Queue (2026-04-24 17:00 UTC)
+
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+- 371+ features already implemented
+
+**New Feature Queue:**
+
+1. **Frequency Splitter** - Split audio into multiple frequency bands for parallel processing
+2. **Pitch Drift** - Gradual pitch drift effect for creating subtle vibrato/wobble
+3. **Sample Slicer** - Slice audio samples into rhythmic segments with transient detection
+4. **Mid-Side Encoder/Decoder** - Convert between stereo and mid-side representation
+5. **Timestretch Display** - Visual preview of how audio will be stretched
+6. **Harmonic Exciter** - Add harmonic content to dull recordings
+7. **Frequency Shifter** - Shift frequencies without changing pitch (for special effects)
+8. **Phase Scope** - Real-time phase correlation visualization
+9. **Noise Gate Enhancement** - Advanced gate with frequency-aware triggering
+10. **Sub-Harmonic Generator** - Add sub-bass content for weight and power
+
+**Status: 10 NEW FEATURES TO IMPLEMENT**
+
+**Total Features: 371+**
