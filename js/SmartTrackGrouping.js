@@ -765,7 +765,20 @@ class SmartTrackGrouping {
 // Export singleton instance
 const smartTrackGrouping = new SmartTrackGrouping();
 
+// Initialization function
+function initSmartTrackGrouping() {
+    console.log('[SmartGrouping] Module initialized');
+    return smartTrackGrouping;
+}
+
+// Panel open function
+function openSmartTrackGroupingPanel() {
+    smartTrackGrouping.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SmartTrackGrouping, smartTrackGrouping };
+    module.exports = { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel };
 }
+
+export { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel };

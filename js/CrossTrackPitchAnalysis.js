@@ -672,7 +672,20 @@ class CrossTrackPitchAnalysis {
 // Export singleton instance
 const crossTrackPitchAnalysis = new CrossTrackPitchAnalysis();
 
+// Initialization function
+function initCrossTrackPitchAnalysis() {
+    console.log('[CrossTrackPitch] Module initialized');
+    return crossTrackPitchAnalysis;
+}
+
+// Panel open function
+function openCrossTrackPitchAnalysisPanel() {
+    crossTrackPitchAnalysis.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { CrossTrackPitchAnalysis, crossTrackPitchAnalysis };
+    module.exports = { CrossTrackPitchAnalysis, crossTrackPitchAnalysis, initCrossTrackPitchAnalysis, openCrossTrackPitchAnalysisPanel };
 }
+
+export { CrossTrackPitchAnalysis, crossTrackPitchAnalysis, initCrossTrackPitchAnalysis, openCrossTrackPitchAnalysisPanel };

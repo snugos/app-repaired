@@ -808,7 +808,20 @@ class CollaborationSessionRecording {
 // Export singleton instance
 const collaborationSessionRecording = new CollaborationSessionRecording();
 
+// Initialization function
+function initCollaborationSessionRecording() {
+    console.log('[CollabRecording] Module initialized');
+    return collaborationSessionRecording;
+}
+
+// Panel open function
+function openCollaborationSessionPanel() {
+    collaborationSessionRecording.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { CollaborationSessionRecording, collaborationSessionRecording };
+    module.exports = { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel };
 }
+
+export { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel };

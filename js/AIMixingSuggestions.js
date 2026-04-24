@@ -792,7 +792,20 @@ class AIMixingSuggestions {
 // Export singleton instance
 const aiMixingSuggestions = new AIMixingSuggestions();
 
+// Initialization function
+function initAIMixingSuggestions() {
+    console.log('[AIMixing] Module initialized');
+    return aiMixingSuggestions;
+}
+
+// Panel open function
+function openAIMixingSuggestionsPanel() {
+    aiMixingSuggestions.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AIMixingSuggestions, aiMixingSuggestions };
+    module.exports = { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAIMixingSuggestionsPanel };
 }
+
+export { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAIMixingSuggestionsPanel };

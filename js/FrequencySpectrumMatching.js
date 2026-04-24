@@ -664,7 +664,20 @@ class FrequencySpectrumMatching {
 // Export singleton instance
 const frequencySpectrumMatching = new FrequencySpectrumMatching();
 
+// Initialization function
+function initFrequencySpectrumMatching() {
+    console.log('[SpectrumMatching] Module initialized');
+    return frequencySpectrumMatching;
+}
+
+// Panel open function
+function openFrequencySpectrumMatchingPanel() {
+    frequencySpectrumMatching.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { FrequencySpectrumMatching, frequencySpectrumMatching };
+    module.exports = { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpectrumMatching, openFrequencySpectrumMatchingPanel };
 }
+
+export { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpectrumMatching, openFrequencySpectrumMatchingPanel };

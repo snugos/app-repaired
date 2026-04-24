@@ -705,7 +705,20 @@ class AudioEventDetection {
 // Export singleton instance
 const audioEventDetection = new AudioEventDetection();
 
+// Initialization function
+function initAudioEventDetection() {
+    console.log('[EventDetection] Module initialized');
+    return audioEventDetection;
+}
+
+// Panel open function
+function openAudioEventDetectionPanel() {
+    audioEventDetection.openPanel();
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AudioEventDetection, audioEventDetection };
+    module.exports = { AudioEventDetection, audioEventDetection, initAudioEventDetection, openAudioEventDetectionPanel };
 }
+
+export { AudioEventDetection, audioEventDetection, initAudioEventDetection, openAudioEventDetectionPanel };

@@ -17,6 +17,12 @@ import { initNotationExportEnhancement, openNotationExportPanel } from './Notati
 import { initAudioRestorationSuite, openAudioRestorationPanel } from './AudioRestorationSuite.js';
 import { initMIDIGuitarSupport, openMIDIGuitarPanel } from './MIDIGuitarSupport.js';
 import { initSpatialAudioPanning, openSpatialAudioPanel } from './SpatialAudioPanning.js';
+import { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel } from './CollaborationSessionRecording.js';
+import { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAIMixingSuggestionsPanel } from './AIMixingSuggestions.js';
+import { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpectrumMatching, openFrequencySpectrumMatchingPanel } from './FrequencySpectrumMatching.js';
+import { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel } from './SmartTrackGrouping.js';
+import { AudioEventDetection, audioEventDetection, initAudioEventDetection, openAudioEventDetectionPanel } from './AudioEventDetection.js';
+import { CrossTrackPitchAnalysis, crossTrackPitchAnalysis, initCrossTrackPitchAnalysis, openCrossTrackPitchAnalysisPanel } from './CrossTrackPitchAnalysis.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -665,6 +671,42 @@ import {
     // Spatial Audio Panning
     initSpatialAudioPanning,
     openSpatialAudioPanel,
+
+    // Collaboration Session Recording
+    CollaborationSessionRecording,
+    collaborationSessionRecording,
+    initCollaborationSessionRecording,
+    openCollaborationSessionPanel,
+    
+    // AI Mixing Suggestions
+    AIMixingSuggestions,
+    aiMixingSuggestions,
+    initAIMixingSuggestions,
+    openAIMixingSuggestionsPanel,
+    
+    // Frequency Spectrum Matching
+    FrequencySpectrumMatching,
+    frequencySpectrumMatching,
+    initFrequencySpectrumMatching,
+    openFrequencySpectrumMatchingPanel,
+    
+    // Smart Track Grouping
+    SmartTrackGrouping,
+    smartTrackGrouping,
+    initSmartTrackGrouping,
+    openSmartTrackGroupingPanel,
+    
+    // Audio Event Detection
+    AudioEventDetection,
+    audioEventDetection,
+    initAudioEventDetection,
+    openAudioEventDetectionPanel,
+    
+    // Cross-Track Pitch Analysis
+    CrossTrackPitchAnalysis,
+    crossTrackPitchAnalysis,
+    initCrossTrackPitchAnalysis,
+    openCrossTrackPitchAnalysisPanel,
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
