@@ -22,6 +22,7 @@ import { MultiOutputInstrument, openMultiOutputPanel } from './MultiOutputInstru
 import { ClipReverseSelection, openClipReversePanel } from './ClipReverseSelection.js';
 import { MIDITransposeTrack, openMIDITransposePanel } from './MIDITransposeTrack.js';
 import { initMixdownGhost, openMixdownGhostPanel } from './MixdownGhost.js';
+import { scaleSuggestion, openScaleSuggestionPanel, initScaleSuggestion } from './ScaleSuggestion.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -703,7 +704,11 @@ import {
     initSpliceDetector,
     // Mixdown Ghost
     openMixdownGhostPanel,
-    initMixdownGhost
+    initMixdownGhost,
+    // Scale Suggestion
+    openScaleSuggestionPanel,
+    initScaleSuggestion,
+    scaleSuggestion
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
@@ -895,6 +900,9 @@ async function initializeSnugOS() {
 
         // Initialize Mixdown Ghost feature
         if (typeof initMixdownGhost === 'function') initMixdownGhost(appServices); else console.error("initMixdownGhost is not a function");
+
+        // Initialize Scale Suggestion feature
+        if (typeof initScaleSuggestion === 'function') initScaleSuggestion(appServices); else console.error("initScaleSuggestion is not a function");
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
