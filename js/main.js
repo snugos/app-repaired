@@ -642,6 +642,14 @@ import {
     // EQ Preset Library
     openEQPresetLibraryPanel,
     
+    // Effect Panels - Session 2026-04-24
+    openTubeSaturationPanel,
+    openMultibandGatePanel,
+    openTransientModulatorPanel,
+    openStereoWidthControllerPanel,
+    openDynamicResonanceFilterPanel,
+    openVocalDoublerPanel,
+    
     // AI Mastering Enhancement
     AIMasteringEnhancement,
     initAIMasteringEnhancement,
