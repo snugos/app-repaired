@@ -1,479 +1,352 @@
 /**
- * Harmonic Exciter - Add harmonic content for brightness enhancement
- * Creates high-frequency harmonics to add presence and sparkle
+ * HarmonicExciter - Add harmonic content to dull recordings
+ * Uses phase manipulation and harmonic generation to enhance presence and brilliance
  */
 
 export class HarmonicExciter {
-    constructor(audioContext, options = {}) {
-        this.audioContext = audioContext;
+    constructor(options = {}) {
+        this.name = 'HarmonicExciter';
         
-        // Parameters
-        this.drive = options.drive ?? 2;
-        this.frequency = options.frequency ?? 2000; // Hz, crossover frequency
-        this.mix = options.mix ?? 0.5;
-        this.outputGain = options.outputGain ?? 1;
-        this.mode = options.mode ?? 'odd'; // 'odd', 'even', 'both'
-        this.harmoAmount = options.harmoAmount ?? 0.7;
+        // Excitation parameters
+        this.amount = options.amount ?? 0.5; // 0-1, intensity of harmonics
+        this.frequency = options.frequency ?? 2500; // Focus frequency in Hz
+        this.oddEvenMix = options.oddEvenMix ?? 0.5; // 0 = even (warm), 1 = odd (present)
+        this.oversample = options.oversample ?? 2; // Oversampling factor
+        this.mix = options.mix ?? 0.5; // Wet/dry mix
         
-        // Audio nodes
-        this.input = audioContext.createGain();
-        this.output = audioContext.createGain();
+        // Internal state
+        this.sampleRate = options.sampleRate || 44100;
+        this.phase = 0;
         
-        // Crossover filters
-        this.lowpass = audioContext.createBiquadFilter();
-        this.highpass = audioContext.createBiquadFilter();
+        // Delay buffer for oversampling
+        this.delayBuffer = new Float32Array(16);
+        this.delayIndex = 0;
         
-        this.lowpass.type = 'lowpass';
-        this.lowpass.frequency.value = this.frequency;
-        this.lowpass.Q.value = 1;
-        
-        this.highpass.type = 'highpass';
-        this.highpass.frequency.value = this.frequency;
-        this.highpass.Q.value = 1;
-        
-        // Dry path
-        this.dryGain = audioContext.createGain();
-        this.dryGain.gain.value = 1 - this.mix;
-        
-        // Wet path
-        this.wetGain = audioContext.createGain();
-        this.wetGain.gain.value = this.mix;
-        
-        // Distortion for harmonic generation
-        this.distortion = audioContext.createWaveShaper();
-        this.distortion.curve = this.createDistortionCurve();
-        this.distortion.oversample = '4x';
-        
-        // Output filter to tame harshness
-        this.outputFilter = audioContext.createBiquadFilter();
-        this.outputFilter.type = 'highshelf';
-        this.outputFilter.frequency.value = 8000;
-        this.outputFilter.gain.value = -3;
-        
-        // Metering
-        this.inputMeter = audioContext.createAnalyser();
-        this.outputMeter = audioContext.createAnalyser();
-        this.inputMeter.fftSize = 256;
-        this.outputMeter.fftSize = 256;
-        
-        this.setupRouting();
-        this.updateParameters();
-        
-        this.enabled = true;
+        // Harmonic generation state
+        this.harmonicBuffer = new Float32Array(0);
     }
     
-    createDistortionCurve() {
-        const samples = 256;
-        const curve = new Float32Array(samples);
-        const drive = this.drive;
+    /**
+     * Generate harmonics from input sample
+     */
+    _generateHarmonics(sample) {
+        // Simple harmonic generation using waveshaping
+        const input = sample * this.amount;
         
-        for (let i = 0; i < samples; i++) {
-            const x = (i * 2) / samples - 1;
+        // Generate odd harmonics (more aggressive, present)
+        const odd = Math.sign(input) * (1 - Math.exp(-Math.abs(input) * 10));
+        
+        // Generate even harmonics (softer, warmer)
+        const even = Math.sin(input * Math.PI);
+        
+        // Mix odd and even
+        const harmonics = odd * this.oddEvenMix + even * (1 - this.oddEvenMix);
+        
+        return harmonics;
+    }
+    
+    /**
+     * Process a single sample with oversampling
+     */
+    _processSampleOversampled(input) {
+        let output = 0;
+        
+        // Simple 2x oversampling via linear interpolation
+        const samples = [
+            input,
+            (this.delayBuffer[this.delayIndex] + input) * 0.5
+        ];
+        
+        for (const sample of samples) {
+            const harmonic = this._generateHarmonics(sample);
+            output += harmonic;
+        }
+        
+        return output / 2; // Average the oversampled results
+    }
+    
+    /**
+     * Process audio through the harmonic exciter
+     */
+    process(samples) {
+        if (!samples || samples.length === 0) {
+            return samples;
+        }
+        
+        const output = new Float32Array(samples.length);
+        
+        for (let i = 0; i < samples.length; i++) {
+            const inputSample = samples[i];
             
-            let shaped;
+            // Store for next iteration (delay)
+            const delayedSample = this.delayBuffer[this.delayIndex];
+            this.delayBuffer[this.delayIndex] = inputSample;
+            this.delayIndex = (this.delayIndex + 1) % this.delayBuffer.length;
             
-            if (this.mode === 'odd') {
-                // Odd harmonics (tanh-like)
-                shaped = Math.tanh(x * drive);
-            } else if (this.mode === 'even') {
-                // Even harmonics (soft saturation with DC offset)
-                shaped = (Math.abs(x + 0.1) - Math.abs(x - 0.1)) * drive / 2;
+            // Process with oversampling
+            let processed;
+            if (this.oversample > 1) {
+                processed = this._processSampleOversampled(inputSample);
             } else {
-                // Both
-                shaped = Math.tanh(x * drive) * 0.7 + 
-                         (Math.abs(x + 0.1) - Math.abs(x - 0.1)) * 0.3;
+                processed = this._generateHarmonics(inputSample);
             }
             
-            curve[i] = shaped * this.harmoAmount;
+            // Mix dry and wet
+            output[i] = inputSample * (1 - this.mix) + processed * this.mix;
         }
         
-        return curve;
+        return output;
     }
     
-    setupRouting() {
-        // Input -> crossover split
-        this.input.connect(this.inputMeter);
-        this.input.connect(this.dryGain);
-        this.dryGain.connect(this.output);
+    /**
+     * Set excitation amount (0-1)
+     */
+    setAmount(amount) {
+        this.amount = Math.max(0, Math.min(1, amount));
+    }
+    
+    /**
+     * Set focus frequency
+     */
+    setFrequency(freq) {
+        this.frequency = Math.max(500, Math.min(12000, freq));
+    }
+    
+    /**
+     * Set odd/even harmonic mix (0 = even/warm, 1 = odd/present)
+     */
+    setOddEvenMix(mix) {
+        this.oddEvenMix = Math.max(0, Math.min(1, mix));
+    }
+    
+    /**
+     * Set oversampling factor
+     */
+    setOversample(factor) {
+        this.oversample = Math.max(1, Math.min(8, factor));
+    }
+    
+    /**
+     * Set wet/dry mix
+     */
+    setMix(mix) {
+        this.mix = Math.max(0, Math.min(1, mix));
+    }
+    
+    /**
+     * Apply a preset
+     */
+    applyPreset(preset) {
+        const presets = {
+            'subtle': { amount: 0.3, freq: 3000, oddEvenMix: 0.3 },
+            'presence': { amount: 0.5, freq: 4000, oddEvenMix: 0.6 },
+            'air': { amount: 0.4, freq: 8000, oddEvenMix: 0.8 },
+            'warm': { amount: 0.5, freq: 2000, oddEvenMix: 0.2 },
+            'aggressive': { amount: 0.8, freq: 5000, oddEvenMix: 0.9 },
+            'vocal': { amount: 0.5, freq: 3500, oddEvenMix: 0.5 }
+        };
         
-        // High band -> distortion -> wet path
-        this.input.connect(this.highpass);
-        this.highpass.connect(this.distortion);
-        this.distortion.connect(this.outputFilter);
-        this.outputFilter.connect(this.wetGain);
-        this.wetGain.connect(this.output);
-        
-        // Low band passes through clean
-        this.input.connect(this.lowpass);
-        this.lowpass.connect(this.output);
-        
-        // Output metering
-        this.output.connect(this.outputMeter);
-    }
-    
-    updateParameters() {
-        this.lowpass.frequency.value = this.frequency;
-        this.highpass.frequency.value = this.frequency;
-        
-        this.dryGain.gain.value = 1 - this.mix;
-        this.wetGain.gain.value = this.mix;
-        
-        this.output.gain.value = this.outputGain;
-        
-        // Recreate distortion curve with new parameters
-        this.distortion.curve = this.createDistortionCurve();
-    }
-    
-    setDrive(value) {
-        this.drive = Math.max(1, Math.min(10, value));
-        this.updateParameters();
-    }
-    
-    setFrequency(hz) {
-        this.frequency = Math.max(500, Math.min(10000, hz));
-        this.updateParameters();
-    }
-    
-    setMix(value) {
-        this.mix = Math.max(0, Math.min(1, value));
-        this.updateParameters();
-    }
-    
-    setOutputGain(value) {
-        this.outputGain = Math.max(0, Math.min(2, value));
-        this.output.gain.value = this.outputGain;
-    }
-    
-    setMode(mode) {
-        if (['odd', 'even', 'both'].includes(mode)) {
-            this.mode = mode;
-            this.updateParameters();
+        const config = presets[preset];
+        if (config) {
+            this.amount = config.amount;
+            this.frequency = config.freq;
+            this.oddEvenMix = config.oddEvenMix;
         }
     }
     
-    setHarmonicAmount(value) {
-        this.harmoAmount = Math.max(0, Math.min(1, value));
-        this.updateParameters();
-    }
-    
-    enable() {
-        this.enabled = true;
-    }
-    
-    disable() {
-        this.enabled = false;
-    }
-    
-    getInputLevel() {
-        const dataArray = new Float32Array(this.inputMeter.fftSize);
-        this.inputMeter.getFloatTimeDomainData(dataArray);
-        
-        let max = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            max = Math.max(max, Math.abs(dataArray[i]));
-        }
-        
-        return 20 * Math.log10(max + 0.0001);
-    }
-    
-    getOutputLevel() {
-        const dataArray = new Float32Array(this.outputMeter.fftSize);
-        this.outputMeter.getFloatTimeDomainData(dataArray);
-        
-        let max = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            max = Math.max(max, Math.abs(dataArray[i]));
-        }
-        
-        return 20 * Math.log10(max + 0.0001);
-    }
-    
-    connect(destination) {
-        this.output.connect(destination);
-    }
-    
-    disconnect() {
-        this.output.disconnect();
-    }
-    
-    getParameters() {
+    /**
+     * Get current parameters
+     */
+    getParams() {
         return {
-            drive: this.drive,
+            amount: this.amount,
             frequency: this.frequency,
-            mix: this.mix,
-            outputGain: this.outputGain,
-            mode: this.mode,
-            harmoAmount: this.harmoAmount,
-            enabled: this.enabled,
-            inputLevel: this.getInputLevel(),
-            outputLevel: this.getOutputLevel()
+            oddEvenMix: this.oddEvenMix,
+            oversample: this.oversample,
+            mix: this.mix
         };
     }
     
-    setParameters(params) {
-        if (params.drive !== undefined) this.setDrive(params.drive);
-        if (params.frequency !== undefined) this.setFrequency(params.frequency);
-        if (params.mix !== undefined) this.setMix(params.mix);
-        if (params.outputGain !== undefined) this.setOutputGain(params.outputGain);
-        if (params.mode !== undefined) this.setMode(params.mode);
-        if (params.harmoAmount !== undefined) this.setHarmonicAmount(params.harmoAmount);
+    /**
+     * Reset state
+     */
+    reset() {
+        this.delayBuffer.fill(0);
+        this.phase = 0;
     }
     
-    destroy() {
-        this.input.disconnect();
-        this.output.disconnect();
-        this.dryGain.disconnect();
-        this.wetGain.disconnect();
-        this.lowpass.disconnect();
-        this.highpass.disconnect();
-        this.distortion.disconnect();
-        this.outputFilter.disconnect();
-        this.inputMeter.disconnect();
-        this.outputMeter.disconnect();
+    /**
+     * Dispose resources
+     */
+    dispose() {
+        this.delayBuffer = null;
+        this.harmonicBuffer = null;
     }
 }
 
-// Factory function
-export function createHarmonicExciter(audioContext, options = {}) {
-    return new HarmonicExciter(audioContext, options);
-}
-
-// Presets
-export const EXCITER_PRESETS = {
-    subtle: {
-        drive: 1.5,
-        frequency: 4000,
-        mix: 0.2,
-        outputGain: 1,
-        mode: 'odd',
-        harmoAmount: 0.5
-    },
-    presence: {
-        drive: 2,
-        frequency: 3000,
-        mix: 0.4,
-        outputGain: 1,
-        mode: 'odd',
-        harmoAmount: 0.7
-    },
-    sparkle: {
-        drive: 3,
-        frequency: 5000,
-        mix: 0.5,
-        outputGain: 1,
-        mode: 'odd',
-        harmoAmount: 0.8
-    },
-    air: {
-        drive: 2,
-        frequency: 8000,
-        mix: 0.3,
-        outputGain: 1.1,
-        mode: 'both',
-        harmoAmount: 0.6
-    },
-    warmth: {
-        drive: 2,
-        frequency: 1500,
-        mix: 0.35,
-        outputGain: 1,
-        mode: 'even',
-        harmoAmount: 0.6
-    },
-    saturate: {
-        drive: 4,
-        frequency: 2000,
-        mix: 0.6,
-        outputGain: 0.9,
-        mode: 'both',
-        harmoAmount: 0.8
+/**
+ * HarmonicExciterPanel - UI panel for harmonic exciter controls
+ */
+export function openHarmonicExciterPanel() {
+    const processor = new HarmonicExciter();
+    
+    const panel = document.createElement('div');
+    panel.className = 'harmonic-exciter-panel';
+    panel.innerHTML = `
+        <div class="he-header">
+            <h3>Harmonic Exciter</h3>
+            <button class="close-btn">×</button>
+        </div>
+        <div class="he-content">
+            <div class="he-display">
+                <canvas class="he-viz" width="260" height="80"></canvas>
+            </div>
+            <div class="he-presets">
+                <label>Presets:</label>
+                <select id="he-preset">
+                    <option value="subtle">Subtle</option>
+                    <option value="presence">Presence</option>
+                    <option value="air">Air</option>
+                    <option value="warm">Warm</option>
+                    <option value="aggressive">Aggressive</option>
+                    <option value="vocal">Vocal</option>
+                </select>
+            </div>
+            <div class="he-controls">
+                <div class="he-row">
+                    <label>Amount:</label>
+                    <input type="range" id="he-amount" min="0" max="1" step="0.01" value="0.5">
+                    <span id="he-amount-val">50%</span>
+                </div>
+                <div class="he-row">
+                    <label>Frequency:</label>
+                    <input type="range" id="he-freq" min="500" max="12000" step="100" value="2500">
+                    <span id="he-freq-val">2.5 kHz</span>
+                </div>
+                <div class="he-row">
+                    <label>Character:</label>
+                    <input type="range" id="he-char" min="0" max="1" step="0.01" value="0.5">
+                    <span id="he-char-val">Warm</span>
+                </div>
+                <div class="he-row">
+                    <label>Mix:</label>
+                    <input type="range" id="he-mix" min="0" max="1" step="0.01" value="0.5">
+                    <span id="he-mix-val">50%</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .harmonic-exciter-panel {
+            background: #1a1a2e;
+            border: 1px solid #3a3a5e;
+            border-radius: 8px;
+            padding: 16px;
+            width: 300px;
+            font-family: system-ui, sans-serif;
+            color: #e0e0e0;
+        }
+        .he-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .he-header h3 { margin: 0; font-size: 14px; }
+        .close-btn { background: none; border: none; color: inherit; font-size: 18px; cursor: pointer; }
+        .he-display { margin-bottom: 12px; }
+        .he-viz { width: 100%; height: 80px; background: #0a0a1a; border-radius: 4px; }
+        .he-presets { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .he-presets label { font-size: 12px; }
+        .he-presets select { flex: 1; }
+        .he-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .he-row label { width: 80px; font-size: 12px; }
+        .he-row input[type="range"] { flex: 1; margin: 0 8px; }
+        .he-row span { width: 70px; text-align: right; font-size: 11px; font-family: monospace; }
+    `;
+    
+    if (!document.querySelector('#harmonic-exciter-styles')) {
+        style.id = 'harmonic-exciter-styles';
+        document.head.appendChild(style);
     }
-};
-
-// UI Panel
-export function createExciterPanel(exciter, appServices) {
-    const container = document.createElement('div');
-    container.className = 'harmonic-exciter-panel';
-    container.style.cssText = `
-        padding: 16px;
-        background: #1a1a2e;
-        border-radius: 8px;
-        color: white;
-        font-family: system-ui, sans-serif;
-        min-width: 300px;
-    `;
     
-    // Title
-    const title = document.createElement('h3');
-    title.textContent = 'Harmonic Exciter';
-    title.style.cssText = 'margin: 0 0 16px 0; font-size: 16px;';
-    container.appendChild(title);
-    
-    // Drive control
-    const driveGroup = createControlGroup('Drive', 1, 10, exciter.drive, 0.1, (value) => {
-        exciter.setDrive(value);
-    });
-    container.appendChild(driveGroup);
-    
-    // Frequency control
-    const freqGroup = createControlGroup('Crossover (Hz)', 500, 10000, exciter.frequency, 100, (value) => {
-        exciter.setFrequency(value);
-    }, 'log');
-    container.appendChild(freqGroup);
-    
-    // Mix control
-    const mixGroup = createControlGroup('Mix', 0, 1, exciter.mix, 0.01, (value) => {
-        exciter.setMix(value);
-    });
-    container.appendChild(mixGroup);
-    
-    // Output gain control
-    const outputGroup = createControlGroup('Output', 0, 2, exciter.outputGain, 0.1, (value) => {
-        exciter.setOutputGain(value);
-    });
-    container.appendChild(outputGroup);
-    
-    // Harmonic amount
-    const harmoGroup = createControlGroup('Harmonics', 0, 1, exciter.harmoAmount, 0.05, (value) => {
-        exciter.setHarmonicAmount(value);
-    });
-    container.appendChild(harmoGroup);
-    
-    // Mode selection
-    const modeContainer = document.createElement('div');
-    modeContainer.style.cssText = 'margin-bottom: 16px;';
-    modeContainer.innerHTML = `
-        <div style="margin-bottom: 8px; font-size: 14px; color: #9ca3af;">Mode</div>
-        <div style="display: flex; gap: 8px;">
-            <button class="mode-btn" data-mode="odd" style="flex: 1; padding: 8px; background: ${exciter.mode === 'odd' ? '#3b82f6' : '#374151'}; border: none; border-radius: 4px; color: white; cursor: pointer;">
-                Odd
-            </button>
-            <button class="mode-btn" data-mode="even" style="flex: 1; padding: 8px; background: ${exciter.mode === 'even' ? '#3b82f6' : '#374151'}; border: none; border-radius: 4px; color: white; cursor: pointer;">
-                Even
-            </button>
-            <button class="mode-btn" data-mode="both" style="flex: 1; padding: 8px; background: ${exciter.mode === 'both' ? '#3b82f6' : '#374151'}; border: none; border-radius: 4px; color: white; cursor: pointer;">
-                Both
-            </button>
-        </div>
-    `;
-    container.appendChild(modeContainer);
-    
-    // Add mode click handlers
-    modeContainer.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            exciter.setMode(btn.dataset.mode);
-            modeContainer.querySelectorAll('.mode-btn').forEach(b => {
-                b.style.background = b.dataset.mode === exciter.mode ? '#3b82f6' : '#374151';
-            });
-        });
+    // Wire up
+    panel.querySelector('#he-amount').addEventListener('input', (e) => {
+        processor.setAmount(parseFloat(e.target.value));
+        panel.querySelector('#he-amount-val').textContent = `${(processor.amount * 100).toFixed(0)}%`;
     });
     
-    // Meter
-    const meterContainer = document.createElement('div');
-    meterContainer.style.cssText = 'margin-bottom: 16px; padding: 12px; background: #0a0a14; border-radius: 4px;';
-    meterContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span>Input</span>
-            <span id="inputLevel">-∞ dB</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-            <span>Output</span>
-            <span id="outputLevel">-∞ dB</span>
-        </div>
-    `;
-    container.appendChild(meterContainer);
-    
-    // Presets
-    const presetsContainer = document.createElement('div');
-    presetsContainer.innerHTML = `
-        <div style="margin-bottom: 8px; font-size: 14px; color: #9ca3af;">Presets</div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            ${Object.keys(EXCITER_PRESETS).map(name => `
-                <button class="preset-btn" data-preset="${name}" style="padding: 6px 12px; background: #374151; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px;">
-                    ${name.charAt(0).toUpperCase() + name.slice(1)}
-                </button>
-            `).join('')}
-        </div>
-    `;
-    container.appendChild(presetsContainer);
-    
-    // Preset click handlers
-    presetsContainer.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const preset = EXCITER_PRESETS[btn.dataset.preset];
-            exciter.setParameters(preset);
-            
-            // Update UI
-            driveGroup.querySelector('input').value = preset.drive;
-            freqGroup.querySelector('input').value = preset.frequency;
-            mixGroup.querySelector('input').value = preset.mix;
-            outputGroup.querySelector('input').value = preset.outputGain;
-            harmoGroup.querySelector('input').value = preset.harmoAmount;
-            
-            // Update mode buttons
-            modeContainer.querySelectorAll('.mode-btn').forEach(b => {
-                b.style.background = b.dataset.mode === preset.mode ? '#3b82f6' : '#374151';
-            });
-            
-            // Update value displays
-            driveGroup.querySelector('span:last-of-type').textContent = preset.drive.toFixed(1);
-            freqGroup.querySelector('span:last-of-type').textContent = preset.frequency;
-            mixGroup.querySelector('span:last-of-type').textContent = preset.mix.toFixed(2);
-            outputGroup.querySelector('span:last-of-type').textContent = preset.outputGain.toFixed(1);
-            harmoGroup.querySelector('span:last-of-type').textContent = preset.harmoAmount.toFixed(2);
-        });
+    panel.querySelector('#he-freq').addEventListener('input', (e) => {
+        processor.setFrequency(parseFloat(e.target.value));
+        const freq = processor.frequency;
+        panel.querySelector('#he-freq-val').textContent = freq >= 1000 ? `${(freq/1000).toFixed(1)} kHz` : `${freq.toFixed(0)} Hz`;
     });
     
-    // Update meters
-    const meterInterval = setInterval(() => {
-        document.getElementById('inputLevel').textContent = `${exciter.getInputLevel().toFixed(1)} dB`;
-        document.getElementById('outputLevel').textContent = `${exciter.getOutputLevel().toFixed(1)} dB`;
-    }, 100);
+    panel.querySelector('#he-char').addEventListener('input', (e) => {
+        processor.setOddEvenMix(parseFloat(e.target.value));
+        const char = processor.oddEvenMix < 0.4 ? 'Warm' : processor.oddEvenMix > 0.6 ? 'Present' : 'Balanced';
+        panel.querySelector('#he-char-val').textContent = char;
+    });
     
-    // Cleanup
-    container.destroy = () => {
-        clearInterval(meterInterval);
-    };
+    panel.querySelector('#he-mix').addEventListener('input', (e) => {
+        processor.setMix(parseFloat(e.target.value));
+        panel.querySelector('#he-mix-val').textContent = `${(processor.mix * 100).toFixed(0)}%`;
+    });
     
-    return container;
-}
-
-function createControlGroup(label, min, max, value, step, onChange, scale = 'linear') {
-    const group = document.createElement('div');
-    group.style.cssText = 'margin-bottom: 12px;';
+    panel.querySelector('#he-preset').addEventListener('change', (e) => {
+        processor.applyPreset(e.target.value);
+        panel.querySelector('#he-amount').value = processor.amount;
+        panel.querySelector('#he-freq').value = processor.frequency;
+        panel.querySelector('#he-char').value = processor.oddEvenMix;
+        panel.querySelector('#he-amount-val').textContent = `${(processor.amount * 100).toFixed(0)}%`;
+        const freq = processor.frequency;
+        panel.querySelector('#he-freq-val').textContent = freq >= 1000 ? `${(freq/1000).toFixed(1)} kHz` : `${freq.toFixed(0)} Hz`;
+        const char = processor.oddEvenMix < 0.4 ? 'Warm' : processor.oddEvenMix > 0.6 ? 'Present' : 'Balanced';
+        panel.querySelector('#he-char-val').textContent = char;
+    });
     
-    group.innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px;">
-            <span>${label}</span>
-            <span id="${label.replace(/\s+/g, '')}Value">${value}</span>
-        </div>
-        <input type="range" min="${min}" max="${max}" value="${value}" step="${step}" style="width: 100%;">
-    `;
+    panel.querySelector('.close-btn').addEventListener('click', () => {
+        panel.remove();
+        processor.dispose();
+    });
     
-    const input = group.querySelector('input');
-    const valueDisplay = group.querySelector('span:last-of-type');
+    // Visualize harmonics
+    const canvas = panel.querySelector('.he-viz');
+    const ctx = canvas.getContext('2d');
     
-    input.addEventListener('input', (e) => {
-        let val = parseFloat(e.target.value);
+    function drawHarmonics() {
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        if (scale === 'log') {
-            // Convert linear slider to log scale
-            const ratio = (val - min) / (max - min);
-            val = min * Math.pow(max / min, ratio);
+        const params = processor.getParams();
+        
+        // Draw frequency spectrum representation
+        const bands = ['Sub', 'Low', 'Mid', 'High', 'Air'];
+        const barWidth = canvas.width / bands.length - 4;
+        
+        for (let i = 0; i < bands.length; i++) {
+            const x = i * (barWidth + 4) + 2;
+            // Higher bands get more harmonic content based on amount
+            const intensity = (i + 1) / bands.length;
+            const height = intensity * params.amount * 60 + 5;
+            const y = canvas.height - height - 10;
+            
+            // Color based on odd/even mix
+            const hue = params.oddEvenMix < 0.5 ? 45 : 120;
+            ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+            
+            ctx.fillRect(x, y, barWidth, height);
+            
+            // Labels
+            ctx.fillStyle = '#888';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(bands[i], x + barWidth/2 - 8, canvas.height - 2);
         }
         
-        onChange(val);
-        
-        if (scale === 'log') {
-            valueDisplay.textContent = Math.round(val);
-        } else if (step < 1) {
-            valueDisplay.textContent = val.toFixed(2);
-        } else {
-            valueDisplay.textContent = val.toFixed(1);
-        }
-    });
+        requestAnimationFrame(drawHarmonics);
+    }
     
-    return group;
+    drawHarmonics();
+    
+    return { panel, processor };
 }
 
 export default HarmonicExciter;
