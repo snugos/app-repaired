@@ -12,3 +12,4 @@ export { MelodyGenerator, MELODY_STYLES, MELODY_MOODS, COMPLEXITY, generateMelod
 export { initDrumReplace, openDrumReplacePanel } from './DrumReplace.js';
 export { initSpectralSubtractiveEQ, openSpectralSubtractiveEQPanel, spectralEQEngine } from './SpectralSubtractiveEQ.js';
 export { initTremoloauto, openTremoloautoPanel, tremoloautoEngine } from './Tremoloauto.js';
+export { calculateProjectStatistics, formatProjectStatistics, ProjectStatisticsPanel } from './ProjectStatisticsPanel.js';

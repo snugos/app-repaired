@@ -402,6 +402,27 @@ class ProjectStatisticsPanel {
     }
 }
 
+// Export functions for use by renderProjectStatisticsContent in ui.js
+export function calculateProjectStatistics(tracks, playbackPosition) {
+    const panel = new ProjectStatisticsPanel();
+    const state = {
+        tracks: tracks || [],
+        projectDuration: 0,
+        bpm: typeof getGlobalBPM === 'function' ? getGlobalBPM() : 120,
+        timeSignature: '4/4'
+    };
+    return panel.calculate(state);
+}
+
+export function formatProjectStatistics(stats) {
+    const panel = new ProjectStatisticsPanel();
+    panel.stats = stats;
+    return panel.getFormattedStats();
+}
+
+// Export class for external use
+export { ProjectStatisticsPanel };
+
 // Initialize global instance
 function initProjectStatisticsPanel() {
     if (!window.projectStatisticsPanel) {
