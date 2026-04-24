@@ -11,9 +11,9 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 5. **Frequency Shifter** - Linear frequency shifting (not pitch shifting) ✅ COMPLETED
 6. **Envelope Generator** - ADSR envelope generator for modulation ✅ COMPLETED
 7. **Vocoder** - Classic vocoder effect with carrier and modulator ✅ COMPLETED
-8. **Phaser Effect** - All-pass filter-based phase shifting effect
-9. **Flanger Effect** - Time-based delay modulation effect
-10. **Chorus Effect** - Detune-based stereo widening effect
+8. **Phaser Effect** - All-pass filter-based phase shifting effect ✅ COMPLETED
+9. **Flanger Effect** - Time-based delay modulation effect ✅ COMPLETED
+10. **Chorus Effect** - Detune-based stereo widening effect ✅ COMPLETED
 
 ## Workflow
 
@@ -43,7 +43,7 @@ After successfully implementing a feature:
 - Renumber the remaining features
 - Update this instruction with new queue
 
-## When Queue is Empty - New Feature Ideas (2026-04-24 02:00 UTC)
+## When Queue is Empty - New Feature Ideas (2026-04-24 09:00 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
