@@ -1,21 +1,21 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## Session: 2026-04-24 12:25 UTC (Automated Agent Run)
+## Session: 2026-04-24 12:30 UTC (Automated Agent Run)
 
 **Status: 6 NEW FEATURES COMPLETED ✅**
 
 | Feature | File | Description |
 |---------|------|-------------|
-| **Convolution Reverb Impulse Loader** | `js/ConvolutionReverbImpulseLoader.js` | Load custom impulse responses for convolution reverb with IR generation |
-| **Frequency Analyzer Display** | `js/FrequencyAnalyzerDisplay.js` | Real-time frequency spectrum display with peak hold and statistics |
-| **Stereo Delay Effect** | `js/StereoDelayEffect.js` | Ping-pong delay with tempo sync and modulation |
-| **Resonant Low-Pass Gate** | `js/ResonantLowPassGate.js` | Buchla-style LPG with vactrol response and ADSR |
-| **Waveshaper Distortion** | `js/WaveshaperDistortion.js` | 15+ waveshaping curves with anti-aliasing and oversampling |
-| **Granular Pitch Shifter** | `js/GranularPitchShifter.js` | Granular-based pitch shifting with formant preservation |
+| **Formant Filter** | `js/FormantFilter.js` | Vowel-based filtering with morphing (8 vowels, gender scaling) |
+| **Ring Modulator** | `js/RingModulator.js` | Classic ring modulation with LFO control and 8 presets |
+| **Frequency Shifter** | `js/FrequencyShifter.js` | Linear frequency shifting via SSB modulation |
+| **Comb Filter** | `js/CombFilter.js` | Flanger/chorus/phaser effects with feedback control |
+| **Noise Gate** | `js/NoiseGate.js` | Threshold-based gating with lookahead and 9 presets |
+| **Transient Designer** | `js/TransientDesigner.js` | Transient shaping without level dependency |
 
 **Commit:** Pending
 
-**Total Features: 324+**
+**Total Features: 330+**
 
 ---
 
@@ -23,12 +23,12 @@
 
 When all queues are empty, implement these new features:
 
-1. **Formant Filter** - Vowel-based filtering with morphing
-2. **Ring Modulator** - Classic ring modulation with LFO control
-3. **Frequency Shifter** - Linear frequency shifting (not pitch shifting)
-4. **Comb Filter** - Comb filtering with feedback control
-5. **Noise Gate** - Threshold-based gating with lookahead
-6. **Transient Designer** - Transient shaping without level dependency
+1. **Flanger** - Classic flanging effect with through-zero capability
+2. **Chorus** - Multi-voice chorus with detune
+3. **Phaser** - Multi-stage all-pass phaser
+4. **Vibrato** - Pitch modulation with depth and rate control
+5. **Tremolo** - Amplitude modulation with various shapes
+6. **Auto-Wah** - Envelope-followed filter sweep
 
 ---
 
