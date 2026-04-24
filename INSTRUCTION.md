@@ -4,12 +4,9 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Spectral Compressor** - Frequency-aware compression with independent band control ✅ COMPLETED
-2. **Harmonic Synthesizer** - Add harmonics to audio for thickness and presence ✅ COMPLETED
-3. **Dynamic EQ** - EQ bands that respond to input level ✅ COMPLETED
-4. **Stereo Imager Enhancement** - Advanced stereo manipulation with mono maker ✅ COMPLETED
-5. **Multiband Saturator** - Add saturation per frequency band ✅ COMPLETED
-6. **Auto-Panner** - Automatic panning with various patterns ✅ COMPLETED
+1. **Tape Saturation** - Analog tape warmth and saturation effect ✅ COMPLETED
+2. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread ✅ COMPLETED
+3. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync ✅ COMPLETED
 
 ## Workflow
 
