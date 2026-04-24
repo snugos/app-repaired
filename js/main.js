@@ -37,6 +37,12 @@ import { openTransientModulatorPanel } from './TransientModulator.js';
 import { openStereoWidthControllerPanel } from './StereoWidthController.js';
 import { openDynamicResonanceFilterPanel } from './DynamicResonanceFilter.js';
 import { openVocalDoublerPanel } from './VocalDoubler.js';
+import { SpectralCompressor, openSpectralCompressorPanel } from './SpectralCompressor.js';
+import { HarmonicSynthesizer, openHarmonicSynthesizerPanel } from './HarmonicSynthesizer.js';
+import { DynamicEQ, openDynamicEQPanel } from './DynamicEQ.js';
+import { StereoImagerEnhancement, openStereoImagerEnhancementPanel } from './StereoImagerEnhancement.js';
+import { MultibandSaturator, openMultibandSaturatorPanel } from './MultibandSaturator.js';
+import { AutoPanner, openAutoPannerPanel } from './AutoPanner.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -649,6 +655,14 @@ import {
     openStereoWidthControllerPanel,
     openDynamicResonanceFilterPanel,
     openVocalDoublerPanel,
+    
+    // New Effect Panels - Session 2026-04-24 (continued)
+    openSpectralCompressorPanel,
+    openHarmonicSynthesizerPanel,
+    openDynamicEQPanel,
+    openStereoImagerEnhancementPanel,
+    openMultibandSaturatorPanel,
+    openAutoPannerPanel,
     
     // AI Mastering Enhancement
     AIMasteringEnhancement,
