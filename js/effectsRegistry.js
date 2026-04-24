@@ -10,6 +10,119 @@ import { AutoPanner } from './AutoPanner.js';
 import { AudioLimiter } from './AudioLimiter.js';
 import { ClipGlitchEffect } from './ClipGlitchEffect.js';
 
+// Mid-Side Effect - Stereo manipulation using M/S encoding
+class MidSideEffect extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        // Mid/Side encoder/decoder from Tone.js
+        this._splitter = new Tone.MidSideSplit();
+        this._merger = new Tone.MidSideMerge();
+        
+        // Mid chain: gain + width
+        this._midGain = new Tone.Gain(initialParams.midGain !== undefined ? initialParams.midGain : 1.0);
+        this._midWidth = new Tone.Gain(initialParams.midWidth !== undefined ? initialParams.midWidth : 1.0);
+        
+        // Side chain: gain + width
+        this._sideGain = new Tone.Gain(initialParams.sideGain !== undefined ? initialParams.sideGain : 1.0);
+        this._sideWidth = new Tone.Gain(initialParams.sideWidth !== undefined ? initialParams.sideWidth : 1.0);
+        
+        // Solo controls
+        this._midSolo = new Tone.Gain(1);
+        this._sideSolo = new Tone.Gain(1);
+        
+        // Input -> splitter (encode to mid/side)
+        this._splitter.connect(this._midGain, 0); // mid
+        this._splitter.connect(this._sideGain, 1); // side
+        
+        // Mid chain: gain -> width -> solo
+        this._midGain.connect(this._midWidth);
+        this._midWidth.connect(this._midSolo);
+        this._midSolo.connect(this._merger, 0, 0);
+        
+        // Side chain: gain -> width -> solo
+        this._sideGain.connect(this._sideWidth);
+        this._sideWidth.connect(this._sideSolo);
+        this._sideSolo.connect(this._merger, 0, 1);
+        
+        // Merger output (decode from mid/side) -> wet gain -> output
+        this._wetGain = new Tone.Gain(initialParams.wet !== undefined ? initialParams.wet : 1.0);
+        this._dryGain = new Tone.Gain(1.0 - (initialParams.wet !== undefined ? initialParams.wet : 1.0));
+        this._merger.connect(this._wetGain);
+        this._merger.connect(this._dryGain);
+        
+        // Dry passthrough
+        this._splitter.connect(this);
+        
+        // Initial solo state
+        this._soloMid = false;
+        this._soloSide = false;
+    }
+    
+    static getMetronomeAudioLabel() { return 'Mid-Side'; }
+    
+    setMidGain(value) {
+        this._midGain.gain.value = value;
+    }
+    
+    setSideGain(value) {
+        this._sideGain.gain.value = value;
+    }
+    
+    setMidWidth(value) {
+        this._midWidth.gain.value = value;
+    }
+    
+    setSideWidth(value) {
+        this._sideWidth.gain.value = value;
+    }
+    
+    setWet(value) {
+        this._wetGain.gain.value = value;
+        this._dryGain.gain.value = 1 - value;
+    }
+    
+    setSoloMid(solo) {
+        this._soloMid = solo;
+        if (solo) {
+            this._midSolo.gain.value = 1;
+            this._sideSolo.gain.value = 0;
+        } else {
+            this._midSolo.gain.value = 1;
+            this._sideSolo.gain.value = 1;
+        }
+    }
+    
+    setSoloSide(solo) {
+        this._soloSide = solo;
+        if (solo) {
+            this._midSolo.gain.value = 0;
+            this._sideSolo.gain.value = 1;
+        } else {
+            this._midSolo.gain.value = 1;
+            this._sideSolo.gain.value = 1;
+        }
+    }
+    
+    dispose() {
+        this._splitter.dispose();
+        this._merger.dispose();
+        this._midGain.dispose();
+        this._midWidth.dispose();
+        this._sideGain.dispose();
+        this._sideWidth.dispose();
+        this._midSolo.dispose();
+        this._sideSolo.dispose();
+        this._wetGain.dispose();
+        this._dryGain.dispose();
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.MidSideEffect = MidSideEffect;
+}
+
 // Sidechain Compressor - Compressor with external sidechain input
 class SidechainCompressor extends Tone.Compressor {
     constructor(initialParams = {}) {
@@ -987,7 +1100,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'threshold', label: 'Thresh', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -40, decimals: 0, displaySuffix: 'dB', isSignal: false },
             { key: 'holdTime', label: 'Hold', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
             { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.1, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
-            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 0.5, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
             { key: 'range', label: 'Range', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -80, decimals: 0, displaySuffix: 'dB', isSignal: false },
             { key: 'wetAmount', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
         ]
@@ -1137,6 +1250,17 @@ export const AVAILABLE_EFFECTS = {
         params: [
             { key: 'width', label: 'Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    MidSide: {
+        displayName: 'Mid-Side',
+        toneClass: 'MidSideEffect',
+        params: [
+            { key: 'midGain', label: 'Mid Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
+            { key: 'sideGain', label: 'Side Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
+            { key: 'midWidth', label: 'Mid Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
+            { key: 'sideWidth', label: 'Side Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
         ]
     },
     Vibrato: {
