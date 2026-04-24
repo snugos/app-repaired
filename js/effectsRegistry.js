@@ -934,6 +934,67 @@ export const AVAILABLE_EFFECTS = {
             { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 0.5, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
         ]
     },
+    FormantFilter: {
+        displayName: 'Formant Filter',
+        toneClass: 'FormantFilter',
+        params: [
+            { key: 'vowel', label: 'Vowel', type: 'select', options: ['A', 'E', 'I', 'O', 'U', 'OO', 'AA'], defaultValue: 'A', isSignal: false },
+            { key: 'morphAmount', label: 'Morph', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'frequency', label: 'Freq', type: 'knob', min: 100, max: 4000, step: 10, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'resonance', label: 'Res', type: 'knob', min: 1, max: 30, step: 0.5, defaultValue: 10, decimals: 1, isSignal: false },
+            { key: 'inputGain', label: 'Input', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'outputGain', label: 'Output', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    RingModulator: {
+        displayName: 'Ring Mod',
+        toneClass: 'RingModulator',
+        params: [
+            { key: 'frequency', label: 'Carrier', type: 'knob', min: 20, max: 8000, step: 1, defaultValue: 440, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'carrierType', label: 'Carrier Type', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+            { key: 'lfoRate', label: 'LFO Rate', type: 'knob', min: 0, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lfoDepth', label: 'LFO Depth', type: 'knob', min: 0, max: 500, step: 1, defaultValue: 0, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'modDepth', label: 'Mod Depth', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    CombFilter: {
+        displayName: 'Comb Filter',
+        toneClass: 'CombFilter',
+        params: [
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'frequency', label: 'Freq', type: 'knob', min: 10, max: 5000, step: 1, defaultValue: 500, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 0.99, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'resonance', label: 'Res', type: 'knob', min: 0, max: 5, step: 0.1, defaultValue: 1, decimals: 1, isSignal: false },
+            { key: 'filterFreq', label: 'Filter', type: 'knob', min: 200, max: 20000, step: 100, defaultValue: 8000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'mode', label: 'Mode', type: 'select', options: ['feedback', 'feedforward', 'both'], defaultValue: 'feedback', isSignal: false },
+        ]
+    },
+    NoiseGate: {
+        displayName: 'Noise Gate',
+        toneClass: 'NoiseGate',
+        params: [
+            { key: 'threshold', label: 'Thresh', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -40, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'holdTime', label: 'Hold', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.1, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'range', label: 'Range', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -80, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'wetAmount', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    TransientDesigner: {
+        displayName: 'Transient Des',
+        toneClass: 'TransientDesigner',
+        params: [
+            { key: 'attackGain', label: 'Attack', type: 'knob', min: 0.1, max: 5, step: 0.1, defaultValue: 2, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'sustainGain', label: 'Sustain', type: 'knob', min: 0.1, max: 3, step: 0.1, defaultValue: 0.5, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'attackFreq', label: 'Att Freq', type: 'knob', min: 100, max: 8000, step: 100, defaultValue: 2000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'sustainFreq', label: 'Sus Freq', type: 'knob', min: 100, max: 5000, step: 100, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'cutoffFreq', label: 'Cutoff', type: 'knob', min: 500, max: 15000, step: 100, defaultValue: 5000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'inputGain', label: 'Input', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'outputGain', label: 'Output', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
     Chebyshev: {
         displayName: 'Chebyshev',
         toneClass: 'Chebyshev',
@@ -1055,17 +1116,6 @@ export const AVAILABLE_EFFECTS = {
         params: [
             { key: 'width', label: 'Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-        ]
-    },
-    Tremolo: {
-        displayName: 'Tremolo',
-        toneClass: 'Tremolo',
-        params: [
-            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 40, step: 0.1, defaultValue: 10, decimals: 1, displaySuffix: 'Hz', isSignal: true },
-            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
-            { key: 'spread', label: 'Spread', type: 'knob', min: 0, max: 180, step: 1, defaultValue: 180, decimals: 0, displaySuffix: '°', isSignal: false }, 
-            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-            { key: 'type', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
         ]
     },
     Vibrato: {
@@ -1623,13 +1673,13 @@ class Tremoloauto extends Tone.Gain {
         
         this._depth = initialParams.depth !== undefined ? initialParams.depth : 0.5;
         this._rate = initialParams.rate !== undefined ? initialParams.rate : 1.0;
-        this._syncToBPM = initialParams.syncToBPM !== undefined ? initialParams.syncToBPM : true;
+        this._syncMode = initialParams.syncMode !== undefined ? initialParams.syncMode : 'free';
         this._shape = initialParams.shape || 'sine';
         this._enabled = true;
         
         // LFO for modulation
         this._lfo = new Tone.LFO({
-            frequency: this._syncToBPM ? this._getSyncedRate() : this._rate,
+            frequency: this._getSyncedRate(),
             min: 0,
             max: 1,
             type: this._shape
@@ -1675,10 +1725,10 @@ class Tremoloauto extends Tone.Gain {
     
     setRate(rate) {
         this._rate = Math.max(0.1, Math.min(20, rate));
-        if (this._syncToBPM) {
-            this._lfo.frequency.value = this._getSyncedRate();
-        } else {
+        if (this._syncMode === 'free') {
             this._lfo.frequency.value = this._rate;
+        } else {
+            this._lfo.frequency.value = this._getSyncedRate();
         }
     }
     
@@ -1686,17 +1736,17 @@ class Tremoloauto extends Tone.Gain {
         return this._rate;
     }
     
-    setSyncToBPM(sync) {
-        this._syncToBPM = sync;
-        if (sync) {
-            this._lfo.frequency.value = this._getSyncedRate();
-        } else {
+    setSyncMode(mode) {
+        this._syncMode = mode;
+        if (mode === 'free') {
             this._lfo.frequency.value = this._rate;
+        } else {
+            this._lfo.frequency.value = this._getSyncedRate();
         }
     }
     
-    getSyncToBPM() {
-        return this._syncToBPM;
+    getSyncMode() {
+        return this._syncMode;
     }
     
     setShape(shape) {
