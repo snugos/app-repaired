@@ -159,3 +159,34 @@ Based on SnugOS being a browser-based DAW with:
 **Commit:** `c843cbb`
 
 **Total Features: 397+**
+
+---
+
+## New Feature Queue (2026-04-24 18:40 UTC)
+
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+- 397+ features already implemented
+
+**New Feature Queue:**
+
+1. **Vocoder** - Vocoder effect for robot/voice synthesis ✅ COMPLETED
+2. **Ring Modulator** - Classic ring modulation for metallic/distant sounds
+3. **Pitch-Shifted Delay** - Delay with pitch shifting for sci-fi effects
+4. **Granular Reverb** - Grain-based reverb for ambient textures
+5. **Distortion Enhancements** - Add more distortion types (tube, wave, fuzz)
+6. **Filter Chain** - Multiple filters in series for complex sweeps
+7. **Compressor Enhancements** - Add RMS/peak detection modes
+8. **Limiter Modes** - Different limiter release modes (fast, program)
+9. **Tape Echo** - Tape-style echo with natural degradation
+10. **Reverse Reverb** - Reverse reverb tails for atmospheric effects
+
+**Status: 1 OF 10 NEW FEATURES COMPLETED**
+
+**Commit:** `5789530`
+
+**Total Features: 398+**
