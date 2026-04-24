@@ -4,9 +4,9 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Tape Saturation** - Analog tape warmth and saturation effect ✅ COMPLETED
-2. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread ✅ COMPLETED
-3. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync ✅ COMPLETED
+1. **Granular Synthesis Engine** - Granular synthesis with position, density, and pitch controls
+2. **Modulation Matrix** - Complex modulation routing between parameters
+3. **Scripting Engine** - Custom JavaScript-based effects and generators
 
 ## Workflow
 
@@ -35,7 +35,7 @@ After successfully implementing a feature:
 - Renumber the remaining features
 - Update this instruction with new queue
 
-## When Queue is Empty - New Feature Ideas (2026-04-24 09:40 UTC)
+## When Queue is Empty - New Feature Ideas (2026-04-24 12:00 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
@@ -45,25 +45,13 @@ Based on SnugOS being a browser-based DAW with:
 - MIDI support
 
 New Feature Queue:
-1. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread
-2. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync
-3. **Flanger Ensemble** - Stereo flanger with feedback and delay modulation
-4. **Tremolo Ensemble** - Tempo-synced tremolo with multiple waveforms
-5. **Rotary Speaker** - Leslie cabinet simulation with rotation effects
-6. **Auto-Wah Ensemble** - Enhanced auto-wah with resonance and envelope control
-7. **Tremoloauto** - Tempo-synced tremolo that locks to project BPM
-8. **Distortion Ensemble** - Multiple distortion types (tube, fuzz, overdrive)
-9. **Bitcrusher Ensemble** - Enhanced bitcrusher with stereo and modulation
-10. **Vibrato Ensemble** - Enhanced vibrato with depth and rate modulation
-
-## Rules
-
-- ONE feature per run
-- NO bug fixing (that's the other agent's job)
-- If you can't complete a feature, skip it and move to next
-- Always commit working code
-- Keep features minimal and focused
-
-## Context Files
-- Repo: `/home/workspace/app-repaired`
-- Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
+1. **Modulation Matrix** - Complex modulation routing between parameters
+2. **Scripting Engine** - Custom JavaScript-based effects and generators
+3. **AI Mixing Assistant** - AI-powered mixing suggestions and auto-balance
+4. **Sample Library Integration** - Built-in sample library browser with preview
+5. **Voice Characterization** - Vocal character analysis and enhancement
+6. **Audio-to-Score Enhancement** - Improved polyphonic transcription
+7. **Spatial Reverb** - 3D position-aware reverb
+8. **MIDI Effect Rack** - Chainable MIDI effects (arpeggiator, chord, etc.)
+9. **Stem Separation** - AI-based stem separation from mixed audio
+10. **Adaptive Resonance** - Self-oscillating filter with auto-tracking
