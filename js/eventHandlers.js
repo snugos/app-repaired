@@ -96,30 +96,30 @@ export function initializePrimaryEventListeners(appContext) {
             uiCache.desktop.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 const menuItems = [
-                    { label: "Add Synth Track", action: () => { if(services.addTrack) services.addTrack('Synth', {_isUserActionPlaceholder: true}); } },
-                    { label: "Add Slicer Sampler Track", action: () => { if(services.addTrack) services.addTrack('Sampler', {_isUserActionPlaceholder: true}); } },
-                    { label: "Add Sampler (Pads)", action: () => { if(services.addTrack) services.addTrack('DrumSampler', {_isUserActionPlaceholder: true}); } },
-                    { label: "Add Instrument Sampler Track", action: () => { if(services.addTrack) services.addTrack('InstrumentSampler', {_isUserActionPlaceholder: true}); } },
-                    { label: "Add Audio Track", action: () => { if(services.addTrack) services.addTrack('Audio', {_isUserActionPlaceholder: true}); } },
+                    { label: "Add Synth Track", action: () => { if(localAppServices.addTrack) localAppServices.addTrack('Synth', {_isUserActionPlaceholder: true}); } },
+                    { label: "Add Slicer Sampler Track", action: () => { if(localAppServices.addTrack) localAppServices.addTrack('Sampler', {_isUserActionPlaceholder: true}); } },
+                    { label: "Add Sampler (Pads)", action: () => { if(localAppServices.addTrack) localAppServices.addTrack('DrumSampler', {_isUserActionPlaceholder: true}); } },
+                    { label: "Add Instrument Sampler Track", action: () => { if(localAppServices.addTrack) localAppServices.addTrack('InstrumentSampler', {_isUserActionPlaceholder: true}); } },
+                    { label: "Add Audio Track", action: () => { if(localAppServices.addTrack) localAppServices.addTrack('Audio', {_isUserActionPlaceholder: true}); } },
                     { separator: true },
-                    { label: "Open Sound Browser", action: () => { if(services.openSoundBrowserWindow) services.openSoundBrowserWindow(); } },
-                    { label: "Open Timeline", action: () => { if(services.openTimelineWindow) services.openTimelineWindow(); } },
-                    { label: "Open Global Controls", action: () => { if(services.openGlobalControlsWindow) services.openGlobalControlsWindow(); } },
-                    { label: "Open Mixer", action: () => { if(services.openMixerWindow) services.openMixerWindow(); } },
-                    { label: "Open Master Effects", action: () => { if(services.openMasterEffectsRackWindow) services.openMasterEffectsRackWindow(); } },
-                    { label: "Random Pattern Generator", action: () => { if(services.openRandomPatternGeneratorPanel) services.openRandomPatternGeneratorPanel(); } },
-                    { label: "CPU Monitor", action: () => { if(services.openCpuMonitorPanel) services.openCpuMonitorPanel(); } },
-                    { label: "Spectrum Analyzer", action: () => { if(services.openSpectrumAnalyzerPanel) services.openSpectrumAnalyzerPanel(); } },
-                    { label: "Mixdown Visualizer", action: () => { if(services.openMixdownVisualizerPanel) services.openMixdownVisualizerPanel(); } },
-                    { label: "Keyboard Shortcuts", action: () => { if(services.openKeyBindingsPanel) services.openKeyBindingsPanel(); } },
-                    { label: "Project Notes", action: () => { if(services.openProjectNotesPanel) services.openProjectNotesPanel(); } },
-                    { label: "Drum Map Editor", action: () => { if(services.openDrumMapEditorPanel) services.openDrumMapEditorPanel(); } },
-                    { label: "Group Edit Panel", action: () => { if(services.openGroupEditPanel) services.openGroupEditPanel('notes'); } },
+                    { label: "Open Sound Browser", action: () => { if(localAppServices.openSoundBrowserWindow) localAppServices.openSoundBrowserWindow(); } },
+                    { label: "Open Timeline", action: () => { if(localAppServices.openTimelineWindow) localAppServices.openTimelineWindow(); } },
+                    { label: "Open Global Controls", action: () => { if(localAppServices.openGlobalControlsWindow) localAppServices.openGlobalControlsWindow(); } },
+                    { label: "Open Mixer", action: () => { if(localAppServices.openMixerWindow) localAppServices.openMixerWindow(); } },
+                    { label: "Open Master Effects", action: () => { if(localAppServices.openMasterEffectsRackWindow) localAppServices.openMasterEffectsRackWindow(); } },
+                    { label: "Random Pattern Generator", action: () => { if(localAppServices.openRandomPatternGeneratorPanel) localAppServices.openRandomPatternGeneratorPanel(); } },
+                    { label: "CPU Monitor", action: () => { if(localAppServices.openCpuMonitorPanel) localAppServices.openCpuMonitorPanel(); } },
+                    { label: "Spectrum Analyzer", action: () => { if(localAppServices.openSpectrumAnalyzerPanel) localAppServices.openSpectrumAnalyzerPanel(); } },
+                    { label: "Mixdown Visualizer", action: () => { if(localAppServices.openMixdownVisualizerPanel) localAppServices.openMixdownVisualizerPanel(); } },
+                    { label: "Keyboard Shortcuts", action: () => { if(localAppServices.openKeyBindingsPanel) localAppServices.openKeyBindingsPanel(); } },
+                    { label: "Project Notes", action: () => { if(localAppServices.openProjectNotesPanel) localAppServices.openProjectNotesPanel(); } },
+                    { label: "Drum Map Editor", action: () => { if(localAppServices.openDrumMapEditorPanel) localAppServices.openDrumMapEditorPanel(); } },
+                    { label: "Group Edit Panel", action: () => { if(localAppServices.openGroupEditPanel) localAppServices.openGroupEditPanel('notes'); } },
                     { separator: true },
-                    { label: "Upload Custom Background (Image/Video)", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
-                    { label: "Remove Custom Background", action: () => { if(services.removeCustomDesktopBackground) services.removeCustomDesktopBackground(); } },
+                    { label: "Upload Custom Background (Image/Video)", action: () => { if(localAppServices.triggerCustomBackgroundUpload) localAppServices.triggerCustomBackgroundUpload(); } },
+                    { label: "Remove Custom Background", action: () => { if(localAppServices.removeCustomDesktopBackground) localAppServices.removeCustomDesktopBackground(); } },
                     { separator: true },
-                    { label: "Track Export Solo", action: () => { if(services.openTrackExportSoloPanel) services.openTrackExportSoloPanel(); } },
+                    { label: "Track Export Solo", action: () => { if(localAppServices.openTrackExportSoloPanel) localAppServices.openTrackExportSoloPanel(); } },
                     { label: "Toggle Full Screen", action: toggleFullScreen }
                 ];
                 if (typeof createContextMenu === 'function') {
@@ -136,163 +136,163 @@ export function initializePrimaryEventListeners(appContext) {
             menuAddSynthTrack: () => {
                 console.log('[Menu] Add Synth Track clicked');
                 try {
-                    services.addTrack?.('Synth', {_isUserActionPlaceholder: true});
+                    localAppServices.addTrack?.('Synth', {_isUserActionPlaceholder: true});
                 } catch(e) { console.error('[Menu] Add Synth Track error:', e); }
             },
             menuAddSamplerTrack: () => {
                 console.log('[Menu] Add Sampler Track clicked');
                 try {
-                    services.addTrack?.('Sampler', {_isUserActionPlaceholder: true});
+                    localAppServices.addTrack?.('Sampler', {_isUserActionPlaceholder: true});
                 } catch(e) { console.error('[Menu] Add Sampler error:', e); }
             },
             menuAddDrumSamplerTrack: () => {
                 console.log('[Menu] Add Drum Sampler clicked');
                 try {
-                    services.addTrack?.('DrumSampler', {_isUserActionPlaceholder: true});
+                    localAppServices.addTrack?.('DrumSampler', {_isUserActionPlaceholder: true});
                 } catch(e) { console.error('[Menu] Drum Sampler error:', e); }
             },
             menuAddInstrumentSamplerTrack: () => {
                 console.log('[Menu] Add Instrument Sampler clicked');
                 try {
-                    services.addTrack?.('InstrumentSampler', {_isUserActionPlaceholder: true});
+                    localAppServices.addTrack?.('InstrumentSampler', {_isUserActionPlaceholder: true});
                 } catch(e) { console.error('[Menu] Instrument Sampler error:', e); }
             },
             menuAddAudioTrack: () => {
                 console.log('[Menu] Add Audio Track clicked');
                 try {
-                    services.addTrack?.('Audio', {_isUserActionPlaceholder: true});
+                    localAppServices.addTrack?.('Audio', {_isUserActionPlaceholder: true});
                 } catch(e) { console.error('[Menu] Audio Track error:', e); }
             },
             menuOpenSoundBrowser: () => {
                 console.log('[Menu] Sound Browser clicked');
                 try {
-                    services.openSoundBrowserWindow?.();
+                    localAppServices.openSoundBrowserWindow?.();
                 } catch(e) { console.error('[Menu] Sound Browser error:', e); }
             },
             menuOpenTimeline: () => {
                 console.log('[Menu] Timeline clicked');
                 try {
-                    services.openTimelineWindow?.();
+                    localAppServices.openTimelineWindow?.();
                 } catch(e) { console.error('[Menu] Timeline error:', e); }
             },
             menuOpenGlobalControls: () => {
                 console.log('[Menu] Global Controls clicked');
                 try {
-                    services.openGlobalControlsWindow?.();
+                    localAppServices.openGlobalControlsWindow?.();
                 } catch(e) { console.error('[Menu] Global Controls error:', e); }
             },
             menuOpenMixer: () => {
                 console.log('[Menu] Mixer clicked');
                 try {
-                    services.openMixerWindow?.();
+                    localAppServices.openMixerWindow?.();
                 } catch(e) { console.error('[Menu] Mixer error:', e); }
             },
             menuOpenMasterEffects: () => {
                 console.log('[Menu] Master Effects clicked');
                 try {
-                    services.openMasterEffectsRackWindow?.();
+                    localAppServices.openMasterEffectsRackWindow?.();
                 } catch(e) { console.error('[Menu] Master Effects error:', e); }
             },
             menuOpenMidiMappings: () => {
                 console.log('[Menu] MIDI Mappings clicked');
                 try {
-                    services.openMidiMappingsPanel?.();
+                    localAppServices.openMidiMappingsPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Mappings error:', e); }
             },
             menuChordMemory: () => {
                 console.log('[Menu] Chord Memory clicked');
                 try {
-                    services.openChordMemoryPanel?.();
+                    localAppServices.openChordMemoryPanel?.();
                 } catch(e) { console.error('[Menu] Chord Memory error:', e); }
             },
             menuMidiChordPlayer: () => {
                 console.log('[Menu] MIDI Chord Player clicked');
                 try {
-                    services.openMIDIChordPlayerPanel?.();
+                    localAppServices.openMIDIChordPlayerPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Chord Player error:', e); }
             },
             menuAIComposition: () => {
                 console.log('[Menu] AI Composition Assistant clicked');
                 try {
-                    services.openAICompositionPanel?.();
+                    localAppServices.openAICompositionPanel?.();
                 } catch(e) { console.error('[Menu] AI Composition error:', e); }
             },
             menuRhythmCoach: () => {
                 console.log('[Menu] Rhythm Coach clicked');
                 try {
-                    services.openRhythmCoachPanel?.();
+                    localAppServices.openRhythmCoachPanel?.();
                 } catch(e) { console.error('[Menu] Rhythm Coach error:', e); }
             },
             menuModularRouting: () => {
                 console.log('[Menu] Modular Routing clicked');
                 try {
-                    services.openModularRoutingPanel?.();
+                    localAppServices.openModularRoutingPanel?.();
                 } catch(e) { console.error('[Menu] Modular Routing error:', e); }
             },
             menuTempoAutomation: () => {
                 console.log('[Menu] Tempo Automation clicked');
                 try {
-                    services.openTempoAutomationPanel?.();
+                    localAppServices.openTempoAutomationPanel?.();
                 } catch(e) { console.error('[Menu] Tempo Automation error:', e); }
             },
             menuTrackGroups: () => {
                 console.log('[Menu] Track Groups clicked');
                 try {
-                    services.openTrackGroupsPanel?.();
+                    localAppServices.openTrackGroupsPanel?.();
                 } catch(e) { console.error('[Menu] Track Groups error:', e); }
             },
             menuMuteGroups: () => {
                 console.log("[Menu] Mute Groups clicked");
-                try { services.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }
+                try { localAppServices.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }
             },
             menuScaleHint: () => {
                 console.log('[Menu] Scale Hint Overlay clicked');
                 try {
-                    services.openScaleHintPanel?.();
+                    localAppServices.openScaleHintPanel?.();
                 } catch(e) { console.error('[Menu] Scale Hint Overlay error:', e); }
             },
             menuScaleLock: () => {
                 console.log('[Menu] Scale Lock clicked');
                 try {
-                    services.openScaleLockPanel?.();
+                    localAppServices.openScaleLockPanel?.();
                 } catch(e) { console.error('[Menu] Scale Lock error:', e); }
             },
             menuMicroTuning: () => {
                 console.log('[Menu] Micro Tuning clicked');
                 try {
-                    services.openMicroTuningPanel?.();
+                    localAppServices.openMicroTuningPanel?.();
                 } catch(e) { console.error('[Menu] Micro Tuning error:', e); }
             },
             menuGrooveTemplates: () => {
                 console.log('[Menu] Groove Templates clicked');
                 try {
-                    services.openGrooveTemplatesPanel?.();
+                    localAppServices.openGrooveTemplatesPanel?.();
                 } catch(e) { console.error('[Menu] Groove Templates error:', e); }
             },
             menuPatternChains: () => {
                 console.log('[Menu] Pattern Chains clicked');
                 try {
-                    services.openPatternChainsPanel?.();
+                    localAppServices.openPatternChainsPanel?.();
                 } catch(e) { console.error('[Menu] Pattern Chains error:', e); }
             },
             menuAutomationLanes: () => {
                 console.log('[Menu] Automation Lanes clicked');
                 try {
-                    services.openAutomationLanesPanel?.();
+                    localAppServices.openAutomationLanesPanel?.();
                 } catch(e) { console.error('[Menu] Automation Lanes error:', e); }
             },
-            menuUndo: () => { console.log('[Menu] Undo clicked'); services.undoLastAction?.(); },
-            menuRedo: () => { console.log('[Menu] Redo clicked'); services.redoLastAction?.(); },
-            menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); services.openUndoHistoryPanel?.(); },
-            menuSaveProject: () => { console.log('[Menu] Save clicked'); services.saveProject?.(); },
-            menuLoadProject: () => { console.log('[Menu] Load clicked'); services.loadProject?.(); },
-            menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
-            menuExportMidi: () => { console.log('[Menu] Export MIDI clicked'); services.exportToMidi?.(); },
-            menuExportStems: () => { console.log('[Menu] Export Stems clicked'); services.showStemExportDialog?.(); },
-            menuVideoExport: () => { console.log('[Menu] Video Export clicked'); services.openVideoExportPanel?.(); },
-            menuProjectTemplates: () => { console.log('[Menu] Project Templates clicked'); services.openProjectTemplatesPanel?.(); },
-            menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); services.openExportPresetsPanel?.(); },
-            menuTrackTemplates: () => { console.log('[Menu] Track Templates clicked'); services.openTrackTemplatesPanel?.(); },
+            menuUndo: () => { console.log('[Menu] Undo clicked'); localAppServices.undoLastAction?.(); },
+            menuRedo: () => { console.log('[Menu] Redo clicked'); localAppServices.redoLastAction?.(); },
+            menuOpenHistory: () => { console.log('[Menu] History Panel clicked'); localAppServices.openUndoHistoryPanel?.(); },
+            menuSaveProject: () => { console.log('[Menu] Save clicked'); localAppServices.saveProject?.(); },
+            menuLoadProject: () => { console.log('[Menu] Load clicked'); localAppServices.loadProject?.(); },
+            menuExportWav: () => { console.log('[Menu] Export clicked'); localAppServices.exportToWav?.(); },
+            menuExportMidi: () => { console.log('[Menu] Export MIDI clicked'); localAppServices.exportToMidi?.(); },
+            menuExportStems: () => { console.log('[Menu] Export Stems clicked'); localAppServices.showStemExportDialog?.(); },
+            menuVideoExport: () => { console.log('[Menu] Video Export clicked'); localAppServices.openVideoExportPanel?.(); },
+            menuProjectTemplates: () => { console.log('[Menu] Project Templates clicked'); localAppServices.openProjectTemplatesPanel?.(); },
+            menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); localAppServices.openExportPresetsPanel?.(); },
+            menuTrackTemplates: () => { console.log('[Menu] Track Templates clicked'); localAppServices.openTrackTemplatesPanel?.(); },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
         };
@@ -312,8 +312,8 @@ export function initializePrimaryEventListeners(appContext) {
 
         if (uiCache.loadProjectInput) {
             uiCache.loadProjectInput.addEventListener('change', (e) => {
-                if (services.handleProjectFileLoad) {
-                    services.handleProjectFileLoad(e);
+                if (localAppServices.handleProjectFileLoad) {
+                    localAppServices.handleProjectFileLoad(e);
                 } else {
                     console.error("[EventHandlers] handleProjectFileLoad service not available.");
                 }
@@ -1694,7 +1694,7 @@ export function handleMIDIDrop(event) {
             const activeSeq = targetTrack.getActiveSequence();
             if (!activeSeq || !activeSeq.data) {
                 if (localAppServices.showNotification) {
-                    localAppServices.showNotification('Track has no sequence to import to.', 3000);
+                    localAppServices.showNotification('Track has no sequence to export to.', 3000);
                 }
                 return;
             }

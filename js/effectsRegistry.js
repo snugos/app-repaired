@@ -1439,3 +1439,119 @@ if (typeof Tone !== 'undefined') {
 if (typeof window !== 'undefined') {
     window.CustomEffect = CustomEffect;
 }
+
+// Tremoloauto - Tempo-synced tremolo that locks to project BPM
+class Tremoloauto extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        this._depth = initialParams.depth !== undefined ? initialParams.depth : 0.5;
+        this._rate = initialParams.rate !== undefined ? initialParams.rate : 1.0;
+        this._syncToBPM = initialParams.syncToBPM !== undefined ? initialParams.syncToBPM : true;
+        this._shape = initialParams.shape || 'sine';
+        this._enabled = true;
+        
+        // LFO for modulation
+        this._lfo = new Tone.LFO({
+            frequency: this._syncToBPM ? this._getSyncedRate() : this._rate,
+            min: 0,
+            max: 1,
+            type: this._shape
+        });
+        
+        // Depth control (scales the LFO modulation)
+        this._depthGain = new Tone.Gain(this._depth);
+        
+        // Wet/dry mix
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(0.0);
+        
+        // LFO -> depthGain -> wetGain.gain (modulates wet mix)
+        this._lfo.connect(this._depthGain);
+        this._depthGain.connect(this._wetGain.gain);
+        
+        // Dry path
+        this.connect(this._dryGain);
+        this._dryGain.connect(this);
+        
+        // Wet path (tremolo effect)
+        this.connect(this._wetGain);
+        this._wetGain.connect(this);
+        
+        this._lfo.start();
+    }
+    
+    static getMetronomeAudioLabel() { return 'Tremolo'; }
+    
+    _getSyncedRate() {
+        const bpm = Tone.Transport.bpm.value || 120;
+        return (bpm / 60) * this._rate;
+    }
+    
+    setDepth(depth) {
+        this._depth = Math.max(0, Math.min(1, depth));
+        this._depthGain.gain.value = this._depth;
+    }
+    
+    getDepth() {
+        return this._depth;
+    }
+    
+    setRate(rate) {
+        this._rate = Math.max(0.1, Math.min(20, rate));
+        if (this._syncToBPM) {
+            this._lfo.frequency.value = this._getSyncedRate();
+        } else {
+            this._lfo.frequency.value = this._rate;
+        }
+    }
+    
+    getRate() {
+        return this._rate;
+    }
+    
+    setSyncToBPM(sync) {
+        this._syncToBPM = sync;
+        if (sync) {
+            this._lfo.frequency.value = this._getSyncedRate();
+        } else {
+            this._lfo.frequency.value = this._rate;
+        }
+    }
+    
+    getSyncToBPM() {
+        return this._syncToBPM;
+    }
+    
+    setShape(shape) {
+        this._shape = shape;
+        this._lfo.type = shape;
+    }
+    
+    getShape() {
+        return this._shape;
+    }
+    
+    setEnabled(enabled) {
+        this._enabled = enabled;
+        if (enabled) {
+            this._wetGain.gain.value = this._depth;
+            this._dryGain.gain.value = 1 - this._depth;
+        } else {
+            this._wetGain.gain.value = 0;
+            this._dryGain.gain.value = 1;
+        }
+    }
+    
+    dispose() {
+        this._lfo.dispose();
+        this._depthGain.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.Tremoloauto = Tremoloauto;
+}
