@@ -1,5 +1,13 @@
 // js/effectsRegistry.js - Definitions for modular effects
 
+// Import custom effects
+import { SpectralCompressor } from './SpectralCompressor.js';
+import { HarmonicSynthesizer } from './HarmonicSynthesizer.js';
+import { DynamicEQ } from './DynamicEQ.js';
+import { StereoImagerEnhancement } from './StereoImagerEnhancement.js';
+import { MultibandSaturator } from './MultibandSaturator.js';
+import { AutoPanner } from './AutoPanner.js';
+
 // Sidechain Compressor - Compressor with external sidechain input
 class SidechainCompressor extends Tone.Compressor {
     constructor(initialParams = {}) {
@@ -1286,7 +1294,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'lowWidth', label: 'Low Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
             { key: 'midWidth', label: 'Mid Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
             { key: 'highWidth', label: 'High Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.5, decimals: 2, isSignal: false },
-            { key: 'monoBass', label: 'Mono Bass', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'monoBass', label: 'Mono bass', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
             { key: 'correlation', label: 'Corr', type: 'knob', min: -1, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
         ]
     },
@@ -1319,15 +1327,20 @@ export const AVAILABLE_EFFECTS = {
         displayName: 'Spectral Comp',
         toneClass: 'SpectralCompressor',
         params: [
-            { key: 'lowThreshold', label: 'Low Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: false },
-            { key: 'midThreshold', label: 'Mid Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -20, decimals: 0, displaySuffix: 'dB', isSignal: false },
-            { key: 'highThreshold', label: 'High Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -18, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'subThreshold', label: 'Sub Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'subRatio', label: 'Sub Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'subMakeup', label: 'Sub Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'lowThreshold', label: 'Low Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
             { key: 'lowRatio', label: 'Low Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'lowMakeup', label: 'Low Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'midThreshold', label: 'Mid Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
             { key: 'midRatio', label: 'Mid Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'midMakeup', label: 'Mid Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'highThreshold', label: 'High Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -24, decimals: 1, displaySuffix: 'dB', isSignal: false },
             { key: 'highRatio', label: 'High Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 6, decimals: 1, isSignal: false },
-            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 60, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
-            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 1000, max: 8000, step: 100, defaultValue: 2500, decimals: 0, displaySuffix: 'Hz', isSignal: false },
-            { key: 'makeupGain', label: 'Makeup', type: 'knob', min: 0, max: 24, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'highMakeup', label: 'High Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.1, max: 50, step: 0.1, defaultValue: 5, decimals: 1, displaySuffix: 'ms', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 10, max: 500, step: 1, defaultValue: 100, decimals: 0, displaySuffix: 'ms', isSignal: false },
         ]
     },
     HarmonicSynthesizer: {
@@ -1448,6 +1461,26 @@ export const AVAILABLE_EFFECTS = {
             { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
             { key: 'syncMode', label: 'Sync', type: 'select', options: ['free', 'host'], defaultValue: 'free', isSignal: false },
             { key: 'shape', label: 'Shape', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
+    SpectralCompressor: {
+        displayName: 'Spectral Comp',
+        toneClass: 'SpectralCompressor',
+        params: [
+            { key: 'subThreshold', label: 'Sub Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'subRatio', label: 'Sub Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'subMakeup', label: 'Sub Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'lowThreshold', label: 'Low Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'lowRatio', label: 'Low Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'lowMakeup', label: 'Low Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'midThreshold', label: 'Mid Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -20, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'midRatio', label: 'Mid Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 4, decimals: 1, isSignal: false },
+            { key: 'midMakeup', label: 'Mid Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'highThreshold', label: 'High Thresh', type: 'knob', min: -40, max: 0, step: 0.5, defaultValue: -24, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'highRatio', label: 'High Ratio', type: 'knob', min: 1, max: 20, step: 0.5, defaultValue: 6, decimals: 1, isSignal: false },
+            { key: 'highMakeup', label: 'High Makeup', type: 'knob', min: 0.5, max: 3, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.1, max: 50, step: 0.1, defaultValue: 5, decimals: 1, displaySuffix: 'ms', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 10, max: 500, step: 1, defaultValue: 100, decimals: 0, displaySuffix: 'ms', isSignal: false },
         ]
     },
 };
