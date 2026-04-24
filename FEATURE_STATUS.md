@@ -1,34 +1,32 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## New Feature Queue (2026-04-24 08:45 UTC)
+## New Feature Queue (2026-04-24 09:15 UTC)
 
 When all queues are empty, implement these new features:
 
-1. **Sample Library Browser Enhancement** - Enhanced sample browsing with waveform preview
-2. **Pattern Variations System Enhancement** - More pattern variation controls
-3. **Clip Color Coding Enhancement** - More color options and palettes
-4. **Track Notes Enhancement** - Rich text notes support
-5. **Project Statistics Enhancement** - More detailed stats visualization
-6. **Quick Actions Menu Enhancement** - More quick actions
-7. **Visualization Modes Enhancement** - More visualization options
-8. **Export Format Options Enhancement** - More export formats
-9. **Collaboration Enhancement** - Better collaboration features
-10. **Performance Mode Enhancement** - More performance mode options
+1. **Spatial Audio Panning** - 3D audio positioning with distance attenuation
+2. **Audio Meters Enhancement** - Peak/RMS/EBU R128 metering modes
+3. **Track Freeze Enhancement** - Track freezing with effects tails
+4. **Clip Crossfade Auto** - Automatic crossfade between overlapping clips
+5. **Pattern MIDI Export** - Export patterns to MIDI with tempo map
+6. **Audio Spectrum EQ Matching** - Match EQ from one track to another
+7. **Track Sidechain Send** - Dedicated sidechain send per track
+8. **MIDI Thru Mode** - Pass-through incoming MIDI to output
+9. **Audio Normalization Target** - Normalize to target LUFS
+10. **Clip Gain Group Enhancement** - Group clips for collective gain editing
 
-**Status: 6 NEW FEATURES COMMITTED THIS SESSION ✅**
+**Status: 4 NEW FEATURES COMMITTED THIS SESSION ✅**
 
 ### Features Completed This Session:
 
 | Feature | File | Description |
 |---------|------|-------------|
-| **Granular Processor** | `js/GranularProcessor.js` | Granular synthesis effect for time-stretching and pitch manipulation |
-| **Convolution Reverb** | `js/ConvolutionReverb.js` | Impulse response-based reverb with 10 built-in spaces |
-| **Formant Filter** | `js/FormantFilter.js` | Vowel-shaped filter for vocal synthesis (A, E, I, O, U, etc.) |
-| **Ring Modulator** | `js/RingModulator.js` | Classic ring modulation effect with carrier/LFO control |
-| **Frequency Shifter** | `js/FrequencyShifter.js` | Linear frequency shifting (not pitch shifting) |
-| **Envelope Generator** | `js/EnvelopeGenerator.js` | ADSR envelope generator for modulation |
+| **Phase Correlation Meter** | `js/PhaseCorrelationMeter.js` | Real-time phase correlation display for stereo monitoring |
+| **Mid-Side Processor** | `js/MidSideProcessor.js` | Independent processing of mid/side components with bass mono |
+| **Spectral Gate** | `js/SpectralGate.js` | Frequency-domain noise gate with multi-band processing |
+| **Stereo Width Enhancer** | `js/StereoWidthEnhancer.js` | Advanced stereo width manipulation with Haas effect |
 
-**Total Features: 264+**
+**Total Features: 268+**
 
 ---
 
