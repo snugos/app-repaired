@@ -1,13 +1,15 @@
 // Tape Saturation Effect - Analog tape warmth and saturation
-// Simulates the magnetic tape recording process with soft clipping, frequency response, and noise
+// Simulates the magnetic tape recording process with soft clipping, frequency response, noise, and wow/flutter
 
 class TapeSaturation {
     constructor(initialParams = {}) {
         // Parameters
         this._drive = initialParams.drive !== undefined ? initialParams.drive : 0.5;
         this._saturation = initialParams.saturation !== undefined ? initialParams.saturation : 0.5;
-        this._tapeSpeed = initialParams.tapeSpeed !== undefined ? initialParams.tapeSpeed : 0.5; // 7.5 or 15 ips模拟
+        this._tapeSpeed = initialParams.tapeSpeed !== undefined ? initialParams.tapeSpeed : 0.5; // 7.5 or 15 ips simulation
         this._wowFlutter = initialParams.wowFlutter !== undefined ? initialParams.wowFlutter : 0.2;
+        this._wowRate = initialParams.wowRate !== undefined ? initialParams.wowRate : 0.5; // Hz - slow pitch variation
+        this._flutterRate = initialParams.flutterRate !== undefined ? initialParams.flutterRate : 10; // Hz - fast flutter
         this._noise = initialParams.noise !== undefined ? initialParams.noise : 0.1;
         this._tone = initialParams.tone !== undefined ? initialParams.tone : 0.5; // High frequency rolloff
         this._mix = initialParams.mix !== undefined ? initialParams.mix : 1.0; // Dry/wet
@@ -22,6 +24,13 @@ class TapeSaturation {
         this._noiseGain = null;
         this._dryGain = null;
         this._wetGain = null;
+        
+        // Wow/Flutter LFOs
+        this._wowLFO = null;
+        this._flutterLFO = null;
+        this._wowDepthGain = null;
+        this._flutterDepthGain = null;
+        this._pitchShifter = null;
         
         this._buildChain();
     }
@@ -49,11 +58,52 @@ class TapeSaturation {
         this._dryGain = new Tone.Gain(1 - this._mix);
         this._wetGain = new Tone.Gain(this._mix);
         
-        // Connect chain: input -> inputGain -> waveshaper -> tone -> noise -> output
-        this._inputGain.connect(this._waveshaper);
+        // === WOW/FLUTTER IMPLEMENTATION ===
+        // Wow: slow pitch variation (0.1-1 Hz) simulating tape motor speed drift
+        // Flutter: fast amplitude/frequency modulation (10-100 Hz) simulating tape scrape
+        
+        this._wowLFO = new Tone.LFO({
+            frequency: this._wowRate,
+            min: -1,
+            max: 1,
+            type: 'sine'
+        });
+        
+        this._flutterLFO = new Tone.LFO({
+            frequency: this._flutterRate,
+            min: -1,
+            max: 1,
+            type: 'sine'
+        });
+        
+        // Depth gains for wow/flutter
+        this._wowDepthGain = new Tone.Gain(this._wowFlutter * 0.02); // ~20 cents max pitch variation
+        this._flutterDepthGain = new Tone.Gain(this._wowFlutter * 0.005); // Subtle amplitude modulation
+        
+        // Create pitch shifter for wow effect
+        this._pitchShifter = new Tone.PitchShift({
+            pitch: 0,
+            windowSize: 0.1,
+            feedback: 0,
+            wet: 1
+        });
+        
+        // Connect LFOs to control pitch and amplitude
+        this._wowLFO.connect(this._wowDepthGain);
+        this._flutterLFO.connect(this._flutterDepthGain);
+        
+        // Modulate pitch with wow
+        this._wowDepthGain.connect(this._pitchShifter.pitch);
+        
+        // Connect chain: input -> inputGain -> pitchShifter -> waveshaper -> tone -> noise -> output
+        this._inputGain.connect(this._pitchShifter);
+        this._pitchShifter.connect(this._waveshaper);
         this._waveshaper.connect(this._toneFilter);
         this._toneFilter.connect(this._noiseGain);
         this._noiseGain.connect(this._outputGain);
+        
+        // Flutter affects output amplitude
+        this._flutterDepthGain.connect(this._outputGain.gain);
         
         // Dry/wet mix
         this._inputGain.connect(this._dryGain);
@@ -156,6 +206,42 @@ class TapeSaturation {
         return this._mix;
     }
     
+    setWowFlutter(value) {
+        this._wowFlutter = Math.max(0, Math.min(1, value));
+        if (this._wowDepthGain) {
+            this._wowDepthGain.gain.value = this._wowFlutter * 0.02;
+        }
+        if (this._flutterDepthGain) {
+            this._flutterDepthGain.gain.value = this._wowFlutter * 0.005;
+        }
+    }
+    
+    getWowFlutter() {
+        return this._wowFlutter;
+    }
+    
+    setWowRate(value) {
+        this._wowRate = Math.max(0.1, Math.min(2, value));
+        if (this._wowLFO) {
+            this._wowLFO.frequency.value = this._wowRate;
+        }
+    }
+    
+    getWowRate() {
+        return this._wowRate;
+    }
+    
+    setFlutterRate(value) {
+        this._flutterRate = Math.max(1, Math.min(50, value));
+        if (this._flutterLFO) {
+            this._flutterLFO.frequency.value = this._flutterRate;
+        }
+    }
+    
+    getFlutterRate() {
+        return this._flutterRate;
+    }
+    
     // Connect to audio graph
     connect(destination) {
         if (this._outputGain) {
@@ -177,6 +263,8 @@ class TapeSaturation {
             this._noiseNode.start();
             this._isActive = true;
         }
+        if (this._wowLFO) this._wowLFO.start();
+        if (this._flutterLFO) this._flutterLFO.start();
         return this;
     }
     
@@ -185,6 +273,8 @@ class TapeSaturation {
             this._noiseNode.stop();
             this._isActive = false;
         }
+        if (this._wowLFO) this._wowLFO.stop();
+        if (this._flutterLFO) this._flutterLFO.stop();
         return this;
     }
     
@@ -197,6 +287,11 @@ class TapeSaturation {
         if (this._outputGain) this._outputGain.dispose();
         if (this._dryGain) this._dryGain.dispose();
         if (this._wetGain) this._wetGain.dispose();
+        if (this._wowLFO) this._wowLFO.dispose();
+        if (this._flutterLFO) this._flutterLFO.dispose();
+        if (this._wowDepthGain) this._wowDepthGain.dispose();
+        if (this._flutterDepthGain) this._flutterDepthGain.dispose();
+        if (this._pitchShifter) this._pitchShifter.dispose();
     }
 }
 
