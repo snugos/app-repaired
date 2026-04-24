@@ -1083,6 +1083,13 @@ document.addEventListener('keydown', (event) => {
             if (input) input.value = newTempo.toFixed(1);
             return;
         }
+        // Q key - Open Smart Quantize Panel
+        if (key === 'q' && !(event.ctrlKey || event.metaKey)) {
+            if (localAppServices.openSmartQuantizePanel) {
+                localAppServices.openSmartQuantizePanel();
+            }
+            return;
+        }
         // Delete key handler - delete selected clips or notes
         if (key === 'delete' || key === 'backspace') {
             event.preventDefault();
