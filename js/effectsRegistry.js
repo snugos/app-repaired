@@ -1046,6 +1046,17 @@ export const AVAILABLE_EFFECTS = {
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
+    ClipGlitchEffect: {
+        displayName: 'Clip Glitch',
+        toneClass: 'ClipGlitchEffect',
+        params: [
+            { key: 'glitchProbability', label: 'Prob', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: false },
+            { key: 'glitchDuration', label: 'Duration', type: 'knob', min: 0.001, max: 0.1, step: 0.001, defaultValue: 0.02, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'glitchRepeat', label: 'Repeat', type: 'knob', min: 1, max: 20, step: 1, defaultValue: 3, decimals: 0, isSignal: false },
+            { key: 'filterFreq', label: 'Filter', type: 'knob', min: 200, max: 8000, step: 100, defaultValue: 2000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+        ]
+    },
+
     FeedbackDelay: {
         displayName: 'Feedback Delay',
         toneClass: 'FeedbackDelay',
