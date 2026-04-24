@@ -641,6 +641,9 @@ import {
 
     // Project Statistics
     openProjectStatisticsPanel,
+
+    // FeatureAdditions exports
+    ...FeatureAdditions,
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
