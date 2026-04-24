@@ -301,6 +301,56 @@ class SampleLibraryBrowser {
         }
     }
 
+    // Load sample to a sampler track
+    async loadSampleToTrack(sample, trackId, padIndex = 0) {
+        try {
+            // Try to use the audio system's loadSampleFile
+            const audio = window.snugAudio || window.audio;
+            if (audio && typeof audio.loadSampleFile === 'function') {
+                // For sample libraries, we use the URL
+                const sampleUrl = sample.url || sample.file;
+                if (!sampleUrl) {
+                    console.error('[SampleLibraryBrowser] No URL for sample:', sample.name);
+                    return false;
+                }
+                // Call audio loadSampleFile with the URL
+                await audio.loadSampleFile(sampleUrl, trackId, 'Sampler', sample.name);
+                return true;
+            }
+            
+            // Fallback: direct Tone.js loading
+            if (typeof Tone !== 'undefined') {
+                const sampleUrl = sample.url || sample.file;
+                if (!sampleUrl) return false;
+                
+                const player = new Tone.Player(sampleUrl);
+                await player.load(sampleUrl);
+                
+                // Get the track's sampler and add the sample
+                const track = window.getTrackById ? window.getTrackById(trackId) : null;
+                if (track && track.sampler) {
+                    // Map sample to a note based on padIndex
+                    const notes = ['C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+                                   'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+                                   'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+                                   'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'];
+                    const note = notes[padIndex] || 'C3';
+                    
+                    // Convert player buffer to array buffer for sampler
+                    const buffer = player.buffer.get();
+                    track.sampler.add(note, buffer);
+                    return true;
+                }
+            }
+            
+            console.warn('[SampleLibraryBrowser] Could not load sample - no audio system found');
+            return false;
+        } catch (error) {
+            console.error('[SampleLibraryBrowser] Error loading sample:', error);
+            return false;
+        }
+    }
+
     // Get samples by category
     getSamplesByCategory(category) {
         if (category === 'favorites') {
