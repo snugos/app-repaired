@@ -38,7 +38,7 @@ After successfully implementing a feature:
 - Renumber the remaining features
 - Update this instruction with new queue
 
-## When Queue is Empty - New Feature Ideas (2026-04-24 09:35 UTC)
+## When Queue is Empty - New Feature Ideas (2026-04-24 09:40 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
@@ -48,16 +48,16 @@ Based on SnugOS being a browser-based DAW with:
 - MIDI support
 
 New Feature Queue:
-1. **Tape Saturation** - Analog tape warmth and saturation effect
-2. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread
-3. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync
-4. **Flanger Ensemble** - Stereo flanger with feedback and delay modulation
-5. **Tremolo Ensemble** - Tempo-synced tremolo with multiple waveforms
-6. **Rotary Speaker** - Leslie cabinet simulation with rotation effects
-7. **Auto-Wah Ensemble** - Enhanced auto-wah with resonance and envelope control
-8. **Tremoloauto** - Tempo-synced tremolo that locks to project BPM
-9. **Distortion Ensemble** - Multiple distortion types (tube, fuzz, overdrive)
-10. **Bitcrusher Ensemble** - Enhanced bitcrusher with stereo and modulation
+1. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread
+2. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync
+3. **Flanger Ensemble** - Stereo flanger with feedback and delay modulation
+4. **Tremolo Ensemble** - Tempo-synced tremolo with multiple waveforms
+5. **Rotary Speaker** - Leslie cabinet simulation with rotation effects
+6. **Auto-Wah Ensemble** - Enhanced auto-wah with resonance and envelope control
+7. **Tremoloauto** - Tempo-synced tremolo that locks to project BPM
+8. **Distortion Ensemble** - Multiple distortion types (tube, fuzz, overdrive)
+9. **Bitcrusher Ensemble** - Enhanced bitcrusher with stereo and modulation
+10. **Vibrato Ensemble** - Enhanced vibrato with depth and rate modulation
 
 ## Rules
 
