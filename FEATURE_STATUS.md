@@ -1,36 +1,42 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## New Feature Queue (2026-04-24 09:15 UTC)
+## New Feature Queue (2026-04-24 09:50 UTC)
 
 When all queues are empty, implement these new features:
 
-1. **Spatial Audio Panning** - 3D audio positioning with distance attenuation
-2. **Audio Meters Enhancement** - Peak/RMS/EBU R128 metering modes
-3. **Track Freeze Enhancement** - Track freezing with effects tails
-4. **Clip Crossfade Auto** - Automatic crossfade between overlapping clips
-5. **Pattern MIDI Export** - Export patterns to MIDI with tempo map
-6. **Audio Spectrum EQ Matching** - Match EQ from one track to another
-7. **Track Sidechain Send** - Dedicated sidechain send per track
-8. **MIDI Thru Mode** - Pass-through incoming MIDI to output
-9. **Audio Normalization Target** - Normalize to target LUFS
-10. **Clip Gain Group Enhancement** - Group clips for collective gain editing
+1. **AI Pattern Generator** - AI-powered pattern and melody generation
+2. **Audio-to-MIDI Batch** - Convert multiple audio clips to MIDI
+3. **Track Group Bouncing** - Render group of tracks to single audio
+4. **MIDI Harmonizer** - Automatic harmonization of MIDI input
+5. **Audio Pitch Correction** - Real-time pitch correction for vocals
+6. **Sample Slicer** - Automatic slicing of samples by transients
+7. **Beat Detective** - Detect and extract beat patterns from audio
+8. **Chord Tracker** - Track chord progressions throughout project
+9. **Dynamic Splitter** - Split audio based on silence/transients
+10. **Frequency Band Splitter** - Split audio into frequency bands
 
-**Status: 4 NEW FEATURES COMMITTED THIS SESSION ✅**
+**Status: 10 NEW FEATURES COMMITTED THIS SESSION ✅**
 
-### Features Completed This Session:
+### Features Completed This Session (2026-04-24 09:50 UTC):
 
 | Feature | File | Description |
 |---------|------|-------------|
-| **Phase Correlation Meter** | `js/PhaseCorrelationMeter.js` | Real-time phase correlation display for stereo monitoring |
-| **Mid-Side Processor** | `js/MidSideProcessor.js` | Independent processing of mid/side components with bass mono |
-| **Spectral Gate** | `js/SpectralGate.js` | Frequency-domain noise gate with multi-band processing |
-| **Stereo Width Enhancer** | `js/StereoWidthEnhancer.js` | Advanced stereo width manipulation with Haas effect |
+| **Spatial Audio Panning** | `js/SpatialAudioPanning.js` | 3D audio positioning with distance attenuation and room simulation |
+| **Audio Meters Enhancement** | `js/AudioMetersEnhancement.js` | Peak/RMS/EBU R128 metering modes with compliance checking |
+| **Track Freeze Enhancement** | `js/TrackFreezeEnhancement.js` | Track freezing with effects tails and offline rendering |
+| **Clip Crossfade Auto** | `js/ClipCrossfadeAuto.js` | Automatic crossfade between overlapping clips with curve options |
+| **Pattern MIDI Export** | `js/PatternMIDIExport.js` | Export patterns to MIDI with tempo map and multi-track support |
+| **Audio Spectrum EQ Matching** | `js/AudioSpectrumEQMatching.js` | Match EQ from one track to another with spectrum analysis |
+| **Track Sidechain Send** | `js/TrackSidechainSend.js` | Dedicated sidechain send per track with bus management |
+| **MIDI Thru Mode** | `js/MIDIThruMode.js` | Pass-through incoming MIDI to output with filtering and transformation |
+| **Audio Normalization Target** | `js/AudioNormalizationTarget.js` | Normalize to target LUFS with presets and limiting |
+| **Clip Gain Group Enhancement** | `js/ClipGainGroupEnhancement.js` | Group clips for collective gain editing with proportional mode |
 
-**Total Features: 268+**
+**Total Features: 278+**
 
 ---
 
-## Previous Feature Queue (2026-04-24 08:30 UTC)
+## Previous Feature Queue (2026-04-24 09:15 UTC)
 
 These features were implemented in the previous session:
 
