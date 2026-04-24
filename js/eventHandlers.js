@@ -119,6 +119,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Upload Custom Background (Image/Video)", action: () => { if(services.triggerCustomBackgroundUpload) services.triggerCustomBackgroundUpload(); } },
                     { label: "Remove Custom Background", action: () => { if(services.removeCustomDesktopBackground) services.removeCustomDesktopBackground(); } },
                     { separator: true },
+                    { label: "Track Export Solo", action: () => { if(services.openTrackExportSoloPanel) services.openTrackExportSoloPanel(); } },
                     { label: "Toggle Full Screen", action: toggleFullScreen }
                 ];
                 if (typeof createContextMenu === 'function') {
