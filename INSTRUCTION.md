@@ -69,63 +69,37 @@
 ## Dreams (snugos/dreams)
 - Static HTML + Tone.js audio — no JS source to study (only index.html)
 
-## New Feature Queue (2026-04-24 13:30 UTC)
+## New Feature Queue (2026-04-24 14:30 UTC)
 
-**Status: ALL BROWSER-IMPLEMENTABLE FEATURES COMPLETE ✅**
+**Status: ALL 10 PREVIOUS FEATURES COMPLETE ✅**
 
-### Automated Scan Results:
-- Repository: LWB-with-Bugs branch (up to date)
-- Git Status: Clean (nothing to commit)
-- Syntax Validation: All 250 JS files pass `node --check`
-- TODO/FIXME Markers: None found
-- Stub Implementations: None found
-- Total Lines of Code: 192,531
-- Total Features: 333+
+All features from the previous queue are now implemented:
+1. **Spectrum Analyzer Enhancements** ✅ - `js/SpectrumAnalyzerEnhancements.js`
+2. **Audio Limiter** ✅ - `js/AudioLimiter.js` (registered in AVAILABLE_EFFECTS)
+3. **Track Headroom Meter** ✅ - `js/TrackHeadroomMeter.js`
+4. **Phase Invert Button** ✅ - `js/PhaseInvertButton.js`
+5. **Polarity Check** ✅ - `js/PolarityCheck.js`
+6. **DC Offset Removal** ✅ - `js/DCOffsetRemoval.js`
+7. **Mute Automation** ✅ - `js/MuteAutomation.js`
+8. **Pan Law Selector** ✅ - `js/PanLawSelector.js`
+9. **Stereo Width Meter** ✅ - `js/StereoWidthMeter.js`
+10. **Clipping Detection** ✅ - `js/ClippingDetection.js`
 
-**Conclusion:** The SnugOS DAW codebase is feature-complete. All browser-implementable features have been implemented and verified. The only remaining features (VST3, AU, ReWire) require native bridges and cannot be implemented in a browser-based DAW.
+**Commit:** `5490b0f`
 
----
-
-## New Feature Queue (2026-04-24 13:30 UTC)
-
-When all queues are empty, implement these new features:
-
-1. **Spectrum Analyzer Enhancements** - Add spectrogram view, freeze peak, multiple FFT sizes
-2. **Audio Limiter** - Brick-wall limiter for master bus protection
-3. **Track Headroom Meter** - Per-track headroom display for mixing
-4. **Phase Invert Button** - Quick phase flip for track alignment
-5. **Polarity Check** - Automatic polarity detection for recordings
-6. **DC Offset Removal** - High-pass filter at 20Hz to remove DC offset
-7. **Mute automation** - Draw mute automation on tracks
-8. **Pan Law Selector** - Choose -3dB or -6dB pan law
-9. **Stereo Width Meter** - Real-time stereo correlation/widening meter
-10. **Clipping Detection** - Visual clip indicator on meters
-
-**Status: 10 NEW FEATURES TO IMPLEMENT**
-
-**Total Features: 333+**
+**Total Features: 343+**
 
 ---
 
-## When Queue is Empty - New Feature Ideas (2026-04-24 13:30 UTC)
+## New Feature Queue (2026-04-24 14:35 UTC)
 
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-
-**Generated Feature Ideas:**
-1. **Spectrum Analyzer Enhancements** - Add spectrogram view, freeze peak, multiple FFT sizes
-2. **Audio Limiter** - Brick-wall limiter for master bus protection
-3. **Track Headroom Meter** - Per-track headroom display for mixing
-4. **Phase Invert Button** - Quick phase flip for track alignment
-5. **Polarity Check** - Automatic polarity detection for recordings
-6. **DC Offset Removal** - High-pass filter at 20Hz to remove DC offset
-7. **Mute automation** - Draw mute automation on tracks
-8. **Pan Law Selector** - Choose -3dB or -6dB pan law
-9. **Stereo Width Meter** - Real-time stereo correlation/widening meter
-10. **Clipping Detection** - Visual clip indicator on meters
-
-These complement the existing metering and mixing features while enhancing the creative workflow.
+1. **Mid-Side Encoder/Decoder** - Encode stereo to mid-side, decode mid-side to stereo with independent control
+2. **Clip Glitch Effects** - Rhythmic glitch artifacts for lo-fi aesthetics
+3. **Formula-based Automation** - Write mathematical formulas for automation curves (sine, exp, etc.)
+4. **Track Latency Compensation** - Per-track automatic latency offset adjustment
+5. **Sample Import Preview** - Preview samples before importing with tempo matching
+6. **Chord Memory** - Store and recall chord voicings across the project
+7. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
+8. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
+9. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
+10. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler

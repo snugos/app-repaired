@@ -8,6 +8,7 @@ import { StereoImagerEnhancement } from './StereoImagerEnhancement.js';
 import { MultibandSaturator } from './MultibandSaturator.js';
 import { AutoPanner } from './AutoPanner.js';
 import { AudioLimiter } from './AudioLimiter.js';
+import { ClipGlitchEffect } from './ClipGlitchEffect.js';
 
 // Sidechain Compressor - Compressor with external sidechain input
 class SidechainCompressor extends Tone.Compressor {
@@ -1719,4 +1720,16 @@ if (typeof Tone !== 'undefined') {
 // Export the CustomEffect class globally
 if (typeof window !== 'undefined') {
     window.CustomEffect = CustomEffect;
+}
+
+// ClipGlitchEffect - Register for effects registry
+import { ClipGlitchEffect } from './ClipGlitchEffect.js';
+
+if (typeof Tone !== 'undefined') {
+    Tone.ClipGlitchEffect = ClipGlitchEffect;
+}
+
+// Register CustomEffect on Tone namespace so createEffectInstance can find it
+if (typeof Tone !== 'undefined') {
+    Tone.CustomEffect = CustomEffect;
 }
