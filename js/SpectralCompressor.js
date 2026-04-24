@@ -55,22 +55,22 @@ class SpectralCompressor {
         this.makeupGain.gain.value = 1;
         
         // Merge node
-        this Merger = audioContext.createChannelMerger(3);
+        this.merger = audioContext.createChannelMerger(3);
         
         // Bind bands
         this.lowFilter.connect(this.lowComp);
         this.lowComp.connect(this.lowGain);
-        this.lowGain.connect(this.Merger, 0, 0);
+        this.lowGain.connect(this.merger, 0, 0);
         
         this.midFilter.connect(this.midComp);
         this.midComp.connect(this.midGain);
-        this.midGain.connect(this.Merger, 0, 1);
+        this.midGain.connect(this.merger, 0, 1);
         
         this.highFilter.connect(this.highComp);
         this.highComp.connect(this.highGain);
-        this.highGain.connect(this.Merger, 0, 2);
+        this.highGain.connect(this.merger, 0, 2);
         
-        this.Merger.connect(this.makeupGain);
+        this.merger.connect(this.makeupGain);
         this.makeupGain.connect(this.compressor);
         this.compressor.connect(this.analyser);
         
@@ -90,17 +90,17 @@ class SpectralCompressor {
         
         this.lowFilter.connect(this.lowComp);
         this.lowComp.connect(this.lowGain);
-        this.lowGain.connect(this.Merger, 0, 0);
+        this.lowGain.connect(this.merger, 0, 0);
         
         this.midFilter.connect(this.midComp);
         this.midComp.connect(this.midGain);
-        this.midGain.connect(this.Merger, 0, 1);
+        this.midGain.connect(this.merger, 0, 1);
         
         this.highFilter.connect(this.highComp);
         this.highComp.connect(this.highGain);
-        this.highGain.connect(this.Merger, 0, 2);
+        this.highGain.connect(this.merger, 0, 2);
         
-        this.Merger.connect(this.makeupGain);
+        this.merger.connect(this.makeupGain);
         this.makeupGain.connect(this.compressor);
         this.compressor.connect(this.analyser);
         
@@ -145,7 +145,7 @@ class SpectralCompressor {
         this.lowGain.disconnect();
         this.midGain.disconnect();
         this.highGain.disconnect();
-        this.Merger.disconnect();
+        this.merger.disconnect();
         this.makeupGain.disconnect();
         this.compressor.disconnect();
         this.analyser.disconnect();
