@@ -17,6 +17,10 @@ import { SidechainEQ, openSidechainEQPanel } from './SidechainEQ.js';
 import { AudioSpectrumFreeze, openSpectrumFreezePanel } from './AudioSpectrumFreeze.js';
 import { BatchExport, openBatchExportPanel } from './BatchExport.js';
 import { SampleRateConverter, openSampleRateConverterPanel } from './SampleRateConverter.js';
+import { TrackDelayCompensation, openTrackDelayPanel } from './TrackDelayCompensation.js';
+import { MultiOutputInstrument, openMultiOutputPanel } from './MultiOutputInstrument.js';
+import { ClipReverseSelection, openClipReversePanel } from './ClipReverseSelection.js';
+import { MIDITransposeTrack, openMIDITransposePanel } from './MIDITransposeTrack.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -392,7 +396,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -412,8 +416,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -429,7 +433,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructinging = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -673,6 +677,18 @@ import {
 
     // Sample Rate Converter
     openSampleRateConverterPanel,
+
+    // Track Delay Compensation
+    openTrackDelayPanel,
+
+    // Multi-Output Instrument
+    openMultiOutputPanel,
+
+    // Clip Reverse Selection
+    openClipReversePanel,
+
+    // MIDI Transpose Track
+    openMIDITransposePanel,
 
     // Track Color Gradient
     openTrackColorGradientPanel,
