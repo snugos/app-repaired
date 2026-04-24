@@ -1,9 +1,8 @@
 # AGENTS.md — snugsworth's Workspace
 
 ## GitHub Access
-- **Token**: See /home/workspace/AGENTS.md for credentials
-- **Saved**: 2026-04-18
 - **Org**: snugos | User: snugsworth
+- **Auth**: via Zo secrets (not stored in file)
 
 ## Repositories (snugos org)
 
@@ -49,30 +48,45 @@
 ## Dreams (snugos/dreams)
 - Static HTML + Tone.js audio — no JS source to study (only index.html)
 
-## New Feature Queue (2026-04-24 15:40 UTC)
+## SnugOS DAW (app-repaired) — Status: FEATURE-COMPLETE ✅
 
-**Status: 3 NEW FEATURES IMPLEMENTED ✅**
+**Repository**: LWB-with-Bugs branch (up to date)
+**Last Verified**: 2026-04-24 16:15 UTC
+**Total JS Files**: 273
+**Total Lines of Code**: 201,451
+**Total Features**: 367+
 
-All queued features from the previous sessions are now complete:
-1. **Track Latency Compensation** ✅ - `js/TrackLatencyCompensation.js`
-2. **Sample Import Preview** ✅ - `js/SampleImportPreview.js`
-3. **Chord Memory** ✅ - `js/ChordMemory.js`
-4. **Formula Automation** ✅ - `js/FormulaAutomation.js`
-5. **Ghost Track** ✅ - `js/GhostTrack.js`
-6. **Smart Duplicate** ✅ - `js/SmartDuplicate.js`
-7. **Ruler Mode Toggle** ✅ - `js/RulerModeToggle.js`
+## New Feature Queue (2026-04-24 16:15 UTC)
 
-**Remaining Queue:**
-1. **Project Template Save/Load** - Save and load project templates with all tracks/settings
-2. **MIDI Learn Visualization** - Show MIDI CC mappings visually on knobs and sliders
-3. **Audio Waveform Overlay** - Overlay multiple audio clip waveforms for comparison
-4. **Track Lane Height Memory** - Remember track lane heights across sessions
-5. **Quantize Strength Control** - Adjust how strongly notes snap to grid (0-100%)
-6. **Random Note Generator** - Add random notes within a scale/range
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+- 367+ features already implemented
 
-**Commit:** `eea4eb6`
+Generate 10 NEW feature ideas that are:
+1. Achievable in a single session
+2. Complement existing features
+3. Enhance creative workflow
 
-**Total Features: 357+**
+**New Feature Queue:**
+
+1. **Adaptive Dynamics** - Dynamics processor that adapts attack/release based on input character
+2. **Spectral Imaging** - Visual feedback showing frequency spread and stereo field
+3. **Smart Panic** - Panic button with gradual fade option to avoid clicks
+4. **Track Lane Sync** - Auto-alignment of multiple selected tracks to the grid
+5. **Loop Remover** - Detect and remove dead loops/regions in audio clips
+6. **Scale Suggestion** - AI-powered scale suggestions based on audio content
+7. **Signal Routing Matrix** - Visual node-based routing for complex signal chains
+8. **Clip Gain Envelope** - Draw volume automation directly on audio clips
+9. **MIDI Channel Remap** - Remap MIDI channels across tracks/buses
+10. **Waveform Overlay Mode** - Compare audio takes by overlaying waveforms
+
+**Status: 10 NEW FEATURES TO IMPLEMENT**
+
+**Total Features: 367+**
 
 ---
 
