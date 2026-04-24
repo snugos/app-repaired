@@ -7,5 +7,5 @@ export { SmartQuantize, QUANTIZE_MODES, GROOVE_TEMPLATES, quantizeNotes, analyze
 export { AudioSpectrumComparison, createAudioSpectrumComparison, createAudioSpectrumComparisonPanel } from './AudioSpectrumComparison.js';
 export { RealtimeMIDIMonitor, createRealtimeMIDIMonitor, createMIDIMonitorPanel } from './RealtimeMIDIMonitor.js';
 export { initializeTrackGroups, getTrackGroups, getTrackGroupById, getTrackGroupForTrack, createTrackGroup, removeTrackGroup, renameTrackGroup, addTrackToGroup, removeTrackFromGroup, setGroupVolume, setGroupMute, setGroupSolo, setGroupPan, toggleGroupCollapse, duplicateGroup, moveGroup, selectGroupTracks, ungroup, handleTrackDeletedFromGroups, clearAllTrackGroups, getTrackGroupsForSave, restoreTrackGroups, createTrackGroupsPanel } from './TrackGrouping.js';
-export { DrumPatternGenerator, DRUM_STYLES, COMPLEXITY_LEVELS, generateDrumPattern, generateDrumVariation } from './DrumPatternGenerator.js';
-export { MelodyGenerator, MELODY_STYLES, MELODY_MOODS, COMPLEXITY, generateMelodyQuick, generateMelodyVariation } from './MelodyGenerator.js';
+export { DrumPatternGenerator, DRUM_STYLES, COMPLEXITY_LEVELS, generateDrumPattern } from './DrumPatternGenerator.js';
+export { MelodyGenerator, MELODY_STYLES, MELODY_MOODS, COMPLEXITY, generateMelodyQuick } from './MelodyGenerator.js';
