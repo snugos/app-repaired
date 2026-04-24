@@ -1,3 +1,24 @@
+## New Feature Queue (2026-04-24 01:45 UTC)
+
+When all queues are empty, implement these new features:
+
+1. **Scale Suggestion** - AI-powered scale suggestion from MIDI/audio analysis ✅ COMPLETED
+2. **Audio Normalization Batch** - Normalize multiple audio clips at once
+3. **MIDI Velocity Curve** - Apply custom velocity curves to MIDI input
+4. **Clip Transpose Batch** - Transpose multiple clips at once
+5. **Track Export Solo** - Export individual tracks with solo/mute states
+6. **Pattern Randomizer** - Randomize pattern variations with constraints
+7. **Audio Fade Preset** - Quick apply fade curves to audio clips
+8. **MIDI Delay Effect** - MIDI delay/echo effect for patterns
+9. **Track Pan Automation** - Draw pan automation on timeline
+10. **Clip Gain Group** - Group clips for collective gain adjustment
+
+**Status: 1 NEW FEATURE COMPLETED ✅**
+
+**Total Features: 178+**
+
+---
+
 ## New Feature Queue (2026-04-24 01:10 UTC)
 
 When all queues are empty, implement these new features:
