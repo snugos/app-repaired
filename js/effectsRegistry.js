@@ -1213,6 +1213,16 @@ export const AVAILABLE_EFFECTS = {
             { key: 'highGain', label: 'High Gain', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
         ]
     },
+    Tremoloauto: {
+        displayName: 'Tremolo',
+        toneClass: 'Tremoloauto',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'syncToBPM', label: 'Sync BPM', type: 'checkbox', defaultValue: true, isSignal: false },
+            { key: 'shape', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
 };
 
 // Merge ScatterEffect into AVAILABLE_EFFECTS
