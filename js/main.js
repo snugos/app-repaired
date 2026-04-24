@@ -12,6 +12,11 @@ import { AudioStemExportEnhancement, initAudioStemExportEnhancement, openAudioSt
 import { MIDIPatternVariationEnhancement, initMIDIPatternVariationEnhancement, openMIDIPatternVariationEnhancementPanel } from './MIDIPatternVariationEnhancement.js';
 import { PluginPresetBrowser, initPluginPresetBrowser, openPluginPresetBrowserPanel } from './PluginPresetBrowser.js';
 import { initVideoExportEnhancement, openVideoExportPanel } from './VideoExportEnhancement.js';
+import { initCloudSyncEnhancement, openCloudSyncPanel } from './CloudSyncEnhancement.js';
+import { initNotationExportEnhancement, openNotationExportPanel } from './NotationExportEnhancement.js';
+import { initAudioRestorationSuite, openAudioRestorationPanel } from './AudioRestorationSuite.js';
+import { initMIDIGuitarSupport, openMIDIGuitarPanel } from './MIDIGuitarSupport.js';
+import { initSpatialAudioPanning, openSpatialAudioPanel } from './SpatialAudioPanning.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -409,7 +414,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -640,6 +645,26 @@ import {
     // Video Export Enhancement
     initVideoExportEnhancement,
     openVideoExportPanel,
+
+    // Cloud Sync Enhancement
+    initCloudSyncEnhancement,
+    openCloudSyncPanel,
+    
+    // Notation Export Enhancement
+    initNotationExportEnhancement,
+    openNotationExportPanel,
+    
+    // Audio Restoration Suite
+    initAudioRestorationSuite,
+    openAudioRestorationPanel,
+    
+    // MIDI Guitar Support
+    initMIDIGuitarSupport,
+    openMIDIGuitarPanel,
+    
+    // Spatial Audio Panning
+    initSpatialAudioPanning,
+    openSpatialAudioPanel,
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
