@@ -360,6 +360,136 @@ class OneKnobMaster extends Tone.Gain {
 // Register on Tone namespace
 Tone.OneKnobMaster = OneKnobMaster;
 
+// Transient Shaper - Shape attack and sustain portions of audio
+class TransientShaper extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        // Parameters
+        this._attackGain = initialParams.attackGain !== undefined ? initialParams.attackGain : 1.5;
+        this._sustainGain = initialParams.sustainGain !== undefined ? initialParams.sustainGain : 0.5;
+        this._attackTime = initialParams.attackTime !== undefined ? initialParams.attackTime : 0.005;
+        this._releaseTime = initialParams.releaseTime !== undefined ? initialParams.releaseTime : 0.05;
+        
+        // Create envelope follower for transient detection
+        this._envelopeFollower = new Tone.Abs();
+        this._attackFilter = new Tone.Filter(this._attackTime * 1000, "lowpass");
+        this._releaseFilter = new Tone.Filter(this._releaseTime * 1000, "lowpass");
+        
+        // Create gain nodes for attack and sustain processing
+        this._attackShaper = new Tone.Gain(1.0);
+        this._sustainShaper = new Tone.Gain(1.0);
+        
+        // Create dry/wet mix
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(1.0);
+        this._outputGain = new Tone.Gain(1.0);
+        
+        // Signal chain
+        // Input -> dry path (direct)
+        this.connect(this._dryGain);
+        
+        // Input -> envelope detection
+        this.connect(this._envelopeFollower);
+        this._envelopeFollower.connect(this._attackFilter);
+        this._attackFilter.connect(this._releaseFilter);
+        
+        // Input -> wet path with shaping
+        this.connect(this._attackShaper);
+        this._attackShaper.connect(this._sustainShaper);
+        this._sustainShaper.connect(this._wetGain);
+        
+        // Mix output
+        this._dryGain.connect(this._outputGain);
+        this._wetGain.connect(this._outputGain);
+        
+        // Apply initial parameters
+        this.attackGain = this._attackGain;
+        this.sustainGain = this._sustainGain;
+    }
+    
+    static getMetronomeAudioLabel() { 
+        return 'Transient Shaper'; 
+    }
+    
+    // Get attack gain (0.1 to 4x)
+    get attackGain() {
+        return this._attackGain;
+    }
+    
+    set attackGain(value) {
+        this._attackGain = Math.max(0.1, Math.min(4, value));
+        this._attackShaper.gain.value = this._attackGain;
+    }
+    
+    // Get sustain gain (0.1 to 4x)
+    get sustainGain() {
+        return this._sustainGain;
+    }
+    
+    set sustainGain(value) {
+        this._sustainGain = Math.max(0.1, Math.min(4, value));
+        this._sustainShaper.gain.value = this._sustainGain;
+    }
+    
+    // Get attack time (0.0001 to 0.5s)
+    get attackTime() {
+        return this._attackTime;
+    }
+    
+    set attackTime(value) {
+        this._attackTime = Math.max(0.0001, Math.min(0.5, value));
+        if (this._attackFilter.frequency) {
+            this._attackFilter.frequency.value = Math.min(20000, 1 / (this._attackTime * 2 * Math.PI));
+        }
+    }
+    
+    // Get release time (0.001 to 1s)
+    get releaseTime() {
+        return this._releaseTime;
+    }
+    
+    set releaseTime(value) {
+        this._releaseTime = Math.max(0.001, Math.min(1, value));
+        if (this._releaseFilter.frequency) {
+            this._releaseFilter.frequency.value = Math.min(20000, 1 / (this._releaseTime * 2 * Math.PI));
+        }
+    }
+    
+    // Connect output
+    connect(destination) {
+        if (destination.input) {
+            this._outputGain.connect(destination.input);
+        } else {
+            this._outputGain.connect(destination);
+        }
+        return this;
+    }
+    
+    // Disconnect
+    disconnect(destination) {
+        if (destination) {
+            this._outputGain.disconnect(destination);
+        } else {
+            this._outputGain.disconnect();
+        }
+        return this;
+    }
+    
+    dispose() {
+        this._envelopeFollower.dispose();
+        this._attackFilter.dispose();
+        this._releaseFilter.dispose();
+        this._attackShaper.dispose();
+        this._sustainShaper.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        this._outputGain.dispose();
+        super.dispose();
+    }
+}
+if (typeof Tone !== 'undefined') { Tone.TransientShaper = TransientShaper; }
+
 // Bitcrusher Worklet Effect - Lo-fi bitcrush effect
 class BitcrusherWorklet extends Tone.Gain {
     constructor(initialParams = {}) {
@@ -575,6 +705,16 @@ export const AVAILABLE_EFFECTS = {
             { key: 'bitDepth', label: 'Bits', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 8, decimals: 0, displaySuffix: ' bit', isSignal: false },
             { key: 'sampleRateReduction', label: 'Downsample', type: 'knob', min: 1, max: 100, step: 1, defaultValue: 1, decimals: 0, displaySuffix: 'x', isSignal: false },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
+        ]
+    },
+    TransientShaper: {
+        displayName: 'Transient Shaper',
+        toneClass: 'TransientShaper',
+        params: [
+            { key: 'attackGain', label: 'Attack', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.5, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'sustainGain', label: 'Sustain', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 0.5, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'attackTime', label: 'Attack Time', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
         ]
     },
     Chebyshev: {
