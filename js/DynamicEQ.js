@@ -521,3 +521,7 @@ export function openDynamicEQPanel(services = {}) {
 
 export { DynamicEQ };
 export default DynamicEQ;
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.DynamicEQ = DynamicEQ;
+}

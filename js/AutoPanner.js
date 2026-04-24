@@ -606,3 +606,7 @@ export function openAutoPannerPanel(services = {}) {
 
 export { AutoPanner };
 export default AutoPanner;
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.AutoPanner = AutoPanner;
+}

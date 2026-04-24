@@ -608,3 +608,7 @@ export function openMultibandSaturatorPanel(services = {}) {
 
 export { MultibandSaturator };
 export default MultibandSaturator;
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.MultibandSaturator = MultibandSaturator;
+}

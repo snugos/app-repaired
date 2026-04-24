@@ -612,3 +612,7 @@ export function openStereoImagerEnhancementPanel(services = {}) {
 
 export { StereoImagerEnhancement };
 export default StereoImagerEnhancement;
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.StereoImagerEnhancement = StereoImagerEnhancement;
+}

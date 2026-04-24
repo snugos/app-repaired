@@ -551,3 +551,7 @@ export function openHarmonicSynthesizerPanel(services = {}) {
 
 export { HarmonicSynthesizer };
 export default HarmonicSynthesizer;
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.HarmonicSynthesizer = HarmonicSynthesizer;
+}

@@ -174,3 +174,7 @@ if (typeof effectsRegistry !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SpectralCompressor;
 }
+// Register on Tone namespace for effectsRegistry.createEffectInstance
+if (typeof Tone !== 'undefined') {
+    Tone.SpectralCompressor = SpectralCompressor;
+}
