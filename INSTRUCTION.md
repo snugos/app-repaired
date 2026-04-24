@@ -4,23 +4,18 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Granular Processor** - Granular synthesis effect for time-stretching and pitch manipulation ✅ COMPLETED
-2. **Convolution Reverb** - Impulse response-based reverb ✅ COMPLETED
-3. **Formant Filter** - Vowel-shaped filter for vocal synthesis ✅ COMPLETED
-4. **Ring Modulator** - Classic ring modulation effect ✅ COMPLETED
-5. **Frequency Shifter** - Linear frequency shifting (not pitch shifting) ✅ COMPLETED
-6. **Envelope Generator** - ADSR envelope generator for modulation ✅ COMPLETED
-7. **Vocoder** - Classic vocoder effect with carrier and modulator ✅ COMPLETED
-8. **Phaser Effect** - All-pass filter-based phase shifting effect ✅ COMPLETED
-9. **Flanger Effect** - Time-based delay modulation effect ✅ COMPLETED
-10. **Chorus Effect** - Detune-based stereo widening effect ✅ COMPLETED
+1. **Spectral Compressor** - Frequency-aware compression with independent band control ✅ COMPLETED
+2. **Harmonic Synthesizer** - Add harmonics to audio for thickness and presence ✅ COMPLETED
+3. **Dynamic EQ** - EQ bands that respond to input level ✅ COMPLETED
+4. **Stereo Imager Enhancement** - Advanced stereo manipulation with mono maker ✅ COMPLETED
+5. **Multiband Saturator** - Add saturation per frequency band ✅ COMPLETED
+6. **Auto-Panner** - Automatic panning with various patterns ✅ COMPLETED
 
 ## Workflow
 
 ### Step 1: Pick Next Feature
 - Read this instruction to see which feature you're on
 - Work on features IN ORDER (1, then 2, then 3...)
-
 ### Step 2: Implement Feature
 - Keep it SIMPLE and MINIMAL
 - Follow existing code patterns
@@ -43,7 +38,7 @@ After successfully implementing a feature:
 - Renumber the remaining features
 - Update this instruction with new queue
 
-## When Queue is Empty - New Feature Ideas (2026-04-24 09:00 UTC)
+## When Queue is Empty - New Feature Ideas (2026-04-24 09:35 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
@@ -53,16 +48,16 @@ Based on SnugOS being a browser-based DAW with:
 - MIDI support
 
 New Feature Queue:
-1. **Tremolo Effect** - Amplitude modulation effect
-2. **Distortion** - Waveshaping distortion effect
-3. **Bitcrusher** - Sample rate and bit depth reduction
-4. **Compressor** - Full-band dynamics compressor with sidechain
-5. **Limiter** - Brick-wall limiter with lookahead
-6. **Noise Gate** - Threshold-based gate with attack/release
-7. **Auto-Wah** - Filter-based wah effect
-8. **Tape Stop** - Tape slowdown effect
-9. **Vinyl Effect** - Vinyl crackle and noise
-10. **Reverse Reverb** - Reverse reverb tails
+1. **Tape Saturation** - Analog tape warmth and saturation effect
+2. **Chorus Ensemble** - Enhanced chorus with multiple voices and stereo spread
+3. **Phaser Ensemble** - Multi-stage phaser with stereo and tempo sync
+4. **Flanger Ensemble** - Stereo flanger with feedback and delay modulation
+5. **Tremolo Ensemble** - Tempo-synced tremolo with multiple waveforms
+6. **Rotary Speaker** - Leslie cabinet simulation with rotation effects
+7. **Auto-Wah Ensemble** - Enhanced auto-wah with resonance and envelope control
+8. **Tremoloauto** - Tempo-synced tremolo that locks to project BPM
+9. **Distortion Ensemble** - Multiple distortion types (tube, fuzz, overdrive)
+10. **Bitcrusher Ensemble** - Enhanced bitcrusher with stereo and modulation
 
 ## Rules
 
