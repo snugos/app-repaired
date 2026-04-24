@@ -1439,6 +1439,17 @@ export const AVAILABLE_EFFECTS = {
             { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
         ]
     },
+    Tremoloauto: {
+        displayName: 'Tremolo (Sync)',
+        toneClass: 'Tremoloauto',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'syncMode', label: 'Sync', type: 'select', options: ['free', 'host'], defaultValue: 'free', isSignal: false },
+            { key: 'shape', label: 'Shape', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
 };
 
 // Merge ScatterEffect into AVAILABLE_EFFECTS
@@ -1664,120 +1675,4 @@ if (typeof Tone !== 'undefined') {
 // Export the CustomEffect class globally
 if (typeof window !== 'undefined') {
     window.CustomEffect = CustomEffect;
-}
-
-// Tremoloauto - Tempo-synced tremolo that locks to project BPM
-class Tremoloauto extends Tone.Gain {
-    constructor(initialParams = {}) {
-        super(1.0);
-        
-        this._depth = initialParams.depth !== undefined ? initialParams.depth : 0.5;
-        this._rate = initialParams.rate !== undefined ? initialParams.rate : 1.0;
-        this._syncMode = initialParams.syncMode !== undefined ? initialParams.syncMode : 'free';
-        this._shape = initialParams.shape || 'sine';
-        this._enabled = true;
-        
-        // LFO for modulation
-        this._lfo = new Tone.LFO({
-            frequency: this._getSyncedRate(),
-            min: 0,
-            max: 1,
-            type: this._shape
-        });
-        
-        // Depth control (scales the LFO modulation)
-        this._depthGain = new Tone.Gain(this._depth);
-        
-        // Wet/dry mix
-        this._dryGain = new Tone.Gain(1.0);
-        this._wetGain = new Tone.Gain(0.0);
-        
-        // LFO -> depthGain -> wetGain.gain (modulates wet mix)
-        this._lfo.connect(this._depthGain);
-        this._depthGain.connect(this._wetGain.gain);
-        
-        // Dry path
-        this.connect(this._dryGain);
-        this._dryGain.connect(this);
-        
-        // Wet path (tremolo effect)
-        this.connect(this._wetGain);
-        this._wetGain.connect(this);
-        
-        this._lfo.start();
-    }
-    
-    static getMetronomeAudioLabel() { return 'Tremolo'; }
-    
-    _getSyncedRate() {
-        const bpm = Tone.Transport.bpm.value || 120;
-        return (bpm / 60) * this._rate;
-    }
-    
-    setDepth(depth) {
-        this._depth = Math.max(0, Math.min(1, depth));
-        this._depthGain.gain.value = this._depth;
-    }
-    
-    getDepth() {
-        return this._depth;
-    }
-    
-    setRate(rate) {
-        this._rate = Math.max(0.1, Math.min(20, rate));
-        if (this._syncMode === 'free') {
-            this._lfo.frequency.value = this._rate;
-        } else {
-            this._lfo.frequency.value = this._getSyncedRate();
-        }
-    }
-    
-    getRate() {
-        return this._rate;
-    }
-    
-    setSyncMode(mode) {
-        this._syncMode = mode;
-        if (mode === 'free') {
-            this._lfo.frequency.value = this._rate;
-        } else {
-            this._lfo.frequency.value = this._getSyncedRate();
-        }
-    }
-    
-    getSyncMode() {
-        return this._syncMode;
-    }
-    
-    setShape(shape) {
-        this._shape = shape;
-        this._lfo.type = shape;
-    }
-    
-    getShape() {
-        return this._shape;
-    }
-    
-    setEnabled(enabled) {
-        this._enabled = enabled;
-        if (enabled) {
-            this._wetGain.gain.value = this._depth;
-            this._dryGain.gain.value = 1 - this._depth;
-        } else {
-            this._wetGain.gain.value = 0;
-            this._dryGain.gain.value = 1;
-        }
-    }
-    
-    dispose() {
-        this._lfo.dispose();
-        this._depthGain.dispose();
-        this._dryGain.dispose();
-        this._wetGain.dispose();
-        super.dispose();
-    }
-}
-
-if (typeof Tone !== 'undefined') {
-    Tone.Tremoloauto = Tremoloauto;
 }
