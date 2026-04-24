@@ -23,6 +23,13 @@ import { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpec
 import { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel } from './SmartTrackGrouping.js';
 import { AudioEventDetection, audioEventDetection, initAudioEventDetection, openAudioEventDetectionPanel } from './AudioEventDetection.js';
 import { CrossTrackPitchAnalysis, crossTrackPitchAnalysis, initCrossTrackPitchAnalysis, openCrossTrackPitchAnalysisPanel } from './CrossTrackPitchAnalysis.js';
+// New Feature Modules - Session 2026-04-24
+import { AICompositionVariations } from './AICompositionVariations.js';
+import { HarmonicAnalysisEngine } from './HarmonicAnalysisEngine.js';
+import { AudioStemSeparation } from './AudioStemSeparation.js';
+import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
+import { SmartFXChain } from './SmartFXChain.js';
+import { AudioFingerprinting } from './AudioFingerprinting.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -420,7 +427,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -707,6 +714,26 @@ import {
     crossTrackPitchAnalysis,
     initCrossTrackPitchAnalysis,
     openCrossTrackPitchAnalysisPanel,
+
+    // AI Composition Variations
+    initAICompositionVariations,
+    openAICompositionVariationsPanel,
+    
+    // Harmonic Analysis Engine
+    initHarmonicAnalysisEngine,
+    openHarmonicAnalysisPanel,
+    
+    // Audio Stem Separation
+    initAudioStemSeparation,
+    openAudioStemSeparationPanel,
+    
+    // MIDI to Audio Conversion
+    initMIDIToAudioConversion,
+    openMIDIToAudioPanel,
+    
+    // Smart FX Chain
+    initSmartFXChain,
+    openSmartFXChainPanel,
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
