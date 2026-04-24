@@ -7,6 +7,7 @@ import { DynamicEQ } from './DynamicEQ.js';
 import { StereoImagerEnhancement } from './StereoImagerEnhancement.js';
 import { MultibandSaturator } from './MultibandSaturator.js';
 import { AutoPanner } from './AutoPanner.js';
+import { AudioLimiter } from './AudioLimiter.js';
 
 // Sidechain Compressor - Compressor with external sidechain input
 class SidechainCompressor extends Tone.Compressor {
@@ -1197,6 +1198,16 @@ export const AVAILABLE_EFFECTS = {
             { key: 'threshold', label: 'Threshold', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -12, decimals: 0, displaySuffix: 'dB', isSignal: true },
         ]
     },
+    AudioLimiter: {
+        displayName: 'Audio Limiter',
+        toneClass: 'AudioLimiter',
+        params: [ 
+            { key: 'threshold', label: 'Threshold', type: 'knob', min: -24, max: 0, step: 0.1, defaultValue: -0.1, decimals: 1, displaySuffix: 'dB', isSignal: true },
+            { key: 'release', label: 'Release', type: 'knob', min: 10, max: 1000, step: 1, defaultValue: 300, decimals: 0, displaySuffix: 'ms', isSignal: false },
+            { key: 'ceiling', label: 'Ceiling', type: 'knob', min: -6, max: 0, step: 0.1, defaultValue: -0.3, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'knee', label: 'Knee', type: 'knob', min: 0, max: 12, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+        ]
+    },
     Mono: {
         displayName: 'Mono',
         toneClass: 'Mono',
@@ -1361,8 +1372,8 @@ export const AVAILABLE_EFFECTS = {
         params: [
             { key: 'threshold', label: 'Thresh', type: 'knob', min: -60, max: 0, step: 1, defaultValue: -20, decimals: 0, displaySuffix: 'dB', isSignal: false },
             { key: 'ratio', label: 'Ratio', type: 'knob', min: 0.5, max: 10, step: 0.1, defaultValue: 2, decimals: 1, isSignal: false },
-            { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 0.2, step: 0.001, defaultValue: 0.01, decimals: 3, displaySuffix: 's', isSignal: false },
-            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 0.2, step: 0.001, defaultValue: 0.01, decimals: 3, isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: false },
             { key: 'freq1', label: 'Freq 1', type: 'knob', min: 20, max: 20000, step: 1, defaultValue: 100, decimals: 0, displaySuffix: 'Hz', isSignal: false },
             { key: 'freq2', label: 'Freq 2', type: 'knob', min: 20, max: 20000, step: 1, defaultValue: 400, decimals: 0, displaySuffix: 'Hz', isSignal: false },
             { key: 'freq3', label: 'Freq 3', type: 'knob', min: 20, max: 20000, step: 1, defaultValue: 1600, decimals: 0, displaySuffix: 'Hz', isSignal: false },
