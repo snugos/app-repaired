@@ -1,22 +1,35 @@
+## New Feature Queue (2026-04-24 02:15 UTC)
+
+When all queues are empty, implement these new features:
+
+1. **Audio Limiter** - Brick-wall limiter with lookahead and release ✅ INTEGRATED
+2. **MIDI Channel Filter** - Filter MIDI by channel with pass/block lists ✅ INTEGRATED
+3. **Track Freeze All** - Freeze all tracks at once for CPU savings ✅ INTEGRATED
+4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects ✅ INTEGRATED
+5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
+6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
+7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
+8. **One-Knob Master** - Single knob for "loudness maximization" chain
+
+## Previous Completed Features
+
+- Track Stack, Splice Detector, and other features already integrated in prior sessions
+
+---
+
 ## Task: Snaw Feature Builder Agent
 
 You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
 ## Current Feature Queue
 
-1. **Track Stack** - Collapse/expand multi-track arrangements
-2. **Splice Detector** - Auto-detect and mark transient events in audio
-3. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects
-4. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
-5. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
-6. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
-7. **One-Knob Master** - Single knob for "loudness maximization" chain
+The feature queue is maintained in AGENTS.md. See the "New Feature Queue (2026-04-24 02:15 UTC)" section above for the current features to implement.
 
 ## Workflow
 
 ### Step 1: Pick Next Feature
-- Read this instruction to see which feature you're on
-- Work on features IN ORDER (1, then 2, then 3...)
+- Read AGENTS.md for the current feature queue
+- Work on features IN ORDER
 
 ### Step 2: Implement Feature
 - Keep it SIMPLE and MINIMAL
@@ -36,9 +49,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ### Step 5: Update Queue
 After successfully implementing a feature:
-- Remove it from the queue
-- Renumber the remaining features
-- Update this instruction with new queue
+- Update AGENTS.md to mark it as completed
+- Move to the next feature in the queue
 
 ## When Queue is Empty
 
