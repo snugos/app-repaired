@@ -896,10 +896,11 @@ export const AVAILABLE_EFFECTS = {
         displayName: 'Auto Panner',
         toneClass: 'AutoPanner',
         params: [
-            { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 2, decimals: 1, displaySuffix: 'Hz', isSignal: true },
-            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
-            { key: 'type', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 1, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'syncMode', label: 'Sync', type: 'select', options: ['free', 'host'], defaultValue: 'free', isSignal: false },
+            { key: 'pattern', label: 'Pattern', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
         ]
     },
     AutoWah: {
@@ -1052,7 +1053,7 @@ export const AVAILABLE_EFFECTS = {
         displayName: 'Stereo Widener',
         toneClass: 'StereoWidener',
         params: [
-            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: true },
+            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: true },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
         ]
     },
@@ -1346,6 +1347,18 @@ export const AVAILABLE_EFFECTS = {
             { key: 'width', label: 'Width', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
             { key: 'syncMode', label: 'Sync', type: 'select', options: ['free', 'host'], defaultValue: 'free', isSignal: false },
             { key: 'pattern', label: 'Pattern', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
+    TapeSaturation: {
+        displayName: 'Tape Saturation',
+        toneClass: 'TapeSaturation',
+        params: [
+            { key: 'drive', label: 'Drive', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'saturation', label: 'Saturation', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'tapeSpeed', label: 'Tape Speed', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'tone', label: 'Tone', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'noise', label: 'Noise', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
         ]
     },
 };
