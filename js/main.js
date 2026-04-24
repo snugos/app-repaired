@@ -11,6 +11,7 @@ import { AIMasteringEnhancement, initAIMasteringEnhancement, openAIMasteringEnha
 import { AudioStemExportEnhancement, initAudioStemExportEnhancement, openAudioStemExportEnhancementPanel } from './AudioStemExportEnhancement.js';
 import { MIDIPatternVariationEnhancement, initMIDIPatternVariationEnhancement, openMIDIPatternVariationEnhancementPanel } from './MIDIPatternVariationEnhancement.js';
 import { PluginPresetBrowser, initPluginPresetBrowser, openPluginPresetBrowserPanel } from './PluginPresetBrowser.js';
+import { initVideoExportEnhancement, openVideoExportPanel } from './VideoExportEnhancement.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -408,7 +409,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -635,6 +636,10 @@ import {
     PluginPresetBrowser,
     initPluginPresetBrowser,
     openPluginPresetBrowserPanel,
+
+    // Video Export Enhancement
+    initVideoExportEnhancement,
+    openVideoExportPanel,
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,

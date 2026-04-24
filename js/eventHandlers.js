@@ -289,6 +289,7 @@ export function initializePrimaryEventListeners(appContext) {
             menuExportWav: () => { console.log('[Menu] Export clicked'); services.exportToWav?.(); },
             menuExportMidi: () => { console.log('[Menu] Export MIDI clicked'); services.exportToMidi?.(); },
             menuExportStems: () => { console.log('[Menu] Export Stems clicked'); services.showStemExportDialog?.(); },
+            menuVideoExport: () => { console.log('[Menu] Video Export clicked'); services.openVideoExportPanel?.(); },
             menuProjectTemplates: () => { console.log('[Menu] Project Templates clicked'); services.openProjectTemplatesPanel?.(); },
             menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); services.openExportPresetsPanel?.(); },
             menuTrackTemplates: () => { console.log('[Menu] Track Templates clicked'); services.openTrackTemplatesPanel?.(); },
