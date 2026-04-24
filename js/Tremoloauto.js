@@ -1,6 +1,6 @@
 /**
  * Tremoloauto - Tempo-synced tremolo that locks to project BPM
- * Automatically syncs LFO frequency to musical note values based on tempo
+ * A tremolo effect that automatically syncs to the DAW's tempo
  */
 
 let localAppServices = {};
@@ -31,13 +31,13 @@ export function openTremoloautoPanel(savedState = null) {
 
     const contentContainer = document.createElement('div');
     contentContainer.id = 'tremoloautoContent';
-    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
 
     const options = {
-        width: 460,
-        height: 540,
-        minWidth: 380,
-        minHeight: 480,
+        width: 420,
+        height: 480,
+        minWidth: 360,
+        minHeight: 400,
         initialContentKey: windowId,
         closable: true,
         minimizable: true,
@@ -55,7 +55,7 @@ export function openTremoloautoPanel(savedState = null) {
         });
     }
 
-    const win = localAppServices.createWindow(windowId, 'Tremolo Auto', contentContainer, options);
+    const win = localAppServices.createWindow(windowId, 'Tremoloauto', contentContainer, options);
     if (win?.element) {
         setTimeout(() => renderTremoloautoContent(), 50);
     }
@@ -69,251 +69,350 @@ function renderTremoloautoContent() {
     const container = document.getElementById('tremoloautoContent');
     if (!container) return;
 
-    const syncOptions = [
-        { value: '1n', label: 'Whole (1n)' },
-        { value: '2n', label: 'Half (2n)' },
-        { value: '4n', label: 'Quarter (4n)' },
-        { value: '8n', label: 'Eighth (8n)' },
-        { value: '16n', label: 'Sixteenth (16n)' },
-        { value: '32n', label: 'Thirty-second (32n)' },
-        { value: '4t', label: 'Quarter Triplet (4t)' },
-        { value: '8t', label: 'Eighth Triplet (8t)' },
-        { value: '16t', label: 'Sixteenth Triplet (16t)' }
-    ];
+    const tracks = localAppServices.getTracks?.() || [];
+    const trackOptions = tracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
     let html = `
         <div class="mb-4">
-            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                Tempo-synced tremolo that automatically locks to your project BPM and note subdivisions.
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Tempo-synced tremolo that automatically locks to project BPM.
             </p>
         </div>
         
         <div class="mb-4">
-            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Sync Note Value</label>
-            <select id="tremoloautoSyncNote" onchange="updateTremoloautoFrequency()" 
-                    class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
-                ${syncOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Target Track</label>
+            <select id="tremoloautoTrack" class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
+                <option value="">-- Select Track --</option>
+                ${trackOptions}
             </select>
         </div>
         
-        <div class="mb-4 p-3 bg-gray-200 dark:bg-slate-700 rounded">
-            <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-700 dark:text-gray-200">Current LFO Rate:</span>
-                <span id="tremoloautoFreqDisplay" class="text-lg font-bold text-blue-500">3.00 Hz</span>
-            </div>
-            <div class="flex justify-between items-center mt-1">
-                <span class="text-xs text-gray-500">At BPM:</span>
-                <span id="tremoloautoBpmDisplay" class="text-sm text-gray-600 dark:text-gray-300">120</span>
-            </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Sync Rate</label>
+            <select id="tremoloautoRate" class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
+                <option value="1">1 Bar</option>
+                <option value="0.5">1/2 Bar</option>
+                <option value="0.25">1/4 Bar</option>
+                <option value="0.125">1/8 Bar</option>
+                <option value="0.0625">1/16 Bar</option>
+                <option value="2">2 Bars</option>
+                <option value="4">4 Bars</option>
+            </select>
         </div>
         
         <div class="mb-4">
-            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Depth: <span id="tremoloautoDepthValue">70</span>%</label>
-            <input type="range" id="tremoloautoDepth" min="0" max="100" value="70" step="1"
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Depth: <span id="tremoloautoDepthValue">50</span>%</label>
+            <input type="range" id="tremoloautoDepth" min="0" max="100" value="50" step="1"
                    class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded appearance-none cursor-pointer"
-                   oninput="updateTremoloautoDepth()">
+                   oninput="document.getElementById('tremoloautoDepthValue').textContent = this.value">
         </div>
         
         <div class="mb-4">
             <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Waveform</label>
-            <select id="tremoloautoType" onchange="updateTremoloautoWaveform()" 
-                    class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
+            <select id="tremoloautoWave" class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
                 <option value="sine">Sine</option>
+                <option value="triangle">Triangle</option>
                 <option value="square">Square</option>
                 <option value="sawtooth">Sawtooth</option>
-                <option value="triangle">Triangle</option>
+                <option value="ramp">Ramp Down</option>
             </select>
+        </div>
+        
+        <div class="mb-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input type="checkbox" id="tremoloautoSyncPhase" checked class="w-4 h-4">
+                Sync Phase to Bar Start
+            </label>
+        </div>
+        
+        <div class="mb-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input type="checkbox" id="tremoloautoEnabled" class="w-4 h-4">
+                Enable Tremoloauto
+            </label>
         </div>
         
         <div class="mb-4 flex gap-2">
             <button id="tremoloautoToggle" onclick="toggleTremoloauto()" 
                     class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors">
-                Enable Tremolo
+                Apply
             </button>
-            <button onclick="testTremoloautoLFO()" 
+            <button onclick="previewTremoloauto()" 
                     class="px-4 py-2 bg-gray-300 dark:bg-slate-600 rounded hover:bg-gray-400 dark:hover:bg-slate-500 text-sm transition-colors">
-                Test LFO
+                Preview
+            </button>
+            <button onclick="bypassTremoloauto()" 
+                    class="px-4 py-2 bg-gray-300 dark:bg-slate-600 rounded hover:bg-gray-400 dark:hover:bg-slate-500 text-sm transition-colors">
+                Bypass
             </button>
         </div>
         
         <div class="mt-4 p-3 bg-gray-200 dark:bg-slate-700 rounded">
-            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Quick Presets</h4>
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="setTremoloautoPreset('16t')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">16th Trip</button>
-                <button onclick="setTremoloautoPreset('8t')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">8th Trip</button>
-                <button onclick="setTremoloautoPreset('8n')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">8th Note</button>
-                <button onclick="setTremoloautoPreset('4t')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">Quarter Trip</button>
-                <button onclick="setTremoloautoPreset('4n')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">Quarter</button>
-                <button onclick="setTremoloautoPreset('2n')" class="px-2 py-1 bg-gray-300 dark:bg-slate-600 rounded text-xs hover:bg-gray-400 dark:hover:bg-slate-500">Half Note</button>
+            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Current BPM</h4>
+            <div id="tremoloautoBpmDisplay" class="text-2xl font-bold text-center text-blue-600 dark:text-blue-400">
+                ${localAppServices.getTempo ? localAppServices.getTempo().toFixed(1) : '120.0'} BPM
             </div>
         </div>
         
-        <div class="mt-4 border-t border-gray-300 dark:border-slate-600 pt-4">
-            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Note Values Reference</h4>
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-mono space-y-1">
-                <div>Whole (1n) = 4 beats | Half (2n) = 2 beats | Quarter (4n) = 1 beat</div>
-                <div>Eighth (8n) = 1/2 beat | 16th (16n) = 1/4 beat | 32nd (32n) = 1/8 beat</div>
-                <div>Triplets divide a beat into 3 equal parts</div>
+        <div class="mt-4 p-3 bg-gray-200 dark:bg-slate-700 rounded">
+            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Sync Info</h4>
+            <div id="tremoloautoSyncInfo" class="text-xs text-gray-600 dark:text-gray-300 font-mono">
+                Not synced
             </div>
         </div>
     `;
 
     container.innerHTML = html;
-    
-    // Initial frequency calculation
-    setTimeout(() => updateTremoloautoFrequency(), 100);
 }
 
-// Global state
-let tremoloautoActive = false;
-let tremoloautoDepth = 0.7;
-let tremoloautoWaveform = 'sine';
-let tremoloautoSyncNote = '8n';
-
-// Note duration lookup (in beats)
-const noteDurations = {
-    '1n': 4, '2n': 2, '4n': 1, '8n': 0.5, '16n': 0.25, '32n': 0.125,
-    '4t': 2/3, '8t': 1/3, '16t': 0.125/1.5
+// Global state for Tremoloauto
+let tremoloautoState = {
+    enabled: false,
+    trackId: null,
+    rate: 1, // bars
+    depth: 50,
+    waveform: 'sine',
+    syncPhase: true,
+    toneNode: null
 };
 
 /**
- * Get current BPM from app services or default
- */
-function getCurrentBPM() {
-    // Try to get BPM from localAppServices
-    if (localAppServices.getTempo) {
-        return localAppServices.getTempo();
-    }
-    return 120; // Default BPM
-}
-
-/**
- * Calculate LFO frequency from BPM and note value
- */
-function calculateFrequency(bpm, noteValue) {
-    const beats = noteDurations[noteValue] || 1;
-    const beatsPerSecond = bpm / 60;
-    return beatsPerSecond * beats;
-}
-
-/**
- * Update frequency display
- */
-function updateTremoloautoFrequency() {
-    const bpm = getCurrentBPM();
-    const noteValue = document.getElementById('tremoloautoSyncNote')?.value || '8n';
-    const freq = calculateFrequency(bpm, noteValue);
-    
-    const freqDisplay = document.getElementById('tremoloautoFreqDisplay');
-    const bpmDisplay = document.getElementById('tremoloautoBpmDisplay');
-    
-    if (freqDisplay) freqDisplay.textContent = `${freq.toFixed(2)} Hz`;
-    if (bpmDisplay) bpmDisplay.textContent = bpm;
-}
-
-/**
- * Update depth display
- */
-function updateTremoloautoDepth() {
-    const depth = document.getElementById('tremoloautoDepth')?.value || 70;
-    const depthDisplay = document.getElementById('tremoloautoDepthValue');
-    if (depthDisplay) depthDisplay.textContent = depth;
-    tremoloautoDepth = depth / 100;
-}
-
-/**
- * Update waveform
- */
-function updateTremoloautoWaveform() {
-    tremoloautoWaveform = document.getElementById('tremoloautoType')?.value || 'sine';
-}
-
-/**
- * Toggle tremolo on/off
+ * Toggle tremoloauto on/off
  */
 function toggleTremoloauto() {
+    const trackId = document.getElementById('tremoloautoTrack')?.value;
+    const enabled = document.getElementById('tremoloautoEnabled')?.checked;
     const toggleBtn = document.getElementById('tremoloautoToggle');
     
-    tremoloautoActive = !tremoloautoActive;
+    if (!trackId) {
+        localAppServices.showSafeNotification?.('Please select a track first.', 2000);
+        return;
+    }
     
-    if (tremoloautoActive) {
-        toggleBtn.textContent = 'Disable Tremolo';
+    tremoloautoState.enabled = enabled;
+    tremoloautoState.trackId = parseInt(trackId, 10);
+    tremoloautoState.rate = parseFloat(document.getElementById('tremoloautoRate')?.value || '1');
+    tremoloautoState.depth = parseFloat(document.getElementById('tremoloautoDepth')?.value || '50');
+    tremoloautoState.waveform = document.getElementById('tremoloautoWave')?.value || 'sine';
+    tremoloautoState.syncPhase = document.getElementById('tremoloautoSyncPhase')?.checked || true;
+    
+    if (enabled) {
+        applyTremoloauto();
+        toggleBtn.textContent = 'Remove';
         toggleBtn.className = 'px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium transition-colors';
-        localAppServices.showSafeNotification?.('Tremolo enabled - synced to BPM', 2000);
+        localAppServices.showSafeNotification?.('Tremoloauto applied to track.', 2000);
     } else {
-        toggleBtn.textContent = 'Enable Tremolo';
+        removeTremoloauto();
+        toggleBtn.textContent = 'Apply';
         toggleBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors';
-        localAppServices.showSafeNotification?.('Tremolo disabled.', 1500);
+        localAppServices.showSafeNotification?.('Tremoloauto removed.', 2000);
     }
 }
 
 /**
- * Set preset note value
+ * Apply tremoloauto effect to track
  */
-function setTremoloautoPreset(noteValue) {
-    const select = document.getElementById('tremoloautoSyncNote');
-    if (select) {
-        select.value = noteValue;
-        tremoloautoSyncNote = noteValue;
-        updateTremoloautoFrequency();
-    }
-}
-
-/**
- * Test LFO modulation
- */
-function testTremoloautoLFO() {
-    const bpm = getCurrentBPM();
-    const noteValue = document.getElementById('tremoloautoSyncNote')?.value || '8n';
-    const freq = calculateFrequency(bpm, noteValue);
-    const depth = document.getElementById('tremoloautoDepth')?.value || 70;
-    const waveform = document.getElementById('tremoloautoType')?.value || 'sine';
+function applyTremoloauto() {
+    if (!tremoloautoState.trackId || !tremoloautoState.enabled) return;
     
-    localAppServices.showSafeNotification?.(`Test: ${freq.toFixed(2)}Hz, ${depth}% depth, ${waveform} wave`, 2000);
+    const tracks = localAppServices.getTracks?.() || [];
+    const track = tracks.find(t => t.id === tremoloautoState.trackId);
+    if (!track) return;
+    
+    // Create tremolo LFO
+    const lfo = new Tone.LFO({
+        frequency: getTremoloFrequency(),
+        min: 0,
+        max: 1,
+        type: tremoloautoState.waveform
+    });
+    
+    // Create gain for modulation (0 = full, 1 = silent at trough)
+    const tremoloGain = new Tone.Gain(1);
+    
+    // Connect LFO to gain modulation
+    // At LFO=0: no modulation (full volume)
+    // At LFO=1: full modulation (depth applies)
+    const depthMult = tremoloautoState.depth / 100;
+    lfo.connect(tremoloGain.gain);
+    
+    // We need a second gain node to actually do the tremolo effect
+    // The LFO will modulate the volume between (1-depth) and 1
+    const baseGain = 1 - depthMult;
+    tremoloGain.gain.value = baseGain;
+    
+    // Actually for a proper tremolo, we need to modulate the track's gain
+    // Find the track's output gain node and insert our modulation
+    if (track.gainNode && !track.gainNode.disposed) {
+        // Store original gain
+        const originalGain = track.gainNode.gain.value;
+        
+        // Create modulation gain
+        const modGain = new Tone.Gain(originalGain);
+        
+        // LFO modulates the modGain value
+        lfo.connect(modGain.gain);
+        
+        // Connect track output through modGain to destination
+        track.gainNode.connect(modGain);
+        modGain.connect(Tone.Destination);
+        
+        // Start LFO
+        lfo.start();
+        
+        tremoloautoState.toneNode = { lfo, modGain };
+    }
+    
+    updateSyncInfo();
+}
+
+/**
+ * Remove tremoloauto effect
+ */
+function removeTremoloauto() {
+    if (tremoloautoState.toneNode) {
+        const { lfo, modGain } = tremoloautoState.toneNode;
+        if (lfo && !lfo.disposed) lfo.stop();
+        if (modGain && !modGain.disposed) modGain.dispose();
+        tremoloautoState.toneNode = null;
+    }
+    updateSyncInfo();
+}
+
+/**
+ * Get tremolo frequency based on rate and BPM
+ */
+function getTremoloFrequency() {
+    const bpm = localAppServices.getTempo?.() || 120;
+    const beatsPerBar = 4;
+    const bars = tremoloautoState.rate;
+    
+    // Frequency = BPM / (60 * bars)
+    const freq = (bpm / 60) / bars;
+    return freq;
+}
+
+/**
+ * Preview tremolo effect
+ */
+function previewTremoloauto() {
+    const bpm = localAppServices.getTempo?.() || 120;
+    const rate = parseFloat(document.getElementById('tremoloautoRate')?.value || '1');
+    const freq = (bpm / 60) / rate;
+    
+    const previewGain = new Tone.Gain(0.5).toDestination();
+    const previewLfo = new Tone.LFO({
+        frequency: freq,
+        min: 0,
+        max: 1,
+        type: document.getElementById('tremoloautoWave')?.value || 'sine'
+    });
+    
+    previewLfo.connect(previewGain.gain);
+    previewLfo.start();
+    
+    // Play a note through
+    const synth = new Tone.Synth().connect(previewGain);
+    synth.triggerAttackRelease('C4', '2n');
+    
+    // Stop after 2 seconds
+    setTimeout(() => {
+        previewLfo.stop();
+        previewLfo.dispose();
+        previewGain.dispose();
+        synth.dispose();
+    }, 2000);
+    
+    localAppServices.showSafeNotification?.(`Preview: ${freq.toFixed(2)} Hz tremolo`, 1500);
+}
+
+/**
+ * Bypass tremolo (pass-through without effect)
+ */
+function bypassTremoloauto() {
+    removeTremoloauto();
+    const toggleBtn = document.getElementById('tremoloautoToggle');
+    toggleBtn.textContent = 'Apply';
+    toggleBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors';
+    document.getElementById('tremoloautoEnabled').checked = false;
+    tremoloautoState.enabled = false;
+    localAppServices.showSafeNotification?.('Tremoloauto bypassed.', 1500);
+}
+
+/**
+ * Update sync info display
+ */
+function updateSyncInfo() {
+    const infoEl = document.getElementById('tremoloautoSyncInfo');
+    const bpmEl = document.getElementById('tremoloautoBpmDisplay');
+    if (!infoEl || !bpmEl) return;
+    
+    const bpm = localAppServices.getTempo?.() || 120;
+    bpmEl.textContent = `${bpm.toFixed(1)} BPM`;
+    
+    if (tremoloautoState.enabled && tremoloautoState.toneNode) {
+        const freq = getTremoloFrequency();
+        const periodMs = (1000 / freq).toFixed(1);
+        infoEl.innerHTML = `
+            <div class="text-green-500">Synced to BPM</div>
+            <div>Rate: ${tremoloautoState.rate} bar(s)</div>
+            <div>Frequency: ${freq.toFixed(4)} Hz</div>
+            <div>Period: ${periodMs} ms</div>
+        `;
+    } else {
+        infoEl.textContent = 'Not synced';
+    }
 }
 
 // Make functions globally accessible
 window.toggleTremoloauto = toggleTremoloauto;
-window.updateTremoloautoFrequency = updateTremoloautoFrequency;
-window.updateTremoloautoDepth = updateTremoloautoDepth;
-window.updateTremoloautoWaveform = updateTremoloautoWaveform;
-window.setTremoloautoPreset = setTremoloautoPreset;
-window.testTremoloautoLFO = testTremoloautoLFO;
+window.previewTremoloauto = previewTremoloauto;
+window.bypassTremoloauto = bypassTremoloauto;
 
-class TremoloautoEngine {
+/**
+ * TremoloautoEngine - Core engine class
+ */
+export class TremoloautoEngine {
     constructor() {
-        this.isActive = false;
-        this.syncNote = '8n';
-        this.depth = 0.7;
+        this.enabled = false;
+        this.rate = 1; // bars
+        this.depth = 50;
         this.waveform = 'sine';
-        this.bpm = 120;
-        this.toneNode = null;
+        this.syncPhase = true;
+        this.trackId = null;
     }
-
-    getFrequency() {
-        return calculateFrequency(this.bpm, this.syncNote);
+    
+    /**
+     * Set the rate in bars
+     */
+    setRate(bars) {
+        this.rate = Math.max(0.0625, Math.min(8, bars));
     }
-
-    setSyncNote(note) {
-        this.syncNote = note;
-    }
-
+    
+    /**
+     * Set tremolo depth (0-100)
+     */
     setDepth(depth) {
-        this.depth = Math.max(0, Math.min(1, depth));
+        this.depth = Math.max(0, Math.min(100, depth));
     }
-
+    
+    /**
+     * Set waveform type
+     */
     setWaveform(type) {
         this.waveform = type;
     }
-
-    setBPM(bpm) {
-        this.bpm = Math.max(20, Math.min(300, bpm));
-    }
-
-    setActive(active) {
-        this.isActive = active;
+    
+    /**
+     * Get current frequency based on BPM
+     */
+    getFrequency(bpm) {
+        const beatsPerBar = 4;
+        return (bpm / 60) / this.rate;
     }
 }
 
-export { TremoloautoEngine };
-export const tremoloEngine = new TremoloautoEngine();
+/**
+ * Get the TremoloautoEngine singleton
+ */
+export const tremoloautoEngine = new TremoloautoEngine();

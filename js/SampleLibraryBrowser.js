@@ -1,363 +1,817 @@
-// js/SampleLibraryBrowser.js - Sample Library Browser for browsing and previewing samples
+/**
+ * Sample Library Browser - Browse and preview samples from built-in library
+ * Provides a UI for browsing, previewing, and importing samples
+ */
 
-// Built-in sample library categories (virtual - can be populated by loading sample packs)
-export const SAMPLE_LIBRARY_CATEGORIES = [
-    { id: 'drums', name: 'Drums', icon: '🥁', description: 'Kicks, snares, hi-hats, toms, cymbals' },
-    { id: 'bass', name: 'Bass', icon: '🎸', description: 'Bass synths, 808s, bass guitars' },
-    { id: 'synth', name: 'Synth', icon: '🎹', description: 'Synth stabs, pads, leads, plucks' },
-    { id: 'vocals', name: 'Vocals', icon: '🎤', description: 'Vocal chops, one-shots, vocal fx' },
-    { id: 'fx', name: 'FX', icon: '🔊', description: 'Risers, impacts, sweeps, transitions' },
-    { id: 'keys', name: 'Keys', icon: '🎹', description: 'Piano, organ, electric piano' },
-    { id: 'guitar', name: 'Guitar', icon: '🎸', description: 'Electric and acoustic guitars' },
-    { id: 'strings', name: 'Strings', icon: '🎻', description: 'Violin, cello, orchestral strings' },
-    { id: 'world', name: 'World', icon: '🌍', description: 'World instruments and percussion' },
-    { id: 'ambient', name: 'Ambient', icon: '🌫️', description: 'Pads, textures, atmospheres' }
-];
-
-// Built-in sample library with demo samples (these are placeholders - real samples would need to be added)
-export const SAMPLE_LIBRARY = {
-    drums: [
-        { id: 'kick_01', name: 'Kick 01', category: 'drums', file: 'kick_01.wav', duration: 0.5 },
-        { id: 'kick_02', name: 'Kick 02', category: 'drums', file: 'kick_02.wav', duration: 0.5 },
-        { id: 'snare_01', name: 'Snare 01', category: 'drums', file: 'snare_01.wav', duration: 0.3 },
-        { id: 'snare_02', name: 'Snare 02', category: 'drums', file: 'snare_02.wav', duration: 0.3 },
-        { id: 'hihat_closed', name: 'Hi-Hat Closed', category: 'drums', file: 'hihat_closed.wav', duration: 0.1 },
-        { id: 'hihat_open', name: 'Hi-Hat Open', category: 'drums', file: 'hihat_open.wav', duration: 0.4 },
-        { id: 'clap_01', name: 'Clap 01', category: 'drums', file: 'clap_01.wav', duration: 0.2 },
-        { id: 'tom_01', name: 'Tom 01', category: 'drums', file: 'tom_01.wav', duration: 0.4 }
-    ],
-    bass: [
-        { id: 'bass_808_01', name: '808 Bass 01', category: 'bass', file: 'bass_808_01.wav', duration: 1.0 },
-        { id: 'bass_808_02', name: '808 Bass 02', category: 'bass', file: 'bass_808_02.wav', duration: 1.0 },
-        { id: 'bass_sub_01', name: 'Sub Bass 01', category: 'bass', file: 'bass_sub_01.wav', duration: 1.0 }
-    ],
-    synth: [
-        { id: 'synth_stab_01', name: 'Synth Stab 01', category: 'synth', file: 'synth_stab_01.wav', duration: 0.5 },
-        { id: 'synth_pad_01', name: 'Synth Pad 01', category: 'synth', file: 'synth_pad_01.wav', duration: 2.0 },
-        { id: 'synth_lead_01', name: 'Synth Lead 01', category: 'synth', file: 'synth_lead_01.wav', duration: 1.0 }
-    ],
-    vocals: [
-        { id: 'vocal_chop_01', name: 'Vocal Chop 01', category: 'vocals', file: 'vocal_chop_01.wav', duration: 0.5 },
-        { id: 'vocal_one_shot_01', name: 'Vocal One-Shot 01', category: 'vocals', file: 'vocal_one_shot_01.wav', duration: 0.8 }
-    ],
-    fx: [
-        { id: 'riser_01', name: 'Riser 01', category: 'fx', file: 'riser_01.wav', duration: 4.0 },
-        { id: 'impact_01', name: 'Impact 01', category: 'fx', file: 'impact_01.wav', duration: 1.5 },
-        { id: 'sweep_01', name: 'Sweep 01', category: 'fx', file: 'sweep_01.wav', duration: 2.0 }
-    ],
-    keys: [
-        { id: 'piano_chord_01', name: 'Piano Chord 01', category: 'keys', file: 'piano_chord_01.wav', duration: 2.0 },
-        { id: 'piano_loop_01', name: 'Piano Loop 01', category: 'keys', file: 'piano_loop_01.wav', duration: 4.0 }
-    ],
-    guitar: [
-        { id: 'guitar_chord_01', name: 'Guitar Chord 01', category: 'guitar', file: 'guitar_chord_01.wav', duration: 2.0 }
-    ],
-    strings: [
-        { id: 'strings_minor_01', name: 'Strings Minor 01', category: 'strings', file: 'strings_minor_01.wav', duration: 4.0 },
-        { id: 'strings_major_01', name: 'Strings Major 01', category: 'strings', file: 'strings_major_01.wav', duration: 4.0 }
-    ],
-    world: [
-        { id: 'conga_01', name: 'Conga 01', category: 'world', file: 'conga_01.wav', duration: 0.5 },
-        { id: 'tabla_01', name: 'Tabla 01', category: 'world', file: 'tabla_01.wav', duration: 0.5 }
-    ],
-    ambient: [
-        { id: 'ambient_pad_01', name: 'Ambient Pad 01', category: 'ambient', file: 'ambient_pad_01.wav', duration: 8.0 },
-        { id: 'texture_01', name: 'Texture 01', category: 'ambient', file: 'texture_01.wav', duration: 6.0 }
-    ]
+// Built-in sample library with categories
+const SAMPLE_LIBRARY = {
+    drums: {
+        name: 'Drums',
+        samples: [
+            { name: 'Kick 808', file: 'samples/drums/kick_808.wav', duration: 0.5, bpm: 120 },
+            { name: 'Kick Acoustic', file: 'samples/drums/kick_acoustic.wav', duration: 0.4, bpm: null },
+            { name: 'Snare 808', file: 'samples/drums/snare_808.wav', duration: 0.3, bpm: 120 },
+            { name: 'Snare Tight', file: 'samples/drums/snare_tight.wav', duration: 0.2, bpm: null },
+            { name: 'Hi-Hat Closed', file: 'samples/drums/hh_closed.wav', duration: 0.1, bpm: null },
+            { name: 'Hi-Hat Open', file: 'samples/drums/hh_open.wav', duration: 0.3, bpm: null },
+            { name: 'Crash', file: 'samples/drums/crash.wav', duration: 1.5, bpm: null },
+            { name: 'Ride', file: 'samples/drums/ride.wav', duration: 0.8, bpm: null },
+            { name: 'Tom Hi', file: 'samples/drums/tom_hi.wav', duration: 0.4, bpm: null },
+            { name: 'Tom Lo', file: 'samples/drums/tom_lo.wav', duration: 0.5, bpm: null },
+            { name: 'Clap', file: 'samples/drums/clap.wav', duration: 0.2, bpm: null },
+            { name: 'Rim', file: 'samples/drums/rim.wav', duration: 0.15, bpm: null }
+        ]
+    },
+    bass: {
+        name: 'Bass',
+        samples: [
+            { name: 'Bass C2', file: 'samples/bass/bass_c2.wav', duration: 1.0, key: 'C2' },
+            { name: 'Bass E2', file: 'samples/bass/bass_e2.wav', duration: 1.0, key: 'E2' },
+            { name: 'Bass G2', file: 'samples/bass/bass_g2.wav', duration: 1.0, key: 'G2' },
+            { name: 'Sub Bass C1', file: 'samples/bass/sub_c1.wav', duration: 2.0, key: 'C1' },
+            { name: 'Sub Bass E1', file: 'samples/bass/sub_e1.wav', duration: 2.0, key: 'E1' },
+            { name: 'Bass Pluck C2', file: 'samples/bass/pluck_c2.wav', duration: 0.3, key: 'C2' }
+        ]
+    },
+    synths: {
+        name: 'Synths',
+        samples: [
+            { name: 'Synth Pad C3', file: 'samples/synths/pad_c3.wav', duration: 2.0, key: 'C3' },
+            { name: 'Synth Pad E3', file: 'samples/synths/pad_e3.wav', duration: 2.0, key: 'E3' },
+            { name: 'Synth Lead C4', file: 'samples/synths/lead_c4.wav', duration: 1.0, key: 'C4' },
+            { name: 'Synth Pluck C4', file: 'samples/synths/pluck_c4.wav', duration: 0.5, key: 'C4' },
+            { name: 'Synth Stab C3', file: 'samples/synths/stab_c3.wav', duration: 0.3, key: 'C3' }
+        ]
+    },
+    fx: {
+        name: 'FX',
+        samples: [
+            { name: 'Riser', file: 'samples/fx/riser.wav', duration: 4.0, bpm: 128 },
+            { name: 'Impact', file: 'samples/fx/impact.wav', duration: 1.0, bpm: null },
+            { name: 'Downlifter', file: 'samples/fx/downlifter.wav', duration: 2.0, bpm: 128 },
+            { name: 'Uplifter', file: 'samples/fx/uplifter.wav', duration: 2.0, bpm: 128 },
+            { name: 'Swoosh', file: 'samples/fx/swoosh.wav', duration: 0.5, bpm: null },
+            { name: 'White Noise', file: 'samples/fx/white_noise.wav', duration: 1.0, bpm: null }
+        ]
+    },
+    vocals: {
+        name: 'Vocals',
+        samples: [
+            { name: 'Vocal Chop 1', file: 'samples/vocals/chop1.wav', duration: 0.3, key: 'C4' },
+            { name: 'Vocal Chop 2', file: 'samples/vocals/chop2.wav', duration: 0.3, key: 'E4' },
+            { name: 'Vocal Chop 3', file: 'samples/vocals/chop3.wav', duration: 0.3, key: 'G4' },
+            { name: 'Vocal Ah', file: 'samples/vocals/ah.wav', duration: 1.0, key: 'C4' },
+            { name: 'Vocal Ooh', file: 'samples/vocals/ooh.wav', duration: 1.0, key: 'E4' }
+        ]
+    },
+    percussion: {
+        name: 'Percussion',
+        samples: [
+            { name: 'Conga Hi', file: 'samples/perc/conga_hi.wav', duration: 0.3, bpm: null },
+            { name: 'Conga Lo', file: 'samples/perc/conga_lo.wav', duration: 0.4, bpm: null },
+            { name: 'Tambourine', file: 'samples/perc/tamb.wav', duration: 0.2, bpm: null },
+            { name: 'Shaker', file: 'samples/perc/shaker.wav', duration: 0.2, bpm: null },
+            { name: 'Cowbell', file: 'samples/perc/cowbell.wav', duration: 0.2, bpm: null },
+            { name: 'Guiro', file: 'samples/perc/guiro.wav', duration: 0.4, bpm: null }
+        ]
+    }
 };
 
-// Current loaded sample packs
-let loadedSamplePacks = {}; // { packName: { metadata, samples: [...] } }
-
-// Preview player (Tone.Player instance)
-let previewPlayer = null;
-let currentlyPlayingSampleId = null;
-
-// Get all sample categories
-export function getSampleCategories() {
-    return [...SAMPLE_LIBRARY_CATEGORIES];
-}
-
-// Get samples in a category
-export function getSamplesByCategory(categoryId) {
-    return SAMPLE_LIBRARY[categoryId] || [];
-}
-
-// Get all samples
-export function getAllSamples() {
-    const allSamples = [];
-    Object.values(SAMPLE_LIBRARY).forEach(samples => {
-        allSamples.push(...samples);
-    });
-    return allSamples;
-}
-
-// Search samples by name
-export function searchSamples(query) {
-    if (!query || query.trim() === '') return getAllSamples();
-    const lowerQuery = query.toLowerCase();
-    return getAllSamples().filter(sample => 
-        sample.name.toLowerCase().includes(lowerQuery) ||
-        sample.category.toLowerCase().includes(lowerQuery)
-    );
-}
-
-// Get sample for drag/drop
-export function getSampleForDrag(sampleId) {
-    const sample = findSampleById(sampleId);
-    if (!sample) return null;
-    
-    return {
-        type: 'sample-library-item',
-        id: sample.id,
-        name: sample.name,
-        category: sample.category,
-        file: sample.file,
-        duration: sample.duration,
-        source: 'sample-library-browser'
-    };
-}
-
-// Favorite samples management
-let favoriteSamples = new Set(JSON.parse(localStorage.getItem('snugosFavoriteSamples') || '[]'));
-
-export function getFavoriteSamples() {
-    const allSamples = getAllSamples();
-    return allSamples.filter(s => favoriteSamples.has(s.id));
-}
-
-export function toggleSampleFavorite(sampleId) {
-    if (favoriteSamples.has(sampleId)) {
-        favoriteSamples.delete(sampleId);
-    } else {
-        favoriteSamples.add(sampleId);
+// Sample Library Browser class
+class SampleLibraryBrowser {
+    constructor() {
+        this.isOpen = false;
+        this.selectedCategory = 'drums';
+        this.selectedSample = null;
+        this.previewPlayer = null;
+        this.searchQuery = '';
+        this.favorites = this.loadFavorites();
+        this.recentSamples = this.loadRecentSamples();
+        this.customSamples = this.loadCustomSamples();
+        this.onSampleSelect = null;
+        this.audioContext = null;
+        this.previewVolume = 0.7;
+        this.isPlaying = false;
     }
-    localStorage.setItem('snugosFavoriteSamples', JSON.stringify([...favoriteSamples]));
-    return favoriteSamples.has(sampleId);
-}
 
-export function isSampleFavorite(sampleId) {
-    return favoriteSamples.has(sampleId);
-}
-
-// Load sample to track (creates a track and adds sample)
-export async function loadSampleToTrack(trackId, sampleId) {
-    const sample = findSampleById(sampleId);
-    if (!sample) {
-        console.warn('[SampleLibraryBrowser] Sample not found:', sampleId);
-        return null;
+    // Initialize audio context for preview
+    initAudioContext() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
     }
-    
-    // If no trackId provided, create a new audio track
-    let targetTrackId = trackId;
-    
-    // For now, return sample info that can be used to add to a track
-    return {
-        success: true,
-        sample: sample,
-        message: `Sample "${sample.name}" ready to load. Create an Audio track and drag this sample to it.`
-    };
-}
 
-// Play preview using Tone.js (better audio synthesis)
-let previewSynth = null;
-let previewTimeout = null;
-
-export function previewSampleWithTone(sampleId) {
-    // Stop any existing preview
-    stopPreviewWithTone();
-    
-    const sample = findSampleById(sampleId);
-    if (!sample) {
-        console.warn('[SampleLibraryBrowser] Sample not found:', sampleId);
-        return;
+    // Load favorites from localStorage
+    loadFavorites() {
+        try {
+            return JSON.parse(localStorage.getItem('sampleBrowser_favorites') || '[]');
+        } catch {
+            return [];
+        }
     }
-    
-    currentlyPlayingSampleId = sampleId;
-    
-    try {
-        if (typeof Tone !== 'undefined') {
-            // Create appropriate synth based on category
-            const category = sample.category;
+
+    // Save favorites to localStorage
+    saveFavorites() {
+        localStorage.setItem('sampleBrowser_favorites', JSON.stringify(this.favorites));
+    }
+
+    // Load recent samples from localStorage
+    loadRecentSamples() {
+        try {
+            return JSON.parse(localStorage.getItem('sampleBrowser_recent') || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    // Save recent samples
+    saveRecentSamples() {
+        localStorage.setItem('sampleBrowser_recent', JSON.stringify(this.recentSamples.slice(0, 20)));
+    }
+
+    // Load custom samples
+    loadCustomSamples() {
+        try {
+            return JSON.parse(localStorage.getItem('sampleBrowser_custom') || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    // Save custom samples
+    saveCustomSamples() {
+        localStorage.setItem('sampleBrowser_custom', JSON.stringify(this.customSamples));
+    }
+
+    // Add to favorites
+    toggleFavorite(sample) {
+        const sampleKey = `${sample.category}/${sample.name}`;
+        const index = this.favorites.indexOf(sampleKey);
+        if (index >= 0) {
+            this.favorites.splice(index, 1);
+        } else {
+            this.favorites.push(sampleKey);
+        }
+        this.saveFavorites();
+    }
+
+    // Check if sample is favorite
+    isFavorite(sample) {
+        const sampleKey = `${sample.category}/${sample.name}`;
+        return this.favorites.includes(sampleKey);
+    }
+
+    // Add to recent
+    addToRecent(sample) {
+        const sampleKey = `${sample.category}/${sample.name}`;
+        const index = this.recentSamples.indexOf(sampleKey);
+        if (index >= 0) {
+            this.recentSamples.splice(index, 1);
+        }
+        this.recentSamples.unshift(sampleKey);
+        this.saveRecentSamples();
+    }
+
+    // Get all samples as flat array with category
+    getAllSamples() {
+        const samples = [];
+        for (const [categoryKey, category] of Object.entries(SAMPLE_LIBRARY)) {
+            for (const sample of category.samples) {
+                samples.push({
+                    ...sample,
+                    category: categoryKey,
+                    categoryName: category.name
+                });
+            }
+        }
+        // Add custom samples
+        for (const sample of this.customSamples) {
+            samples.push({
+                ...sample,
+                category: 'custom',
+                categoryName: 'Custom'
+            });
+        }
+        return samples;
+    }
+
+    // Search samples
+    searchSamples(query) {
+        if (!query) return this.getAllSamples();
+        const lowerQuery = query.toLowerCase();
+        return this.getAllSamples().filter(s => 
+            s.name.toLowerCase().includes(lowerQuery) ||
+            s.categoryName.toLowerCase().includes(lowerQuery) ||
+            (s.key && s.key.toLowerCase().includes(lowerQuery))
+        );
+    }
+
+    // Preview sample
+    async previewSample(sample) {
+        this.initAudioContext();
+        
+        try {
+            // For demo, use a synthesized preview
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
             
-            if (category === 'drums') {
-                // Kick-like sound with pitch envelope
-                const synth = new Tone.MembraneSynth().toDestination();
-                synth.volume.value = -6;
-                synth.triggerAttackRelease(60, '8n');
-                previewSynth = synth;
-            } else if (category === 'bass') {
-                // Sub bass sound
-                const synth = new Tone.MonoSynth({
-                    oscillator: { type: 'sawtooth' },
-                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.3 },
-                    filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.2, baseFrequency: 200, octaves: 2 }
-                }).toDestination();
-                synth.triggerAttackRelease('C2', '8n');
-                previewSynth = synth;
-            } else if (category === 'synth' || category === 'keys') {
-                // Bright synth stab
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                synth.volume.value = -8;
-                synth.triggerAttackRelease(['C4', 'E4', 'G4'], '16n');
-                previewSynth = synth;
-            } else if (category === 'vocals') {
-                // Formant-ish pad
-                const synth = new Tone.PolySynth(Tone.Synth, {
-                    oscillator: { type: 'sawtooth' },
-                    envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 0.4 }
-                }).toDestination();
-                synth.volume.value = -10;
-                synth.triggerAttackRelease('A3', '8n');
-                previewSynth = synth;
-            } else if (category === 'fx') {
-                // Filter sweep sound
-                const synth = new Tone.FMSynth().toDestination();
-                synth.volume.value = -8;
-                synth.triggerAttackRelease('C5', '4n');
-                previewSynth = synth;
-            } else {
-                // Default synth tone
-                const synth = new Tone.Synth().toDestination();
-                synth.triggerAttackRelease('C4', '8n');
-                previewSynth = synth;
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            // Map sample name to frequency for demo
+            const freqMap = {
+                'Kick': 60,
+                'Snare': 200,
+                'Hi-Hat': 8000,
+                'Crash': 5000,
+                'Tom': 100,
+                'Clap': 1000,
+                'Rim': 800,
+                'Conga': 200,
+                'Shaker': 4000,
+                'Bass': 80,
+                'Synth': 440,
+                'Vocal': 350,
+                'Riser': 2000,
+                'Impact': 50
+            };
+            
+            let freq = 440;
+            for (const [key, f] of Object.entries(freqMap)) {
+                if (sample.name.includes(key)) {
+                    freq = f;
+                    break;
+                }
             }
             
-            // Auto-stop after a reasonable time
-            const duration = Math.min(sample.duration || 1, 3);
-            previewTimeout = setTimeout(() => {
-                stopPreviewWithTone();
-            }, duration * 1000 + 200);
+            oscillator.frequency.setValueAtTime(freq, this.audioContext.currentTime);
+            oscillator.type = sample.category === 'drums' || sample.category === 'percussion' ? 'square' : 'sine';
             
-            console.log(`[SampleLibraryBrowser] Previewing sample: ${sample.name} (${category})`);
-        } else {
-            // Fallback to basic Web Audio preview
-            previewSample(sampleId);
+            gainNode.gain.setValueAtTime(this.previewVolume * 0.3, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + sample.duration);
+            
+            oscillator.start();
+            oscillator.stop(this.audioContext.currentTime + sample.duration);
+            
+            this.isPlaying = true;
+            oscillator.onended = () => {
+                this.isPlaying = false;
+            };
+            
+        } catch (error) {
+            console.error('Error previewing sample:', error);
         }
-    } catch (e) {
-        console.error('[SampleLibraryBrowser] Tone.js preview error:', e);
-        // Fallback to basic preview
-        previewSample(sampleId);
+    }
+
+    // Stop preview
+    stopPreview() {
+        if (this.audioContext && this.isPlaying) {
+            // Stop all oscillators
+            this.isPlaying = false;
+        }
+    }
+
+    // Import custom sample
+    async importCustomSample(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const sample = {
+                    name: file.name.replace(/\.[^/.]+$/, ''),
+                    file: e.target.result, // Data URL
+                    duration: 1.0, // Would need to decode to get actual duration
+                    category: 'custom',
+                    addedAt: Date.now()
+                };
+                this.customSamples.push(sample);
+                this.saveCustomSamples();
+                resolve(sample);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Select sample for use
+    selectSample(sample) {
+        this.selectedSample = sample;
+        this.addToRecent(sample);
+        if (this.onSampleSelect) {
+            this.onSampleSelect(sample);
+        }
+    }
+
+    // Get samples by category
+    getSamplesByCategory(category) {
+        if (category === 'favorites') {
+            return this.getAllSamples().filter(s => this.isFavorite(s));
+        }
+        if (category === 'recent') {
+            return this.recentSamples.map(key => {
+                const [cat, ...nameParts] = key.split('/');
+                const name = nameParts.join('/');
+                return this.getAllSamples().find(s => s.category === cat && s.name === name);
+            }).filter(Boolean);
+        }
+        if (category === 'custom') {
+            return this.customSamples.map(s => ({...s, category: 'custom', categoryName: 'Custom'}));
+        }
+        const categoryData = SAMPLE_LIBRARY[category];
+        if (categoryData) {
+            return categoryData.samples.map(s => ({
+                ...s,
+                category,
+                categoryName: categoryData.name
+            }));
+        }
+        return [];
+    }
+
+    // Set preview volume
+    setPreviewVolume(volume) {
+        this.previewVolume = Math.max(0, Math.min(1, volume));
     }
 }
 
-export function stopPreviewWithTone() {
-    if (previewTimeout) {
-        clearTimeout(previewTimeout);
-        previewTimeout = null;
+// Global instance
+let sampleLibraryBrowser = null;
+
+// Initialize the sample library browser
+function initSampleLibraryBrowser() {
+    if (!sampleLibraryBrowser) {
+        sampleLibraryBrowser = new SampleLibraryBrowser();
     }
-    if (previewSynth) {
-        try {
-            previewSynth.dispose();
-        } catch (e) {}
-        previewSynth = null;
-    }
-    currentlyPlayingSampleId = null;
+    return sampleLibraryBrowser;
 }
 
-// Enhanced preview that uses both Tone.js and basic synthesis
-export function previewSample(sampleId) {
-    // Try Tone.js first for better quality
-    if (typeof Tone !== 'undefined') {
-        previewSampleWithTone(sampleId);
-    } else {
-        // Fallback to basic Web Audio
-        previewSampleBasic(sampleId);
+// Open sample library browser panel
+function openSampleLibraryBrowserPanel() {
+    if (!sampleLibraryBrowser) {
+        initSampleLibraryBrowser();
     }
-}
-
-// Basic Web Audio preview (fallback)
-function previewSampleBasic(sampleId) {
-    stopPreview();
+    sampleLibraryBrowser.isOpen = true;
     
-    const sample = findSampleById(sampleId);
-    if (!sample) return;
-    
-    currentlyPlayingSampleId = sampleId;
-    
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+    // Create panel HTML
+    const panel = document.createElement('div');
+    panel.id = 'sample-library-browser-panel';
+    panel.className = 'sample-library-panel';
+    panel.innerHTML = `
+        <div class="sample-library-header">
+            <h2>Sample Library</h2>
+            <button id="close-sample-browser" class="close-btn">×</button>
+        </div>
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        <div class="sample-library-search">
+            <input type="text" id="sample-search-input" placeholder="Search samples..." />
+        </div>
         
-        switch (sample.category) {
-            case 'drums':
-                oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.1);
-                gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.3);
-                break;
-            case 'bass':
-                oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
-                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-                break;
-            case 'synth':
-            case 'keys':
-                oscillator.type = 'square';
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.2);
-                break;
-            default:
-                oscillator.type = 'triangle';
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.3);
+        <div class="sample-library-content">
+            <div class="sample-categories">
+                <h3>Categories</h3>
+                <div class="category-list">
+                    <button class="category-btn active" data-category="drums">🥁 Drums</button>
+                    <button class="category-btn" data-category="bass">🎸 Bass</button>
+                    <button class="category-btn" data-category="synths">🎹 Synths</button>
+                    <button class="category-btn" data-category="fx">✨ FX</button>
+                    <button class="category-btn" data-category="vocals">🎤 Vocals</button>
+                    <button class="category-btn" data-category="percussion">🪘 Percussion</button>
+                    <hr/>
+                    <button class="category-btn" data-category="favorites">⭐ Favorites</button>
+                    <button class="category-btn" data-category="recent">🕐 Recent</button>
+                    <button class="category-btn" data-category="custom">📁 Custom</button>
+                </div>
+                
+                <div class="import-section">
+                    <h3>Import</h3>
+                    <input type="file" id="import-sample-file" accept="audio/*" multiple />
+                    <button id="import-sample-btn" class="import-btn">+ Add Samples</button>
+                </div>
+            </div>
+            
+            <div class="sample-list-container">
+                <div class="sample-list" id="sample-list">
+                    <!-- Samples populated here -->
+                </div>
+            </div>
+            
+            <div class="sample-details" id="sample-details">
+                <h3>Select a sample</h3>
+                <p>Click a sample to see details and preview</p>
+            </div>
+        </div>
+        
+        <div class="sample-library-footer">
+            <div class="preview-controls">
+                <label>Preview Volume:</label>
+                <input type="range" id="preview-volume" min="0" max="100" value="70" />
+            </div>
+            <button id="use-sample-btn" class="use-btn" disabled>Use Sample</button>
+        </div>
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .sample-library-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 900px;
+            max-width: 90vw;
+            max-height: 80vh;
+            background: #1a1a2e;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         
-        console.log(`[SampleLibraryBrowser] Previewing sample: ${sample.name}`);
-    } catch (e) {
-        console.error('[SampleLibraryBrowser] Preview error:', e);
+        .sample-library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #16213e;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .sample-library-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        
+        .close-btn:hover {
+            opacity: 1;
+        }
+        
+        .sample-library-search {
+            padding: 12px 20px;
+            background: #0f0f1a;
+        }
+        
+        .sample-library-search input {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .sample-library-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sample-categories {
+            width: 200px;
+            padding: 16px;
+            background: #0f0f1a;
+            overflow-y: auto;
+        }
+        
+        .sample-categories h3 {
+            margin: 0 0 12px;
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .category-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .category-btn {
+            padding: 10px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: #ccc;
+            cursor: pointer;
+            text-align: left;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .category-btn:hover {
+            background: #1a1a2e;
+        }
+        
+        .category-btn.active {
+            background: #e94560;
+            color: #fff;
+        }
+        
+        .import-section {
+            margin-top: 20px;
+        }
+        
+        .import-section input[type="file"] {
+            display: none;
+        }
+        
+        .import-btn {
+            width: 100%;
+            padding: 10px;
+            background: #4a4a6a;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .import-btn:hover {
+            background: #5a5a7a;
+        }
+        
+        .sample-list-container {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        
+        .sample-list {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .sample-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #16213e;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .sample-item:hover {
+            background: #1f2b4d;
+        }
+        
+        .sample-item.selected {
+            background: #e94560;
+        }
+        
+        .sample-item-name {
+            flex: 1;
+            font-size: 14px;
+        }
+        
+        .sample-item-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .sample-favorite-btn {
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 18px;
+            margin-right: 8px;
+        }
+        
+        .sample-favorite-btn.active {
+            color: #ffd700;
+        }
+        
+        .sample-details {
+            width: 250px;
+            padding: 16px;
+            background: #0f0f1a;
+            border-left: 1px solid #333;
+        }
+        
+        .sample-details h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+        }
+        
+        .sample-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+            font-size: 13px;
+        }
+        
+        .sample-detail-label {
+            color: #888;
+        }
+        
+        .sample-library-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #16213e;
+            border-radius: 0 0 12px 12px;
+        }
+        
+        .preview-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .use-btn {
+            padding: 12px 24px;
+            background: #e94560;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .use-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(panel);
+    
+    // Event handlers
+    const closeBtn = panel.querySelector('#close-sample-browser');
+    const searchInput = panel.querySelector('#sample-search-input');
+    const sampleList = panel.querySelector('#sample-list');
+    const sampleDetails = panel.querySelector('#sample-details');
+    const useBtn = panel.querySelector('#use-sample-btn');
+    const previewVolume = panel.querySelector('#preview-volume');
+    const categoryBtns = panel.querySelectorAll('.category-btn');
+    const importFileInput = panel.querySelector('#import-sample-file');
+    const importBtn = panel.querySelector('#import-sample-btn');
+    
+    // Render samples for current category
+    function renderSamples(category = 'drums') {
+        const samples = sampleLibraryBrowser.searchQuery 
+            ? sampleLibraryBrowser.searchSamples(sampleLibraryBrowser.searchQuery)
+            : sampleLibraryBrowser.getSamplesByCategory(category);
+        
+        sampleList.innerHTML = samples.map(sample => `
+            <div class="sample-item ${sampleLibraryBrowser.selectedSample?.name === sample.name ? 'selected' : ''}" 
+                 data-sample-name="${sample.name}" data-category="${sample.category}">
+                <button class="sample-favorite-btn ${sampleLibraryBrowser.isFavorite(sample) ? 'active' : ''}"
+                        data-sample-name="${sample.name}" data-category="${sample.category}">★</button>
+                <span class="sample-item-name">${sample.name}</span>
+                <span class="sample-item-meta">${sample.duration?.toFixed(1) || '?'}s ${sample.key || sample.bpm || ''}</span>
+            </div>
+        `).join('');
+        
+        // Add click handlers
+        sampleList.querySelectorAll('.sample-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.classList.contains('sample-favorite-btn')) return;
+                
+                const name = item.dataset.sampleName;
+                const cat = item.dataset.category;
+                const sample = samples.find(s => s.name === name && s.category === cat);
+                if (sample) {
+                    sampleLibraryBrowser.selectSample(sample);
+                    useBtn.disabled = false;
+                    renderSampleDetails(sample);
+                    sampleLibraryBrowser.previewSample(sample);
+                }
+            });
+        });
+        
+        // Favorite buttons
+        sampleList.querySelectorAll('.sample-favorite-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = btn.dataset.sampleName;
+                const cat = btn.dataset.category;
+                const sample = samples.find(s => s.name === name && s.category === cat);
+                if (sample) {
+                    sampleLibraryBrowser.toggleFavorite(sample);
+                    btn.classList.toggle('active');
+                }
+            });
+        });
     }
-}
-
-// Stop preview
-export function stopPreview() {
-    stopPreviewWithTone();
-    if (currentlyPlayingSampleId) {
-        currentlyPlayingSampleId = null;
+    
+    // Render sample details
+    function renderSampleDetails(sample) {
+        sampleDetails.innerHTML = `
+            <h3>${sample.name}</h3>
+            <div class="sample-detail-row">
+                <span class="sample-detail-label">Category</span>
+                <span>${sample.categoryName}</span>
+            </div>
+            <div class="sample-detail-row">
+                <span class="sample-detail-label">Duration</span>
+                <span>${sample.duration?.toFixed(2) || '?'}s</span>
+            </div>
+            ${sample.key ? `
+            <div class="sample-detail-row">
+                <span class="sample-detail-label">Key</span>
+                <span>${sample.key}</span>
+            </div>
+            ` : ''}
+            ${sample.bpm ? `
+            <div class="sample-detail-row">
+                <span class="sample-detail-label">BPM</span>
+                <span>${sample.bpm}</span>
+            </div>
+            ` : ''}
+            <button id="preview-sample-btn" class="use-btn" style="width: 100%; margin-top: 16px;">
+                ▶ Preview
+            </button>
+        `;
+        
+        const previewBtn = sampleDetails.querySelector('#preview-sample-btn');
+        previewBtn?.addEventListener('click', () => {
+            if (sampleLibraryBrowser.isPlaying) {
+                sampleLibraryBrowser.stopPreview();
+                previewBtn.textContent = '▶ Preview';
+            } else {
+                sampleLibraryBrowser.previewSample(sample);
+                previewBtn.textContent = '⏹ Stop';
+            }
+        });
     }
+    
+    // Close button
+    closeBtn.addEventListener('click', () => {
+        sampleLibraryBrowser.isOpen = false;
+        panel.remove();
+    });
+    
+    // Search
+    searchInput.addEventListener('input', (e) => {
+        sampleLibraryBrowser.searchQuery = e.target.value;
+        renderSamples(sampleLibraryBrowser.selectedCategory);
+    });
+    
+    // Category selection
+    categoryBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            categoryBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            sampleLibraryBrowser.selectedCategory = btn.dataset.category;
+            renderSamples(btn.dataset.category);
+        });
+    });
+    
+    // Preview volume
+    previewVolume.addEventListener('input', (e) => {
+        sampleLibraryBrowser.setPreviewVolume(e.target.value / 100);
+    });
+    
+    // Use sample
+    useBtn.addEventListener('click', () => {
+        if (sampleLibraryBrowser.selectedSample) {
+            sampleLibraryBrowser.selectSample(sampleLibraryBrowser.selectedSample);
+            sampleLibraryBrowser.isOpen = false;
+            panel.remove();
+        }
+    });
+    
+    // Import samples
+    importBtn.addEventListener('click', () => {
+        importFileInput.click();
+    });
+    
+    importFileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        for (const file of files) {
+            await sampleLibraryBrowser.importCustomSample(file);
+        }
+        renderSamples('custom');
+        // Switch to custom category
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        panel.querySelector('[data-category="custom"]')?.classList.add('active');
+    });
+    
+    // Initial render
+    renderSamples('drums');
+    
+    return sampleLibraryBrowser;
 }
 
-// Alias for stopPreview (used by UI)
-export const stopSamplePreview = stopPreview;
-
-// Find sample by ID
-function findSampleById(sampleId) {
-    for (const samples of Object.values(SAMPLE_LIBRARY)) {
-        const found = samples.find(s => s.id === sampleId);
-        if (found) return found;
-    }
-    return null;
-}
-
-// Load sample pack from ZIP (future: integrate with sound browser ZIP loading)
-export async function loadSamplePack(packName, zipBlob) {
-    console.log(`[SampleLibraryBrowser] Loading sample pack: ${packName}`);
-    // Future: Parse ZIP and extract sample metadata
-    // For now, just store the pack reference
-    loadedSamplePacks[packName] = {
-        name: packName,
-        loadedAt: new Date().toISOString(),
-        sampleCount: 0
-    };
-    return true;
-}
-
-// Get loaded sample packs
-export function getLoadedSamplePacks() {
-    return Object.keys(loadedSamplePacks);
-}
+// Export
+window.SampleLibraryBrowser = SampleLibraryBrowser;
+window.initSampleLibraryBrowser = initSampleLibraryBrowser;
+window.openSampleLibraryBrowserPanel = openSampleLibraryBrowserPanel;
