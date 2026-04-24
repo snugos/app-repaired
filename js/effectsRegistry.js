@@ -122,6 +122,94 @@ class MultibandCompressor extends Tone.Gain {
 
 Tone.MultibandCompressor = MultibandCompressor;
 
+// De-Esser - Frequency-conscious sibilance reduction
+class DeEsser extends Tone.Gain {
+    constructor(initialParams = {}) {
+        super(1.0);
+        
+        // Split incoming signal
+        this._splitter = new Tone.Splitter(2);
+        
+        // Main path (dry signal)
+        this._dryGain = new Tone.Gain(1.0);
+        this._wetGain = new Tone.Gain(0.0);
+        
+        // Sibilance detection chain: detector filter -> envelope -> gate
+        this._detectFilter = new Tone.Filter(initialParams.frequency || 6000, 'bandpass', {
+            Q: initialParams.q || 0.7
+        });
+        this._detectGain = new Tone.Gain(initialParams.detectGain || 4);
+        this._envelope = new Tone.Envelope({
+            attack: initialParams.attack || 0.001,
+            decay: initialParams.decay || 0.1,
+            sustain: 0,
+            release: initialParams.release || 0.05
+        });
+        this._gate = new Tone.Gain(0);
+        
+        // Ducking: gate modulates wet mix
+        this._envelope.connect(this._gate.gain);
+        this._detectFilter.connect(this._detectGain);
+        this._detectGain.connect(this._envelope);
+        
+        // Connect to dry path
+        this._splitter.connect(this._dryGain, 0, 0);
+        
+        // Connect to wet path through gate
+        this._splitter.connect(this._detectFilter, 1, 0);
+        this._detectFilter.connect(this._detectGain);
+        this._detectGain.connect(this._gate);
+        this._gate.connect(this._wetGain);
+        
+        // Final output
+        this._dryGain.connect(this);
+        this._wetGain.connect(this);
+        
+        // Amount controls how much sibilance to remove
+        this._amount = initialParams.amount !== undefined ? initialParams.amount : 0.5;
+    }
+    
+    static getMetronomeAudioLabel() { return 'De-Esser'; }
+    
+    setFrequency(freq) {
+        this._detectFilter.frequency.value = freq;
+    }
+    
+    setQ(q) {
+        this._detectFilter.Q.value = q;
+    }
+    
+    setAmount(amount) {
+        this._amount = amount;
+        // Higher amount = more wet (more sibilance removed)
+        this._wetGain.gain.value = amount;
+        this._dryGain.gain.value = 1 - amount;
+    }
+    
+    setAttack(attack) {
+        this._envelope.attack = attack;
+    }
+    
+    setRelease(release) {
+        this._envelope.release = release;
+    }
+    
+    dispose() {
+        this._splitter.dispose();
+        this._dryGain.dispose();
+        this._wetGain.dispose();
+        this._detectFilter.dispose();
+        this._detectGain.dispose();
+        this._envelope.dispose();
+        this._gate.dispose();
+        super.dispose();
+    }
+}
+
+if (typeof Tone !== 'undefined') {
+    Tone.DeEsser = DeEsser;
+}
+
 // AI Mastering Effect - Auto-loudness normalization and tonal balance
 class AIMasteringEffect extends Tone.Gain {
     constructor(initialParams = {}) {
@@ -956,6 +1044,17 @@ export const AVAILABLE_EFFECTS = {
             { key: 'eqMid', label: 'Mid EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
             { key: 'eqHigh', label: 'High EQ', type: 'knob', min: -12, max: 12, step: 0.5, defaultValue: 0, decimals: 1, displaySuffix: ' dB', isSignal: false },
             { key: 'inputGain', label: 'Input', type: 'knob', min: 0.1, max: 3, step: 0.1, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    DeEsser: {
+        displayName: 'De-Esser',
+        toneClass: 'DeEsser',
+        params: [
+            { key: 'frequency', label: 'Freq', type: 'knob', min: 3000, max: 12000, step: 100, defaultValue: 6000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'q', label: 'Q', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 0.7, decimals: 1, isSignal: false },
+            { key: 'amount', label: 'Amount', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.0001, max: 0.1, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.001, max: 0.5, step: 0.001, defaultValue: 0.05, decimals: 3, displaySuffix: 's', isSignal: false },
         ]
     },
     Bitcrusher: {
