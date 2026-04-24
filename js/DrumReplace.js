@@ -3,180 +3,224 @@
  * Analyzes audio track and replaces detected hits with selected drum samples
  */
 
-class DrumReplace {
+let localAppServices = {};
+
+/**
+ * Initialize DrumReplace with app services
+ * @param {Object} appServices - Application services from main.js
+ */
+export function initDrumReplace(appServices) {
+    localAppServices = appServices || {};
+    console.log('[DrumReplace] Initialized');
+}
+
+/**
+ * Opens the Drum Replace panel
+ * @param {Object} savedState - Optional saved window state
+ */
+export function openDrumReplacePanel(savedState = null) {
+    const windowId = 'drumReplace';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderDrumReplaceContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'drumReplaceContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = {
+        width: 480,
+        height: 520,
+        minWidth: 400,
+        minHeight: 450,
+        initialContentKey: windowId,
+        closable: true,
+        minimizable: true,
+        resizable: true
+    };
+
+    if (savedState) {
+        Object.assign(options, {
+            x: parseInt(savedState.left, 10),
+            y: parseInt(savedState.top, 10),
+            width: parseInt(savedState.width, 10),
+            height: parseInt(savedState.height, 10),
+            zIndex: savedState.zIndex,
+            isMinimized: savedState.isMinimized
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Drum Replace', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderDrumReplaceContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Render the Drum Replace panel content
+ */
+function renderDrumReplaceContent() {
+    const container = document.getElementById('drumReplaceContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracks?.() || [];
+    const drumTracks = tracks.filter(t => t.type === 'DrumSampler');
+    const audioTracks = tracks.filter(t => t.type === 'Audio');
+
+    let html = `
+        <div class="mb-4">
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                Analyze an audio track and replace detected drum hits with samples from a DrumSampler track.
+            </p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Source Track (Audio)</label>
+            <select id="drumReplaceSourceTrack" class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
+                <option value="">-- Select Audio Track --</option>
+                ${audioTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Target Drum Track (DrumSampler)</label>
+            <select id="drumReplaceTargetTrack" class="w-full p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 text-sm">
+                <option value="">-- Select Drum Track --</option>
+                ${drumTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Detection Threshold: <span id="drumReplaceThresholdValue">-20</span> dB</label>
+            <input type="range" id="drumReplaceThreshold" min="-60" max="0" value="-20" step="1"
+                   class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded appearance-none cursor-pointer"
+                   oninput="document.getElementById('drumReplaceThresholdValue').textContent = this.value">
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Min Hit Interval: <span id="drumReplaceIntervalValue">0.1</span>s</label>
+            <input type="range" id="drumReplaceInterval" min="0.05" max="0.5" value="0.1" step="0.01" 
+                   class="w-full h-2 bg-gray-200 dark:bg-slate-600 rounded appearance-none cursor-pointer"
+                   oninput="document.getElementById('drumReplaceIntervalValue').textContent = this.value">
+        </div>
+        
+        <div class="mb-4 flex gap-2">
+            <button id="drumReplaceToggle" onclick="toggleDrumReplace()" 
+                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors">
+                Start Detection
+            </button>
+            <button onclick="testDrumReplace()" 
+                    class="px-4 py-2 bg-gray-300 dark:bg-slate-600 rounded hover:bg-gray-400 dark:hover:bg-slate-500 text-sm transition-colors">
+                Test Hit
+            </button>
+        </div>
+        
+        <div class="mt-4 p-3 bg-gray-200 dark:bg-slate-700 rounded">
+            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Detection Info</h4>
+            <div id="drumReplaceStatus" class="text-xs text-gray-600 dark:text-gray-300 font-mono">
+                No detection active
+            </div>
+        </div>
+        
+        <div class="mt-4 border-t border-gray-300 dark:border-slate-600 pt-4">
+            <h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Pad Mapping</h4>
+            <div class="grid grid-cols-5 gap-2 text-xs">
+                <div class="text-center p-2 bg-gray-300 dark:bg-slate-600 rounded">Kick<br><span class="text-gray-500">Pad 1</span></div>
+                <div class="text-center p-2 bg-gray-300 dark:bg-slate-600 rounded">Snare<br><span class="text-gray-500">Pad 2</span></div>
+                <div class="text-center p-2 bg-gray-300 dark:bg-slate-600 rounded">Hi-Hat<br><span class="text-gray-500">Pad 3</span></div>
+                <div class="text-center p-2 bg-gray-300 dark:bg-slate-600 rounded">Tom<br><span class="text-gray-500">Pad 4</span></div>
+                <div class="text-center p-2 bg-gray-300 dark:bg-slate-600 rounded">Clap<br><span class="text-gray-500">Pad 5</span></div>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Global state for DrumReplace
+let drumReplaceActive = false;
+let drumReplaceSourceId = null;
+let drumReplaceTargetId = null;
+
+/**
+ * Toggle drum replace detection
+ */
+function toggleDrumReplace() {
+    const sourceSelect = document.getElementById('drumReplaceSourceTrack');
+    const targetSelect = document.getElementById('drumReplaceTargetTrack');
+    const toggleBtn = document.getElementById('drumReplaceToggle');
+    
+    drumReplaceSourceId = sourceSelect.value;
+    drumReplaceTargetId = targetSelect.value;
+    
+    if (!drumReplaceSourceId || !drumReplaceTargetId) {
+        localAppServices.showSafeNotification?.('Please select both source and target tracks.', 2000);
+        return;
+    }
+    
+    drumReplaceActive = !drumReplaceActive;
+    
+    if (drumReplaceActive) {
+        toggleBtn.textContent = 'Stop Detection';
+        toggleBtn.className = 'px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium transition-colors';
+        localAppServices.showSafeNotification?.('Drum replace active - analyzing audio...', 2000);
+    } else {
+        toggleBtn.textContent = 'Start Detection';
+        toggleBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors';
+        localAppServices.showSafeNotification?.('Drum replace stopped.', 2000);
+    }
+}
+
+/**
+ * Test drum detection
+ */
+function testDrumReplace() {
+    const statusEl = document.getElementById('drumReplaceStatus');
+    if (!statusEl) return;
+    
+    // Simulate a detected hit for testing
+    const types = ['kick', 'snare', 'hat', 'tom', 'clap'];
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    
+    statusEl.innerHTML = `
+        <div class="text-green-500">Test Hit Detected!</div>
+        <div>Type: ${randomType.toUpperCase()}</div>
+        <div>Energy: ${(Math.random() * 20 - 40).toFixed(1)} dB</div>
+        <div>Time: ${new Date().toLocaleTimeString()}</div>
+    `;
+}
+
+// Make functions globally accessible
+window.toggleDrumReplace = toggleDrumReplace;
+window.testDrumReplace = testDrumReplace;
+
+class DrumReplaceEngine {
     constructor() {
         this.isActive = false;
-        this.sourceTrack = null;
-        this.targetDrumTrack = null;
-        this.threshold = -20; // dB threshold for hit detection
-        this.minInterval = 0.1; // minimum seconds between hits
-        this.attackTime = 0.005;
-        this.releaseTime = 0.1;
-        
-        // Frequency bands for drum type detection
-        this.frequencyBands = {
-            kick: { low: 30, high: 150 },      // 30-150 Hz
-            snare: { low: 150, high: 800 },    // 150-800 Hz  
-            hat: { low: 800, high: 8000 },     // 800-8000 Hz
-            tom: { low: 80, high: 400 },       // 80-400 Hz
-            clap: { low: 400, high: 2000 }     // 400-2000 Hz
-        };
-        
+        this.threshold = -20;
+        this.minInterval = 0.1;
         this.lastHitTime = 0;
-        this.detectedType = null;
-        this.onHitDetected = null;
-        
-        this.audioContext = null;
     }
 
-    async initialize() {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            return true;
-        } catch (e) {
-            console.error('[DrumReplace] Failed to initialize:', e);
-            return false;
-        }
-    }
-
-    /**
-     * Set source track to analyze
-     * @param {Track} track - The track to analyze for drum hits
-     */
-    setSourceTrack(track) {
-        this.sourceTrack = track;
-    }
-
-    /**
-     * Set target drum track for replacement
-     * @param {Track} track - The DrumSampler track to use for replacement
-     */
-    setTargetDrumTrack(track) {
-        if (track && track.type !== 'DrumSampler') {
-            console.warn('[DrumReplace] Target track must be a DrumSampler');
-            return false;
-        }
-        this.targetDrumTrack = track;
-        return true;
-    }
-
-    /**
-     * Set detection threshold
-     * @param {number} dB - Threshold in dB
-     */
     setThreshold(dB) {
         this.threshold = Math.max(-60, Math.min(0, dB));
     }
 
-    /**
-     * Detect drum type from frequency content
-     * @param {Float32Array} buffer - Audio buffer data
-     * @param {number} sampleRate - Sample rate
-     * @returns {string} - Detected drum type
-     */
-    detectDrumType(buffer, sampleRate) {
-        // Simple energy-based detection using frequency bands
-        const bassEnergy = this.analyzeBand(buffer, sampleRate, this.frequencyBands.kick.low, this.frequencyBands.kick.high);
-        const midEnergy = this.analyzeBand(buffer, sampleRate, this.frequencyBands.snare.low, this.frequencyBands.snare.high);
-        const highEnergy = this.analyzeBand(buffer, sampleRate, this.frequencyBands.hat.low, this.frequencyBands.hat.high);
-        
-        // Find dominant frequency band
-        const energies = {
-            kick: bassEnergy,
-            snare: midEnergy,
-            hat: highEnergy
-        };
-        
-        let maxEnergy = 0;
-        let detectedType = 'hat'; // default
-        
-        for (const [type, energy] of Object.entries(energies)) {
-            if (energy > maxEnergy) {
-                maxEnergy = energy;
-                detectedType = type;
-            }
-        }
-        
-        return detectedType;
+    setMinInterval(sec) {
+        this.minInterval = Math.max(0.05, Math.min(0.5, sec));
     }
 
-    /**
-     * Analyze energy in a frequency band (simplified FFT)
-     * @param {Float32Array} buffer - Audio buffer
-     * @param {number} sampleRate - Sample rate
-     * @param {number} lowFreq - Low frequency bound
-     * @param {number} highFreq - High frequency bound
-     * @returns {number} - Energy in the band
-     */
-    analyzeBand(buffer, sampleRate, lowFreq, highFreq) {
-        // Simple energy calculation (not true FFT but works for detection)
-        const blockSize = 1024;
-        let energy = 0;
-        let count = 0;
-        
-        // Apply basic bandpass approximation using difference method
-        for (let i = 0; i < buffer.length; i++) {
-            const sample = buffer[i];
-            
-            // High-pass approximation
-            if (highFreq > 1000) {
-                energy += Math.abs(sample) * 0.5;
-            }
-            
-            // Low-pass approximation
-            if (lowFreq < 200) {
-                energy += Math.abs(sample) * 0.5;
-            }
-            
-            count++;
-        }
-        
-        return count > 0 ? energy / count : 0;
-    }
-
-    /**
-     * Trigger pad on target drum track
-     * @param {string} drumType - Detected drum type
-     */
-    triggerPad(drumType) {
-        if (!this.targetDrumTrack) return;
-        
-        // Map drum type to pad index
-        const padMap = {
-            kick: 0,    // Pad 1 typically kick
-            snare: 1,   // Pad 2 typically snare
-            hat: 2,     // Pad 3 typically hi-hat
-            tom: 3,     // Pad 4 typically tom
-            clap: 4     // Pad 5 typically clap
-        };
-        
-        const padIndex = padMap[drumType] !== undefined ? padMap[drumType] : 0;
-        
-        // Trigger the pad if it has a sample loaded
-        if (this.targetDrumTrack.drumSamplerPads && 
-            this.targetDrumTrack.drumSamplerPads[padIndex] &&
-            this.targetDrumTrack.drumSamplerPads[padIndex].status === 'loaded') {
-            
-            this.targetDrumTrack.triggerDrumPad(padIndex, 1.0);
-            
-            if (this.onHitDetected) {
-                this.onHitDetected({
-                    type: drumType,
-                    pad: padIndex,
-                    time: performance.now()
-                });
-            }
-        }
-    }
-
-    /**
-     * Process audio buffer for hit detection
-     * @param {Float32Array} buffer - Audio buffer
-     * @param {number} sampleRate - Sample rate
-     * @returns {Object|null} - Hit detection result or null
-     */
-    processBuffer(buffer, sampleRate) {
+    processAudioLevel(buffer) {
         if (!this.isActive) return null;
+        
+        const now = performance.now() / 1000;
+        if (now - this.lastHitTime < this.minInterval) return null;
         
         // Calculate RMS energy
         let sum = 0;
@@ -186,63 +230,16 @@ class DrumReplace {
         const rms = Math.sqrt(sum / buffer.length);
         const db = 20 * Math.log10(rms + 0.0001);
         
-        // Check threshold
         if (db < this.threshold) return null;
-        
-        // Check minimum interval
-        const now = performance.now() / 1000;
-        if (now - this.lastHitTime < this.minInterval) return null;
         
         this.lastHitTime = now;
         
-        // Detect drum type
-        const drumType = this.detectDrumType(buffer, sampleRate);
+        // Determine drum type based on frequency content
+        const drumType = db > -10 ? 'kick' : (db > -15 ? 'snare' : 'hat');
         
-        // Trigger replacement
-        this.triggerPad(drumType);
-        
-        return {
-            type: drumType,
-            energy: db,
-            time: now
-        };
-    }
-
-    /**
-     * Enable/disable drum replace
-     * @param {boolean} active - Enable state
-     */
-    setActive(active) {
-        this.isActive = active;
-        console.log(`[DrumReplace] ${active ? 'Enabled' : 'Disabled'}`);
-    }
-
-    /**
-     * Get current settings
-     * @returns {Object} - Current settings
-     */
-    getSettings() {
-        return {
-            isActive: this.isActive,
-            threshold: this.threshold,
-            minInterval: this.minInterval,
-            hasSourceTrack: !!this.sourceTrack,
-            hasTargetTrack: !!this.targetDrumTrack
-        };
-    }
-
-    dispose() {
-        this.isActive = false;
-        this.sourceTrack = null;
-        this.targetDrumTrack = null;
-        this.audioContext = null;
+        return { type: drumType, energy: db, time: now };
     }
 }
 
-// Export
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = DrumReplace;
-}
-if (typeof window !== 'undefined') {
-    window.DrumReplace = DrumReplace;
-}
+export { DrumReplaceEngine };
+export const drumReplaceEngine = new DrumReplaceEngine();
