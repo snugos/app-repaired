@@ -4,6 +4,7 @@
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
+import { initQuickActionsMenu, openQuickActionsMenu, closeQuickActionsMenu } from './QuickActionsMenu.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
@@ -580,6 +581,9 @@ import {
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
+    initQuickActionsMenu,
+    openQuickActionsMenu,
+    closeQuickActionsMenu,
     openProjectTemplatesPanel,
     openMarkersPanel,
     openTempoAutomationPanel,
