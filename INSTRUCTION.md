@@ -20,26 +20,6 @@
 | `snugos/scribbleton` | — | — | Empty repo |
 | `snugos/scribbletonlive` | Vue | — | SnugOS DAW port to Vue/Nuxt |
 
-## User Context
-- Handle: snugsworth
-- Bio: Artist and creator
-- Role: Coding expert — debug and repair any errors flawlessly
-- Instruction: Study only — do not fix until asked
-
-## Repos Local Paths
-```
-/home/workspace/app/           — SnugOS DAW
-/home/workspace/space/           — PeerJS 3D world
-/home/workspace/3d-space/       — PartyKit 3D world
-/home/workspace/palopseegame/   — Runner game
-/home/workspace/music-store/    — Stripe storefront
-/home/workspace/dreams/         — Landing page
-/home/workspace/beta/           — Older SnugOS
-/home/workspace/snugos-new/     — Mirror of app
-/home/workspace/scribbletonlive/ — Vue DAW
-/home/workspace/Repos/app/ERROR_LOG.md — Full bug log for app
-```
-
 ## App (snugos/app) — Top Issues Logged
 
 **3 High Severity:**
@@ -69,45 +49,30 @@
 ## Dreams (snugos/dreams)
 - Static HTML + Tone.js audio — no JS source to study (only index.html)
 
-## New Feature Queue (2026-04-24 15:35 UTC)
+## New Feature Queue (2026-04-24 15:40 UTC)
 
-**Status: 4 NEW FEATURES IMPLEMENTED ✅**
+**Status: 3 NEW FEATURES IMPLEMENTED ✅**
 
 All queued features from the previous sessions are now complete:
-1. **Clip Glitch Effects** ✅ - `js/ClipGlitchEffect.js`
-2. **Formula-based Automation** ✅ - `js/FormulaAutomation.js`
-3. **Track Latency Compensation** ✅ - `js/TrackLatencyCompensation.js`
-4. **Sample Import Preview** ✅ - `js/SampleImportPreview.js`
-5. **Chord Memory** ✅ - `js/ChordMemory.js`
-6. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
-7. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
-8. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
-9. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
+1. **Track Latency Compensation** ✅ - `js/TrackLatencyCompensation.js`
+2. **Sample Import Preview** ✅ - `js/SampleImportPreview.js`
+3. **Chord Memory** ✅ - `js/ChordMemory.js`
+4. **Formula Automation** ✅ - `js/FormulaAutomation.js`
+5. **Ghost Track** ✅ - `js/GhostTrack.js`
+6. **Smart Duplicate** ✅ - `js/SmartDuplicate.js`
+7. **Ruler Mode Toggle** ✅ - `js/RulerModeToggle.js`
 
-**Commit:** `95a04e2`
+**Remaining Queue:**
+1. **Project Template Save/Load** - Save and load project templates with all tracks/settings
+2. **MIDI Learn Visualization** - Show MIDI CC mappings visually on knobs and sliders
+3. **Audio Waveform Overlay** - Overlay multiple audio clip waveforms for comparison
+4. **Track Lane Height Memory** - Remember track lane heights across sessions
+5. **Quantize Strength Control** - Adjust how strongly notes snap to grid (0-100%)
+6. **Random Note Generator** - Add random notes within a scale/range
 
-**Total Features: 354+**
+**Commit:** `eea4eb6`
 
----
-
-## New Feature Queue (2026-04-24 15:35 UTC)
-
-When all queues are empty, implement these new features:
-
-1. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
-2. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
-3. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
-4. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
-5. **Project Template Save/Load** - Save and load project templates with all tracks/settings
-6. **MIDI Learn Visualization** - Show MIDI CC mappings visually on knobs and sliders
-7. **Audio Waveform Overlay** - Overlay multiple audio clip waveforms for comparison
-8. **Track Lane Height Memory** - Remember track lane heights across sessions
-9. **Quantize Strength Control** - Adjust how strongly notes snap to grid (0-100%)
-10. **Random Note Generator** - Add random notes within a scale/range
-
-**Status: 10 NEW FEATURES QUEUED**
-
-**Total Features: 354+**
+**Total Features: 357+**
 
 ---
 
