@@ -13,3 +13,8 @@ export { initDrumReplace, openDrumReplacePanel } from './DrumReplace.js';
 export { initSpectralSubtractiveEQ, openSpectralSubtractiveEQPanel, spectralEQEngine } from './SpectralSubtractiveEQ.js';
 export { initTremoloauto, openTremoloautoPanel, tremoloautoEngine } from './Tremoloauto.js';
 export { calculateProjectStatistics, formatProjectStatistics, ProjectStatisticsPanel } from './ProjectStatisticsPanel.js';
+// New features from 2026-04-24 queue
+export { openProjectTemplateBrowserPanel, closeProjectTemplateBrowserPanel } from './ProjectTemplateBrowser.js';
+export { openMIDILearnVisualizationPanel, closeMIDILearnVisualizationPanel } from './MIDILearnVisualization.js';
+export { openQuantizeStrengthPanel, closeQuantizeStrengthPanel, getQuantizeStrength, setQuantizeStrength } from './QuantizeStrengthControl.js';
+export { openRandomNoteGeneratorPanel, closeRandomNoteGeneratorPanel } from './RandomNoteGenerator.js';
