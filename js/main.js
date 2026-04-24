@@ -30,6 +30,9 @@ import { AudioStemSeparation } from './AudioStemSeparation.js';
 import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
+// Pattern Generation & Frequency Processing
+import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
+import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, openFrequencyBandSplitterPanel } from './FrequencyBandSplitter.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -678,6 +681,15 @@ import {
     openFrequencyShifterPanel,
     openEnvelopeGeneratorPanel,
     
+    
+    // Pattern Generation and Frequency Processing
+    AIPatternGenerator,
+    getAIPatternGenerator,
+    openAIPatternGeneratorPanel,
+    FrequencyBandSplitter,
+    MultibandProcessor,
+    getFrequencyBandSplitter,
+    openFrequencyBandSplitterPanel,
     // AI Mastering Enhancement
     AIMasteringEnhancement,
     initAIMasteringEnhancement,
