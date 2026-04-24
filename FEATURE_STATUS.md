@@ -1,23 +1,21 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## Session: 2026-04-24 12:05 UTC (Automated Agent Run)
+## Session: 2026-04-24 12:25 UTC (Automated Agent Run)
 
-**Status: 8 NEW FEATURES COMPLETED ✅**
+**Status: 6 NEW FEATURES COMPLETED ✅**
 
 | Feature | File | Description |
 |---------|------|-------------|
-| **Granular Synthesis Engine** | `js/GranularSynthesisEngine.js` | Granular synthesis with position, density, pitch controls, freeze mode, LFO modulation |
-| **Modulation Matrix** | `js/ModulationMatrix.js` | Complex modulation routing with 8 macros, 4 LFOs, 2 envelopes, curve shaping |
-| **Scripting Engine** | `js/ScriptingEngine.js` | Custom JavaScript-based effects and generators with sandboxed execution |
-| **AI Mixing Assistant** | `js/AIMixingAssistant.js` | AI-powered mixing suggestions, auto-balance, track analysis, genre profiles |
-| **Voice Characterization** | `js/VoiceCharacterization.js` | Vocal character analysis, formant detection, voice type classification, enhancement |
-| **Spatial Reverb** | `js/SpatialReverb.js` | 3D position-aware reverb with distance attenuation, room simulation, HRTF panning |
-| **MIDI Effect Rack** | `js/MIDIEffectRack.js` | Chainable MIDI effects: arpeggiator, chord, repeater, scale filter, velocity, transpose |
-| **Stem Separation** | `js/StemSeparation.js` | AI-based stem separation from mixed audio using spectral analysis |
+| **Convolution Reverb Impulse Loader** | `js/ConvolutionReverbImpulseLoader.js` | Load custom impulse responses for convolution reverb with IR generation |
+| **Frequency Analyzer Display** | `js/FrequencyAnalyzerDisplay.js` | Real-time frequency spectrum display with peak hold and statistics |
+| **Stereo Delay Effect** | `js/StereoDelayEffect.js` | Ping-pong delay with tempo sync and modulation |
+| **Resonant Low-Pass Gate** | `js/ResonantLowPassGate.js` | Buchla-style LPG with vactrol response and ADSR |
+| **Waveshaper Distortion** | `js/WaveshaperDistortion.js` | 15+ waveshaping curves with anti-aliasing and oversampling |
+| **Granular Pitch Shifter** | `js/GranularPitchShifter.js` | Granular-based pitch shifting with formant preservation |
 
 **Commit:** Pending
 
-**Total Features: 312+**
+**Total Features: 324+**
 
 ---
 
@@ -25,12 +23,12 @@
 
 When all queues are empty, implement these new features:
 
-1. **Spectral Compressor** - Frequency-aware compression with independent band control
-2. **Harmonic Synthesizer** - Add harmonics to audio for thickness and presence
-3. **Dynamic EQ** - EQ bands that respond to input level
-4. **Stereo Imager Enhancement** - Advanced stereo manipulation with mono maker
-5. **Multiband Saturator** - Add saturation per frequency band
-6. **Auto-Panner** - Automatic panning with various patterns
+1. **Formant Filter** - Vowel-based filtering with morphing
+2. **Ring Modulator** - Classic ring modulation with LFO control
+3. **Frequency Shifter** - Linear frequency shifting (not pitch shifting)
+4. **Comb Filter** - Comb filtering with feedback control
+5. **Noise Gate** - Threshold-based gating with lookahead
+6. **Transient Designer** - Transient shaping without level dependency
 
 ---
 

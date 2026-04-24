@@ -4,9 +4,12 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Granular Synthesis Engine** - Granular synthesis with position, density, and pitch controls
-2. **Modulation Matrix** - Complex modulation routing between parameters
-3. **Scripting Engine** - Custom JavaScript-based effects and generators
+1. **Spectral Compressor** - Frequency-aware compression with independent band control
+2. **Harmonic Synthesizer** - Add harmonics to audio for thickness and presence
+3. **Dynamic EQ** - EQ bands that respond to input level
+4. **Stereo Imager Enhancement** - Advanced stereo manipulation with mono maker
+5. **Multiband Saturator** - Add saturation per frequency band
+6. **Auto-Panner** - Automatic panning with various patterns
 
 ## Workflow
 
