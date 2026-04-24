@@ -1,65 +1,122 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## New Feature Queue (2026-04-24 01:45 UTC)
+## New Feature Queue (2026-04-24 02:15 UTC)
 
 When all queues are empty, implement these new features:
 
-1. **Scale Suggestion** - AI-powered scale suggestion from MIDI/audio analysis ✅ COMPLETED
-2. **Audio Normalization Batch** - Normalize multiple audio clips at once
-3. **MIDI Velocity Curve** - Apply custom velocity curves to MIDI input
-4. **Clip Transpose Batch** - Transpose multiple clips at once
-5. **Track Export Solo** - Export individual tracks with solo/mute states
-6. **Pattern Randomizer** - Randomize pattern variations with constraints
-7. **Audio Fade Preset** - Quick apply fade curves to audio clips
-8. **MIDI Delay Effect** - MIDI delay/echo effect for patterns
-9. **Track Pan Automation** - Draw pan automation on timeline
-10. **Clip Gain Group** - Group clips for collective gain adjustment
+1. **Smart BPM Detection** - Detect BPM from audio files automatically
+2. **Clip Auto-Level** - Auto-adjust clip gain for consistent levels
+3. **Pattern Morphing** - Smoothly transition between patterns
+4. **Audio Stretching Presets** - Quick apply time-stretch presets
+5. **MIDI Note Humanize** - Add timing/velocity randomness to MIDI
+6. **Track Sidechain Routing UI** - Visual sidechain setup
+7. **Clip Pitch Detection** - Detect pitch of audio clips
+8. **MIDI Harmonizer** - Auto-add harmony to MIDI notes
+9. **Audio Phase Meter** - Show phase correlation per track
+10. **Clip Reverse Range** - Reverse only selected section of clip
 
-**Status: 1 NEW FEATURE COMPLETED ✅**
+**Status: 9 NEW FEATURES COMPLETED ✅**
 
-**Total Features: 178+**
+**Total Features: 187+**
 
 ---
 
-## Session: 2026-04-24 01:45 UTC (Automated Agent Run)
+## Session: 2026-04-24 02:15 UTC (Automated Agent Run)
 
-### Status: 1 NEW FEATURE COMPLETED ✅
+### Status: 9 NEW FEATURES COMPLETED ✅
 
 **Features Implemented:**
 | Feature | File | Description |
 |---------|------|-------------|
-| **Scale Suggestion** | `js/ScaleSuggestion.js` | AI-powered scale suggestion from MIDI/audio analysis |
+| **Audio Normalization Batch** | `js/AudioNormalizationBatch.js` | Normalize multiple audio clips at once |
+| **MIDI Velocity Curve** | `js/MIDIVelocityCurve.js` | Apply custom velocity curves to MIDI input |
+| **Clip Transpose Batch** | `js/ClipTransposeBatch.js` | Transpose multiple clips at once |
+| **Track Export Solo** | `js/TrackExportSolo.js` | Export individual tracks with solo/mute states |
+| **Pattern Randomizer** | `js/PatternRandomizer.js` | Randomize pattern variations with constraints |
+| **Audio Fade Preset** | `js/AudioFadePreset.js` | Quick apply fade curves to audio clips |
+| **MIDI Delay Effect** | `js/MIDIDelayEffect.js` | MIDI delay/echo effect for patterns |
+| **Track Pan Automation** | `js/TrackPanAutomation.js` | Draw pan automation on timeline |
+| **Clip Gain Group** | `js/ClipGainGroup.js` | Group clips for collective gain adjustment |
 
 ### Implementation Details
 
-#### Scale Suggestion
-- **File**: `js/ScaleSuggestion.js`
-- **Lines**: ~500 lines
-- **Features**:
-  - Analyze MIDI notes to suggest appropriate musical scales
-  - Pitch detection using autocorrelation for audio analysis
-  - Confidence scoring based on note matches and interval patterns
-  - Root note detection
-  - 50+ scale support (major, minor, modes, exotic scales)
-  - UI panel with track selection and analysis
-  - Apply suggested scale to Scale Lock feature
-  - Scale notes display
-  - History tracking and learning from user corrections
+#### Audio Normalization Batch
+- Batch normalize multiple audio clips simultaneously
+- Peak and RMS normalization modes
+- Adjustable target level (-30dB to 0dB)
+- Presets for broadcast, CD, streaming, podcast
+- Progress tracking and export reports
+
+#### MIDI Velocity Curve
+- Custom velocity curves for MIDI input
+- 10 built-in presets (Linear, Soft, Hard, S-Curve, Fixed, etc.)
+- Visual curve editor with drag-and-drop
+- Per-velocity input/output mapping
+- Export/import curve settings
+
+#### Clip Transpose Batch
+- Transpose multiple clips (audio and MIDI) at once
+- Semitone and octave adjustment
+- Per-clip transpose override
+- Quick transpose buttons (-Oct, -5th, +5th, +Oct)
+- Presets for common transpositions
+
+#### Track Export Solo
+- Export tracks respecting solo/mute states
+- WAV, MP3, OGG, FLAC format support
+- Configurable sample rate and bit depth
+- Master mix and stem export options
+- Tracks summary panel showing audible tracks
+
+#### Pattern Randomizer
+- Randomize melody, drums, and bass patterns
+- Constraint-based generation (scale lock, density, interval limits)
+- Swing and humanization options
+- Visual preview on piano roll
+- Generate variations from existing patterns
+
+#### Audio Fade Preset
+- Quick apply common fade curves
+- 20 built-in presets (Quick Fade, Standard, S-Curve, Crossfade, etc.)
+- Linear, exponential, logarithmic, sine, S-curve shapes
+- Preview visualization
+- Apply to selected clips
+
+#### MIDI Delay Effect
+- MIDI echo/delay for patterns
+- Adjustable time, feedback, repeats
+- Pitch shift per repeat
+- Velocity decay
+- Ping-pong mode
+
+#### Track Pan Automation
+- Draw pan automation on timeline
+- Smooth and linear interpolation
+- 12 built-in presets (Center, L/R Sweep, Tremolo, Auto-Pan, etc.)
+- Visual automation editor
+- Apply to track
+
+#### Clip Gain Group
+- Group clips for collective control
+- Adjust gain for entire groups
+- Normalize, invert, randomize group gains
+- Gain ramp across group
+- Enable/disable groups
 
 ### Scan Results
 
 | Scan Pattern | Result |
 |-------------|--------|
 | TODO/FIXME Comments | ✅ None found |
-| Syntax Validation | ✅ PASS (103/103 files) |
-| Git Status | Clean (committed and pushed) |
-| Total Lines of Code | 100,939 lines |
+| Syntax Validation | ✅ PASS (112/112 files) |
+| Git Status | Ready to commit |
+| Total Lines of Code | ~105,000 lines |
 
 ### Conclusion
 
-The SnugOS DAW codebase continues to expand with Scale Suggestion feature. 1 feature from the queue was implemented this session.
+The SnugOS DAW codebase continues to expand with 9 new professional features. All 112 JS files pass syntax validation.
 
-**Total Features: 178+**
+**Total Features: 187+**
 
 ---
 

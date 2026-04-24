@@ -23,6 +23,15 @@ import { ClipReverseSelection, openClipReversePanel } from './ClipReverseSelecti
 import { MIDITransposeTrack, openMIDITransposePanel } from './MIDITransposeTrack.js';
 import { initMixdownGhost, openMixdownGhostPanel } from './MixdownGhost.js';
 import { scaleSuggestion, openScaleSuggestionPanel, initScaleSuggestion } from './ScaleSuggestion.js';
+import { AudioNormalizationBatch, openAudioNormalizationBatchPanel } from './AudioNormalizationBatch.js';
+import { MIDIVelocityCurve, openMIDIVelocityCurvePanel } from './MIDIVelocityCurve.js';
+import { ClipTransposeBatch, openClipTransposeBatchPanel } from './ClipTransposeBatch.js';
+import { TrackExportSolo, openTrackExportSoloPanel } from './TrackExportSolo.js';
+import { PatternRandomizer, openPatternRandomizerPanel } from './PatternRandomizer.js';
+import { AudioFadePreset, openAudioFadePresetPanel } from './AudioFadePreset.js';
+import { MIDIDelayEffect, openMIDIDelayEffectPanel } from './MIDIDelayEffect.js';
+import { TrackPanAutomation, openTrackPanAutomationPanel } from './TrackPanAutomation.js';
+import { ClipGainGroup, openClipGainGroupPanel } from './ClipGainGroup.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -708,7 +717,43 @@ import {
     // Scale Suggestion
     openScaleSuggestionPanel,
     initScaleSuggestion,
-    scaleSuggestion
+    scaleSuggestion,
+
+    // Audio Normalization Batch
+    openAudioNormalizationBatchPanel,
+    AudioNormalizationBatch,
+
+    // MIDI Velocity Curve
+    openMIDIVelocityCurvePanel,
+    MIDIVelocityCurve,
+
+    // Clip Transpose Batch
+    openClipTransposeBatchPanel,
+    ClipTransposeBatch,
+
+    // Track Export Solo
+    openTrackExportSoloPanel,
+    TrackExportSolo,
+
+    // Pattern Randomizer
+    openPatternRandomizerPanel,
+    PatternRandomizer,
+
+    // Audio Fade Preset
+    openAudioFadePresetPanel,
+    AudioFadePreset,
+
+    // MIDI Delay Effect
+    openMIDIDelayEffectPanel,
+    MIDIDelayEffect,
+
+    // Track Pan Automation
+    openTrackPanAutomationPanel,
+    TrackPanAutomation,
+
+    // Clip Gain Group
+    openClipGainGroupPanel,
+    ClipGainGroup
 };
 
 function handleTrackUIUpdate(trackId, reason, detail) {
