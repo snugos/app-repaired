@@ -1,21 +1,44 @@
 # FEATURE_STATUS.md - SnugOS DAW
 
-## New Feature Queue (2026-04-24 10:50 UTC)
+## New Feature Queue (2026-04-24 11:35 UTC)
 
 When all queues are empty, implement these new features:
 
-1. **Advanced MIDI Routing** - Complex MIDI routing matrix
-2. **Audio Phase Correlation Display** - Real-time phase visualization
-3. **Track Automation Curves** - Bezier curve automation
-4. **Sample Editor Enhancement** - Full sample editing capabilities
-5. **MIDI Macro Controls** - Assign multiple parameters to one control
-6. **Audio Analysis Dashboard** - Comprehensive analysis panel
-7. **Real-time Collaboration Chat** - Built-in chat for collaborators
-8. **Smart Track Naming** - AI-assisted track naming
-9. **Audio Montage View** - Non-destructive arrangement view
-10. **Plugin Sidechain Support** - Sidechain input for loaded plugins
+1. **Granular Synthesis Engine** - Granular synthesis with position, density, and pitch controls
+2. **Modulation Matrix** - Complex modulation routing between parameters
+3. **Scripting Engine** - Custom JavaScript-based effects and generators
+4. **AI Mixing Assistant** - AI-powered mixing suggestions and auto-balance
+5. **Sample Library Integration** - Built-in sample library browser with preview
+6. **Voice Characterization** - Vocal character analysis and enhancement
+7. **Audio-to-Score Enhancement** - Improved polyphonic transcription
+8. **Spatial Reverb** - 3D position-aware reverb
+9. **MIDI Effect Rack** - Chainable MIDI effects (arpeggiator, chord, etc.)
+10. **Stem Separation** - AI-based stem separation from mixed audio
 
-**Status: 7 NEW FEATURES COMPLETED THIS SESSION ✅**
+**Status: 10 NEW FEATURES COMPLETED THIS SESSION ✅**
+
+| Feature | File | Description |
+|---------|------|-------------|
+| **Advanced MIDI Routing** | `js/AdvancedMIDIRouting.js` | Complex MIDI routing matrix with channel filtering, note remapping, velocity transforms, and transpose |
+| **Audio Phase Correlation Display** | `js/AudioPhaseCorrelationDisplay.js` | Real-time phase visualization with Lissajous scope, correlation meter, and history graph |
+| **Track Automation Curves** | `js/TrackAutomationCurves.js` | Bezier curve automation with handles, multiple curve types, and smooth interpolation |
+| **Sample Editor Enhancement** | `js/SampleEditorEnhancement.js` | Full sample editing with cut/copy/paste, fade, normalize, reverse, pitch shift, time stretch |
+| **MIDI Macro Controls** | `js/MIDIMacroControls.js` | Assign multiple parameters to one control with curves and MIDI learn |
+| **Audio Analysis Dashboard** | `js/AudioAnalysisDashboard.js` | Comprehensive analysis panel with spectrum, spectrogram, key/BPM detection |
+| **Real-time Collaboration Chat** | `js/RealtimeCollaborationChat.js` | Built-in chat for collaborators with typing indicators and presence |
+| **Smart Track Naming** | `js/SmartTrackNaming.js` | AI-assisted track naming based on audio analysis and patterns |
+| **Audio Montage View** | `js/AudioMontageView.js` | Non-destructive arrangement view with clip editing and undo/redo |
+| **Plugin Sidechain Support** | `js/PluginSidechainSupport.js` | Sidechain input for loaded plugins with presets and routing |
+
+**Commit:** Pending
+
+**Total Features: 304+**
+
+---
+
+## Session: 2026-04-24 10:50 UTC (Automated Agent Run)
+
+### Status: 7 NEW FEATURES COMPLETED ✅
 
 | Feature | File | Description |
 |---------|------|-------------|
@@ -27,13 +50,11 @@ When all queues are empty, implement these new features:
 | **Track Queue System** | `js/TrackQueueSystem.js` | Playlist-style queue with crossfade, shuffle, and repeat modes |
 | **Audio Bitdepth Controller** | `js/AudioBitdepthController.js` | Bit depth simulation with dithering options |
 
-**Commit:** Pending
-
 **Total Features: 294+**
 
 ---
 
-## Session: 2026-04-24 10:20 UTC (Automated Agent Run)
+## Previous Session: 2026-04-24 10:20 UTC (Automated Agent Run)
 
 ### Status: 9 NEW FEATURES COMPLETED ✅
 
