@@ -6,7 +6,7 @@ When all queues are empty, implement these new features:
 2. **MIDI Channel Filter** - Filter MIDI by channel with pass/block lists ✅ INTEGRATED
 3. **Track Freeze All** - Freeze all tracks at once for CPU savings ✅ INTEGRATED
 4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects ✅ INTEGRATED
-5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody
+5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody ✅ COMPLETED
 6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
 7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
 8. **One-Knob Master** - Single knob for "loudness maximization" chain
