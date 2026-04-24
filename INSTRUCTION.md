@@ -1,4 +1,4 @@
-## New Feature Queue (2026-04-24 02:15 UTC)
+## New Feature Queue (2026-04-24 03:10 UTC)
 
 When all queues are empty, implement these new features:
 
@@ -7,9 +7,11 @@ When all queues are empty, implement these new features:
 3. **Track Freeze All** - Freeze all tracks at once for CPU savings ✅ INTEGRATED
 4. **Mixdown Ghost** - Real-time dry/wet comparison toggle for effects ✅ INTEGRATED
 5. **Scale Suggestion** - AI-powered scale suggestion based on audio melody ✅ COMPLETED
-6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content
-7. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
-8. **One-Knob Master** - Single knob for "loudness maximization" chain
+6. **Adaptive Q** - Auto-adjust EQ Q based on frequency content ✅ COMPLETED (2026-04-24)
+7. **One-Knob Master** - Single knob for "loudness maximization" chain ✅ COMPLETED (2026-04-24)
+8. **Drum Replace** - Replace drum samples by detected hit type (kick/snare/hat)
+9. **Spectral Subtractive EQ** - Notch EQ that auto-removes feedback frequencies
+10. **Tremoloauto** - Tempo-synced tremolo that locks to project BPM
 
 ## Previous Completed Features
 
