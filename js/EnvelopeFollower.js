@@ -1,386 +1,517 @@
-// js/EnvelopeFollower.js - Envelope Follower for SnugOS DAW
-// Audio-driven envelope for effect modulation
-
-import * as Tone from 'tone';
+/**
+ * EnvelopeFollower - Detects amplitude envelope and provides modulation output
+ * Useful for ducking, sidechain-style effects, and dynamic processing
+ */
 
 export class EnvelopeFollower {
     constructor(options = {}) {
-        this.attack = options.attack ?? 0.01; // Attack time in seconds
+        this.name = 'EnvelopeFollower';
+        
+        // Configuration
+        this.attack = options.attack ?? 0.01;  // Attack time in seconds
         this.release = options.release ?? 0.1; // Release time in seconds
-        this.smoothing = options.smoothing ?? 0.8; // Smoothing factor (0-1)
-        this.threshold = options.threshold ?? 0; // Threshold below which output is 0
-        this.multiplier = options.multiplier ?? 1; // Output multiplier
-        this.offset = options.offset ?? 0; // Output offset
+        this.smoothing = options.smoothing ?? 0.5; // Additional smoothing factor
+        this.threshold = options.threshold ?? -60; // Threshold in dB
+        this.range = options.range ?? 60; // Range above threshold in dB
         
-        this.analyser = null;
-        this.follower = null;
-        this.inputNode = null;
-        this.outputNode = null;
-        this.isProcessing = false;
-        this.currentValue = 0;
-        this.targetConnections = [];
-        this.animationFrame = null;
+        // State
+        this.lastValue = 0;
+        this.lastPeak = 0;
+        this.sampleRate = 44100;
         
-        this.onLevelChange = null;
-    }
-
-    initialize(audioContext) {
-        if (this.follower) return this;
+        // Callbacks for envelope events
+        this.onPeak = null;
+        this.onEnvelope = null;
+        this.onThresholdCross = null;
         
-        // Create follower using Tone.js Follower
-        this.follower = new Tone.Follower({
-            attack: this.attack,
-            release: this.release
-        });
+        // Modulation output
+        this.modulationOutput = 0;
+        this.normalizedOutput = 0;
         
-        // Create analyser for visualization
-        this.analyser = audioContext.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.analyser.smoothingTimeConstant = this.smoothing;
+        // Analysis buffer
+        this.analysisBuffer = new Float32Array(256);
+        this.bufferIndex = 0;
         
-        // Create input and output nodes
-        this.inputNode = new Tone.Gain(1);
-        this.outputNode = new Tone.Signal(0);
-        
-        // Connect: input -> follower -> output
-        // The follower outputs a signal representing the envelope
-        this.inputNode.connect(this.follower);
-        this.follower.connect(this.outputNode);
-        
-        return this;
+        // Frequency tracking
+        this.zeroCrossings = 0;
+        this.lastSampleSign = 0;
     }
-
-    connect(target, outputIndex = 0) {
-        if (!this.outputNode) {
-            console.warn('[EnvelopeFollower] Not initialized');
-            return;
-        }
-        
-        this.outputNode.connect(target, outputIndex);
-        this.targetConnections.push({ target, outputIndex });
-    }
-
-    disconnect(target) {
-        if (!this.outputNode) return;
-        
-        if (target) {
-            this.outputNode.disconnect(target);
-            this.targetConnections = this.targetConnections.filter(c => c.target !== target);
-        } else {
-            this.outputNode.disconnect();
-            this.targetConnections = [];
-        }
-    }
-
-    start() {
-        if (this.isProcessing) return;
-        
-        this.isProcessing = true;
-        this.updateLoop();
-    }
-
-    stop() {
-        this.isProcessing = false;
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
-            this.animationFrame = null;
-        }
-    }
-
-    updateLoop() {
-        if (!this.isProcessing) return;
-        
-        // Get current value from follower
-        this.currentValue = this.outputNode.value;
-        
-        // Apply threshold and multiplier
-        let outputValue = this.currentValue;
-        if (outputValue < this.threshold) {
-            outputValue = 0;
-        } else {
-            outputValue = (outputValue - this.threshold) * this.multiplier + this.offset;
-        }
-        
-        // Clamp to valid range
-        outputValue = Math.max(0, Math.min(1, outputValue));
-        
-        // Callback for visualization
-        if (this.onLevelChange) {
-            this.onLevelChange(outputValue, this.currentValue);
-        }
-        
-        this.animationFrame = requestAnimationFrame(() => this.updateLoop());
-    }
-
-    setAttack(attack) {
-        this.attack = Math.max(0.001, attack);
-        if (this.follower) {
-            this.follower.attack = this.attack;
-        }
-        return this.attack;
-    }
-
-    setRelease(release) {
-        this.release = Math.max(0.01, release);
-        if (this.follower) {
-            this.follower.release = this.release;
-        }
-        return this.release;
-    }
-
-    setSmoothing(smoothing) {
-        this.smoothing = Math.max(0, Math.min(1, smoothing));
-        if (this.analyser) {
-            this.analyser.smoothingTimeConstant = this.smoothing;
-        }
-        return this.smoothing;
-    }
-
-    setThreshold(threshold) {
-        this.threshold = Math.max(0, Math.min(1, threshold));
-        return this.threshold;
-    }
-
-    setMultiplier(multiplier) {
-        this.multiplier = multiplier;
-        return this.multiplier;
-    }
-
-    setOffset(offset) {
-        this.offset = offset;
-        return this.offset;
-    }
-
-    getCurrentValue() {
-        return this.currentValue;
-    }
-
-    getNormalizedValue() {
-        let value = this.currentValue;
-        if (value < this.threshold) return 0;
-        return Math.max(0, Math.min(1, (value - this.threshold) * this.multiplier + this.offset));
-    }
-
-    setInput(input) {
-        if (this.inputNode) {
-            input.connect(this.inputNode);
-        }
-    }
-
-    setOnLevelChange(callback) {
-        this.onLevelChange = callback;
-    }
-
-    // Apply envelope to a parameter
-    applyToParameter(parameter, minValue = 0, maxValue = 1) {
-        this.connect((value) => {
-            // Map the normalized value to the parameter range
-            const mappedValue = minValue + value * (maxValue - minValue);
-            parameter.setValueAtTime(mappedValue, Tone.now());
-        });
-    }
-
-    dispose() {
-        this.stop();
-        
-        if (this.follower) {
-            this.follower.dispose();
-            this.follower = null;
-        }
-        
-        if (this.analyser) {
-            this.analyser.disconnect();
-            this.analyser = null;
-        }
-        
-        if (this.inputNode) {
-            this.inputNode.dispose();
-            this.inputNode = null;
-        }
-        
-        if (this.outputNode) {
-            this.outputNode.dispose();
-            this.outputNode = null;
-        }
-        
-        this.targetConnections = [];
-        this.onLevelChange = null;
-    }
-}
-
-// Envelope Follower Effect Module
-export class EnvelopeFollowerEffect {
-    constructor(options = {}) {
-        this.envelopeFollower = new EnvelopeFollower(options);
-        this.targets = []; // Array of { parameter, min, max }
-        this.enabled = true;
-        this.input = null;
-        this.output = null;
-    }
-
-    initialize(audioContext) {
-        this.envelopeFollower.initialize(audioContext);
-        this.input = this.envelopeFollower.inputNode;
-        this.output = this.envelopeFollower.inputNode; // Pass-through
-        
-        // Start the follower
-        this.envelopeFollower.start();
-        
-        return this;
-    }
-
-    addTarget(parameter, minValue = 0, maxValue = 1) {
-        this.targets.push({ parameter, min: minValue, max: maxValue });
-        
-        // Set up the connection
-        this.envelopeFollower.setOnLevelChange((normalizedValue) => {
-            if (!this.enabled) return;
-            
-            const mappedValue = minValue + normalizedValue * (maxValue - minValue);
-            parameter.setValueAtTime(mappedValue, Tone.now());
-        });
-        
-        return this;
-    }
-
-    removeTarget(parameter) {
-        this.targets = this.targets.filter(t => t.parameter !== parameter);
-        return this;
-    }
-
-    setEnabled(enabled) {
-        this.enabled = enabled;
-    }
-
-    dispose() {
-        this.envelopeFollower.dispose();
-        this.targets = [];
-    }
-}
-
-// Singleton instance for global access
-let envelopeFollowerInstance = null;
-
-export function getEnvelopeFollower(options = {}) {
-    if (!envelopeFollowerInstance) {
-        envelopeFollowerInstance = new EnvelopeFollower(options);
-    }
-    return envelopeFollowerInstance;
-}
-
-export function openEnvelopeFollowerPanel() {
-    const follower = getEnvelopeFollower();
     
+    /**
+     * Process audio buffer and extract envelope
+     * @param {Float32Array} samples - Audio samples to analyze
+     * @returns {object} Envelope data and modulation values
+     */
+    process(samples) {
+        if (!samples || samples.length === 0) {
+            return { envelope: 0, normalized: 0, peak: false };
+        }
+        
+        const attackCoeff = Math.exp(-1 / (this.attack * this.sampleRate));
+        const releaseCoeff = Math.exp(-1 / (this.release * this.sampleRate));
+        
+        let currentEnvelope = this.lastValue;
+        let peakDetected = false;
+        let maxSample = 0;
+        
+        // Process each sample
+        for (let i = 0; i < samples.length; i++) {
+            const absSample = Math.abs(samples[i]);
+            maxSample = Math.max(maxSample, absSample);
+            
+            // Envelope detection with attack/release
+            if (absSample > currentEnvelope) {
+                currentEnvelope = attackCoeff * currentEnvelope + (1 - attackCoeff) * absSample;
+            } else {
+                currentEnvelope = releaseCoeff * currentEnvelope + (1 - releaseCoeff) * absSample;
+            }
+            
+            // Zero crossing detection for frequency estimation
+            const currentSign = samples[i] >= 0 ? 1 : -1;
+            if (currentSign !== this.lastSampleSign) {
+                this.zeroCrossings++;
+            }
+            this.lastSampleSign = currentSign;
+        }
+        
+        // Apply smoothing
+        currentEnvelope = this.smoothing * this.lastValue + (1 - this.smoothing) * currentEnvelope;
+        this.lastValue = currentEnvelope;
+        
+        // Convert to dB
+        const db = 20 * Math.log10(Math.max(currentEnvelope, 1e-10));
+        
+        // Normalize to 0-1 range based on threshold and range
+        const normalizedValue = Math.max(0, Math.min(1, 
+            (db - this.threshold) / this.range
+        ));
+        this.normalizedOutput = normalizedValue;
+        this.modulationOutput = currentEnvelope;
+        
+        // Peak detection
+        if (currentEnvelope > this.lastPeak * 1.5) {
+            peakDetected = true;
+            if (this.onPeak) {
+                this.onPeak(currentEnvelope, db);
+            }
+        }
+        this.lastPeak = currentEnvelope;
+        
+        // Threshold crossing detection
+        const thresholdLinear = Math.pow(10, this.threshold / 20);
+        if (currentEnvelope > thresholdLinear && this.lastValue <= thresholdLinear) {
+            if (this.onThresholdCross) {
+                this.onThresholdCross(true, db);
+            }
+        }
+        
+        // Envelope callback
+        if (this.onEnvelope) {
+            this.onEnvelope(currentEnvelope, normalizedValue, db);
+        }
+        
+        // Store in analysis buffer for visualization
+        this.analysisBuffer[this.bufferIndex] = currentEnvelope;
+        this.bufferIndex = (this.bufferIndex + 1) % this.analysisBuffer.length;
+        
+        return {
+            envelope: currentEnvelope,
+            normalized: normalizedValue,
+            db: db,
+            peak: peakDetected,
+            maxSample: maxSample,
+            frequency: this.estimateFrequency(samples.length)
+        };
+    }
+    
+    /**
+     * Estimate frequency from zero crossings
+     * @param {number} sampleCount - Number of samples analyzed
+     * @returns {number} Estimated frequency in Hz
+     */
+    estimateFrequency(sampleCount) {
+        if (this.zeroCrossings === 0 || sampleCount === 0) {
+            return 0;
+        }
+        const frequency = (this.zeroCrossings / 2) * (this.sampleRate / sampleCount);
+        this.zeroCrossings = 0; // Reset for next analysis
+        return frequency;
+    }
+    
+    /**
+     * Get modulation output suitable for controlling parameters
+     * @param {number} amount - Amount of modulation (0-1)
+     * @param {string} mode - 'direct', 'inverted', or 'bipolar'
+     * @returns {number} Modulation value scaled by amount
+     */
+    getModulation(amount = 1, mode = 'direct') {
+        switch (mode) {
+            case 'inverted':
+                return (1 - this.normalizedOutput) * amount;
+            case 'bipolar':
+                return (this.normalizedOutput * 2 - 1) * amount;
+            case 'direct':
+            default:
+                return this.normalizedOutput * amount;
+        }
+    }
+    
+    /**
+     * Get the analysis buffer for visualization
+     * @returns {Float32Array} Buffer of envelope values
+     */
+    getAnalysisBuffer() {
+        const buffer = new Float32Array(this.analysisBuffer.length);
+        // Copy in correct order (oldest to newest)
+        for (let i = 0; i < this.analysisBuffer.length; i++) {
+            buffer[i] = this.analysisBuffer[(this.bufferIndex + i) % this.analysisBuffer.length];
+        }
+        return buffer;
+    }
+    
+    /**
+     * Reset the follower state
+     */
+    reset() {
+        this.lastValue = 0;
+        this.lastPeak = 0;
+        this.modulationOutput = 0;
+        this.normalizedOutput = 0;
+        this.zeroCrossings = 0;
+        this.analysisBuffer.fill(0);
+        this.bufferIndex = 0;
+    }
+    
+    /**
+     * Configure the follower parameters
+     * @param {object} options - Configuration options
+     */
+    configure(options) {
+        if (options.attack !== undefined) this.attack = options.attack;
+        if (options.release !== undefined) this.release = options.release;
+        if (options.smoothing !== undefined) this.smoothing = options.smoothing;
+        if (options.threshold !== undefined) this.threshold = options.threshold;
+        if (options.range !== undefined) this.range = options.range;
+        if (options.sampleRate !== undefined) this.sampleRate = options.sampleRate;
+    }
+    
+    /**
+     * Create a ducking processor using this follower
+     * @param {object} options - Ducking options
+     * @returns {function} Ducking processor function
+     */
+    createDucker(options = {}) {
+        const reduction = options.reduction ?? -12; // dB reduction when ducking
+        const knee = options.knee ?? 6; // dB knee width
+        
+        return (inputSamples, sidechainSamples) => {
+            // Process sidechain to get envelope
+            const env = this.process(sidechainSamples);
+            
+            // Calculate gain reduction
+            const normalized = env.normalized;
+            const reductionLinear = Math.pow(10, reduction / 20);
+            
+            // Apply soft knee
+            const kneeStart = 0.5;
+            let gainReduction;
+            if (normalized < kneeStart) {
+                gainReduction = 1;
+            } else {
+                const kneeProgress = (normalized - kneeStart) / (1 - kneeStart);
+                gainReduction = 1 - (1 - reductionLinear) * kneeProgress;
+            }
+            
+            // Apply gain reduction to input
+            const output = new Float32Array(inputSamples.length);
+            for (let i = 0; i < inputSamples.length; i++) {
+                output[i] = inputSamples[i] * gainReduction;
+            }
+            
+            return output;
+        };
+    }
+    
+    /**
+     * Create an RMS-based envelope follower
+     * @param {number} windowSize - Window size in samples
+     * @returns {function} RMS processor function
+     */
+    createRMSFollower(windowSize = 512) {
+        const window = new Float32Array(windowSize);
+        let windowIndex = 0;
+        let sumSquares = 0;
+        
+        return (samples) => {
+            let rmsSum = 0;
+            
+            for (let i = 0; i < samples.length; i++) {
+                // Remove oldest sample from sum
+                sumSquares -= window[windowIndex] * window[windowIndex];
+                
+                // Add new sample
+                const sample = samples[i];
+                window[windowIndex] = sample;
+                sumSquares += sample * sample;
+                
+                // Move window
+                windowIndex = (windowIndex + 1) % windowSize;
+                
+                // Calculate RMS
+                rmsSum += Math.sqrt(sumSquares / windowSize);
+            }
+            
+            return rmsSum / samples.length;
+        };
+    }
+    
+    /**
+     * Dispose resources
+     */
+    dispose() {
+        this.analysisBuffer = null;
+        this.onPeak = null;
+        this.onEnvelope = null;
+        this.onThresholdCross = null;
+    }
+}
+
+/**
+ * Create an envelope follower panel UI
+ */
+export function openEnvelopeFollowerPanel(follower) {
     const panel = document.createElement('div');
-    panel.id = 'envelope-follower-panel';
-    panel.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
+    panel.className = 'envelope-follower-panel snug-panel';
     panel.innerHTML = `
-        <div class="bg-zinc-900 rounded-lg p-6 w-full max-w-lg">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold text-white">Envelope Follower</h2>
-                <button id="close-envelope-panel" class="text-zinc-400 hover:text-white text-2xl">&times;</button>
-            </div>
-            
-            <div class="mb-6">
-                <label class="text-zinc-300 text-sm">Current Level</label>
-                <div class="bg-zinc-800 rounded h-8 mt-2 relative overflow-hidden">
-                    <div id="envelope-level-bar" class="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-green-400 transition-all duration-75" style="width: 0%"></div>
-                    <span id="envelope-level-text" class="absolute inset-0 flex items-center justify-center text-white text-sm">0.00</span>
+        <div class="panel-header">
+            <h3>Envelope Follower</h3>
+            <button class="close-btn">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="display-section">
+                <canvas class="envelope-display" width="300" height="100"></canvas>
+                <div class="meter-row">
+                    <label>Level:</label>
+                    <div class="meter-bar">
+                        <div class="meter-fill" id="env-level"></div>
+                    </div>
+                    <span id="env-db">-∞ dB</span>
                 </div>
             </div>
-            
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="text-zinc-300 text-sm">Attack (s)</label>
-                    <input type="number" id="env-attack" value="${follower.attack}" min="0.001" max="1" step="0.001"
-                        class="w-full bg-zinc-800 text-white rounded px-3 py-2 mt-1">
+            <div class="controls-section">
+                <div class="control-row">
+                    <label>Attack:</label>
+                    <input type="range" min="0.001" max="0.5" step="0.001" value="${follower.attack}" id="env-attack">
+                    <span id="env-attack-val">${follower.attack.toFixed(3)}s</span>
                 </div>
-                <div>
-                    <label class="text-zinc-300 text-sm">Release (s)</label>
-                    <input type="number" id="env-release" value="${follower.release}" min="0.01" max="2" step="0.01"
-                        class="w-full bg-zinc-800 text-white rounded px-3 py-2 mt-1">
+                <div class="control-row">
+                    <label>Release:</label>
+                    <input type="range" min="0.01" max="2" step="0.01" value="${follower.release}" id="env-release">
+                    <span id="env-release-val">${follower.release.toFixed(2)}s</span>
+                </div>
+                <div class="control-row">
+                    <label>Smoothing:</label>
+                    <input type="range" min="0" max="1" step="0.01" value="${follower.smoothing}" id="env-smoothing">
+                    <span id="env-smoothing-val">${follower.smoothing.toFixed(2)}</span>
+                </div>
+                <div class="control-row">
+                    <label>Threshold:</label>
+                    <input type="range" min="-96" max="0" step="1" value="${follower.threshold}" id="env-threshold">
+                    <span id="env-threshold-val">${follower.threshold} dB</span>
+                </div>
+                <div class="control-row">
+                    <label>Range:</label>
+                    <input type="range" min="6" max="96" step="6" value="${follower.range}" id="env-range">
+                    <span id="env-range-val">${follower.range} dB</span>
                 </div>
             </div>
-            
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="text-zinc-300 text-sm">Threshold</label>
-                    <input type="range" id="env-threshold" value="${follower.threshold}" min="0" max="1" step="0.01"
-                        class="w-full mt-1">
-                    <span id="env-threshold-value" class="text-zinc-400 text-sm">${follower.threshold.toFixed(2)}</span>
+            <div class="output-section">
+                <h4>Modulation Output</h4>
+                <div class="output-row">
+                    <label>Direct:</label>
+                    <div class="meter-bar">
+                        <div class="meter-fill" id="mod-direct"></div>
+                    </div>
+                    <span id="mod-direct-val">0.00</span>
                 </div>
-                <div>
-                    <label class="text-zinc-300 text-sm">Multiplier</label>
-                    <input type="number" id="env-multiplier" value="${follower.multiplier}" min="0" max="10" step="0.1"
-                        class="w-full bg-zinc-800 text-white rounded px-3 py-2 mt-1">
+                <div class="output-row">
+                    <label>Inverted:</label>
+                    <div class="meter-bar">
+                        <div class="meter-fill" id="mod-inverted"></div>
+                    </div>
+                    <span id="mod-inverted-val">1.00</span>
                 </div>
-            </div>
-            
-            <div class="mb-4">
-                <label class="text-zinc-300 text-sm">Offset</label>
-                <input type="number" id="env-offset" value="${follower.offset}" min="-1" max="1" step="0.1"
-                    class="w-full bg-zinc-800 text-white rounded px-3 py-2 mt-1">
-            </div>
-            
-            <div class="flex gap-4">
-                <button id="env-start" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded">
-                    Start
-                </button>
-                <button id="env-stop" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded">
-                    Stop
-                </button>
             </div>
         </div>
     `;
     
-    document.body.appendChild(panel);
-    
-    // Event listeners
-    document.getElementById('close-envelope-panel').onclick = () => {
-        follower.stop();
-        panel.remove();
-    };
-    
-    document.getElementById('env-attack').onchange = (e) => {
-        follower.setAttack(parseFloat(e.target.value));
-    };
-    
-    document.getElementById('env-release').onchange = (e) => {
-        follower.setRelease(parseFloat(e.target.value));
-    };
-    
-    document.getElementById('env-threshold').oninput = (e) => {
-        const value = parseFloat(e.target.value);
-        follower.setThreshold(value);
-        document.getElementById('env-threshold-value').textContent = value.toFixed(2);
-    };
-    
-    document.getElementById('env-multiplier').onchange = (e) => {
-        follower.setMultiplier(parseFloat(e.target.value));
-    };
-    
-    document.getElementById('env-offset').onchange = (e) => {
-        follower.setOffset(parseFloat(e.target.value));
-    };
-    
-    document.getElementById('env-start').onclick = () => {
-        follower.start();
-    };
-    
-    document.getElementById('env-stop').onclick = () => {
-        follower.stop();
-    };
-    
-    // Set up level monitoring
-    follower.setOnLevelChange((normalizedValue, rawValue) => {
-        const bar = document.getElementById('envelope-level-bar');
-        const text = document.getElementById('envelope-level-text');
-        
-        if (bar && text) {
-            bar.style.width = `${normalizedValue * 100}%`;
-            text.textContent = normalizedValue.toFixed(2);
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .envelope-follower-panel {
+            background: var(--panel-bg, #1a1a2e);
+            border: 1px solid var(--border-color, #3a3a5e);
+            border-radius: 8px;
+            padding: 16px;
+            width: 340px;
+            font-family: system-ui, sans-serif;
+            color: var(--text-color, #e0e0e0);
         }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .panel-header h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .envelope-display {
+            width: 100%;
+            height: 100px;
+            background: #0a0a1a;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        .meter-row, .control-row, .output-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .meter-row label, .control-row label, .output-row label {
+            width: 70px;
+            font-size: 12px;
+        }
+        .meter-bar {
+            flex: 1;
+            height: 8px;
+            background: #0a0a1a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0 8px;
+        }
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #8BC34A, #FFEB3B, #FF9800, #F44336);
+            width: 0%;
+            transition: width 0.05s;
+        }
+        .control-row input[type="range"] {
+            flex: 1;
+            margin-right: 8px;
+        }
+        .control-row span, .output-row span, .meter-row span {
+            width: 60px;
+            text-align: right;
+            font-size: 11px;
+            font-family: monospace;
+        }
+        .output-section h4 {
+            font-size: 12px;
+            margin: 12px 0 8px;
+            border-top: 1px solid #3a3a5e;
+            padding-top: 8px;
+        }
+    `;
+    
+    if (!document.querySelector('#envelope-follower-styles')) {
+        style.id = 'envelope-follower-styles';
+        document.head.appendChild(style);
+    }
+    
+    // Wire up controls
+    const attackSlider = panel.querySelector('#env-attack');
+    const releaseSlider = panel.querySelector('#env-release');
+    const smoothingSlider = panel.querySelector('#env-smoothing');
+    const thresholdSlider = panel.querySelector('#env-threshold');
+    const rangeSlider = panel.querySelector('#env-range');
+    
+    attackSlider.addEventListener('input', (e) => {
+        follower.attack = parseFloat(e.target.value);
+        panel.querySelector('#env-attack-val').textContent = `${follower.attack.toFixed(3)}s`;
     });
+    
+    releaseSlider.addEventListener('input', (e) => {
+        follower.release = parseFloat(e.target.value);
+        panel.querySelector('#env-release-val').textContent = `${follower.release.toFixed(2)}s`;
+    });
+    
+    smoothingSlider.addEventListener('input', (e) => {
+        follower.smoothing = parseFloat(e.target.value);
+        panel.querySelector('#env-smoothing-val').textContent = follower.smoothing.toFixed(2);
+    });
+    
+    thresholdSlider.addEventListener('input', (e) => {
+        follower.threshold = parseFloat(e.target.value);
+        panel.querySelector('#env-threshold-val').textContent = `${follower.threshold} dB`;
+    });
+    
+    rangeSlider.addEventListener('input', (e) => {
+        follower.range = parseFloat(e.target.value);
+        panel.querySelector('#env-range-val').textContent = `${follower.range} dB`;
+    });
+    
+    // Close button
+    panel.querySelector('.close-btn').addEventListener('click', () => {
+        panel.remove();
+    });
+    
+    // Animation loop for display
+    const canvas = panel.querySelector('.envelope-display');
+    const ctx = canvas.getContext('2d');
+    let animationId;
+    
+    function updateDisplay() {
+        const buffer = follower.getAnalysisBuffer();
+        
+        // Clear canvas
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw envelope waveform
+        ctx.strokeStyle = '#4CAF50';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        for (let i = 0; i < buffer.length; i++) {
+            const x = (i / buffer.length) * canvas.width;
+            const y = canvas.height - (buffer[i] * canvas.height);
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Update meters
+        const normalized = follower.normalizedOutput;
+        panel.querySelector('#env-level').style.width = `${normalized * 100}%`;
+        panel.querySelector('#env-db').textContent = follower.lastValue > 0 
+            ? `${(20 * Math.log10(follower.lastValue)).toFixed(1)} dB`
+            : '-∞ dB';
+        
+        panel.querySelector('#mod-direct').style.width = `${normalized * 100}%`;
+        panel.querySelector('#mod-direct-val').textContent = normalized.toFixed(2);
+        
+        const inverted = 1 - normalized;
+        panel.querySelector('#mod-inverted').style.width = `${inverted * 100}%`;
+        panel.querySelector('#mod-inverted-val').textContent = inverted.toFixed(2);
+        
+        animationId = requestAnimationFrame(updateDisplay);
+    }
+    
+    updateDisplay();
     
     return panel;
 }
+
+export default EnvelopeFollower;
