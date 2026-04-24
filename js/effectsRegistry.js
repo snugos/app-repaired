@@ -10,6 +10,12 @@ import { AutoPanner } from './AutoPanner.js';
 import { AudioLimiter } from './AudioLimiter.js';
 import { ClipGlitchEffect } from './ClipGlitchEffect.js';
 import { ClipSilenceDetector } from './ClipSilenceDetector.js';
+import { FrequencyShifter } from './FrequencyShifter.js';
+import { PhaseScope } from './PhaseScope.js';
+import { SubHarmonicGenerator } from './SubHarmonicGenerator.js';
+import { NoiseGateEnhancement } from './NoiseGateEnhancement.js';
+import { MidSideEncoderDecoder } from './MidSideEncoderDecoder.js';
+import { TimestretchDisplay } from './TimestretchDisplay.js';
 
 // Register new effects on Tone namespace
 import { FrequencySplitter } from './FrequencySplitter.js';
@@ -22,6 +28,11 @@ if (typeof Tone !== 'undefined') {
     Tone.HarmonicExciter = HarmonicExciter;
     Tone.PitchDrift = PitchDrift;
     Tone.SampleSlicer = SampleSlicer;
+    Tone.FrequencyShifter = FrequencyShifter;
+    Tone.SubHarmonicGenerator = SubHarmonicGenerator;
+    Tone.NoiseGateEnhancement = NoiseGateEnhancement;
+    Tone.MidSideEncoderDecoder = MidSideEncoderDecoder;
+    Tone.PhaseScope = PhaseScope;
 }
 
 // Mid-Side Effect - Stereo manipulation using M/S encoding
