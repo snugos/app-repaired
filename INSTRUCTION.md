@@ -10,6 +10,10 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 4. **Ring Modulator** - Classic ring modulation effect ✅ COMPLETED
 5. **Frequency Shifter** - Linear frequency shifting (not pitch shifting) ✅ COMPLETED
 6. **Envelope Generator** - ADSR envelope generator for modulation ✅ COMPLETED
+7. **Vocoder** - Classic vocoder effect with carrier and modulator ✅ COMPLETED
+8. **Phaser Effect** - All-pass filter-based phase shifting effect
+9. **Flanger Effect** - Time-based delay modulation effect
+10. **Chorus Effect** - Detune-based stereo widening effect
 
 ## Workflow
 
@@ -49,16 +53,16 @@ Based on SnugOS being a browser-based DAW with:
 - MIDI support
 
 New Feature Queue:
-1. **Vocoder** - Classic vocoder effect with carrier and modulator
-2. **Phaser Effect** - All-pass filter-based phase shifting effect
-3. **Flanger Effect** - Time-based delay modulation effect
-4. **Chorus Effect** - Detune-based stereo widening effect
-5. **Tremolo Effect** - Amplitude modulation effect
-6. **Distortion** - Waveshaping distortion effect
-7. **Bitcrusher** - Sample rate and bit depth reduction
-8. **Compressor** - Full-band dynamics compressor with sidechain
-9. **Limiter** - Brick-wall limiter with lookahead
-10. **Noise Gate** - Threshold-based gate with attack/release
+1. **Tremolo Effect** - Amplitude modulation effect
+2. **Distortion** - Waveshaping distortion effect
+3. **Bitcrusher** - Sample rate and bit depth reduction
+4. **Compressor** - Full-band dynamics compressor with sidechain
+5. **Limiter** - Brick-wall limiter with lookahead
+6. **Noise Gate** - Threshold-based gate with attack/release
+7. **Auto-Wah** - Filter-based wah effect
+8. **Tape Stop** - Tape slowdown effect
+9. **Vinyl Effect** - Vinyl crackle and noise
+10. **Reverse Reverb** - Reverse reverb tails
 
 ## Rules
 
