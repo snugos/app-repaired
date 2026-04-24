@@ -408,239 +408,254 @@ class ScaleSuggestion {
     }
 }
 
-/**
- * Initialize scale suggestion with appServices
- */
-let appServicesRef = null;
-
-export function initScaleSuggestion(appServices) {
-    appServicesRef = appServices;
-    console.log('[ScaleSuggestion] Initialized with appServices');
-}
-
-/**
- * Open the Scale Suggestion panel
- */
-export function openScaleSuggestionPanel() {
-    if (!appServicesRef) {
-        console.error('[ScaleSuggestion] Not initialized with appServices');
-        return;
-    }
-    
-    const panelId = 'scale-suggestion-panel';
-    
-    // Check if panel already exists
-    if (appServicesRef.getWindowByIdState(panelId)) {
-        appServicesRef.focusWindow(panelId);
-        return;
-    }
-    
-    const scales = scaleSuggestion.aiEngine.getAvailableScales();
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    
-    const contentHTML = `
-        <div class="scale-suggestion-panel" style="padding: 16px; color: #e0e0e0; font-family: system-ui, sans-serif;">
-            <div style="margin-bottom: 16px;">
-                <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #888;">Scale Suggestion</h3>
-                <p style="margin: 0; font-size: 12px; color: #666;">
-                    Analyze MIDI or audio to suggest appropriate musical scales
-                </p>
-            </div>
-            
-            <!-- Analysis Controls -->
-            <div style="margin-bottom: 16px; padding: 12px; background: #2a2a2a; border-radius: 6px;">
-                <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Analysis Source</div>
-                <select id="ss-source-select" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #e0e0e0;">
-                    <option value="">Select a track...</option>
-                </select>
-                <button id="ss-analyze-btn" style="width: 100%; margin-top: 8px; padding: 10px; background: #4a9eff; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 500;">
-                    Analyze Track
-                </button>
-            </div>
-            
-            <!-- Current Suggestion -->
-            <div id="ss-suggestion-display" style="margin-bottom: 16px; padding: 12px; background: #1a1a1a; border-radius: 6px; text-align: center;">
-                <div style="font-size: 11px; color: #666;">Current Suggestion</div>
-                <div id="ss-scale-name" style="font-size: 24px; font-weight: bold; color: #4a9eff; margin: 8px 0;">--</div>
-                <div id="ss-confidence" style="font-size: 12px; color: #888;">Confidence: --</div>
-            </div>
-            
-            <!-- Root Note Selector -->
-            <div style="margin-bottom: 16px;">
-                <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Root Note</div>
-                <select id="ss-root-select" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #e0e0e0;">
-                    ${notes.map(n => `<option value="${n}">${n}</option>`).join('')}
-                </select>
-            </div>
-            
-            <!-- Scale List -->
-            <div style="margin-bottom: 16px;">
-                <div style="font-size: 12px; color: #888; margin-bottom: 8px;">All Scales</div>
-                <div id="ss-scale-list" style="max-height: 200px; overflow-y: auto; background: #1a1a1a; border-radius: 6px; padding: 8px;">
-                    ${scales.map(s => `
-                        <div class="ss-scale-item" data-scale="${s}" style="padding: 8px; margin-bottom: 4px; background: #2a2a2a; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                            ${s}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            
-            <!-- Scale Notes Display -->
-            <div id="ss-scale-notes" style="margin-bottom: 16px; padding: 12px; background: #2a2a2a; border-radius: 6px;">
-                <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Scale Notes</div>
-                <div id="ss-notes-display" style="font-size: 14px; color: #e0e0e0;">Select a scale to see notes</div>
-            </div>
-            
-            <!-- Actions -->
-            <div style="display: flex; gap: 8px;">
-                <button id="ss-apply-scale" style="flex: 1; padding: 10px; background: #4a9eff; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 500;">
-                    Apply to Scale Lock
-                </button>
-                <button id="ss-clear-btn" style="padding: 10px; background: #3a3a3a; border: none; border-radius: 4px; color: #e0e0e0; cursor: pointer;">
-                    Clear
-                </button>
-            </div>
-        </div>
-    `;
-    
-    const win = appServicesRef.createWindow(panelId, 'Scale Suggestion', contentHTML, {
-        width: 350,
-        height: 550,
-        resizable: true
-    });
-    
-    // Populate track select
-    setTimeout(() => {
-        const sourceSelect = document.getElementById('ss-source-select');
-        if (sourceSelect && appServicesRef.getTracksState) {
-            const tracks = appServicesRef.getTracksState();
-            tracks.forEach(track => {
-                const option = document.createElement('option');
-                option.value = track.id;
-                option.textContent = `${track.name} (${track.type})`;
-                sourceSelect.appendChild(option);
-            });
-        }
-        
-        // Setup event handlers
-        setupPanelEvents();
-    }, 100);
-    
-    function setupPanelEvents() {
-        // Analyze button
-        const analyzeBtn = document.getElementById('ss-analyze-btn');
-        if (analyzeBtn) {
-            analyzeBtn.addEventListener('click', () => {
-                const sourceSelect = document.getElementById('ss-source-select');
-                const trackId = sourceSelect?.value;
-                if (!trackId) {
-                    appServicesRef.showNotification('Please select a track', 2000);
-                    return;
-                }
-                
-                const tracks = appServicesRef.getTracksState();
-                const track = tracks.find(t => t.id === trackId);
-                
-                if (track && track.activeSequenceId) {
-                    const sequence = track.sequences?.find(s => s.id === track.activeSequenceId);
-                    if (sequence && sequence.notes) {
-                        const result = scaleSuggestion.analyzeMidiNotes(sequence.notes);
-                        updateSuggestionDisplay(result);
-                        appServicesRef.showNotification(`Scale detected: ${result.scale} (${Math.round(result.confidence * 100)}% confidence)`, 3000);
-                    } else {
-                        appServicesRef.showNotification('No notes found in track', 2000);
-                    }
-                } else {
-                    appServicesRef.showNotification('No active sequence on track', 2000);
-                }
-            });
-        }
-        
-        // Scale list items
-        document.querySelectorAll('.ss-scale-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const scaleName = item.dataset.scale;
-                const rootSelect = document.getElementById('ss-root-select');
-                const root = rootSelect?.value || 'C';
-                
-                const scaleInfo = scaleSuggestion.getScaleInfo(scaleName, root);
-                if (scaleInfo) {
-                    document.getElementById('ss-notes-display').textContent = scaleInfo.notes.join(' - ');
-                    
-                    // Highlight selected
-                    document.querySelectorAll('.ss-scale-item').forEach(i => i.style.background = '#2a2a2a');
-                    item.style.background = '#4a9eff33';
-                }
-            });
-        });
-        
-        // Root note change
-        const rootSelect = document.getElementById('ss-root-select');
-        if (rootSelect) {
-            rootSelect.addEventListener('change', () => {
-                const selectedScale = document.querySelector('.ss-scale-item[style*="#4a9eff"]');
-                if (selectedScale) {
-                    selectedScale.click(); // Re-trigger scale info update
-                }
-            });
-        }
-        
-        // Apply scale button
-        const applyBtn = document.getElementById('ss-apply-scale');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => {
-                const suggestion = scaleSuggestion.getSuggestion();
-                if (suggestion && suggestion.confidence > 0) {
-                    if (appServicesRef.setScaleLockEnabled && appServicesRef.setScaleLockKey) {
-                        appServicesRef.setScaleLockEnabled(true);
-                        appServicesRef.setScaleLockKey(suggestion.scale);
-                        appServicesRef.showNotification(`Applied ${suggestion.root} ${suggestion.scale} to Scale Lock`, 2000);
-                    } else {
-                        appServicesRef.showNotification('Scale Lock not available', 2000);
-                    }
-                } else {
-                    appServicesRef.showNotification('No scale suggestion to apply', 2000);
-                }
-            });
-        }
-        
-        // Clear button
-        const clearBtn = document.getElementById('ss-clear-btn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                scaleSuggestion.clearHistory();
-                document.getElementById('ss-scale-name').textContent = '--';
-                document.getElementById('ss-confidence').textContent = 'Confidence: --';
-                document.getElementById('ss-notes-display').textContent = 'Select a scale to see notes';
-                appServicesRef.showNotification('Scale history cleared', 1500);
-            });
-        }
-    }
-    
-    function updateSuggestionDisplay(result) {
-        document.getElementById('ss-scale-name').textContent = `${result.root} ${result.scale}`;
-        document.getElementById('ss-confidence').textContent = `Confidence: ${Math.round(result.confidence * 100)}% (${result.noteMatches}/${result.totalNotes} notes)`;
-        
-        // Update root selector to match detected root
-        const rootSelect = document.getElementById('ss-root-select');
-        if (rootSelect && result.root) {
-            rootSelect.value = result.root;
-        }
-        
-        // Highlight matching scale in list
-        document.querySelectorAll('.ss-scale-item').forEach(item => {
-            if (item.dataset.scale === result.scale) {
-                item.style.background = '#4a9eff33';
-                item.click();
-            } else {
-                item.style.background = '#2a2a2a';
-            }
-        });
-    }
-}
-
 // Singleton instance
 export const scaleSuggestion = new ScaleSuggestion();
 
 // Export class for multiple instances
 export default ScaleSuggestion;
+
+// --- UI Panel ---
+
+let localAppServices = {};
+
+/**
+ * Initialize Scale Suggestion with app services
+ * @param {Object} appServices - Application services from main.js
+ */
+export function initScaleSuggestion(appServices) {
+    localAppServices = appServices || {};
+    console.log('[ScaleSuggestion] Initialized');
+}
+
+/**
+ * Opens the Scale Suggestion panel
+ * @param {Object} savedState - Optional saved window state
+ */
+export function openScaleSuggestionPanel(savedState = null) {
+    const windowId = 'scaleSuggestion';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderScaleSuggestionContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'scaleSuggestionContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = {
+        width: 450,
+        height: 550,
+        minWidth: 380,
+        minHeight: 450,
+        initialContentKey: windowId,
+        closable: true,
+        minimizable: true,
+        resizable: true
+    };
+
+    if (savedState) {
+        Object.assign(options, {
+            x: parseInt(savedState.left, 10),
+            y: parseInt(savedState.top, 10),
+            width: parseInt(savedState.width, 10),
+            height: parseInt(savedState.height, 10),
+            zIndex: savedState.zIndex,
+            isMinimized: savedState.isMinimized
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Scale Suggestion', contentContainer, options);
+    
+    if (win?.element) {
+        renderScaleSuggestionContent();
+    }
+    
+    return win;
+}
+
+/**
+ * Render the Scale Suggestion panel content
+ */
+function renderScaleSuggestionContent() {
+    const container = document.getElementById('scaleSuggestionContent');
+    if (!container) return;
+
+    const suggestion = scaleSuggestion.getSuggestion();
+    const allSuggestions = scaleSuggestion.getAllSuggestions();
+    const scales = ['major', 'minor', 'harmonicMinor', 'melodicMinor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian', 'pentatonicMajor', 'pentatonicMinor', 'blues', 'chromatic'];
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    container.innerHTML = `
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Current Suggestion</span>
+                <span class="text-xs px-2 py-0.5 rounded ${suggestion.confidence > 0.6 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'}">
+                    ${Math.round(suggestion.confidence * 100)}% confidence
+                </span>
+            </div>
+            <div class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                ${suggestion.root || 'C'} ${suggestion.scale || 'major'}
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+                ${suggestion.noteMatches || 0}/${suggestion.totalNotes || 0} notes match
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Analyze from MIDI</div>
+            <div class="bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 p-3">
+                <select id="scaleSuggestionTrackSelect" class="w-full p-2 mb-2 text-sm bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-200">
+                    <option value="">Select a MIDI track...</option>
+                </select>
+                <button id="analyzeMidiBtn" class="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Analyze MIDI Notes
+                </button>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Scale Selection</div>
+            <div class="grid grid-cols-3 gap-2">
+                ${scales.map(scale => `
+                    <button class="scale-select-btn px-2 py-1 text-xs rounded border ${suggestion.scale === scale ? 'bg-blue-500 text-white border-blue-600' : 'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600'}"
+                        data-scale="${scale}" ${suggestion.scale === scale ? '' : ''}>
+                        ${scale.replace(/([A-Z])/g, ' $1').trim()}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Root Note</div>
+            <div class="grid grid-cols-6 gap-1">
+                ${notes.map(note => `
+                    <button class="root-select-btn px-2 py-1 text-xs rounded border ${suggestion.root === note ? 'bg-purple-500 text-white border-purple-600' : 'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600'}"
+                        data-root="${note}">
+                        ${note}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Scale Notes</div>
+            <div id="scaleNotesDisplay" class="bg-black rounded p-3 text-center">
+                <div class="text-lg font-mono text-green-400">
+                    ${scaleSuggestion.getScaleInfo(suggestion.scale || 'major', suggestion.root || 'C')?.notes?.join(' - ') || 'C - E - G'}
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">All Scale Rankings</div>
+            <div id="scaleRankings" class="bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 max-h-40 overflow-y-auto">
+                ${allSuggestions.slice(0, 10).map((s, i) => `
+                    <div class="flex items-center justify-between px-3 py-1 ${i % 2 === 0 ? 'bg-gray-50 dark:bg-slate-800' : ''}">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">${i + 1}. ${s.scale}</span>
+                        <span class="text-xs ${s.confidence > 0.5 ? 'text-green-600' : 'text-gray-500'}">${Math.round(s.confidence * 100)}%</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="flex gap-2">
+            <button id="applyScaleBtn" class="flex-1 px-3 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">
+                Apply to Track
+            </button>
+            <button id="clearHistoryBtn" class="px-3 py-2 text-sm bg-gray-400 text-white rounded hover:bg-gray-500">
+                Clear
+            </button>
+        </div>
+    `;
+
+    // Populate track select
+    const trackSelect = container.querySelector('#scaleSuggestionTrackSelect');
+    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
+    tracks.forEach(track => {
+        if (track.type === 'MIDI' || track.type === 'Synth') {
+            const option = document.createElement('option');
+            option.value = track.id;
+            option.textContent = `${track.name} (${track.type})`;
+            trackSelect.appendChild(option);
+        }
+    });
+
+    // Analyze MIDI button
+    const analyzeBtn = container.querySelector('#analyzeMidiBtn');
+    analyzeBtn?.addEventListener('click', () => {
+        const trackId = parseInt(trackSelect.value, 10);
+        if (!trackId) {
+            localAppServices.showNotification?.('Please select a track', 2000);
+            return;
+        }
+        
+        const track = tracks.find(t => t.id === trackId);
+        if (!track) return;
+        
+        // Collect all notes from sequences
+        const notes = [];
+        if (track.sequences) {
+            track.sequences.forEach(seq => {
+                if (seq.notes) {
+                    seq.notes.forEach(note => {
+                        notes.push({
+                            pitch: note.pitch,
+                            time: note.time,
+                            duration: note.duration
+                        });
+                    });
+                }
+            });
+        }
+        
+        if (notes.length === 0) {
+            localAppServices.showNotification?.('No notes found in track', 2000);
+            return;
+        }
+        
+        const result = scaleSuggestion.analyzeMidiNotes(notes);
+        localAppServices.showNotification?.(`Analyzed ${notes.length} notes: ${result.root} ${result.scale}`, 2000);
+        
+        // Refresh the UI
+        renderScaleSuggestionContent();
+    });
+
+    // Scale selection buttons
+    container.querySelectorAll('.scale-select-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const newScale = btn.dataset.scale;
+            scaleSuggestion.learnFromCorrection(newScale, suggestion.root);
+            renderScaleSuggestionContent();
+        });
+    });
+
+    // Root selection buttons
+    container.querySelectorAll('.root-select-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const newRoot = btn.dataset.root;
+            scaleSuggestion.learnFromCorrection(suggestion.scale, newRoot);
+            renderScaleSuggestionContent();
+        });
+    });
+
+    // Apply button
+    const applyBtn = container.querySelector('#applyScaleBtn');
+    applyBtn?.addEventListener('click', () => {
+        const scaleInfo = scaleSuggestion.getScaleInfo(suggestion.scale || 'major', suggestion.root || 'C');
+        if (scaleInfo) {
+            localAppServices.showNotification?.(`Scale locked: ${scaleInfo.name} - ${scaleInfo.notes.join(', ')}`, 3000);
+        }
+    });
+
+    // Clear button
+    const clearBtn = container.querySelector('#clearHistoryBtn');
+    clearBtn?.addEventListener('click', () => {
+        scaleSuggestion.clearHistory();
+        localAppServices.showNotification?.('History cleared', 1500);
+        renderScaleSuggestionContent();
+    });
+}
