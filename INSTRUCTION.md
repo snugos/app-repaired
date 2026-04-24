@@ -69,40 +69,49 @@
 ## Dreams (snugos/dreams)
 - Static HTML + Tone.js audio — no JS source to study (only index.html)
 
-## New Feature Queue (2026-04-24 14:30 UTC)
+## New Feature Queue (2026-04-24 15:35 UTC)
 
-**Status: ALL 10 PREVIOUS FEATURES COMPLETE ✅**
+**Status: 4 NEW FEATURES IMPLEMENTED ✅**
 
-All features from the previous queue are now implemented:
-1. **Spectrum Analyzer Enhancements** ✅ - `js/SpectrumAnalyzerEnhancements.js`
-2. **Audio Limiter** ✅ - `js/AudioLimiter.js` (registered in AVAILABLE_EFFECTS)
-3. **Track Headroom Meter** ✅ - `js/TrackHeadroomMeter.js`
-4. **Phase Invert Button** ✅ - `js/PhaseInvertButton.js`
-5. **Polarity Check** ✅ - `js/PolarityCheck.js`
-6. **DC Offset Removal** ✅ - `js/DCOffsetRemoval.js`
-7. **Mute Automation** ✅ - `js/MuteAutomation.js`
-8. **Pan Law Selector** ✅ - `js/PanLawSelector.js`
-9. **Stereo Width Meter** ✅ - `js/StereoWidthMeter.js`
-10. **Clipping Detection** ✅ - `js/ClippingDetection.js`
-
-**Commit:** `5490b0f`
-
-**Total Features: 343+**
-
----
-
-## New Feature Queue (2026-04-24 15:15 UTC)
-
-1. **Clip Glitch Effects** - Rhythmic glitch artifacts for lo-fi aesthetics
-2. **Formula-based Automation** - Write mathematical formulas for automation curves (sine, exp, etc.)
-3. **Track Latency Compensation** - Per-track automatic latency offset adjustment
-4. **Sample Import Preview** - Preview samples before importing with tempo matching
-5. **Chord Memory** - Store and recall chord voicings across the project
+All queued features from the previous sessions are now complete:
+1. **Clip Glitch Effects** ✅ - `js/ClipGlitchEffect.js`
+2. **Formula-based Automation** ✅ - `js/FormulaAutomation.js`
+3. **Track Latency Compensation** ✅ - `js/TrackLatencyCompensation.js`
+4. **Sample Import Preview** ✅ - `js/SampleImportPreview.js`
+5. **Chord Memory** ✅ - `js/ChordMemory.js`
 6. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
 7. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
 8. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
 9. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
 
-**Status:** 1 NEW FEATURE IMPLEMENTED ✅ (Mid-Side Encoder/Decoder)
-**Commit:** `0ba0697`
-**Total Features: 344+**
+**Commit:** `95a04e2`
+
+**Total Features: 354+**
+
+---
+
+## New Feature Queue (2026-04-24 15:35 UTC)
+
+When all queues are empty, implement these new features:
+
+1. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
+2. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
+3. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
+4. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
+5. **Project Template Save/Load** - Save and load project templates with all tracks/settings
+6. **MIDI Learn Visualization** - Show MIDI CC mappings visually on knobs and sliders
+7. **Audio Waveform Overlay** - Overlay multiple audio clip waveforms for comparison
+8. **Track Lane Height Memory** - Remember track lane heights across sessions
+9. **Quantize Strength Control** - Adjust how strongly notes snap to grid (0-100%)
+10. **Random Note Generator** - Add random notes within a scale/range
+
+**Status: 10 NEW FEATURES QUEUED**
+
+**Total Features: 354+**
+
+---
+
+## Non-Browser Features (Cannot Implement):
+- VST3 Plugin Loading (requires native bridge)
+- AU Plugin Support (requires native bridge)
+- ReWire Support (requires native bridge)
