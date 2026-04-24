@@ -4,7 +4,7 @@
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
-import { DrumPatternGenerator, initDrumPatternGenerator, getDrumGenerator, generateDrumPattern, DRUM_STYLES, DRUM_COMPLEXITY_LEVELS: COMPLEXITY_LEVELS } from './DrumPatternGenerator.js';
+import { DrumPatternGenerator, initDrumPatternGenerator, getDrumGenerator, generateDrumPattern, DRUM_STYLES, COMPLEXITY_LEVELS as DRUM_COMPLEXITY_LEVELS } from './DrumPatternGenerator.js';
 import { MelodyGenerator, initMelodyGenerator, getMelodyGenerator, generateMelody, MELODY_STYLES, MELODY_MOODS } from './MelodyGenerator.js';
 import { initQuickActionsMenu, openQuickActionsMenu, closeQuickActionsMenu } from './QuickActionsMenu.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
