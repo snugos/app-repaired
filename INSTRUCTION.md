@@ -91,15 +91,18 @@ All features from the previous queue are now implemented:
 
 ---
 
-## New Feature Queue (2026-04-24 14:35 UTC)
+## New Feature Queue (2026-04-24 15:15 UTC)
 
-1. **Mid-Side Encoder/Decoder** - Encode stereo to mid-side, decode mid-side to stereo with independent control
-2. **Clip Glitch Effects** - Rhythmic glitch artifacts for lo-fi aesthetics
-3. **Formula-based Automation** - Write mathematical formulas for automation curves (sine, exp, etc.)
-4. **Track Latency Compensation** - Per-track automatic latency offset adjustment
-5. **Sample Import Preview** - Preview samples before importing with tempo matching
-6. **Chord Memory** - Store and recall chord voicings across the project
-7. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
-8. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
-9. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
-10. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
+1. **Clip Glitch Effects** - Rhythmic glitch artifacts for lo-fi aesthetics
+2. **Formula-based Automation** - Write mathematical formulas for automation curves (sine, exp, etc.)
+3. **Track Latency Compensation** - Per-track automatic latency offset adjustment
+4. **Sample Import Preview** - Preview samples before importing with tempo matching
+5. **Chord Memory** - Store and recall chord voicings across the project
+6. **Ghost Track** - Create a quieter copy of a track for reference without affecting mix
+7. **Mixdown Reference Export** - One-click export of mix with reference metadata embedded
+8. **Smart Duplicate** - Smart duplicate that increments note values or avoids conflicts
+9. **Ruler Mode Toggle** - Toggle between bars/beats and timecode display on ruler
+
+**Status:** 1 NEW FEATURE IMPLEMENTED ✅ (Mid-Side Encoder/Decoder)
+**Commit:** `0ba0697`
+**Total Features: 344+**
