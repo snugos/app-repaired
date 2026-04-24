@@ -4,6 +4,8 @@
 import { SnugWindow } from './SnugWindow.js';
 import * as Constants from './constants.js';
 import { AICompositionAssistant, openAICompositionPanel } from './AICompositionAssistant.js';
+import { DrumPatternGenerator, initDrumPatternGenerator, getDrumGenerator, generateDrumPattern, DRUM_STYLES, DRUM_COMPLEXITY_LEVELS: COMPLEXITY_LEVELS } from './DrumPatternGenerator.js';
+import { MelodyGenerator, initMelodyGenerator, getMelodyGenerator, generateMelody, MELODY_STYLES, MELODY_MOODS } from './MelodyGenerator.js';
 import { initQuickActionsMenu, openQuickActionsMenu, closeQuickActionsMenu } from './QuickActionsMenu.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
@@ -403,7 +405,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingtDAW ? appServices.getIsReconstructingtDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -419,7 +421,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructingt && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -641,6 +643,19 @@ import {
 
     // Project Statistics
     openProjectStatisticsPanel,
+
+    // AI Music Generation
+    DrumPatternGenerator,
+    initDrumPatternGenerator,
+    getDrumGenerator,
+    generateDrumPattern,
+    DRUM_STYLES,
+    MelodyGenerator,
+    initMelodyGenerator,
+    getMelodyGenerator,
+    generateMelody,
+    MELODY_STYLES,
+    MELODY_MOODS,
 
     // FeatureAdditions exports
     ...FeatureAdditions,
