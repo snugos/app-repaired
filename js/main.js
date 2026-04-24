@@ -7,6 +7,10 @@ import { AICompositionAssistant, openAICompositionPanel } from './AICompositionA
 import { DrumPatternGenerator, initDrumPatternGenerator, getDrumGenerator, generateDrumPattern, DRUM_STYLES, COMPLEXITY_LEVELS as DRUM_COMPLEXITY_LEVELS } from './DrumPatternGenerator.js';
 import { MelodyGenerator, initMelodyGenerator, getMelodyGenerator, generateMelody, MELODY_STYLES, MELODY_MOODS } from './MelodyGenerator.js';
 import { initQuickActionsMenu, openQuickActionsMenu, closeQuickActionsMenu } from './QuickActionsMenu.js';
+import { AIMasteringEnhancement, initAIMasteringEnhancement, openAIMasteringEnhancementPanel } from './AIMasteringEnhancement.js';
+import { AudioStemExportEnhancement, initAudioStemExportEnhancement, openAudioStemExportEnhancementPanel } from './AudioStemExportEnhancement.js';
+import { MIDIPatternVariationEnhancement, initMIDIPatternVariationEnhancement, openMIDIPatternVariationEnhancementPanel } from './MIDIPatternVariationEnhancement.js';
+import { PluginPresetBrowser, initPluginPresetBrowser, openPluginPresetBrowserPanel } from './PluginPresetBrowser.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -384,7 +388,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -404,7 +408,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -611,6 +615,26 @@ import {
 
     // EQ Preset Library
     openEQPresetLibraryPanel,
+    
+    // AI Mastering Enhancement
+    AIMasteringEnhancement,
+    initAIMasteringEnhancement,
+    openAIMasteringEnhancementPanel,
+    
+    // Audio Stem Export Enhancement
+    AudioStemExportEnhancement,
+    initAudioStemExportEnhancement,
+    openAudioStemExportEnhancementPanel,
+    
+    // MIDI Pattern Variation Enhancement
+    MIDIPatternVariationEnhancement,
+    initMIDIPatternVariationEnhancement,
+    openMIDIPatternVariationEnhancementPanel,
+    
+    // Plugin Preset Browser
+    PluginPresetBrowser,
+    initPluginPresetBrowser,
+    openPluginPresetBrowserPanel,
 
     // Sample Library Browser
     openSampleLibraryBrowserPanel,
