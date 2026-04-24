@@ -930,7 +930,7 @@ export const AVAILABLE_EFFECTS = {
             { key: 'attackGain', label: 'Attack', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.5, decimals: 1, displaySuffix: 'x', isSignal: false },
             { key: 'sustainGain', label: 'Sustain', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 0.5, decimals: 1, displaySuffix: 'x', isSignal: false },
             { key: 'attackTime', label: 'Attack Time', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
-            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 1, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.001, max: 0.5, step: 0.001, defaultValue: 0.1, decimals: 3, displaySuffix: 's', isSignal: false },
         ]
     },
     Chebyshev: {
@@ -1221,6 +1221,80 @@ export const AVAILABLE_EFFECTS = {
             { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
             { key: 'syncToBPM', label: 'Sync BPM', type: 'checkbox', defaultValue: true, isSignal: false },
             { key: 'shape', label: 'Waveform', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sine', isSignal: false },
+        ]
+    },
+    DynamicTubeSaturation: {
+        displayName: 'Tube Saturator',
+        toneClass: 'DynamicTubeSaturation',
+        params: [
+            { key: 'drive', label: 'Drive', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'character', label: 'Character', type: 'select', options: ['warm', 'rich', 'sparkle', 'grit'], defaultValue: 'warm', isSignal: false },
+            { key: 'tone', label: 'Tone', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.7, decimals: 2, isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.8, decimals: 2, isSignal: false },
+        ]
+    },
+    MultibandGate: {
+        displayName: 'Multiband Gate',
+        toneClass: 'MultibandGate',
+        params: [
+            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 50, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 1000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lowThreshold', label: 'Low Thresh', type: 'knob', min: -80, max: 0, step: 1, defaultValue: -30, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'midThreshold', label: 'Mid Thresh', type: 'knob', min: -80, max: 0, step: 1, defaultValue: -30, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'highThreshold', label: 'High Thresh', type: 'knob', min: -80, max: 0, step: 1, defaultValue: -30, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.005, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+        ]
+    },
+    TransientModulator: {
+        displayName: 'Transient Mod',
+        toneClass: 'TransientModulator',
+        params: [
+            { key: 'inputGain', label: 'Input', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'lowGain', label: 'Low Band', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'midGain', label: 'Mid Band', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'highGain', label: 'High Band', type: 'knob', min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, decimals: 1, displaySuffix: 'x', isSignal: false },
+            { key: 'lowCrossover', label: 'Low Xover', type: 'knob', min: 60, max: 500, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highCrossover', label: 'High Xover', type: 'knob', min: 1000, max: 10000, step: 100, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'attackTime', label: 'Attack', type: 'knob', min: 0.0001, max: 0.1, step: 0.0001, defaultValue: 0.001, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'releaseTime', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.2, decimals: 2, displaySuffix: 's', isSignal: false },
+        ]
+    },
+    StereoWidthController: {
+        displayName: 'Stereo Width',
+        toneClass: 'StereoWidthController',
+        params: [
+            { key: 'width', label: 'Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'lowWidth', label: 'Low Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'midWidth', label: 'Mid Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'highWidth', label: 'High Width', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1.5, decimals: 2, isSignal: false },
+            { key: 'monoBass', label: 'Mono Bass', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1.0, decimals: 2, isSignal: false },
+            { key: 'correlation', label: 'Corr', type: 'knob', min: -1, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+        ]
+    },
+    DynamicResonanceFilter: {
+        displayName: 'Dyn Resonance',
+        toneClass: 'DynamicResonanceFilter',
+        params: [
+            { key: 'frequency', label: 'Freq', type: 'knob', min: 20, max: 18000, step: 1, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: true },
+            { key: 'Q', label: 'Q', type: 'knob', min: 0.1, max: 30, step: 0.1, defaultValue: 5, decimals: 1, isSignal: true },
+            { key: 'type', label: 'Type', type: 'select', options: ['lowpass', 'highpass', 'bandpass', 'notch'], defaultValue: 'lowpass', isSignal: false },
+            { key: 'dynamics', label: 'Dynamics', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.0001, max: 0.5, step: 0.0001, defaultValue: 0.01, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+        ]
+    },
+    VocalDoubler: {
+        displayName: 'Vocal Doubler',
+        toneClass: 'VocalDoubler',
+        params: [
+            { key: 'pitch1', label: 'Pitch 1', type: 'knob', min: -12, max: 12, step: 1, defaultValue: 0, decimals: 0, displaySuffix: 'st', isSignal: false },
+            { key: 'pitch2', label: 'Pitch 2', type: 'knob', min: -12, max: 12, step: 1, defaultValue: 7, decimals: 0, displaySuffix: 'st', isSignal: false },
+            { key: 'time1', label: 'Time 1', type: 'knob', min: -50, max: 50, step: 1, defaultValue: -10, decimals: 0, displaySuffix: 'ms', isSignal: false },
+            { key: 'time2', label: 'Time 2', type: 'knob', min: -50, max: 50, step: 1, defaultValue: 15, decimals: 0, displaySuffix: 'ms', isSignal: false },
+            { key: 'detune1', label: 'Detune 1', type: 'knob', min: -50, max: 50, step: 1, defaultValue: -5, decimals: 0, displaySuffix: 'ct', isSignal: false },
+            { key: 'detune2', label: 'Detune 2', type: 'knob', min: -50, max: 50, step: 1, defaultValue: 8, decimals: 0, displaySuffix: 'ct', isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
         ]
     },
 };

@@ -30,6 +30,13 @@ import { AudioStemSeparation } from './AudioStemSeparation.js';
 import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
+// Effect panel imports - Session 2026-04-24
+import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
+import { openMultibandGatePanel } from './MultibandGate.js';
+import { openTransientModulatorPanel } from './TransientModulator.js';
+import { openStereoWidthControllerPanel } from './StereoWidthController.js';
+import { openDynamicResonanceFilterPanel } from './DynamicResonanceFilter.js';
+import { openVocalDoublerPanel } from './VocalDoubler.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
