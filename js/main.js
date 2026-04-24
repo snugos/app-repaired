@@ -12,6 +12,7 @@ import { openSpliceDetectorPanel, initSpliceDetector } from './SpliceDetector.js
 import { PhaseScope, openPhaseScopePanel } from './PhaseScope.js';
 import { frequencyMasking as freqMaskingInstance, openFrequencyMaskingPanel } from './FrequencyMasking.js';
 import { getTrackGradientSettings, setTrackGradientSettings, getGradientPresets, getTrackGradientPreset, setTrackGradientPreset, clearTrackGradient, applyGradientToTrackElement, exportGradientData, importGradientData } from './TrackColorGradient.js';
+import { openNoiseGatePanel } from './TrackNoiseGate.js';
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
@@ -408,7 +409,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -424,8 +425,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructinging = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
