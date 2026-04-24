@@ -4,12 +4,12 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Spectral Compressor** - Frequency-aware compression with independent band control
-2. **Harmonic Synthesizer** - Add harmonics to audio for thickness and presence
-3. **Dynamic EQ** - EQ bands that respond to input level
-4. **Stereo Imager Enhancement** - Advanced stereo manipulation with mono maker
-5. **Multiband Saturator** - Add saturation per frequency band
-6. **Auto-Panner** - Automatic panning with various patterns
+1. **Granular Processor** - Granular synthesis effect for time-stretching and pitch manipulation ✅ COMPLETED
+2. **Convolution Reverb** - Impulse response-based reverb ✅ COMPLETED
+3. **Formant Filter** - Vowel-shaped filter for vocal synthesis ✅ COMPLETED
+4. **Ring Modulator** - Classic ring modulation effect ✅ COMPLETED
+5. **Frequency Shifter** - Linear frequency shifting (not pitch shifting) ✅ COMPLETED
+6. **Envelope Generator** - ADSR envelope generator for modulation ✅ COMPLETED
 
 ## Workflow
 
@@ -39,11 +39,8 @@ After successfully implementing a feature:
 - Renumber the remaining features
 - Update this instruction with new queue
 
-## When Queue is Empty
+## When Queue is Empty - New Feature Ideas (2026-04-24 02:00 UTC)
 
-Run this brainstorming process:
-
-```
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
 - Multi-track timeline
@@ -51,13 +48,17 @@ Based on SnugOS being a browser-based DAW with:
 - Sequencer mode
 - MIDI support
 
-Generate 10 NEW feature ideas that are:
-1. Achievable in a single session
-2. Complement existing features
-3. Enhance creative workflow
-
-Output as numbered list and update this instruction.
-```
+New Feature Queue:
+1. **Vocoder** - Classic vocoder effect with carrier and modulator
+2. **Phaser Effect** - All-pass filter-based phase shifting effect
+3. **Flanger Effect** - Time-based delay modulation effect
+4. **Chorus Effect** - Detune-based stereo widening effect
+5. **Tremolo Effect** - Amplitude modulation effect
+6. **Distortion** - Waveshaping distortion effect
+7. **Bitcrusher** - Sample rate and bit depth reduction
+8. **Compressor** - Full-band dynamics compressor with sidechain
+9. **Limiter** - Brick-wall limiter with lookahead
+10. **Noise Gate** - Threshold-based gate with attack/release
 
 ## Rules
 

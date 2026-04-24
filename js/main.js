@@ -43,6 +43,12 @@ import { DynamicEQ, openDynamicEQPanel } from './DynamicEQ.js';
 import { StereoImagerEnhancement, openStereoImagerEnhancementPanel } from './StereoImagerEnhancement.js';
 import { MultibandSaturator, openMultibandSaturatorPanel } from './MultibandSaturator.js';
 import { AutoPanner, openAutoPannerPanel } from './AutoPanner.js';
+import { GranularProcessor, openGranularProcessorPanel } from './GranularProcessor.js';
+import { ConvolutionReverb, openConvolutionReverbPanel } from './ConvolutionReverb.js';
+import { FormantFilter, openFormantFilterPanel } from './FormantFilter.js';
+import { RingModulator, openRingModulatorPanel } from './RingModulator.js';
+import { FrequencyShifter, openFrequencyShifterPanel } from './FrequencyShifter.js';
+import { EnvelopeGenerator, openEnvelopeGeneratorPanel } from './EnvelopeGenerator.js';
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
@@ -663,6 +669,14 @@ import {
     openStereoImagerEnhancementPanel,
     openMultibandSaturatorPanel,
     openAutoPannerPanel,
+    
+    // New Effect Panels - Session 2026-04-24 (additional)
+    openGranularProcessorPanel,
+    openConvolutionReverbPanel,
+    openFormantFilterPanel,
+    openRingModulatorPanel,
+    openFrequencyShifterPanel,
+    openEnvelopeGeneratorPanel,
     
     // AI Mastering Enhancement
     AIMasteringEnhancement,
