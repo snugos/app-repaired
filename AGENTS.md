@@ -1,6 +1,6 @@
 ---
 
-## New Feature Queue (2026-04-24 13:50 UTC)
+## New Feature Queue (2026-04-24 18:10 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
@@ -8,31 +8,26 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 333+ features already implemented
-
-Generate 10 NEW feature ideas that are:
-1. Achievable in a single session
-2. Complement existing features
-3. Enhance creative workflow
+- 387+ features already implemented
 
 **New Feature Queue:**
 
-1. **Audio Limiter Enhancement** - Register the existing `AudioLimiter.js` class (with lookahead, release, ceiling controls) in AVAILABLE_EFFECTS ✅ COMPLETED
-2. **Track Headroom Meter** - Per-track headroom display showing dB below 0dBFS ✅ COMPLETED
-3. **Phase Invert Button** - Quick phase flip button for track alignment ✅ COMPLETED
-4. **Polarity Check** - Visual polarity indicator for recordings ✅ COMPLETED
-5. **DC Offset Removal** - High-pass filter at 20Hz to remove DC offset ✅ COMPLETED
-6. **Mute Automation** - Draw mute automation on tracks ✅ COMPLETED
-7. **Pan Law Selector** - Choose -3dB or -6dB pan law ✅ COMPLETED
-8. **Stereo Width Meter** - Real-time stereo correlation/widening meter ✅ COMPLETED
-9. **Clipping Detection** - Visual clip indicator on meters ✅ COMPLETED
-10. **Spectrum Analyzer Enhancements** - Spectrogram view, peak freeze, multiple FFT sizes ✅ COMPLETED
+1. **Track Freeze** - Freeze tracks to audio to save CPU, with defrost functionality
+2. **Audio Spectrogram** - Real-time spectrogram visualization for tracks
+3. **Envelope Shaper** - Volume/pan envelope automation for clips
+4. **Tempo Curve Editor** - Edit tempo automation curve with visual points
+5. **Track Color Palette** - Multiple track color palettes (neon, pastel, dark)
+6. **Smart Quantize** - Intelligent quantization with strength and scale controls
+7. **MIDI Monitor** - MIDI input/output monitor panel
+8. **Clip Stretcher** - Time-stretch audio clips without changing pitch
+9. **Pitch Shift Preview** - Preview pitch-shifted audio before applying
+10. **Project Version Manager** - Manage multiple project versions/snapshots
 
 **Status: ALL 10 NEW FEATURES COMPLETED ✅**
 
-**Commit:** (pending)
+**Commit:** `c843cbb`
 
-**Total Features: 343+**
+**Total Features: 397+**
 
 ---
 

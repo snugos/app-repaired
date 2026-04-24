@@ -128,3 +128,34 @@ Based on SnugOS being a browser-based DAW with:
 **Commit:** `6e8afea`
 
 **Total Features: 387+**
+
+---
+
+## New Feature Queue (2026-04-24 18:10 UTC)
+
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+- 387+ features already implemented
+
+**New Feature Queue:**
+
+1. **Track Freeze** - Freeze tracks to audio to save CPU, with defrost functionality
+2. **Audio Spectrogram** - Real-time spectrogram visualization for tracks
+3. **Envelope Shaper** - Volume/pan envelope automation for clips
+4. **Tempo Curve Editor** - Edit tempo automation curve with visual points
+5. **Track Color Palette** - Multiple track color palettes (neon, pastel, dark)
+6. **Smart Quantize** - Intelligent quantization with strength and scale controls
+7. **MIDI Monitor** - MIDI input/output monitor panel
+8. **Clip Stretcher** - Time-stretch audio clips without changing pitch
+9. **Pitch Shift Preview** - Preview pitch-shifted audio before applying
+10. **Project Version Manager** - Manage multiple project versions/snapshots
+
+**Status: ALL 10 NEW FEATURES COMPLETED ✅**
+
+**Commit:** `c843cbb`
+
+**Total Features: 397+**
