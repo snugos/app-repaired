@@ -36,7 +36,7 @@ class AdaptiveDynamics {
         this.attackTime = 10; // ms
         this.releaseTime = 100; // ms
         this.makeupGain = 0; // dB
-        this ceiling = -0.1; // dB
+        this.ceiling = -0.1; // dB
         
         // Metering
         this.inputLevel = 0;
