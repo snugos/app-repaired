@@ -7,8 +7,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 1. **Beat-synced LFO** - LFO with tempo-locked rate divisions (1/4, 1/8, 1/16, etc.) for filter/amp modulation ✅ COMPLETED
 2. **Audio Scrubbing** - Scrub through audio by dragging on the timeline with audible playback ✅ COMPLETED
 3. **Octave Layer** - Add octave-up and octave-down layers to MIDI instrument tracks ✅ COMPLETED
-4. **Mixer Snapshot** - Save and recall complete mixer states (volume, pan, mute, solo, effects)
-5. **Sample Rate Display** - Show current audio sample rate in the status bar
+4. **Mixer Snapshot** - Save and recall complete mixer states (volume, pan, mute, solo, effects) ✅ COMPLETED
+5. **Sample Rate Display** - Show current audio sample rate in the status bar ✅ COMPLETED
 6. **Rhythm Pattern Brush** - Draw rhythmic patterns by clicking and dragging patterns on the sequencer
 7. **Per-track Spectrum Analyzer** - Real-time FFT display for each track channel
 8. **Note Echo Effect** - Per-note delay with feedback for arpeggiation effects
