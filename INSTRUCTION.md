@@ -4,16 +4,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI Learn Mode** - Right-click any control to assign MIDI CC
-2. **Step Sequencer View** - 16-step drum grid separate from piano roll
-3. **Clip Envelope Editor** - Draw volume/tempo automation per clip
-4. **Track Freeze** - Render track to audio to save CPU, with defrost
-5. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
-6. **Sidechain Routing** - Visual sidechain connections between tracks
-7. **Project Templates** - Save/load full project setups as templates
-8. **Scale Lock** - Lock MIDI input to a musical scale
-9. **Audio Warping** - Stretch audio clips without changing pitch
-10. **Batch Export** - Export multiple stems/tracks at once
+1. **Clip Envelope Editor** - Draw volume/tempo automation per clip
+2. **Track Freeze** - Render track to audio to save CPU, with defrost
+3. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
+4. **Sidechain Routing** - Visual sidechain connections between tracks
+5. **Project Templates** - Save/load full project setups as templates
+6. **Scale Lock** - Lock MIDI input to a musical scale
+7. **Audio Warping** - Stretch audio clips without changing pitch
+8. **Batch Export** - Export multiple stems/tracks at once
 
 ## Workflow
 
