@@ -7,7 +7,7 @@
 ### Feature Completed This Session:
 | Feature | File | Description |
 |---------|------|-------------|
-| **Distortion Curves Editor** | `js/DistortionCurvesEditor.js` | Visual curve editor for waveshaper distortion with 16 preset shapes (soft, hard, asymmetric, tube, fuzz, rectifier, saturate, fold, wrap, clip, tanh, cubic, chebyshev, arctan, sine, custom) and custom curve drawing support |
+| **Distortion Curves Editor** | `js/DistortionCurvesEditor.js`, `js/ui.js` | Visual curve editor for waveshaper distortion with 16 preset shapes (soft, hard, asymmetric, tube, fuzz, rectifier, saturate, fold, wrap, clip, tanh, cubic, chebyshev, arctan, sine, custom), custom curve drawing, and UI panel with drive control |
 
 ### Automated Scan Results:
 - **Repository**: LWB-with-Bugs branch (up to date)
@@ -18,11 +18,14 @@
 - **"Not Implemented" Warnings**: 2 found (both are intentional OOP defaults for subclass overrides)
 - **Placeholder Returns**: All are legitimate guard clauses (edge case handling)
 - **UI Disabled States**: All are intentional state management
-- **Total Lines of Code**: 208,258
+- **Total Lines of Code**: 208,439
 - **Total JS Files**: 313
 - **Total Features**: 401+
 
-### Commit: `add2c1c`
+### Commits:
+- `add2c1c` - feat: add Distortion Curves Editor with 16 preset shapes and custom curve support
+- `1a96402` - docs: update FEATURE_STATUS.md with Distortion Curves Editor feature
+- `d2dd6a4` - feat: add Distortion Curves Editor UI panel with preset selection and drive control
 
 ---
 
