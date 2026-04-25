@@ -187,6 +187,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openMixerWindow?.();
                 } catch(e) { console.error('[Menu] Mixer error:', e); }
             },
+            menuMixerSnapshots: () => {
+                console.log('[Menu] Mixer Snapshots clicked');
+                try {
+                    localAppServices.openMixerSnapshotPanel?.(localAppServices);
+                } catch(e) { console.error('[Menu] Mixer Snapshots error:', e); }
+            },
             menuOpenMasterEffects: () => {
                 console.log('[Menu] Master Effects clicked');
                 try {
@@ -321,7 +327,6 @@ export function initializePrimaryEventListeners(appContext) {
         } else {
             console.warn("[EventHandlers] Load project input (uiCache.loadProjectInput) not found.");
         }
-
     } catch (error) {
         console.error("[EventHandlers initializePrimaryEventListeners] Error during initialization:", error);
         showNotification("Error setting up primary interactions. Some UI might not work.", 5000);

@@ -18,3 +18,5 @@ export { openProjectTemplateBrowserPanel, closeProjectTemplateBrowserPanel } fro
 export { openMIDILearnVisualizationPanel, closeMIDILearnVisualizationPanel } from './MIDILearnVisualization.js';
 export { openQuantizeStrengthPanel, closeQuantizeStrengthPanel, getQuantizeStrength, setQuantizeStrength } from './QuantizeStrengthControl.js';
 export { openRandomNoteGeneratorPanel, closeRandomNoteGeneratorPanel } from './RandomNoteGenerator.js';
+// Mixer Snapshot feature
+export { openMixerSnapshotPanel, saveMixerSnapshot, loadMixerSnapshot, deleteMixerSnapshot, getMixerSnapshots, getMixerSnapshotNames } from './MixerSnapshot.js';

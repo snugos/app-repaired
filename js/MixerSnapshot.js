@@ -31,19 +31,9 @@ export function saveMixerSnapshot(name, tracks) {
         sendLevels: track.sendLevels ? JSON.parse(JSON.stringify(track.sendLevels)) : { reverb: 0, delay: 0 }
     }));
 
-    const masterData = {
-        volume: typeof masterGain !== 'undefined' ? masterGain.value : 1.0,
-        effects: masterEffectsChainState ? masterEffectsChainState.map(e => ({
-            id: e.id,
-            type: e.type,
-            params: e.params ? JSON.parse(JSON.stringify(e.params)) : {}
-        })) : []
-    };
-
     mixerSnapshots[snapshotName] = {
         name: snapshotName,
         tracks: tracksData,
-        master: masterData,
         createdAt: new Date().toISOString()
     };
     
@@ -112,12 +102,6 @@ export function deleteMixerSnapshot(name) {
     return false;
 }
 
-// Standalone module functions for external access
-export function initMixerSnapshot() {
-    console.log('[MixerSnapshot] Initialized');
-}
-
-// UI Panel for Mixer Snapshot
 export function openMixerSnapshotPanel(appServices) {
     const existingPanel = document.getElementById('mixerSnapshotPanel');
     if (existingPanel) {
@@ -215,7 +199,7 @@ export function openMixerSnapshotPanel(appServices) {
         if (saveMixerSnapshot(snapshotName, tracks)) {
             appServices.showNotification?.(`Snapshot "${snapshotName}" saved`, 2000);
             panel.remove();
-            openMixerSnapshotPanel(appServices); // Refresh
+            openMixerSnapshotPanel(appServices);
         }
     });
 
@@ -238,7 +222,7 @@ export function openMixerSnapshotPanel(appServices) {
             if (deleteMixerSnapshot(name)) {
                 appServices.showNotification?.(`Snapshot "${name}" deleted`, 2000);
                 panel.remove();
-                openMixerSnapshotPanel(appServices); // Refresh
+                openMixerSnapshotPanel(appServices);
             }
         });
     });
@@ -246,7 +230,7 @@ export function openMixerSnapshotPanel(appServices) {
     // Click outside to close
     setTimeout(() => {
         document.addEventListener('click', function closePanel(e) {
-            if (panel && !panel.contains(e.target) && e.target.id !== 'mixerSnapshotBtn') {
+            if (panel && !panel.contains(e.target)) {
                 panel.remove();
                 document.removeEventListener('click', closePanel);
             }
