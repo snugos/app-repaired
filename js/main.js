@@ -1088,6 +1088,10 @@ async function initializeSnugOS() {
             midiIndicatorGlobal: document.getElementById('midiIndicatorGlobal'),
             keyboardIndicatorGlobal: document.getElementById('keyboardIndicatorGlobal'),
             playbackModeToggleBtnGlobal: document.getElementById('playbackModeToggleBtnGlobal'),
+            metronomeToggleBtnGlobal: document.getElementById('metronomeToggleBtnGlobal'),
+            metronomeVolumeSlider: document.getElementById('metronomeVolumeSlider'),
+            metronomeVolumeDisplay: document.getElementById('metronomeVolumeDisplay'),
+            metronomeVolumeControl: document.getElementById('metronomeVolumeControl'),
             scaleSelectGlobal: document.getElementById('scaleSelectGlobal'),
             keySelectGlobal: document.getElementById('keySelectGlobal'),
             scaleNotesDisplay: document.getElementById('scaleNotesDisplay')

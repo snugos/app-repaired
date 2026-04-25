@@ -58,25 +58,30 @@
 
 ---
 
-## New Feature Queue (2026-04-25 00:40 UTC)
+## New Feature Queue (2026-04-25 01:00 UTC)
 
-**Status: ALL 10 NEW FEATURES COMPLETED ✅**
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+- 417+ features already implemented
 
-All 10 features from the previous queue are now implemented:
-1. **ResonantFilterBank** ✅ - `js/ResonantFilterBank.js` - Multi-band filter with per-band drive
-2. **ChorusEnsemble** ✅ - `js/ChorusEnsemble.js` - Thick chorus effect with multiple delay lines
-3. **TapeStopEffect** ✅ - `js/TapeStopEffect.js` - Realistic tape slowdown and stop effect
-4. **BitcrushFilter** ✅ - `js/BitcrushFilter.js` - Lo-fi sample rate and bit depth reduction
-5. **FrequencyIsolator** ✅ - `js/FrequencyIsolator.js` - Isolate specific frequency ranges for analysis
-6. **AutoPanSync** ✅ - `js/AutoPanSync.js` - Pan automation synced to tempo
-7. **SidechainGate** ✅ - `js/SidechainGate.js` - Gate that responds to sidechain input
-8. **SpectralFlanger** ✅ - `js/SpectralFlanger.js` - Flanger with frequency-dependent modulation
-9. **TextureSynth** ✅ - `js/TextureSynth.js` - Additive synthesizer for textural pads
-10. **DriftOscillator** ✅ - `js/DriftOscillator.js` - Oscillator with pitch drift for analog feel
+**New Feature Queue:**
 
-**Commit:** `a38bb21`
+1. **Metronome Volume Control** - Adjustable volume slider for metronome 🔊 ✅ COMPLETED (f1d973f)
+2. **Spectrogram Display** - Real-time spectrogram visualization for tracks
+3. **Tempo Curve Editor** - Edit tempo automation curve with visual points
+4. **MIDI Monitor Panel** - Input/output MIDI monitor with note visualization
+5. **Project Version Manager** - Save and restore project snapshots
+6. **Clip Stretcher** - Time-stretch audio clips without changing pitch
+7. **Pitch Shift Preview** - Preview pitch-shifted audio before applying
+8. **Envelope Shaper** - Draw volume/pan envelopes on clips
+9. **Track Color Palette** - Multiple color themes (neon, pastel, dark)
+10. **Smart Quantize** - Intelligent quantization with scale strength controls
 
-**Total Features: 416+**
+**Status: 1 OF 10 NEW FEATURES COMPLETED**
 
 ---
 
