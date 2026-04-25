@@ -29,6 +29,7 @@ import { HarmonicAnalysisEngine } from './HarmonicAnalysisEngine.js';
 import { AudioStemSeparation } from './AudioStemSeparation.js';
 import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
+import { MidiMonitor } from './MidiMonitor.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
 // Pattern Generation & Frequency Processing
 import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
