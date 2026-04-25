@@ -337,6 +337,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openLyricsPanel?.();
                 } catch(e) { console.error('[Menu] Lyrics Display error:', e); }
             },
+            menuAudioTapTempo: () => {
+                console.log('[Menu] Audio Tap Tempo clicked');
+                try {
+                    localAppServices.openAudioTapTempoPanel?.();
+                } catch(e) { console.error('[Menu] Audio Tap Tempo error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {

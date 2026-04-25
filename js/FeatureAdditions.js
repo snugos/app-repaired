@@ -26,3 +26,5 @@ export { initPianoRollSequencer, openTrackSequencerWindow, refreshSequencerUI } 
 export { initClipReverse, reverseAudioClip, reverseMIDISequence, openClipReversePanel } from './ClipReverse.js';
 // Auto-Beat Sync - Automatically sync tempo to detected BPM from audio input
 export { initAutoBeatSync, openAutoBeatSyncPanel, getAutoBeatSyncState, isAutoBeatSyncEnabled, getDetectedBpm } from './AutoBeatSync.js';
+// Audio Tap Tempo - Tap-based and audio input beat detection for setting tempo
+export { initAudioTapTempo, openAudioTapTempoPanel, recordTap, setTempoFromTap, getTapStatus, resetTapHistory, startAudioBeatDetection, stopAudioBeatDetection, getAudioBeatStatus } from './AudioTapTempo.js';
