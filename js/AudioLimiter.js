@@ -1,8 +1,6 @@
 // js/AudioLimiter.js - Brick-wall limiter with lookahead and release control
 // A professional-grade limiter for mastering and track protection
 
-import { createLimiterEffect } from './AudioLimiterCore.js';
-
 class AudioLimiter extends Tone.Limiter {
     constructor(initialParams = {}) {
         const threshold = initialParams.threshold !== undefined ? initialParams.threshold : -0.1;

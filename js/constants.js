@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.2.6"; // Daily sync 2026-04-24 - Typo fixes in main.js
+export const APP_VERSION = "0.2.7"; // Daily sync 2026-04-25 - Typo fixes in main.js, removed dead import in AudioLimiter.js
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
