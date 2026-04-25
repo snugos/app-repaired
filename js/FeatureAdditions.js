@@ -22,3 +22,5 @@ export { openRandomNoteGeneratorPanel, closeRandomNoteGeneratorPanel } from './R
 export { openMixerSnapshotPanel, saveMixerSnapshot, loadMixerSnapshot, deleteMixerSnapshot, getMixerSnapshots, getMixerSnapshotNames } from './MixerSnapshot.js';
 // Piano Roll Sequencer - Feature #1
 export { initPianoRollSequencer, openTrackSequencerWindow, refreshSequencerUI } from './PianoRollSequencer.js';
+// Clip Reverse - Reverse audio/MIDI clips
+export { initClipReverse, reverseAudioClip, reverseMIDISequence, openClipReversePanel } from './ClipReverse.js';

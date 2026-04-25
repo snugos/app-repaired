@@ -5,7 +5,7 @@ import { createEffectInstance, getEffectDefaultParams as getEffectDefaultParamsF
 import { storeAudio, getAudio } from './db.js';
 
 // Predefined color palette for tracks
-const TRACK_COLORS = [
+export const TRACK_COLORS = [
     '#ef4444', // red
     '#f97316', // orange
     '#eab308', // yellow
@@ -20,8 +20,34 @@ const TRACK_COLORS = [
     '#a855f7', // purple
 ];
 
-function getRandomTrackColor() {
-    return TRACK_COLORS[Math.floor(Math.random() * TRACK_COLORS.length)];
+export const TRACK_COLOR_PALETTES = {
+    vibrant: [
+        '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+        '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#84cc16'
+    ],
+    pastel: [
+        '#fca5a5', '#fdba74', '#fde047', '#86efac', '#5eead4',
+        '#93c5fd', '#c4b5fd', '#f9a8d4', '#a5b4fc', '#bef264'
+    ],
+    dark: [
+        '#7f1d1d', '#9a3412', '#854d0e', '#166534', '#115e59',
+        '#1e3a5f', '#4c1d95', '#831843', '#312e81', '#365314'
+    ],
+    neon: [
+        '#ff0080', '#00ffff', '#ff00ff', '#00ff00', '#ffff00',
+        '#ff6600', '#6600ff', '#00ffcc', '#ff3300', '#cc00ff'
+    ],
+    earth: [
+        '#8b4513', '#a0522d', '#cd853f', '#daa520', '#6b8e23',
+        '#556b2f', '#8b7355', '#a0522d', '#6b4423', '#7b3f00'
+    ]
+};
+
+export function getRandomTrackColor(palette = 'vibrant') {
+    const pal = TRACK_COLOR_PALETTES[palette] || TRACK_COLORS;
+    return pal[Math.floor(Math.random() * pal.length)];
+}
+
 }
 
 export class Track {

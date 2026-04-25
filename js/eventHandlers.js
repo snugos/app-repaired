@@ -253,6 +253,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTrackGroupsPanel?.();
                 } catch(e) { console.error('[Menu] Track Groups error:', e); }
             },
+            menuTrackColorPalette: () => {
+                console.log("[Menu] Track Color Palette clicked");
+                try {
+                    localAppServices.openTrackColorPalettePanel?.();
+                } catch(e) { console.error("[Menu] Track Color Palette error:", e); }
+            },
             menuMuteGroups: () => {
                 console.log("[Menu] Mute Groups clicked");
                 try { localAppServices.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }
@@ -307,6 +313,18 @@ export function initializePrimaryEventListeners(appContext) {
             menuTrackTemplates: () => { console.log('[Menu] Track Templates clicked'); localAppServices.openTrackTemplatesPanel?.(); },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
+            menuClipReverse: () => {
+                console.log('[Menu] Clip Reverse clicked');
+                try {
+                    // Get first track and open clip reverse panel
+                    const tracks = localAppServices.getTracks?.() || [];
+                    if (tracks.length > 0) {
+                        localAppServices.openClipReversePanel?.(tracks[0].id);
+                    } else {
+                        localAppServices.showNotification?.('No tracks available. Create a track first.', 2000);
+                    }
+                } catch(e) { console.error('[Menu] Clip Reverse error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
