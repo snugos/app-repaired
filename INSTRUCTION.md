@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Chord Progression Builder** - Visual chord grid for building chord progressions with drag-and-drop
-2. **Velocity Curve Editor** - Draw velocity curves for MIDI note dynamics
-3. **Track Grouping Hierarchy** - Nested track groups with collapsible hierarchy view
-4. **Automation Point Editor** - Click to add/edit automation points with smooth curve types
-5. **Step Sequencer Grid** - 16-step grid view for drum programming separate from piano roll
-6. **Audio Quantize** - Snap audio clip timing to grid boundaries
-7. **Track Delay Offset** - Per-track delay compensation for phase alignment
-8. **Sidechain Panel** - Visual sidechain routing with gain/threshold controls
-9. **Note Length Editor** - Adjust note durations in a bar view with length handles
-10. **Scale Detection** - Auto-detect the scale of recorded MIDI and show on piano roll
+1. **MIDI Learn Mode** - Right-click any control to assign MIDI CC
+2. **Step Sequencer View** - 16-step drum grid separate from piano roll
+3. **Clip Envelope Editor** - Draw volume/tempo automation per clip
+4. **Track Freeze** - Render track to audio to save CPU, with defrost
+5. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
+6. **Sidechain Routing** - Visual sidechain connections between tracks
+7. **Project Templates** - Save/load full project setups as templates
+8. **Scale Lock** - Lock MIDI input to a musical scale
+9. **Audio Warping** - Stretch audio clips without changing pitch
+10. **Batch Export** - Export multiple stems/tracks at once
 
 ## Workflow
 
