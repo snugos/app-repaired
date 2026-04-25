@@ -24,3 +24,5 @@ export { openMixerSnapshotPanel, saveMixerSnapshot, loadMixerSnapshot, deleteMix
 export { initPianoRollSequencer, openTrackSequencerWindow, refreshSequencerUI } from './PianoRollSequencer.js';
 // Clip Reverse - Reverse audio/MIDI clips
 export { initClipReverse, reverseAudioClip, reverseMIDISequence, openClipReversePanel } from './ClipReverse.js';
+// Auto-Beat Sync - Automatically sync tempo to detected BPM from audio input
+export { initAutoBeatSync, openAutoBeatSyncPanel, getAutoBeatSyncState, isAutoBeatSyncEnabled, getDetectedBpm } from './AutoBeatSync.js';

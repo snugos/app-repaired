@@ -325,6 +325,12 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Clip Reverse error:', e); }
             },
+            menuAutoBeatSync: () => {
+                console.log('[Menu] Auto-Beat Sync clicked');
+                try {
+                    localAppServices.openAutoBeatSyncPanel?.();
+                } catch(e) { console.error('[Menu] Auto-Beat Sync error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
