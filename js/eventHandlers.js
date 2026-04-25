@@ -211,6 +211,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openChordMemoryPanel?.();
                 } catch(e) { console.error('[Menu] Chord Memory error:', e); }
             },
+            menuChordProgressionBuilder: () => {
+                console.log('[Menu] Chord Progression Builder clicked');
+                try {
+                    localAppServices.openChordProgressionBuilderPanel?.();
+                } catch(e) { console.error('[Menu] Chord Progression Builder error:', e); }
+            },
             menuMidiChordPlayer: () => {
                 console.log('[Menu] MIDI Chord Player clicked');
                 try {
