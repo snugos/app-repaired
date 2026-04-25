@@ -32,6 +32,7 @@ import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { MidiMonitor } from './MidiMonitor.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
+import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
 import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
 import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, openFrequencyBandSplitterPanel } from './FrequencyBandSplitter.js';
@@ -453,7 +454,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -470,7 +471,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -1137,18 +1138,12 @@ async function initializeSnugOS() {
         if (typeof initClipReverse === 'function') initClipReverse(appServices); // Clip Reverse feature initialization
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices);
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
+        if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
         } else { console.error("initializePrimaryEventListeners is not a function");}
 
-        // Attach global controls event listeners directly to the fixed bar
-        if (typeof attachGlobalControlEvents === 'function') {
-            attachGlobalControlEvents(globalElements);
-        } else {
-            console.error("attachGlobalControlEvents is not a function");
-        }
-        
         if (typeof setupMIDI === 'function') setupMIDI(); else console.error("setupMIDI is not a function");
 
         if (Constants.soundLibraries && typeof fetchSoundLibrary === 'function') {
