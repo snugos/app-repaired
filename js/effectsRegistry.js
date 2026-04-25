@@ -24,6 +24,18 @@ import { HarmonicExciter } from './HarmonicExciter.js';
 import { PitchDrift } from './PitchDrift.js';
 import { SampleSlicer } from './SampleSlicer.js';
 
+// New 2026-04-25 effects
+import { ResonantFilterBank } from './ResonantFilterBank.js';
+import { ChorusEnsemble } from './ChorusEnsemble.js';
+import { TapeStopEffect } from './TapeStopEffect.js';
+import { BitcrushFilter } from './BitcrushFilter.js';
+import { FrequencyIsolator } from './FrequencyIsolator.js';
+import { AutoPanSync } from './AutoPanSync.js';
+import { SidechainGate } from './SidechainGate.js';
+import { SpectralFlanger } from './SpectralFlanger.js';
+import { TextureSynth } from './TextureSynth.js';
+import { DriftOscillator } from './DriftOscillator.js';
+
 if (typeof Tone !== 'undefined') {
     Tone.FrequencySplitter = FrequencySplitter;
     Tone.HarmonicExciter = HarmonicExciter;
@@ -1036,7 +1048,7 @@ export const AVAILABLE_EFFECTS = {
         params: [
             { key: 'frequency', label: 'Speed', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 2, decimals: 1, displaySuffix: 'Hz', isSignal: true },
             { key: 'baseFrequency', label: 'Base Freq', type: 'knob', min: 20, max: 2000, step: 10, defaultValue: 200, decimals: 0, displaySuffix: 'Hz', isSignal: true },
-            { key: 'octaves', label: 'Octaves', type: 'knob', min: 1, max: 8, step: 0.1, defaultValue: 2.6, decimals: 1, isSignal: false },
+            { key: 'octaves', label: 'Octaves', type: 'knob', min: 0, max: 8, step: 0.1, defaultValue: 3.6, decimals: 1, isSignal: false },
             { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
             { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: true },
             { key: 'filter.type', label: 'Filt Type', type: 'select', options: ['lowpass', 'highpass', 'bandpass'], defaultValue: 'lowpass' },
@@ -1578,6 +1590,131 @@ export const AVAILABLE_EFFECTS = {
             { key: 'zeroCrossing', label: 'Zero Cross', type: 'select', options: ['true', 'false'], defaultValue: 'true', isSignal: false },
         ]
     },
+    ResonantFilterBank: {
+        displayName: 'Resonant Filter Bank',
+        toneClass: 'ResonantFilterBank',
+        params: [
+            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 20, max: 2000, step: 1, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'midFreq', label: 'Mid Freq', type: 'knob', min: 100, max: 8000, step: 1, defaultValue: 1000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 500, max: 20000, step: 1, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'lowGain', label: 'Low Gain', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'midGain', label: 'Mid Gain', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'highGain', label: 'High Gain', type: 'knob', min: -20, max: 20, step: 0.1, defaultValue: 0, decimals: 1, displaySuffix: 'dB', isSignal: false },
+            { key: 'lowDrive', label: 'Low Drive', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'midDrive', label: 'Mid Drive', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'highDrive', label: 'High Drive', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    ChorusEnsemble: {
+        displayName: 'Chorus Ensemble',
+        toneClass: 'ChorusEnsemble',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 1.5, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 1, max: 20, step: 0.1, defaultValue: 3.5, decimals: 1, displaySuffix: 'ms', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 0.9, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'spread', label: 'Spread', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'voiceCount', label: 'Voices', type: 'knob', min: 2, max: 8, step: 1, defaultValue: 3, decimals: 0, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    TapeStopEffect: {
+        displayName: 'Tape Stop',
+        toneClass: 'TapeStopEffect',
+        params: [
+            { key: 'rampTime', label: 'Ramp Time', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 2.0, decimals: 1, displaySuffix: 's', isSignal: false },
+            { key: 'stopDepth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'tapeWow', label: 'Wow', type: 'knob', min: 0, max: 0.1, step: 0.001, defaultValue: 0.02, decimals: 3, isSignal: false },
+            { key: 'tapeFlutter', label: 'Flutter', type: 'knob', min: 0, max: 0.1, step: 0.001, defaultValue: 0.01, decimals: 3, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    BitcrushFilter: {
+        displayName: 'Bitcrush',
+        toneClass: 'BitcrushFilter',
+        params: [
+            { key: 'bitDepth', label: 'Bit Depth', type: 'knob', min: 1, max: 16, step: 1, defaultValue: 8, decimals: 0, displaySuffix: 'bits', isSignal: false },
+            { key: 'sampleRate', label: 'Sample Rate', type: 'knob', min: 500, max: 22050, step: 100, defaultValue: 8000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'mix', label: 'Mix', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'preGain', label: 'PreGain', type: 'knob', min: 0.1, max: 5, step: 0.1, defaultValue: 1, decimals: 1, isSignal: false },
+            { key: 'postGain', label: 'PostGain', type: 'knob', min: 0.1, max: 5, step: 0.1, defaultValue: 1, decimals: 1, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    FrequencyIsolator: {
+        displayName: 'Freq Isolator',
+        toneClass: 'FrequencyIsolator',
+        params: [
+            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 20, max: 10000, step: 1, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 100, max: 20000, step: 1, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'mode', label: 'Mode', type: 'select', options: ['bandpass', 'lowpass', 'highpass', 'notch'], defaultValue: 'bandpass', isSignal: false },
+            { key: 'q', label: 'Q', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 5, decimals: 1, isSignal: false },
+            { key: 'gain', label: 'Gain', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    AutoPanSync: {
+        displayName: 'Auto Pan Sync',
+        toneClass: 'AutoPanSync',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.1, max: 20, step: 0.1, defaultValue: 4, decimals: 1, displaySuffix: 'Hz', isSignal: false },
+            { key: 'waveform', label: 'Wave', type: 'select', options: ['sine', 'triangle', 'square', 'saw'], defaultValue: 'sine', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 0.5, decimals: 2, isSignal: false },
+            { key: 'offset', label: 'Offset', type: 'knob', min: 0, max: 360, step: 1, defaultValue: 0, decimals: 0, displaySuffix: '°', isSignal: false },
+            { key: 'syncToTempo', label: 'Sync', type: 'select', options: ['true', 'false'], defaultValue: 'true', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    SidechainGate: {
+        displayName: 'Sidechain Gate',
+        toneClass: 'SidechainGate',
+        params: [
+            { key: 'threshold', label: 'Threshold', type: 'knob', min: -100, max: 0, step: 1, defaultValue: -24, decimals: 0, displaySuffix: 'dB', isSignal: false },
+            { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 0.1, step: 0.001, defaultValue: 0.001, decimals: 3, displaySuffix: 's', isSignal: false },
+            { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'hold', label: 'Hold', type: 'knob', min: 0, max: 0.5, step: 0.01, defaultValue: 0.05, decimals: 2, displaySuffix: 's', isSignal: false },
+            { key: 'ratio', label: 'Ratio', type: 'knob', min: 1, max: 100, step: 1, defaultValue: 100, decimals: 0, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    SpectralFlanger: {
+        displayName: 'Spectral Flanger',
+        toneClass: 'SpectralFlanger',
+        params: [
+            { key: 'rate', label: 'Rate', type: 'knob', min: 0.01, max: 10, step: 0.01, defaultValue: 0.5, decimals: 2, displaySuffix: 'Hz', isSignal: false },
+            { key: 'delayTime', label: 'Delay', type: 'knob', min: 0.001, max: 0.02, step: 0.0001, defaultValue: 0.004, decimals: 4, displaySuffix: 's', isSignal: false },
+            { key: 'depth', label: 'Depth', type: 'knob', min: 0, max: 2, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+            { key: 'feedback', label: 'Feedback', type: 'knob', min: 0, max: 0.95, step: 0.01, defaultValue: 0, decimals: 2, isSignal: false },
+            { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 20, max: 5000, step: 1, defaultValue: 200, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'highFreq', label: 'High Freq', type: 'knob', min: 500, max: 20000, step: 1, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'mode', label: 'Mode', type: 'select', options: ['through', 'spectrum', 'both'], defaultValue: 'through', isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    TextureSynth: {
+        displayName: 'Texture Synth',
+        toneClass: 'TextureSynth',
+        params: [
+            { key: 'detune', label: 'Detune', type: 'knob', min: -100, max: 100, step: 1, defaultValue: 0, decimals: 0, displaySuffix: 'ct', isSignal: false },
+            { key: 'shimmer', label: 'Shimmer', type: 'knob', min: 0, max: 0.5, step: 0.01, defaultValue: 0.1, decimals: 2, isSignal: false },
+            { key: 'noiseAmount', label: 'Noise', type: 'knob', min: 0, max: 0.2, step: 0.01, defaultValue: 0.02, decimals: 2, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
+    DriftOscillator: {
+        displayName: 'Drift Oscillator',
+        toneClass: 'DriftOscillator',
+        params: [
+            { key: 'baseFrequency', label: 'Base Freq', type: 'knob', min: 20, max: 20000, step: 1, defaultValue: 440, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'oscillatorType', label: 'Type', type: 'select', options: ['sine', 'square', 'sawtooth', 'triangle'], defaultValue: 'sawtooth', isSignal: false },
+            { key: 'driftAmount', label: 'Drift Amount', type: 'knob', min: 0, max: 0.1, step: 0.001, defaultValue: 0.03, decimals: 3, isSignal: false },
+            { key: 'driftRate', label: 'Drift Rate', type: 'knob', min: 0.01, max: 5, step: 0.01, defaultValue: 0.2, decimals: 2, displaySuffix: 'Hz', isSignal: false },
+            { key: 'filterCutoff', label: 'Filter', type: 'knob', min: 100, max: 15000, step: 100, defaultValue: 2000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+            { key: 'filterResonance', label: 'Res', type: 'knob', min: 0.1, max: 10, step: 0.1, defaultValue: 1, decimals: 1, isSignal: false },
+            { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+        ]
+    },
 };
 
 // Merge ScatterEffect into AVAILABLE_EFFECTS
@@ -1808,4 +1945,18 @@ if (typeof window !== 'undefined') {
 // Register Vocoder on Tone namespace
 if (typeof Tone !== 'undefined') {
     Tone.VocoderWorklet = Vocoder;
+}
+
+// Register new 2026-04-25 effects on Tone namespace
+if (typeof Tone !== 'undefined') {
+    Tone.ResonantFilterBank = ResonantFilterBank;
+    Tone.ChorusEnsemble = ChorusEnsemble;
+    Tone.TapeStopEffect = TapeStopEffect;
+    Tone.BitcrushFilter = BitcrushFilter;
+    Tone.FrequencyIsolator = FrequencyIsolator;
+    Tone.AutoPanSync = AutoPanSync;
+    Tone.SidechainGate = SidechainGate;
+    Tone.SpectralFlanger = SpectralFlanger;
+    Tone.TextureSynth = TextureSynth;
+    Tone.DriftOscillator = DriftOscillator;
 }
