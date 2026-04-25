@@ -7191,3 +7191,414 @@ function renderBeatLFOContent() {
 
     updateInfo();
 }
+
+// --- Mixer Channel Strip Panel ---
+
+/**
+ * Opens the Mixer Channel Strip panel showing faders, pan, and routing for all tracks.
+ */
+export function openMixerChannelStripPanel(savedState = null) {
+    const windowId = 'mixerChannelStrip';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderMixerChannelStripContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'mixerChannelStripContent';
+    contentContainer.className = 'p-3 h-full overflow-x-auto bg-gray-900 dark:bg-slate-900';
+    contentContainer.style.minWidth = '600px';
+
+    const options = { 
+        width: 900, 
+        height: 500, 
+        minWidth: 600, 
+        minHeight: 350, 
+        initialContentKey: windowId, 
+        closable: true, 
+        minimizable: true, 
+        resizable: true 
+    };
+    
+    if (savedState) {
+        Object.assign(options, { 
+            x: parseInt(savedState.left, 10), 
+            y: parseInt(savedState.top, 10), 
+            width: parseInt(savedState.width, 10), 
+            height: parseInt(savedState.height, 10), 
+            zIndex: savedState.zIndex, 
+            isMinimized: savedState.isMinimized 
+        });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Mixer Channel Strip', contentContainer, options);
+    if (win?.element) {
+        setTimeout(renderMixerChannelStripContent, 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the mixer channel strip content.
+ */
+function renderMixerChannelStripContent() {
+    const container = document.getElementById('mixerChannelStripContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const masterTrack = localAppServices.getMasterTrack ? localAppServices.getMasterTrack() : null;
+    
+    let html = `
+        <div class="flex items-center justify-between mb-3 px-1">
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-400">Select Track:</span>
+                <select id="mixerTrackSelect" class="p-1.5 text-sm bg-gray-800 border border-gray-600 rounded text-white">
+                    <option value="">-- All Tracks --</option>
+                    ${tracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="mixerResetAllBtn" class="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded">
+                    Reset All Faders
+                </button>
+                <button id="mixerAutoGainBtn" class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">
+                    Auto-Gain Match
+                </button>
+            </div>
+        </div>
+        
+        <div id="mixerStripsContainer" class="flex gap-3 overflow-x-auto pb-2" style="min-height: 380px;">
+    `;
+
+    // Render master strip
+    if (masterTrack) {
+        html += renderMasterStrip(masterTrack);
+    }
+
+    // Render each track strip
+    tracks.forEach(track => {
+        html += renderTrackStrip(track);
+    });
+
+    html += `
+        </div>
+        <div class="mt-2 text-xs text-gray-500 flex justify-between px-1">
+            <span>Drag faders to adjust volume. Pan knobs support mouse drag.</span>
+            <span id="mixerStatusText">${tracks.length} track(s)</span>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Attach event listeners
+    setupMixerChannelStripEvents(container, tracks);
+}
+
+/**
+ * Renders a single track channel strip.
+ */
+function renderTrackStrip(track) {
+    const isMuted = track.muted || false;
+    const isSolo = track.solo || false;
+    const isArmed = track.recArm || false;
+    const volume = track.volume !== undefined ? track.volume : 0.75;
+    const pan = track.pan !== undefined ? track.pan : 0;
+    const sends = track.sends || [];
+    const trackColor = track.color || '#6366f1';
+    
+    const panDisplay = pan === 0 ? 'C' : (pan < 0 ? `L${Math.abs(Math.round(pan * 100))}` : `R${Math.round(pan * 100)}`);
+    
+    return `
+        <div class="track-strip flex-shrink-0 w-44 bg-gray-800 rounded-lg p-3 flex flex-col gap-2 border border-gray-700" data-track-id="${track.id}">
+            <div class="text-center">
+                <div class="w-full h-1 rounded mb-1" style="background: ${trackColor};"></div>
+                <div class="text-xs font-medium text-white truncate" title="${track.name}">${track.name}</div>
+                <div class="text-xs text-gray-500">${track.type || 'Track'}</div>
+            </div>
+            
+            <!-- Mute/Solo/Arm buttons -->
+            <div class="flex justify-center gap-1">
+                <button class="strip-mute-btn w-8 h-6 text-xs rounded ${isMuted ? 'bg-red-500 text-white' : 'bg-gray-700 text-gray-400 hover:bg-red-900'}" data-track-id="${track.id}" title="Mute">M</button>
+                <button class="strip-solo-btn w-8 h-6 text-xs rounded ${isSolo ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-400 hover:bg-yellow-900'}" data-track-id="${track.id}" title="Solo">S</button>
+                <button class="strip-arm-btn w-8 h-6 text-xs rounded ${isArmed ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-700 text-gray-400 hover:bg-red-600'}" data-track-id="${track.id}" title="Record Arm">R</button>
+            </div>
+            
+            <!-- Pan knob display -->
+            <div class="flex items-center justify-center gap-1">
+                <span class="text-xs text-gray-400">Pan:</span>
+                <div class="strip-pan-display relative w-12 h-6 bg-gray-900 rounded border border-gray-600 flex items-center justify-center cursor-pointer" data-track-id="${track.id}" title="Click to reset pan">
+                    <div class="text-xs text-white font-mono">${panDisplay}</div>
+                    <input type="hidden" class="strip-pan-input" data-track-id="${track.id}" value="${pan}">
+                </div>
+            </div>
+            
+            <!-- Volume fader -->
+            <div class="flex flex-col items-center gap-1 flex-1">
+                <div class="strip-fader-container relative w-full h-28 bg-gray-900 rounded border border-gray-600 flex flex-col items-center justify-end pb-2 overflow-hidden" data-track-id="${track.id}">
+                    <div class="strip-fader-fill absolute bottom-0 left-0 right-0 transition-all duration-75" style="height: ${Math.round(volume * 100)}%; background: linear-gradient(to top, ${trackColor}88, ${trackColor});"></div>
+                    <div class="strip-fader-knob absolute w-8 h-4 bg-white rounded shadow-lg cursor-grab z-10 border border-gray-300" 
+                         style="bottom: calc(${Math.round(volume * 100)}% - 8px); left: 50%; transform: translateX(-50%);"></div>
+                    <input type="range" class="strip-fader-input absolute w-full h-full opacity-0 cursor-pointer z-20" 
+                           data-track-id="${track.id}" min="0" max="1" step="0.01" value="${volume}">
+                </div>
+                <div class="strip-volume-display text-xs text-gray-300 font-mono">${Math.round(volume * 100)}%</div>
+            </div>
+            
+            <!-- Volume label -->
+            <div class="text-center text-xs text-gray-400">Volume</div>
+            
+            <!-- Sends section -->
+            <div class="strip-sends-section mt-1">
+                <div class="text-xs text-gray-500 mb-1">Sends</div>
+                <div class="space-y-1">
+                    ${sends.length === 0 ? '<div class="text-xs text-gray-600">No sends</div>' : sends.map((send, idx) => `
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-400 w-8 truncate">${send.target || `Send ${idx + 1}`}</span>
+                            <input type="range" class="strip-send-input flex-1 h-1" 
+                                   data-track-id="${track.id}" data-send-idx="${idx}" 
+                                   min="0" max="1" step="0.01" value="${send.amount || 0}">
+                            <span class="text-xs text-gray-400 w-6">${Math.round((send.amount || 0) * 100)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renders the master channel strip.
+ */
+function renderMasterStrip(masterTrack) {
+    const volume = masterTrack.volume !== undefined ? masterTrack.volume : 0.8;
+    const pan = masterTrack.pan !== undefined ? masterTrack.pan : 0;
+    const panDisplay = pan === 0 ? 'C' : (pan < 0 ? `L${Math.abs(Math.round(pan * 100))}` : `R${Math.round(pan * 100)}`);
+    
+    return `
+        <div class="track-strip flex-shrink-0 w-44 bg-gray-850 rounded-lg p-3 flex flex-col gap-2 border-2 border-yellow-600/50" data-track-id="master">
+            <div class="text-center">
+                <div class="w-full h-1 rounded mb-1 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500;"></div>
+                <div class="text-xs font-bold text-yellow-400">MASTER</div>
+                <div class="text-xs text-gray-500">Main Output</div>
+            </div>
+            
+            <!-- Master pan -->
+            <div class="flex items-center justify-center gap-1">
+                <span class="text-xs text-gray-400">Pan:</span>
+                <div class="strip-pan-display relative w-12 h-6 bg-gray-900 rounded border border-gray-600 flex items-center justify-center cursor-pointer" data-track-id="master" title="Click to reset pan">
+                    <div class="text-xs text-white font-mono">${panDisplay}</div>
+                    <input type="hidden" class="strip-pan-input" data-track-id="master" value="${pan}">
+                </div>
+            </div>
+            
+            <!-- Master volume fader -->
+            <div class="flex flex-col items-center gap-1 flex-1">
+                <div class="strip-fader-container relative w-full h-28 bg-gray-900 rounded border border-gray-600 flex flex-col items-center justify-end pb-2 overflow-hidden" data-track-id="master">
+                    <div class="strip-fader-fill absolute bottom-0 left-0 right-0 transition-all duration-75" style="height: ${Math.round(volume * 100)}%; background: linear-gradient(to top, #f59e0b88, #f59e0b);"></div>
+                    <div class="strip-fader-knob absolute w-8 h-4 bg-yellow-400 rounded shadow-lg cursor-grab z-10 border border-gray-300" 
+                         style="bottom: calc(${Math.round(volume * 100)}% - 8px); left: 50%; transform: translateX(-50%);"></div>
+                    <input type="range" class="strip-fader-input absolute w-full h-full opacity-0 cursor-pointer z-20" 
+                           data-track-id="master" min="0" max="1" step="0.01" value="${volume}">
+                </div>
+                <div class="strip-volume-display text-xs text-yellow-300 font-mono">${Math.round(volume * 100)}%</div>
+            </div>
+            
+            <!-- Volume label -->
+            <div class="text-center text-xs text-yellow-400">Master Volume</div>
+            
+            <!-- Master meter placeholder -->
+            <div class="mt-2">
+                <div class="text-xs text-gray-500 mb-1">Level</div>
+                <div class="flex gap-0.5 h-8">
+                    <div class="flex-1 bg-red-500 rounded-t" style="height: 60%;"></div>
+                    <div class="flex-1 bg-yellow-500 rounded-t" style="height: 45%;"></div>
+                    <div class="flex-1 bg-green-500 rounded-t" style="height: 70%;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Sets up event handlers for the mixer channel strip panel.
+ */
+function setupMixerChannelStripEvents(container, tracks) {
+    // Fader input events
+    container.querySelectorAll('.strip-fader-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const trackId = e.target.dataset.trackId;
+            const volume = parseFloat(e.target.value);
+            updateMixerFaderDisplay(container, trackId, volume);
+            
+            if (trackId === 'master') {
+                if (localAppServices.setMasterVolume) localAppServices.setMasterVolume(volume);
+            } else {
+                if (localAppServices.setTrackVolume) localAppServices.setTrackVolume(trackId, volume);
+            }
+        });
+    });
+
+    // Fader drag (visual update without committing until release)
+    container.querySelectorAll('.strip-fader-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const trackId = e.target.dataset.trackId;
+            const volume = parseFloat(e.target.value);
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo(`Adjust volume for track ${trackId}`);
+            }
+        });
+    });
+
+    // Mute button events
+    container.querySelectorAll('.strip-mute-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const trackId = e.target.dataset.trackId;
+            if (trackId !== 'master' && localAppServices.toggleTrackMute) {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle mute for track ${trackId}`);
+                localAppServices.toggleTrackMute(trackId);
+                renderMixerChannelStripContent();
+            }
+        });
+    });
+
+    // Solo button events
+    container.querySelectorAll('.strip-solo-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const trackId = e.target.dataset.trackId;
+            if (trackId !== 'master' && localAppServices.toggleTrackSolo) {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle solo for track ${trackId}`);
+                localAppServices.toggleTrackSolo(trackId);
+                renderMixerChannelStripContent();
+            }
+        });
+    });
+
+    // Arm button events
+    container.querySelectorAll('.strip-arm-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const trackId = e.target.dataset.trackId;
+            if (trackId !== 'master' && localAppServices.toggleTrackRecArm) {
+                if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Toggle record arm for track ${trackId}`);
+                localAppServices.toggleTrackRecArm(trackId);
+                renderMixerChannelStripContent();
+            }
+        });
+    });
+
+    // Pan display click to reset
+    container.querySelectorAll('.strip-pan-display').forEach(display => {
+        display.addEventListener('click', () => {
+            const trackId = display.dataset.trackId;
+            if (trackId === 'master') {
+                if (localAppServices.setMasterPan) localAppServices.setMasterPan(0);
+            } else {
+                if (localAppServices.setTrackPan) localAppServices.setTrackPan(trackId, 0);
+            }
+            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Reset pan for track ${trackId}`);
+            renderMixerChannelStripContent();
+        });
+    });
+
+    // Pan drag functionality
+    container.querySelectorAll('.strip-pan-display').forEach(display => {
+        let isDragging = false;
+        let startX = 0;
+        let startPan = 0;
+        const trackId = display.dataset.trackId;
+        const panInput = display.querySelector('.strip-pan-input');
+        
+        if (panInput) {
+            startPan = parseFloat(panInput.value) || 0;
+        }
+        
+        display.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            if (panInput) startPan = parseFloat(panInput.value) || 0;
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const delta = (e.clientX - startX) / 100;
+            const newPan = Math.max(-1, Math.min(1, startPan + delta));
+            const panDisplay = display.querySelector('.text-xs.text-white.font-mono');
+            if (panDisplay) {
+                panDisplay.textContent = newPan === 0 ? 'C' : (newPan < 0 ? `L${Math.abs(Math.round(newPan * 100))}` : `R${Math.round(newPan * 100)}`);
+            }
+            if (panInput) panInput.value = newPan;
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            const finalPan = parseFloat(panInput?.value || startPan);
+            if (trackId === 'master') {
+                if (localAppServices.setMasterPan) localAppServices.setMasterPan(finalPan);
+            } else {
+                if (localAppServices.setTrackPan) localAppServices.setTrackPan(trackId, finalPan);
+            }
+            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo(`Adjust pan for track ${trackId}`);
+        });
+    });
+
+    // Send input events
+    container.querySelectorAll('.strip-send-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const trackId = e.target.dataset.trackId;
+            const sendIdx = parseInt(e.target.dataset.sendIdx);
+            const amount = parseFloat(e.target.value);
+            if (localAppServices.setTrackSendAmount) {
+                localAppServices.setTrackSendAmount(trackId, sendIdx, amount);
+            }
+        });
+    });
+
+    // Reset all faders button
+    container.querySelector('#mixerResetAllBtn')?.addEventListener('click', () => {
+        if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Reset all faders');
+        if (localAppServices.resetAllTrackVolumes) {
+            localAppServices.resetAllTrackVolumes();
+        }
+        renderMixerChannelStripContent();
+        localAppServices.showNotification?.('All faders reset', 1500);
+    });
+
+    // Auto-gain match button
+    container.querySelector('#mixerAutoGainBtn')?.addEventListener('click', () => {
+        if (localAppServices.autoGainMatchTracks) {
+            if (localAppServices.captureStateForUndo) localAppServices.captureStateForUndo('Auto-gain match tracks');
+            localAppServices.autoGainMatchTracks();
+            renderMixerChannelStripContent();
+            localAppServices.showNotification?.('Auto-gain applied', 1500);
+        }
+    });
+}
+
+/**
+ * Updates the visual fader display without re-rendering everything.
+ */
+function updateMixerFaderDisplay(container, trackId, volume) {
+    const strip = container.querySelector(`[data-track-id="${trackId}"]`);
+    if (!strip) return;
+    
+    const fill = strip.querySelector('.strip-fader-fill');
+    const knob = strip.querySelector('.strip-fader-knob');
+    const volumeDisplay = strip.querySelector('.strip-volume-display');
+    
+    if (fill) fill.style.height = `${Math.round(volume * 100)}%`;
+    if (knob) knob.style.bottom = `calc(${Math.round(volume * 100)}% - 8px)`;
+    if (volumeDisplay) volumeDisplay.textContent = `${Math.round(volume * 100)}%`;
+}
+
+/**
+ * Updates the mixer panel content if it's open.
+ */
+export function updateMixerChannelStripPanel() {
+    const container = document.getElementById('mixerChannelStripContent');
+    if (container) renderMixerChannelStripContent();
+}
