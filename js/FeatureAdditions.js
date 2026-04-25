@@ -20,3 +20,5 @@ export { openQuantizeStrengthPanel, closeQuantizeStrengthPanel, getQuantizeStren
 export { openRandomNoteGeneratorPanel, closeRandomNoteGeneratorPanel } from './RandomNoteGenerator.js';
 // Mixer Snapshot feature
 export { openMixerSnapshotPanel, saveMixerSnapshot, loadMixerSnapshot, deleteMixerSnapshot, getMixerSnapshots, getMixerSnapshotNames } from './MixerSnapshot.js';
+// Piano Roll Sequencer - Feature #1
+export { initPianoRollSequencer, openTrackSequencerWindow, refreshSequencerUI } from './PianoRollSequencer.js';
