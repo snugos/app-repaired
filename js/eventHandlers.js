@@ -333,7 +333,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -425,6 +425,36 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Metronome Controls ===
+
+    // === Metronome Volume Control ===
+    if (metronomeVolumeSlider) {
+        // Initialize slider value from state
+        if (typeof getMetronomeVolume === 'function') {
+            const vol = getMetronomeVolume();
+            metronomeVolumeSlider.value = Math.round(vol * 100);
+            if (metronomeVolumeDisplay) metronomeVolumeDisplay.textContent = Math.round(vol * 100) + '%';
+        }
+
+        metronomeVolumeSlider.addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value) / 100;
+            if (typeof setMetronomeVolume === 'function') {
+                setMetronomeVolume(vol);
+            }
+            if (metronomeVolumeDisplay) metronomeVolumeDisplay.textContent = e.target.value + '%';
+        });
+
+        metronomeVolumeSlider.addEventListener('change', (e) => {
+            const vol = parseInt(e.target.value) / 100;
+            if (typeof setMetronomeVolume === 'function') {
+                setMetronomeVolume(vol);
+            }
+            // Sync to audio engine
+            if (typeof playMetronomeClick === 'function') {
+                playMetronomeClick(true);
+            }
+        });
+    }
+    // === End Metronome Volume Control ===
 
     // === Scale/Key Selector Controls ===
     function updateScaleNotesDisplay() {
