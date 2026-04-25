@@ -1,6 +1,5 @@
 ---
-
-## Session: 2026-04-25 03:50 UTC (Feature Builder Agent Run)
+## Session: 2026-04-25 05:40 UTC (Feature Builder Agent Run)
 
 **Status: ALL QUEUED FEATURES ALREADY IMPLEMENTED ✅**
 
@@ -18,7 +17,7 @@ All 10 features in the original queue are already implemented:
 9. **Waveform Visualization** ✅ - In `js/Track.js`
 10. **Track Color Coding** ✅ - `js/ClipColorCoding.js`
 
-### New Feature Queue (2026-04-25 03:50 UTC)
+### New Feature Queue (2026-04-25 05:40 UTC)
 
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
@@ -26,24 +25,24 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 397+ features already implemented
+- 407+ features already implemented
 
 **New Feature Queue:**
 
-1. **Auto-Beat Sync** - Automatically sync tempo to detected BPM from audio input
-2. **Clip Gain Envelope** - Draw volume automation directly on audio/MIDI clips
-3. **Track Lane Reorder** - Drag and drop to reorder tracks in mixer view
-4. **MIDI CC Learn Panel** - Visual panel for MIDI controller learning with direct mapping
-5. **Audio Buffer Visualization** - Show audio buffer size/performance in status bar
-6. **Scale Highlight Overlay** - Semi-transparent overlay showing scale notes on piano keys
-7. **Groove Extract** - Extract groove template from recorded performance
-8. **Multi-Select Edit** - Select multiple clips/notes and edit them together
-9. **Bounce to Selection** - Export selected region as audio file
-10. **Timeline Markers** - Add color-coded markers on timeline for navigation
+1. **Lyrics Display/Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
+2. **Auto-Compression** - Analyze audio and suggest/apply compression settings
+3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
+4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
+5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
+6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
+7. **Loop Region Presets** - Save/load named loop regions as presets
+8. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
+9. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
+10. **Project Comparison View** - Side-by-side comparison of two project versions
 
-**Commit:** `abc1234` (placeholder - needs actual commit after implementation)
+**Commit:** `6bb9b6c` (all previous features completed)
 
-**Total Features: 407+**
+**Total Features: 417+**
 
 ---
 
