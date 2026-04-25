@@ -331,6 +331,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openAutoBeatSyncPanel?.();
                 } catch(e) { console.error('[Menu] Auto-Beat Sync error:', e); }
             },
+            menuLyricsDisplay: () => {
+                console.log('[Menu] Lyrics Display clicked');
+                try {
+                    localAppServices.openLyricsPanel?.();
+                } catch(e) { console.error('[Menu] Lyrics Display error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
