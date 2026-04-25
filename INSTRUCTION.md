@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Beat-synced LFO** - LFO with tempo-locked rate divisions (1/4, 1/8, 1/16, etc.) for filter/amp modulation ✅ COMPLETED
-2. **Audio Scrubbing** - Scrub through audio by dragging on the timeline with audible playback ✅ COMPLETED
-3. **Octave Layer** - Add octave-up and octave-down layers to MIDI instrument tracks ✅ COMPLETED
-4. **Mixer Snapshot** - Save and recall complete mixer states (volume, pan, mute, solo, effects) ✅ COMPLETED
-5. **Sample Rate Display** - Show current audio sample rate in the status bar ✅ COMPLETED
-6. **Rhythm Pattern Brush** - Draw rhythmic patterns by clicking and dragging patterns on the sequencer ✅ COMPLETED
-7. **Per-track Spectrum Analyzer** - Real-time FFT display for each track channel ✅ COMPLETED
-8. **Note Echo Effect** - Per-note delay with feedback for arpeggiation effects ✅ COMPLETED
-9. **Preset Morphing** - Morph between two effect presets over a specified time duration ✅ COMPLETED
-10. **Distortion Curves Editor** - Visual curve editor for waveshaper distortion with preset shapes (tube, fuzz, asymmetric) ✅ COMPLETED
+1. **Chord Progression Builder** - Visual chord grid for building chord progressions with drag-and-drop
+2. **Velocity Curve Editor** - Draw velocity curves for MIDI note dynamics
+3. **Track Grouping Hierarchy** - Nested track groups with collapsible hierarchy view
+4. **Automation Point Editor** - Click to add/edit automation points with smooth curve types
+5. **Step Sequencer Grid** - 16-step grid view for drum programming separate from piano roll
+6. **Audio Quantize** - Snap audio clip timing to grid boundaries
+7. **Track Delay Offset** - Per-track delay compensation for phase alignment
+8. **Sidechain Panel** - Visual sidechain routing with gain/threshold controls
+9. **Note Length Editor** - Adjust note durations in a bar view with length handles
+10. **Scale Detection** - Auto-detect the scale of recorded MIDI and show on piano roll
 
 ## Workflow
 
