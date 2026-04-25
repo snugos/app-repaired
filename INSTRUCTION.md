@@ -4,14 +4,13 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Envelope Editor** - Draw volume/tempo automation per clip
-2. **Track Freeze** - Render track to audio to save CPU, with defrost
-3. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
-4. **Sidechain Routing** - Visual sidechain connections between tracks
-5. **Project Templates** - Save/load full project setups as templates
-6. **Scale Lock** - Lock MIDI input to a musical scale
-7. **Audio Warping** - Stretch audio clips without changing pitch
-8. **Batch Export** - Export multiple stems/tracks at once
+1. **Track Freeze** - Render track to audio to save CPU, with defrost
+2. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
+3. **Sidechain Routing** - Visual sidechain connections between tracks
+4. **Project Templates** - Save/load full project setups as templates
+5. **Scale Lock** - Lock MIDI input to a musical scale
+6. **Audio Warping** - Stretch audio clips without changing pitch
+7. **Batch Export** - Export multiple stems/tracks at once
 
 ## Workflow
 
