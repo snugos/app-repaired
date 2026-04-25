@@ -6884,3 +6884,183 @@ function initSmartQuantizePanelHandlers() {
         });
     });
 }
+/**
+ * Distortion Curves Editor Panel
+ * Opens a visual curve editor for waveshaper distortion effects
+ */
+export function openDistortionCurvesPanel(savedState = null) {
+    const windowId = 'distortionCurves';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'distortionCurvesContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    const options = { width: 600, height: 500, minWidth: 450, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+    const win = localAppServices.createWindow(windowId, 'Distortion Curves Editor', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderDistortionCurvesContent(), 50);
+    }
+    return win;
+}
+
+/**
+ * Renders the Distortion Curves Editor content
+ */
+function renderDistortionCurvesContent() {
+    const container = document.getElementById('distortionCurvesContent');
+    if (!container) return;
+
+    import('./DistortionCurvesEditor.js').then(module => {
+        const { DistortionCurvesEditor } = module;
+        const editor = new DistortionCurvesEditor({
+            onCurveChange: (data) => {
+                window._distortionCurveData = data;
+            }
+        });
+        window._distortionCurveEditor = editor;
+
+        const presets = editor.getPresets();
+        const metadata = editor.presetMetadata;
+
+        let html = '<div class="mb-4 text-sm text-gray-600 dark:text-gray-400">Visual editor for waveshaper distortion curves. Select a preset or adjust drive amount.</div>';
+        
+        html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Curve Preset:</label><select id="dc-preset-select" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-800 dark:text-gray-200">' + presets.map(p => '<option value="'+p+'">'+(metadata[p]?.name || p)+'</option>').join('')+'</select><div id="dc-preset-desc" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div></div>';
+        
+        html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Drive: <span id="dc-drive-value">50%</span></label><input type="range" id="dc-drive" min="0" max="100" value="50" class="w-full h-2 bg-gray-300 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"></div>';
+        
+        html += '<div class="mb-4 bg-white dark:bg-slate-700 rounded-lg p-2 shadow-inner"><canvas id="dc-curve-canvas" width="560" height="200" class="w-full rounded bg-gray-50 dark:bg-slate-800"></canvas><div class="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-1"><span>Input: -1</span><span>0</span><span>+1</span></div></div>';
+        
+        html += '<div class="grid grid-cols-3 gap-2 mb-4">' + presets.slice(0, 6).map(p => '<button class="dc-preset-btn p-2 text-left text-xs bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded hover:border-blue-400 dark:hover:border-blue-500 transition-colors" data-preset="'+p+'"><div class="font-medium text-gray-800 dark:text-gray-200">'+(metadata[p]?.name || p)+'</div><div class="text-gray-500 dark:text-gray-400 mt-0.5">'+(metadata[p]?.description || '')+'</div></button>').join('') + '</div>';
+        
+        html += '<div class="flex gap-2"><button id="dc-apply-to-master" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded">Apply to Master Distortion</button><button id="dc-preview" class="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded">Preview</button></div><div id="dc-curve-info" class="mt-3 text-xs text-gray-500 dark:text-gray-400 p-2 bg-gray-100 dark:bg-slate-700 rounded hidden"></div>';
+
+        container.innerHTML = html;
+
+        drawDistortionCurve();
+        updatePresetDescription();
+
+        const presetSelect = document.getElementById('dc-preset-select');
+        const driveSlider = document.getElementById('dc-drive');
+        const presetBtns = container.querySelectorAll('.dc-preset-btn');
+        const applyBtn = document.getElementById('dc-apply-to-master');
+        const previewBtn = document.getElementById('dc-preview');
+
+        presetSelect?.addEventListener('change', (e) => {
+            editor.generateFromPreset(e.target.value);
+            drawDistortionCurve();
+            updatePresetDescription();
+        });
+
+        driveSlider?.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.getElementById('dc-drive-value').textContent = val + '%';
+            editor.setDrive(val / 100);
+            drawDistortionCurve();
+        });
+
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.dataset.preset;
+                presetSelect.value = preset;
+                editor.generateFromPreset(preset);
+                drawDistortionCurve();
+                updatePresetDescription();
+            });
+        });
+
+        applyBtn?.addEventListener('click', () => {
+            const curve = editor.getCurve();
+            if (localAppServices.applyDistortionCurveToMaster) {
+                localAppServices.applyDistortionCurveToMaster(curve);
+                localAppServices.showNotification?.('Distortion curve applied to master', 2000);
+            } else {
+                localAppServices.showNotification?.('Master effect not found. Add a Distortion effect to master first.', 3000);
+            }
+        });
+
+        previewBtn?.addEventListener('click', () => {
+            const curve = editor.getCurve();
+            if (localAppServices.previewDistortionCurve) {
+                localAppServices.previewDistortionCurve(curve);
+                localAppServices.showNotification?.('Previewing distortion curve...', 1000);
+            }
+        });
+
+        function updatePresetDescription() {
+            const desc = document.getElementById('dc-preset-desc');
+            if (desc && presetSelect) {
+                const meta = metadata[presetSelect.value];
+                desc.textContent = meta?.description || '';
+            }
+        }
+
+        function drawDistortionCurve() {
+            const canvas = document.getElementById('dc-curve-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const curve = editor.getCurve();
+            const padding = 10;
+            
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, w, h);
+            
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const x = padding + (i / 4) * (w - 2 * padding);
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, h - padding);
+                ctx.stroke();
+                const y = padding + (i / 4) * (h - 2 * padding);
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(w - padding, y);
+                ctx.stroke();
+            }
+            
+            ctx.strokeStyle = '#94a3b8';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(padding, h - padding);
+            ctx.lineTo(w - padding, padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < curve.length; i++) {
+                const x = padding + (i / (curve.length - 1)) * (w - 2 * padding);
+                const y = h - padding - ((curve[i] + 1) / 2) * (h - 2 * padding);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px sans-serif';
+            ctx.fillText('Input', 4, h / 2);
+            ctx.fillText('Output', w - 30, h / 2);
+        }
+
+    }).catch(err => {
+        console.error('[DistortionCurvesEditor] Failed to load:', err);
+        container.innerHTML = '<div class="text-red-500">Failed to load distortion curves editor.</div>';
+    });
+}
