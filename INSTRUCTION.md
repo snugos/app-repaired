@@ -9,10 +9,10 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 3. **Octave Layer** - Add octave-up and octave-down layers to MIDI instrument tracks ✅ COMPLETED
 4. **Mixer Snapshot** - Save and recall complete mixer states (volume, pan, mute, solo, effects) ✅ COMPLETED
 5. **Sample Rate Display** - Show current audio sample rate in the status bar ✅ COMPLETED
-6. **Rhythm Pattern Brush** - Draw rhythmic patterns by clicking and dragging patterns on the sequencer
-7. **Per-track Spectrum Analyzer** - Real-time FFT display for each track channel
-8. **Note Echo Effect** - Per-note delay with feedback for arpeggiation effects
-9. **Preset Morphing** - Morph between two effect presets over a specified time duration
+6. **Rhythm Pattern Brush** - Draw rhythmic patterns by clicking and dragging patterns on the sequencer ✅ COMPLETED
+7. **Per-track Spectrum Analyzer** - Real-time FFT display for each track channel ✅ COMPLETED
+8. **Note Echo Effect** - Per-note delay with feedback for arpeggiation effects ✅ COMPLETED
+9. **Preset Morphing** - Morph between two effect presets over a specified time duration ✅ COMPLETED
 10. **Distortion Curves Editor** - Visual curve editor for waveshaper distortion with preset shapes (tube, fuzz, asymmetric) ✅ COMPLETED
 
 ## Workflow
