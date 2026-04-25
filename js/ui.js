@@ -7064,3 +7064,130 @@ function renderDistortionCurvesContent() {
         container.innerHTML = '<div class="text-red-500">Failed to load distortion curves editor.</div>';
     });
 }
+
+/**
+ * Beat-synced LFO Panel
+ * LFO with tempo-locked rate divisions for filter/amp modulation
+ */
+export function openBeatSyncedLFOPanel(savedState = null) {
+    const windowId = 'beatSyncedLFO';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'beatLFOContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    const options = { width: 480, height: 400, minWidth: 380, minHeight: 320, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+    const win = localAppServices.createWindow(windowId, 'Beat-synced LFO', contentContainer, options);
+    if (win?.element) {
+        setTimeout(() => renderBeatLFOContent(), 50);
+    }
+    return win;
+}
+
+function renderBeatLFOContent() {
+    const container = document.getElementById('beatLFOContent');
+    if (!container) return;
+
+    const lfoState = {
+        isRunning: false,
+        rateDivision: '1/4',
+        depth: 0.7,
+        type: 'sine',
+        tempo: localAppServices.getTempo?.() || 120
+    };
+
+    const rateDivisions = ['1/64', '1/32', '1/16', '1/8', '1/4', '1/2', '1/1', '2/1', '4/1'];
+    const waveTypes = ['sine', 'triangle', 'square', 'sawtooth', 'reverseSaw'];
+
+    let html = '<div class="mb-4 text-sm text-gray-600 dark:text-gray-400">LFO with tempo-locked rate divisions for modulation effects.</div>';
+    
+    html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Rate Division:</label><select id="lfo-rate" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-800 dark:text-gray-200">' + rateDivisions.map(r => '<option value="'+r+'">'+r+' ('+(4/r.split("/")[1])+'Hz)</option>').join('') + '</select></div>';
+    
+    html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Waveform:</label><select id="lfo-type" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-800 dark:text-gray-200">' + waveTypes.map(t => '<option value="'+t+'">'+t.charAt(0).toUpperCase() + t.slice(1)+'</option>').join('') + '</select></div>';
+    
+    html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Depth: <span id="lfo-depth-val">70%</span></label><input type="range" id="lfo-depth" min="0" max="100" value="70" class="w-full h-2 bg-gray-300 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"></div>';
+    
+    html += '<div class="mb-4"><label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Frequency (Hz): <span id="lfo-freq-val">2.00</span></label><input type="range" id="lfo-freq" min="0.1" max="50" step="0.1" value="2" class="w-full h-2 bg-gray-300 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"></div>';
+    
+    html += '<div class="flex gap-2 mb-4"><button id="lfo-start" class="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded">Start</button><button id="lfo-stop" class="flex-1 px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded">Stop</button></div>';
+    
+    html += '<div id="lfo-info" class="text-xs text-gray-500 dark:text-gray-400 p-2 bg-gray-100 dark:bg-slate-700 rounded"></div>';
+
+    container.innerHTML = html;
+
+    const rateSelect = document.getElementById('lfo-rate');
+    const typeSelect = document.getElementById('lfo-type');
+    const depthSlider = document.getElementById('lfo-depth');
+    const freqSlider = document.getElementById('lfo-freq');
+    const startBtn = document.getElementById('lfo-start');
+    const stopBtn = document.getElementById('lfo-stop');
+    const infoDiv = document.getElementById('lfo-info');
+
+    function updateInfo() {
+        const rate = rateSelect.value;
+        const divisor = parseInt(rate.split("/")[1]);
+        const freq = (lfoState.tempo / 60) * (4 / divisor);
+        document.getElementById('lfo-freq-val').textContent = freq.toFixed(2);
+        infoDiv.innerHTML = '<b>Tempo:</b> ' + lfoState.tempo + ' BPM | <b>Rate:</b> ' + rate + ' | <b>Hz:</b> ' + freq.toFixed(3) + 'Hz | <b>Depth:</b> ' + Math.round(lfoState.depth * 100) + '%';
+    }
+
+    rateSelect?.addEventListener('change', (e) => {
+        lfoState.rateDivision = e.target.value;
+        updateInfo();
+    });
+
+    typeSelect?.addEventListener('change', (e) => {
+        lfoState.type = e.target.value;
+    });
+
+    depthSlider?.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        lfoState.depth = val / 100;
+        document.getElementById('lfo-depth-val').textContent = val + '%';
+        updateInfo();
+    });
+
+    freqSlider?.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        document.getElementById('lfo-freq-val').textContent = val.toFixed(2);
+    });
+
+    startBtn?.addEventListener('click', () => {
+        lfoState.isRunning = true;
+        startBtn.classList.add('bg-green-400');
+        stopBtn.classList.remove('bg-red-400');
+        if (localAppServices.startBeatLFO) {
+            localAppServices.startBeatLFO({
+                rateDivision: lfoState.rateDivision,
+                type: lfoState.type,
+                depth: lfoState.depth,
+                tempo: lfoState.tempo
+            });
+            localAppServices.showNotification?.('Beat-synced LFO started', 1500);
+        }
+        updateInfo();
+    });
+
+    stopBtn?.addEventListener('click', () => {
+        lfoState.isRunning = false;
+        startBtn.classList.remove('bg-green-400');
+        stopBtn.classList.add('bg-red-400');
+        if (localAppServices.stopBeatLFO) {
+            localAppServices.stopBeatLFO();
+            localAppServices.showNotification?.('Beat-synced LFO stopped', 1500);
+        }
+        updateInfo();
+    });
+
+    updateInfo();
+}

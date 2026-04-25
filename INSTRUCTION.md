@@ -1,209 +1,76 @@
-# AGENTS.md — snugsworth's Workspace
+## Task: Snaw Feature Builder Agent
 
-## GitHub Access
-- **Org**: snugos | User: snugsworth
-- **Auth**: via Zo secrets (not stored in file)
+You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Repositories (snugos org)
+## Current Feature Queue
 
-| Repo | Lang | Lines | Description |
-|------|------|-------|-------------|
-| `snugos/app` | JS | ~22K | SnugOS — browser DAW (Tone.js), v0.5.6 |
-| `snugos/space` | TypeScript/React | ~600 | 3D multiplayer world (PeerJS) |
-| `snugos/3d-space` | TypeScript/React | ~600 | 3D world variant (PartyKit) |
-| `snugos/palopseegame` | JS | ~1K | Chrome Dino-style runner + Firebase + Gemini |
-| `snugos/music-store` | TypeScript | ~200 | Stripe beat tape storefront (Vercel) |
-| `snugos/dreams` | HTML | ~1 | Audio-reactive particle landing page |
-| `snugos/beta` | JS | — | Older SnugOS (deprecated) |
-| `snugos/snugos-new` | JS | — | Staging clone of `app` |
-| `snugos/scribbleton` | — | — | Empty repo |
-| `snugos/scribbletonlive` | Vue | — | SnugOS DAW port to Vue/Nuxt |
+1. **Beat-synced LFO** - LFO with tempo-locked rate divisions (1/4, 1/8, 1/16, etc.) for filter/amp modulation
+2. **Audio Scrubbing** - Scrub through audio by dragging on the timeline with audible playback
+3. **Octave Layer** - Add octave-up and octave-down layers to MIDI instrument tracks
+4. **Mixer Snapshot** - Save and recall complete mixer states (volume, pan, mute, solo, effects)
+5. **Sample Rate Display** - Show current audio sample rate in the status bar
+6. **Rhythm Pattern Brush** - Draw rhythmic patterns by clicking and dragging patterns on the sequencer
+7. **Per-track Spectrum Analyzer** - Real-time FFT display for each track channel
+8. **Note Echo Effect** - Per-note delay with feedback for arpeggiation effects
+9. **Preset Morphing** - Morph between two effect presets over a specified time duration
+10. **Distortion Curves Editor** - Visual curve editor for waveshaper distortion with preset shapes (tube, fuzz, asymmetric) ✅ COMPLETED
 
-## App (snugos/app) — Top Issues Logged
+## Workflow
 
-**3 High Severity:**
-1. `updateSequencerCellUI` uses undefined `j` instead of `col`
-2. `getIsReconstructingingDAW` triple-g typo → always `false` (recovery broken)
-3. `rebuildMasterEffectChain` early `return` in `forEach` — entire chain drops
+### Step 1: Pick Next Feature
+- Read this instruction to see which feature you're on
+- Work on features IN ORDER (1, then 2, then 3...)
 
-**Full bug log:** `Repos/app/ERROR_LOG.md`
+### Step 2: Implement Feature
+- Keep it SIMPLE and MINIMAL
+- Follow existing code patterns
+- Add necessary UI, state, and audio logic
+- Test locally before committing
 
-## Space (snugos/space, snugos/3d-space)
-- PeerJS vs PartyKit mismatch — different servers for same project type
-- `sendPosition` exported but never called
-- `localhost:1999` hardcoded in 3d-space useMultiplayer (production break)
+### Step 3: Commit & Push
+- Commit: `feat: [feature name]`
+- Push to `LWB-with-Bugs` branch
+- Wait ~60 seconds for GitHub Pages deploy
 
-## Music Store (snugos/music-store)
-- Dead CashApp code path (condition makes it unreachable)
-- No email fulfillment wired (webhook logs only)
-- In-memory webhook deduplication (lost on cold start)
-- `BASE_URL` fallback to localhost in production
+### Step 4: Verify
+- Open https://snugos.github.io/snaw/ in browser
+- Test the new feature works
+- Check console for errors
 
-## Palopsee Game (snugos/palopseegame)
-- `http://` asset URLs (mixed content on HTTPS)
-- Firebase anonymous auth every load (no persistence)
-- Gemini banter innerHTML injection risk
-- No `geminiApiKey` export from config.js
+### Step 5: Update Queue
+After successfully implementing a feature:
+- Remove it from the queue
+- Renumber the remaining features
+- Update this instruction with new queue
 
-## Dreams (snugos/dreams)
-- Static HTML + Tone.js audio — no JS source to study (only index.html)
+## When Queue is Empty
 
-## SnugOS DAW (app-repaired) — Status: FEATURE-COMPLETE ✅
+Run this brainstorming process:
 
-**Repository**: LWB-with-Bugs branch (up to date)
-**Last Verified**: 2026-04-25 00:40 UTC
-**Total JS Files**: 283
-**Total Lines of Code**: 202,648
-**Total Features**: 416+
-
----
-
-## New Feature Queue (2026-04-25 01:00 UTC)
-
+```
 Based on SnugOS being a browser-based DAW with:
 - Tone.js audio engine
 - Multi-track timeline
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 417+ features already implemented
 
-**New Feature Queue:**
+Generate 10 NEW feature ideas that are:
+1. Achievable in a single session
+2. Complement existing features
+3. Enhance creative workflow
 
-1. **Metronome Volume Control** - Adjustable volume slider for metronome 🔊 ✅ COMPLETED (f1d973f)
-2. **Spectrogram Display** - Real-time spectrogram visualization for tracks
-3. **Tempo Curve Editor** - Edit tempo automation curve with visual points
-4. **MIDI Monitor Panel** - Input/output MIDI monitor with note visualization
-5. **Project Version Manager** - Save and restore project snapshots
-6. **Clip Stretcher** - Time-stretch audio clips without changing pitch
-7. **Pitch Shift Preview** - Preview pitch-shifted audio before applying
-8. **Envelope Shaper** - Draw volume/pan envelopes on clips
-9. **Track Color Palette** - Multiple color themes (neon, pastel, dark)
-10. **Smart Quantize** - Intelligent quantization with scale strength controls
+Output as numbered list and update this instruction.
+```
 
-**Status: 1 OF 10 NEW FEATURES COMPLETED**
+## Rules
 
----
+- ONE feature per run
+- NO bug fixing (that's the other agent's job)
+- If you can't complete a feature, skip it and move to next
+- Always commit working code
+- Keep features minimal and focused
 
-## Non-Browser Features (Cannot Implement):
-- VST3 Plugin Loading (requires native bridge)
-- AU Plugin Support (requires native bridge)
-- ReWire Support (requires native bridge)
-
----
-
-## New Feature Queue (2026-04-25 00:35 UTC)
-
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-- 406+ features already implemented
-
-**New Feature Queue:**
-
-1. **Resonant Filter Bank** - Resonant multi-band filter with per-band drive
-2. **Chorus Ensemble** - Thick chorus effect with multiple delay lines
-3. **Tape Stop Effect** - Realistic tape slowdown and stop effect
-4. **Bitcrush Filter** - Lo-fi sample rate and bit depth reduction
-5. **Frequency Isolator** - Isolate specific frequency ranges for analysis
-6. **AutoPan Sync** - Pan automation synced to tempo
-7. **Sidechain Gate** - Gate that responds to sidechain input
-8. **Spectral Flanger** - Flanger with frequency-dependent modulation
-9. **Texture Synth** - Additive synthesizer for textural pads
-10. **Drift Oscillator** - Oscillator with pitch drift for analog feel
-
-**Status: 0 OF 10 NEW FEATURES COMPLETED**
-
----
-
-## New Feature Queue (2026-04-24 19:20 UTC)
-
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-- 406+ features already implemented
-
-**New Feature Queue:**
-
-1. **Frequency Splitter** - Split audio into multiple frequency bands for parallel processing ✅ COMPLETED (2026-04-24)
-2. **Pitch Drift** - Gradual pitch drift effect for creating subtle vibrato/wobble ✅ COMPLETED (2026-04-24)
-3. **Harmonic Exciter** - Add harmonic content to dull recordings ✅ COMPLETED (2026-04-24)
-4. **Mid-Side Encoder/Decoder** - Convert between stereo and mid-side representation ✅ COMPLETED (2026-04-24 17:50)
-5. **Timestretch Display** - Visual preview of how audio will be stretched ✅ COMPLETED (2026-04-24 17:50)
-6. **Frequency Shifter** - Shift frequencies without changing pitch (for special effects) ✅ COMPLETED (2026-04-24 17:50)
-7. **Phase Scope** - Real-time phase correlation visualization ✅ COMPLETED (2026-04-24 17:50)
-8. **Noise Gate Enhancement** - Advanced gate with frequency-aware triggering ✅ COMPLETED (2026-04-24 17:50)
-9. **Sub-Harmonic Generator** - Add sub-bass content for weight and power ✅ COMPLETED (2026-04-24 17:50)
-10. **Sample Slicer** - Slice audio samples into rhythmic segments with transient detection ✅ COMPLETED (2026-04-24)
-
-**Status: ALL 10 NEW FEATURES COMPLETED ✅**
-
-**Commit:** `6e8afea`
-
-**Total Features: 387+**
-
----
-
-## New Feature Queue (2026-04-24 18:10 UTC)
-
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-- 387+ features already implemented
-
-**New Feature Queue:**
-1. **Track Freeze** - Freeze tracks to audio to save CPU, with defrost functionality
-2. **Audio Spectrogram** - Real-time spectrogram visualization for tracks
-3. **Envelope Shaper** - Volume/pan envelope automation for clips
-4. **Tempo Curve Editor** - Edit tempo automation curve with visual points
-5. **Track Color Palette** - Multiple track color palettes (neon, pastel, dark)
-6. **Smart Quantize** - Intelligent quantization with strength and scale controls
-7. **MIDI Monitor** - MIDI input/output monitor panel
-8. **Clip Stretcher** - Time-stretch audio clips without changing pitch
-9. **Pitch Shift Preview** - Preview pitch-shifted audio before applying
-10. **Project Version Manager** - Manage multiple project versions/snapshots
-**Status: ALL 10 NEW FEATURES COMPLETED ✅**
-
-**Commit:** `c843cbb`
-
-**Total Features: 397+**
-
----
-
-## New Feature Queue (2026-04-24 18:40 UTC)
-
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-- 397+ features already implemented
-
-**New Feature Queue:**
-
-1. **Vocoder** - Vocoder effect for robot/voice synthesis ✅ COMPLETED
-2. **Ring Modulator** - Classic ring modulation for metallic/distant sounds ✅ COMPLETED (2026-04-24 18:50)
-3. **Pitch-Shifted Delay** - Delay with pitch shifting for sci-fi effects ✅ COMPLETED (2026-04-24 18:55)
-4. **Granular Reverb** - Grain-based reverb for ambient textures ✅ COMPLETED (2026-04-24 19:10)
-5. **Distortion Enhancements** - Add more distortion types (tube, wave, fuzz) ✅ COMPLETED (2026-04-24 19:10)
-6. **Filter Chain** - Multiple filters in series for complex sweeps ✅ COMPLETED (2026-04-24 19:15)
-7. **Compressor Enhancements** - Add RMS/peak detection modes ✅ COMPLETED (2026-04-24 19:15)
-8. **Limiter Modes** - Different limiter release modes (fast, program) ✅ COMPLETED (2026-04-24 19:00)
-9. **Tape Echo** - Tape-style echo with natural degradation ✅ COMPLETED (2026-04-24 19:00)
-10. **Reverse Reverb** - Reverse reverb tails for atmospheric effects ✅ COMPLETED (2026-04-24 19:05)
-
-**Status: ALL 10 NEW FEATURES COMPLETED ✅**
-
-**Commit:** `e6fb18b`
-
-**Total Features: 406+**
+## Context Files
+- Repo: `/home/workspace/app-repaired`
+- Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
