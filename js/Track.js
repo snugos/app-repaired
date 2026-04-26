@@ -279,6 +279,19 @@ export class Track {
         this.frozenPlayer = null; // Tone.Player for playing frozen audio
         this.frozenDuration = initialData?.frozenDuration || 0; // Duration of frozen audio
         this.timelinePlaybackRate = initialData?.timelinePlaybackRate || 1.0; // Playback rate for timeline clips (1.0 = normal)
+        this.reversePlayback = initialData?.reversePlayback || false; // Play clips backwards when true
+    }
+
+    /**
+     * Enable or disable reverse playback for this track.
+     * @param {boolean} reverse - True to play clips backwards
+     */
+    setReversePlayback(reverse) {
+        this.reversePlayback = !!reverse;
+        console.log(`[Track ${this.id}] Reverse playback ${this.reversePlayback ? 'enabled' : 'disabled'}`);
+        if (this.appServices?.captureStateForUndo) {
+            this.appServices.captureStateForUndo(`Set reverse playback for ${this.name}`);
+        }
     }
 /**
      * Loads a sample to a specific drum pad and saves it to IndexedDB.
