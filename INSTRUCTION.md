@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **BPM Detector** - Detect tempo from audio input in real-time using onset detection
-2. **Track Freezing** - Freeze tracks to audio to save CPU with one-click defrost
-3. **Send Effects (Aux Tracks)** - Add send/aux tracks for reverb, delay send chains
-4. **MIDICC Mapper** - Map MIDI CC messages to any plugin parameter for modulation
-5. **Track Solo/Mute Groups** - Create groups of tracks that solo/mute together
-6. **Plugin Preset Browser** - Browse and manage effect chain presets across the project
-7. **Backup Manager** - Auto-backup projects with version history and cloud export
-8. **Audio-to-MIDI Batch** - Convert multiple audio regions to MIDI patterns at once
-9. **Arrangement Export to Video** - Export arrangement timeline as MP4 video
-10. **Track Grouping Panel** - Visual panel to group and color-code track groups
+1. **Beat Detective** - Automatic beat/tempo grid detection from audio with manual adjustment
+2. **Stem Separator Preview** - Preview AI-separated stems (vocals, drums, bass, other) before full processing
+3. **Clip Envelope Automation** - Draw volume/pan/pitch automation directly on audio clips
+4. **Track Lane Routing Matrix** - Visual matrix for routing track outputs to multiple destinations
+5. **MIDI Polyphonic Expression** - Per-note pitch bend and expression data for realistic performances
+6. **Real-time Spectrum Comparison** - A/B compare two mix versions with real-time spectrum overlay
+7. **Groove Extractor** - Extract swing/groove feel from audio and apply to MIDI quantize
+8. **Audio Unit Preview** - Preview effect changes in real-time before committing
+9. **Project Template Manager** - Save and browse project templates with track/effect preset bundles
+10. **Performance Trigger Pads** - Drum pad interface for triggering samples/clips in real-time
 
 ## Workflow
 
