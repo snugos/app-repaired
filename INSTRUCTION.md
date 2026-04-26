@@ -11,7 +11,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 5. **Mixer Routing Matrix** - Visual matrix showing track-to-bus routing with drag-drop connections
 6. **Track Lane Reorder** - Drag tracks to reorder them in the timeline with smooth animation
 7. **Tempo Ramp Automation** - Draw tempo changes over time with smooth ramping between points
-8. **Audio Phase Invert** - One-click phase invert for correcting out-of-phase audio recordings
+8. ~~**Audio Phase Invert**~~ ✅ - One-click phase invert for correcting out-of-phase audio recordings (COMMITTED: 5f935ad)
 9. **Clip Time Stretch** - Time-stretch audio clips with preserved pitch usingws algorithms
 10. **Marker Navigation** - Add markers at specific positions and jump between them during playback
 
