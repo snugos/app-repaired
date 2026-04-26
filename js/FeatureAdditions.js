@@ -28,3 +28,11 @@ export { initClipReverse, reverseAudioClip, reverseMIDISequence, openClipReverse
 export { initAutoBeatSync, openAutoBeatSyncPanel, getAutoBeatSyncState, isAutoBeatSyncEnabled, getDetectedBpm } from './AutoBeatSync.js';
 // Audio Tap Tempo - Tap-based and audio input beat detection for setting tempo
 export { initAudioTapTempo, openAudioTapTempoPanel, recordTap, setTempoFromTap, getTapStatus, resetTapHistory, startAudioBeatDetection, stopAudioBeatDetection, getAudioBeatStatus } from './AudioTapTempo.js';
+// Auto-Ducking - Automatic track volume reduction based on sidechain input
+export { initAutoDucking, getDuckingConfigs, getDuckingConfigForTrack, setDuckingConfig, removeDuckingConfig, toggleDucking, processDucking, openAutoDuckingPanel } from './AutoDucking.js';
+// Lyrics Display - Karaoke-style lyrics synced to playback
+export { initLyricsDisplay, openLyricsPanel } from './LyricsDisplay.js';
+// Track Stacks - Collapse/expand groups of tracks
+export { initTrackStack, openTrackStackPanel, createTrackStack, deleteTrackStack, addTrackToStack, removeTrackFromStack, toggleStackCollapse, updateTrackVisibility, getTrackStacks, setTrackStacksState, getTrackStackId, getTrackStack } from './TrackStack.js';
+// Timeline Markers - Markers on timeline for navigation
+export { initTimelineMarkers, getTimelineMarkers, addTimelineMarker, removeTimelineMarker, updateTimelineMarker, openTimelineMarkersPanel } from './TimelineMarkers.js';
