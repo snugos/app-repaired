@@ -39,6 +39,8 @@ import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBac
 // Pattern Generation & Frequency Processing
 import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
 import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, openFrequencyBandSplitterPanel } from './FrequencyBandSplitter.js';
+// Performance & Workflow - Session 2026-04-26
+import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -690,6 +692,11 @@ import {
     openRingModulatorPanel,
     openFrequencyShifterPanel,
     openEnvelopeGeneratorPanel,
+    
+    
+    // Performance & Workflow - Session 2026-04-26
+    openPerformanceTriggerPadsPanel,
+    getPerformanceTriggerPads,
     
     
     // Pattern Generation and Frequency Processing
