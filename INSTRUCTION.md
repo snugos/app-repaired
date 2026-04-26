@@ -14,6 +14,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 8. **Mute Automation** - Automate mute state changes over time on tracks
 9. **Track Reverse Playback** - Play track content backwards in real-time
 10. **Track Height Memory** - Remember custom track heights across sessions
+11. **Marker Navigation** - Jump to timeline markers with number keys (TimelineMarkers already exists)
+12. **Track Lane Expand/Collapse** - Collapse MIDI tracks to single row view (TrackStack already exists)
 
 ## Workflow
 
