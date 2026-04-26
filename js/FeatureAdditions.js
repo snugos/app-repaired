@@ -38,3 +38,6 @@ export { initTrackStack, openTrackStackPanel, createTrackStack, deleteTrackStack
 export { initTimelineMarkers, getTimelineMarkers, addTimelineMarker, removeTimelineMarker, updateTimelineMarker, openTimelineMarkersPanel } from './TimelineMarkers.js';
 // Clip Context Menu - Right-click context menu for timeline clips with Reverse option
 export { initClipContextMenu, showClipContextMenu, closeClipContextMenu } from './ClipContextMenu.js';
+// Transport Timecode Display - Shows current position in BBT format with transport controls
+export { openTransportTimecodePanel, renderTransportTimecodeContent, updateTransportTimecodeDisplay } from './TransportTimecodeUI.js';
+export { createTransportTimecodeDisplay, secondsToBarsBeatsTicks, startTransportTimecodeLoop, updateTransportTimecodeFromTransport } from './TransportTimecodeCore.js';
