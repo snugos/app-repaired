@@ -343,6 +343,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openAudioTapTempoPanel?.();
                 } catch(e) { console.error('[Menu] Audio Tap Tempo error:', e); }
             },
+            menuBeatDetective: () => {
+                console.log('[Menu] Beat Detective clicked');
+                try {
+                    localAppServices.openBeatDetectivePanel?.();
+                } catch(e) { console.error('[Menu] Beat Detective error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {

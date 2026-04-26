@@ -802,6 +802,9 @@ import {
     // Audio Tap Tempo
     openAudioTapTempoPanel,
     
+    // Beat Detective
+    openBeatDetectivePanel,
+    
     // MIDI to Audio Conversion
     initMIDIToAudioConversion,
     openMIDIToAudioPanel,
@@ -1156,6 +1159,7 @@ async function initializeSnugOS() {
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
+        if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initAutoScrollSync === 'function') initAutoScrollSync(); // Auto-Scroll Sync initialization
         
         if (typeof initializePrimaryEventListeners === 'function') {
