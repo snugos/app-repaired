@@ -6,6 +6,12 @@ let loopCount = 1;
 let currentLoopIteration = 0;
 let isLoopCountEnabled = false;
 
+// State function references for checkTransportLoopCount
+let getLoopRegionEnabledState = null;
+let getLoopRegionStartState = null;
+let getLoopRegionEndState = null;
+let lastLoopCheckTime = 0;
+
 export function initTransportLoopCount(services) {
     localAppServices = services;
     console.log('[TransportLoopCount] Initialized');
@@ -50,8 +56,8 @@ export function incrementLoopIteration() {
     
     if (currentLoopIteration >= loopCount) {
         console.log(`[TransportLoopCount] Loop count reached, stopping playback`);
-        if (localAppServices.stopTransport) {
-            localAppServices.stopTransport();
+        if (localAppServices.panicStopAllAudio) {
+            localAppServices.panicStopAllAudio();
         }
         currentLoopIteration = 0;
         return true; // Indicates playback should stop
@@ -61,6 +67,7 @@ export function incrementLoopIteration() {
 
 export function resetLoopIteration() {
     currentLoopIteration = 0;
+    lastLoopCheckTime = 0;
     if (localAppServices.updateLoopCountDisplay) {
         localAppServices.updateLoopCountDisplay(currentLoopIteration, loopCount);
     }
@@ -178,6 +185,76 @@ export function updateLoopCountDisplay(iter, total) {
     
     if (display) display.textContent = `${iter} / ${total}`;
     if (progress) progress.style.width = `${(iter / total) * 100}%`;
+}
+
+/**
+ * Check and handle transport loop count. Called from the UI update loop.
+ * Detects when the transport position wraps around at the loop start and increments
+ * the loop iteration counter. When loop count is reached, stops playback.
+ */
+export function checkTransportLoopCount() {
+    // Only process if feature is enabled
+    if (!isLoopCountEnabled) return false;
+    
+    // Check if transport is running
+    if (typeof Tone === 'undefined' || !Tone.Transport) return false;
+    if (Tone.Transport.state !== 'started') return false;
+    
+    // Check if loop region is enabled
+    const loopRegionEnabled = typeof getLoopRegionEnabledState === 'function' ? getLoopRegionEnabledState() : false;
+    if (!loopRegionEnabled) return false;
+    
+    const loopStart = typeof getLoopRegionStartState === 'function' ? getLoopRegionStartState() : 0;
+    const currentPosition = Tone.Transport.seconds;
+    
+    // Initialize on first call
+    if (lastLoopCheckTime === 0) {
+        lastLoopCheckTime = currentPosition;
+        return false;
+    }
+    
+    // Detect wraparound: current position is near loop start while last position was past it
+    // This indicates a loop restart
+    const loopLength = typeof getLoopRegionEndState === 'function' ? getLoopRegionEndState() : 16;
+    const positionAfterLoopStart = currentPosition >= loopStart;
+    const wasBeforeLoopStart = lastLoopCheckTime < loopStart;
+    const wrappedAround = positionAfterLoopStart && wasBeforeLoopStart && (currentPosition - loopStart) < 0.5;
+    
+    // Also detect if we reached the end of the loop region
+    const nearLoopEnd = currentPosition >= loopLength - 0.01;
+    const wasNearStart = lastLoopCheckTime < loopLength - 0.1;
+    const reachedLoopEnd = nearLoopEnd && wasNearStart;
+    
+    lastLoopCheckTime = currentPosition;
+    
+    if (wrappedAround || reachedLoopEnd) {
+        const shouldStop = incrementLoopIteration();
+        if (shouldStop && localAppServices.panicStopAllAudio) {
+            localAppServices.panicStopAllAudio();
+        }
+        return shouldStop;
+    }
+    
+    return false;
+}
+
+export function initLoopCountStateReferences(getEnabledFn, getStartFn, getEndFn) {
+    getLoopRegionEnabledState = getEnabledFn;
+    getLoopRegionStartState = getStartFn;
+    getLoopRegionEndState = getEndFn;
+    console.log('[TransportLoopCount] State function references initialized');
+}
+
+export function createLoopCountButton() {
+    const btn = document.createElement('button');
+    btn.id = 'transportLoopCountBtn';
+    btn.className = 'px-3 py-1.5 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors';
+    btn.textContent = 'Loop Count';
+    btn.title = 'Transport Loop Count - Set how many times the loop repeats';
+    btn.addEventListener('click', () => {
+        openTransportLoopCountPanel();
+    });
+    return btn;
 }
 
 console.log('[TransportLoopCount] Module loaded');

@@ -1161,6 +1161,11 @@ async function initializeSnugOS() {
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
+        if (typeof initLoopCountStateReferences === 'function') initLoopCountStateReferences(
+            () => getLoopRegionEnabled(),
+            () => getLoopRegionStart(),
+            () => getLoopRegionEnd()
+        ); // Connect loop count to state functions
         if (typeof initAutoScrollSync === 'function') initAutoScrollSync(); // Auto-Scroll Sync initialization
         
         if (typeof initializePrimaryEventListeners === 'function') {
@@ -1321,6 +1326,10 @@ function updateMetersLoop() {
         // Update performance stats (FPS/CPU/Memory)
         if (typeof updatePerformanceStats === 'function') {
             updatePerformanceStats();
+        }
+        // Transport Loop Count - Check if loop count limit reached
+        if (typeof checkTransportLoopCount === 'function') {
+            checkTransportLoopCount();
         }
     } catch (loopError) {
         console.warn("[Main updateMetersLoop] Error in UI update loop:", loopError);
