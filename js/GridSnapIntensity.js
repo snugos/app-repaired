@@ -1,8 +1,19 @@
 // js/GridSnapIntensity.js - Grid Snap Intensity Control
 // Adjustable snap strength (0-100%) for how strongly clips snap to grid
 
+let localAppServices = {};
 let snapIntensity = 100; // 0-100, default 100%
 const STORAGE_KEY = 'snaw_grid_snap_intensity';
+
+/**
+ * Initialize Grid Snap Intensity module
+ * @param {Object} appServices - Application services from main.js
+ */
+export function initGridSnapIntensity(appServices) {
+    localAppServices = appServices || {};
+    loadSnapIntensity();
+    console.log('[GridSnapIntensity] Initialized with intensity:', snapIntensity, '%');
+}
 
 // Load saved intensity
 function loadSnapIntensity() {
@@ -14,7 +25,6 @@ function loadSnapIntensity() {
     } catch (e) {
         console.warn('[GridSnapIntensity] Could not load:', e);
     }
-    console.log(`[GridSnapIntensity] Loaded: ${snapIntensity}%`);
 }
 
 // Save intensity
@@ -25,9 +35,6 @@ function saveSnapIntensity() {
         console.warn('[GridSnapIntensity] Could not save:', e);
     }
 }
-
-// Initialize
-loadSnapIntensity();
 
 /**
  * Get current snap intensity
@@ -105,7 +112,7 @@ export function openGridSnapIntensityPanel() {
     contentContainer.id = 'gridSnapIntensityContent';
     contentContainer.className = 'p-4 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
 
-    const win = localAppServices.createWindow(windowId, 'Grid Snap Intensity', contentContainer, {
+    const win = localAppServices.createWindow ? localAppServices.createWindow(windowId, 'Grid Snap Intensity', contentContainer, {
         width: 320,
         height: 200,
         minWidth: 280,
@@ -113,7 +120,7 @@ export function openGridSnapIntensityPanel() {
         closable: true,
         minimizable: true,
         resizable: true
-    });
+    }) : null;
 
     if (win?.element) {
         renderGridSnapIntensityContent();
