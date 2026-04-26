@@ -47,3 +47,5 @@ export { createTransportTimecodeDisplay, secondsToBarsBeatsTicks, startTransport
 export { initTransportLoopCount, getLoopCount, setLoopCount, getCurrentLoopIteration, setCurrentLoopIteration, isLoopCountFeatureEnabled, setLoopCountFeatureEnabled, incrementLoopIteration, resetLoopIteration, openTransportLoopCountPanel, updateLoopCountDisplay } from './TransportLoopCount.js';
 // Clip Gain Envelope Editor - Visual envelope editor for clip-level volume automation with drawable curves
 export { initClipGainEnvelopeEditor, openClipGainEnvelopeEditorPanel } from './ClipGainEnvelopeEditor.js';
+// Phase Invert Button - One-click phase invert for correcting out-of-phase audio recordings
+export { createPhaseInvertButton, openPhaseInvertButtonPanel } from './PhaseInvertButton.js';
