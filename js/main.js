@@ -35,6 +35,7 @@ import { MidiMonitor } from './MidiMonitor.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
 import { MIDIVelocityToCCRouter } from './MIDIVelocityToCCRouter.js';
 import { initAudioTapTempo, openAudioTapTempoPanel } from './AudioTapTempo.js';
+import { initAutoScrollSync, toggleAutoScroll, autoScrollTimeline } from './AutoScrollSync.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
 import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
@@ -1149,7 +1150,8 @@ async function initializeSnugOS() {
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
-
+        if (typeof initAutoScrollSync === 'function') initAutoScrollSync(); // Auto-Scroll Sync initialization
+        
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
         } else { console.error("initializePrimaryEventListeners is not a function");}
@@ -1300,6 +1302,10 @@ function updateMetersLoop() {
         }
         if (typeof updatePlayheadPosition === 'function') {
             updatePlayheadPosition();
+        }
+        // Auto-scroll timeline during playback
+        if (typeof autoScrollTimeline === 'function') {
+            autoScrollTimeline();
         }
         // Update performance stats (FPS/CPU/Memory)
         if (typeof updatePerformanceStats === 'function') {
