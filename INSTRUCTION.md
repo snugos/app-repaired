@@ -10,10 +10,9 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 4. **Track Lane Routing Matrix** - Visual matrix for routing track outputs to multiple destinations
 5. **MIDI Polyphonic Expression** - Per-note pitch bend and expression data for realistic performances
 6. **Real-time Spectrum Comparison** - A/B compare two mix versions with real-time spectrum overlay
-7. **Groove Extractor** - Extract swing/groove feel from audio and apply to MIDI quantize
-8. **Audio Unit Preview** - Preview effect changes in real-time before committing
-9. **Project Template Manager** - Save and browse project templates with track/effect preset bundles
-10. **Performance Trigger Pads** - Drum pad interface for triggering samples/clips in real-time
+7. **Audio Unit Preview** - Preview effect changes in real-time before committing
+8. **Project Template Manager** - Save and browse project templates with track/effect preset bundles
+9. **Performance Trigger Pads** - Drum pad interface for triggering samples/clips in real-time
 
 ## Workflow
 
