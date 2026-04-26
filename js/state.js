@@ -8894,3 +8894,15 @@ export async function addTrackToStateInternal(type, initialData = null, isUserAc
             if (newTrackId >= trackIdCounter) trackIdCounter = newTrackId + 1;
         } else {
             newTrackId = track
+// --- Grid Snap Intensity State ---
+let gridSnapIntensityValue = 100;
+let gridSnapDivision = 0.25;
+
+export function getGridSnapIntensityState() { return gridSnapIntensityValue; }
+export function setGridSnapIntensityState(intensity) {
+    gridSnapIntensityValue = Math.max(0, Math.min(100, parseInt(intensity) || 100));
+}
+export function getGridDivisionState() { return gridSnapDivision; }
+export function setGridDivisionState(division) {
+    gridSnapDivision = Math.max(0.0625, parseFloat(division) || 0.25);
+}

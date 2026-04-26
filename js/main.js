@@ -33,6 +33,7 @@ import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { MidiMonitor } from './MidiMonitor.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
+import { MIDIVelocityToCCRouter } from './MIDIVelocityToCCRouter.js';
 import { initAudioTapTempo, openAudioTapTempoPanel } from './AudioTapTempo.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
