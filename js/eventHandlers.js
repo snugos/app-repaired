@@ -380,7 +380,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -714,6 +714,27 @@ export function attachGlobalControlEvents(elements) {
             }
         });
     } else { console.warn("[EventHandlers] tempoGlobalInput not found."); }
+
+    // Tempo Nudge Buttons
+    if (tempoNudgeDown) {
+        tempoNudgeDown.addEventListener("click", () => {
+            const newTempo = Math.max(Constants.MIN_TEMPO, Tone.Transport.bpm.value - 0.1);
+            Tone.Transport.bpm.value = newTempo;
+            if (tempoGlobalInput) tempoGlobalInput.value = newTempo.toFixed(1);
+            if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
+            localAppServices.captureStateForUndo?.(`Tempo to ${newTempo.toFixed(1)}`);
+        });
+    }
+    if (tempoNudgeUp) {
+        tempoNudgeUp.addEventListener("click", () => {
+            const newTempo = Math.min(Constants.MAX_TEMPO, Tone.Transport.bpm.value + 0.1);
+            Tone.Transport.bpm.value = newTempo;
+            if (tempoGlobalInput) tempoGlobalInput.value = newTempo.toFixed(1);
+            if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
+            localAppServices.captureStateForUndo?.(`Tempo to ${newTempo.toFixed(1)}`);
+        });
+    }
+
 
     if (midiInputSelectGlobal) {
         midiInputSelectGlobal.addEventListener('change', (e) => {
