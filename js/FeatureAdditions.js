@@ -36,3 +36,5 @@ export { initLyricsDisplay, openLyricsPanel } from './LyricsDisplay.js';
 export { initTrackStack, openTrackStackPanel, createTrackStack, deleteTrackStack, addTrackToStack, removeTrackFromStack, toggleStackCollapse, updateTrackVisibility, getTrackStacks, setTrackStacksState, getTrackStackId, getTrackStack } from './TrackStack.js';
 // Timeline Markers - Markers on timeline for navigation
 export { initTimelineMarkers, getTimelineMarkers, addTimelineMarker, removeTimelineMarker, updateTimelineMarker, openTimelineMarkersPanel } from './TimelineMarkers.js';
+// Clip Context Menu - Right-click context menu for timeline clips with Reverse option
+export { initClipContextMenu, showClipContextMenu, closeClipContextMenu } from './ClipContextMenu.js';
