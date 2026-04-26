@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Group Collapse** - Collapse/expand track groups for organized viewing
-2. **BPM Tap Tempo** - Tap to set tempo from audio input timing detection
-3. **Lyrics karaoke highlight** - Word-by-word lyrics highlighting synced to playback
-4. **Auto-Ducking** - Sidechain input for automatic volume reduction based on another track
-5. **Mixer Snapshot** - Save/load complete mixer states (faders, pans, mutes, solos)
-6. **Track Lane Expand/Collapse** - Collapse MIDI tracks to single row view
-7. **MIDI Velocity Curve** - Remap velocity input with customizable curve
-8. **Marker Navigation** - Jump to timeline markers with number keys
-9. **Clip Fade Handles** - Drag handles to adjust fade in/out
-10. **Send Effects Routing** - Visual send/return routing to effect buses
+1. **Reverse Audio Clip** - Reverse audio clips in timeline via context menu or shortcut
+2. **Tempo Nudge Controls** - Add +/- buttons for fine tempo adjustment (0.1 BPM steps)
+3. **Clip Opacity Control** - Slider to adjust clip opacity in timeline for visual layering
+4. **Track Solo Safe Mode** - Option to make track solo "safe" (prevents accidental unsolo)
+5. **Grid Snap Intensity** - Adjustable snap strength (0-100%) for how strongly clips snap to grid
+6. **Playhead Marker Drop** - Double-click/double-tap timeline to create quick marker
+7. **Audio Normalization** - One-click normalize audio clip to peak/RMS level
+8. **Mute Automation** - Automate mute state changes over time on tracks
+9. **Track Reverse Playback** - Play track content backwards in real-time
+10. **Track Height Memory** - Remember custom track heights across sessions
 
 ## Workflow
 
