@@ -1381,6 +1381,14 @@ export function handleTrackSolo(trackId) {
         const track = getTrackById(trackId);
         if (!track) { console.warn(`[EventHandlers] Solo: Track ${trackId} not found.`); return; }
         const currentSoloed = getSoloedTrackId();
+        
+        // Check if trying to unsolo a locked track
+        if (track.isSoloed && track.soloLocked && currentSoloed === trackId) {
+            console.log(`[EventHandlers] Solo for track "${track.name}" is locked - cannot toggle off`);
+            if (localAppServices.showNotification) localAppServices.showNotification('Solo is locked on this track', 1500);
+            return;
+        }
+        
         captureStateForUndo(`Toggle Solo for ${track.name}`);
         setSoloedTrackId(currentSoloed === trackId ? null : trackId);
 
