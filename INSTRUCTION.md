@@ -4,15 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Beat Detective** - Automatic beat/tempo grid detection from audio with manual adjustment
-2. **Stem Separator Preview** - Preview AI-separated stems (vocals, drums, bass, other) before full processing
-3. **Clip Envelope Automation** - Draw volume/pan/pitch automation directly on audio clips
-4. **Track Lane Routing Matrix** - Visual matrix for routing track outputs to multiple destinations
-5. **MIDI Polyphonic Expression** - Per-note pitch bend and expression data for realistic performances
-6. **Real-time Spectrum Comparison** - A/B compare two mix versions with real-time spectrum overlay
-7. **Audio Unit Preview** - Preview effect changes in real-time before committing
-8. **Project Template Manager** - Save and browse project templates with track/effect preset bundles
-9. **Performance Trigger Pads** - Drum pad interface for triggering samples/clips in real-time
+1. **Clip Reverse** - Reverse audio/MIDI clips with one click, with preview before applying
+2. **Track Grouping** - Group multiple tracks into folders with nested mixing and collapse/expand
+3. **Step Sequencer Mode** - Classic 16-step drum sequencer grid for programming beats
+4. **Tempo Tap Pad** - Tap to set tempo from rhythmic input with averaging
+5. **Clip Fade Handles** - Drag handles on clip edges to create fade in/out curves
+6. **Track Solo Mode** - Solo button isolates track, replacing global solo behavior
+7. **Audio Normalize** - Auto-normalize audio clips to peak or loudness target
+8. **MIDI CC Automation** - Draw MIDI controller automation lanes on tracks
+9. **Transport Loop Count** - Set number of loop repetitions before stopping playback
+10. **Mixer Snapshot** - Save and recall full mixer states (fader levels, pans, mutes)
 
 ## Workflow
 

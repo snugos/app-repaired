@@ -41,3 +41,5 @@ export { initClipContextMenu, showClipContextMenu, closeClipContextMenu } from '
 // Transport Timecode Display - Shows current position in BBT format with transport controls
 export { openTransportTimecodePanel, renderTransportTimecodeContent, updateTransportTimecodeDisplay } from './TransportTimecodeUI.js';
 export { createTransportTimecodeDisplay, secondsToBarsBeatsTicks, startTransportTimecodeLoop, updateTransportTimecodeFromTransport } from './TransportTimecodeCore.js';
+// Transport Loop Count - Set number of loop repetitions before stopping
+export { initTransportLoopCount, getLoopCount, setLoopCount, getCurrentLoopIteration, setCurrentLoopIteration, isLoopCountFeatureEnabled, setLoopCountFeatureEnabled, incrementLoopIteration, resetLoopIteration, openTransportLoopCountPanel, updateLoopCountDisplay } from './TransportLoopCount.js';
