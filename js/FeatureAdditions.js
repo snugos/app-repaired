@@ -45,3 +45,5 @@ export { openTransportTimecodePanel, renderTransportTimecodeContent, updateTrans
 export { createTransportTimecodeDisplay, secondsToBarsBeatsTicks, startTransportTimecodeLoop, updateTransportTimecodeFromTransport } from './TransportTimecodeCore.js';
 // Transport Loop Count - Set number of loop repetitions before stopping
 export { initTransportLoopCount, getLoopCount, setLoopCount, getCurrentLoopIteration, setCurrentLoopIteration, isLoopCountFeatureEnabled, setLoopCountFeatureEnabled, incrementLoopIteration, resetLoopIteration, openTransportLoopCountPanel, updateLoopCountDisplay } from './TransportLoopCount.js';
+// Clip Gain Envelope Editor - Visual envelope editor for clip-level volume automation with drawable curves
+export { initClipGainEnvelopeEditor, openClipGainEnvelopeEditorPanel } from './ClipGainEnvelopeEditor.js';

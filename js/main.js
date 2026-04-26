@@ -1162,6 +1162,7 @@ async function initializeSnugOS() {
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
+        if (typeof initClipGainEnvelopeEditor === 'function') initClipGainEnvelopeEditor(appServices); // Clip Gain Envelope Editor initialization
         if (typeof initLoopCountStateReferences === 'function') initLoopCountStateReferences(
             () => getLoopRegionEnabled(),
             () => getLoopRegionStart(),
