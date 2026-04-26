@@ -1,3 +1,203 @@
+// js/TrackHeadphoneMix.js - Track Headphone Preview Mix Panel
+// Import functions from TrackHeadphoneMix.js module
+
+/**
+ * Opens the Track Headphone Mix panel for routing individual tracks to a dedicated headphone mix.
+ */
+export function openTrackHeadphoneMixPanel(savedState = null) {
+    const windowId = 'trackHeadphoneMix';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !savedState) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderHeadphoneMixContent();
+        return win;
+    }
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'headphoneMixContent';
+    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { width: 400, height: 500, minWidth: 350, minHeight: 400, initialContentKey: windowId, closable: true, minimizable: true, resizable: true };
+    
+    if (savedState) {
+        Object.assign(options, { x: parseInt(savedState.left, 10), y: parseInt(savedState.top, 10), width: parseInt(savedState.width, 10), height: parseInt(savedState.height, 10), zIndex: savedState.zIndex, isMinimized: savedState.isMinimized });
+    }
+
+    const win = localAppServices.createWindow(windowId, 'Headphone Mix', contentContainer, options);
+    if (win?.element) {
+        renderHeadphoneMixContent();
+    }
+    return win;
+}
+
+/**
+ * Renders the headphone mix panel content.
+ */
+function renderHeadphoneMixContent() {
+    const container = document.getElementById('headphoneMixContent');
+    if (!container) return;
+
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const headphoneModule = localAppServices.trackHeadphoneMix || {};
+    const isEnabled = headphoneModule.isHeadphoneMixEnabled ? headphoneModule.isHeadphoneMixEnabled() : false;
+    const masterVolume = headphoneModule.getHeadphoneMixVolume ? headphoneModule.getHeadphoneMixVolume() : 0.8;
+    const meterValue = headphoneModule.getHeadphoneMixMeter ? headphoneModule.getHeadphoneMixMeter() : -60;
+
+    let html = `
+        <div class="mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="headphoneMixEnabled" ${isEnabled ? 'checked' : ''} class="w-4 h-4 accent-purple-500">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Enable Headphone Mix</span>
+                </label>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500">Vol:</span>
+                <input type="range" id="headphoneMixMasterVol" min="0" max="100" value="${Math.round(masterVolume * 100)}" class="w-20 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                <span id="headphoneMixMasterVolLabel" class="text-xs text-gray-600 dark:text-gray-400 w-8">${Math.round(masterVolume * 100)}%</span>
+            </div>
+        </div>
+        
+        <div class="mb-2 flex items-center justify-between">
+            <span class="text-xs text-gray-500 dark:text-gray-400">Track</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Send Level</span>
+        </div>
+        
+        <div id="headphoneTracksList" class="space-y-2">
+    `;
+
+    if (tracks.length === 0) {
+        html += `
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                <p>No tracks available</p>
+            </div>
+        `;
+    } else {
+        tracks.forEach(track => {
+            const sendLevel = headphoneModule.getTrackHeadphoneSendLevel ? headphoneModule.getTrackHeadphoneSendLevel(track.id) : 0;
+            const sendEnabled = headphoneModule.isTrackHeadphoneSendEnabled ? headphoneModule.isTrackHeadphoneSendEnabled(track.id) : false;
+            
+            html += `
+                <div class="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" class="headphone-send-enabled w-4 h-4 accent-purple-500" data-track-id="${track.id}" ${sendEnabled ? 'checked' : ''}>
+                        <div class="w-3 h-3 rounded" style="background-color: ${track.color || '#666'}"></div>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[120px]">${track.name}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="range" class="headphone-send-level w-24 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer" data-track-id="${track.id}" min="0" max="100" value="${Math.round(sendLevel * 100)}">
+                        <span class="headphone-send-level-label text-xs text-gray-600 dark:text-gray-400 w-8">${Math.round(sendLevel * 100)}%</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `</div>`;
+
+    // Meter display
+    html += `
+        <div class="mt-3 p-2 bg-black rounded border border-gray-700">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-gray-400">Headphone Meter</span>
+                <span id="headphoneMeterValue" class="text-xs text-green-400">${meterValue.toFixed(1)} dB</span>
+            </div>
+            <div class="h-2 bg-gray-800 rounded overflow-hidden">
+                <div id="headphoneMeterBar" class="h-full bg-green-500 transition-all duration-100" style="width: 0%"></div>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Attach event listeners
+    const enabledCheckbox = container.querySelector('#headphoneMixEnabled');
+    if (enabledCheckbox) {
+        enabledCheckbox.addEventListener('change', (e) => {
+            if (headphoneModule.setHeadphoneMixEnabled) {
+                headphoneModule.setHeadphoneMixEnabled(e.target.checked);
+            }
+            renderHeadphoneMixContent();
+        });
+    }
+
+    const masterVolSlider = container.querySelector('#headphoneMixMasterVol');
+    const masterVolLabel = container.querySelector('#headphoneMixMasterVolLabel');
+    if (masterVolSlider) {
+        masterVolSlider.addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value, 10) / 100;
+            if (headphoneModule.setHeadphoneMixVolume) {
+                headphoneModule.setHeadphoneMixVolume(vol);
+            }
+            if (masterVolLabel) masterVolLabel.textContent = `${Math.round(vol * 100)}%`;
+        });
+    }
+
+    container.querySelectorAll('.headphone-send-enabled').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            if (headphoneModule.setTrackHeadphoneSendEnabled) {
+                headphoneModule.setTrackHeadphoneSendEnabled(trackId, e.target.checked);
+            }
+        });
+    });
+
+    container.querySelectorAll('.headphone-send-level').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const trackId = parseInt(e.target.dataset.trackId, 10);
+            const level = parseInt(e.target.value, 10) / 100;
+            const label = e.target.nextElementSibling;
+            if (label) label.textContent = `${Math.round(level * 100)}%`;
+            if (headphoneModule.setTrackHeadphoneSendLevel) {
+                headphoneModule.setTrackHeadphoneSendLevel(trackId, level);
+            }
+        });
+    });
+
+    // Start meter update loop
+    updateHeadphoneMeterLoop();
+}
+
+let headphoneMeterAnimFrame = null;
+
+function updateHeadphoneMeterLoop() {
+    const container = document.getElementById('headphoneMixContent');
+    if (!container) {
+        if (headphoneMeterAnimFrame) cancelAnimationFrame(headphoneMeterAnimFrame);
+        return;
+    }
+
+    const headphoneModule = localAppServices.trackHeadphoneMix || {};
+    const meterValue = headphoneModule.getHeadphoneMixMeter ? headphoneModule.getHeadphoneMixMeter() : -60;
+    const meterBar = container.querySelector('#headphoneMeterBar');
+    const meterValueEl = container.querySelector('#headphoneMeterValue');
+
+    if (meterBar) {
+        const pct = Math.max(0, Math.min(100, ((meterValue + 60) / 60) * 100));
+        meterBar.style.width = `${pct}%`;
+        if (meterValue > -3) {
+            meterBar.className = 'h-full bg-red-500 transition-all duration-100';
+        } else if (meterValue > -12) {
+            meterBar.className = 'h-full bg-yellow-500 transition-all duration-100';
+        } else {
+            meterBar.className = 'h-full bg-green-500 transition-all duration-100';
+        }
+    }
+
+    if (meterValueEl) {
+        meterValueEl.textContent = `${meterValue.toFixed(1)} dB`;
+    }
+
+    headphoneMeterAnimFrame = requestAnimationFrame(updateHeadphoneMeterLoop);
+}
+
+export function updateHeadphoneMixPanel() {
+    const container = document.getElementById('headphoneMixContent');
+    if (container) renderHeadphoneMixContent();
+}
+
 // --- Spectrum Analyzer Panel ---
 
 /**

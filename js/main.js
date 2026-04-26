@@ -41,6 +41,7 @@ import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel 
 import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, openFrequencyBandSplitterPanel } from './FrequencyBandSplitter.js';
 // Performance & Workflow - Session 2026-04-26
 import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
+import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
