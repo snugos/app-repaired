@@ -14,6 +14,7 @@ class AudioMontageView {
             trackHeight: options.trackHeight || 80,
             snapToGrid: options.snapToGrid ?? true,
             gridSize: options.gridSize || 0.125, // 1/8 note
+            gridSnapIntensity: options.gridSnapIntensity ?? 100, // 0-100, intensity-based snap
             minClipWidth: options.minClipWidth || 10,
             ...options
         };
@@ -172,7 +173,9 @@ class AudioMontageView {
         
         // Snap to grid
         if (this.config.snapToGrid) {
+            const snapFactor = this.config.gridSnapIntensity / 100;
             newStart = Math.round(newStart / this.config.gridSize) * this.config.gridSize;
+            newStart += snapFactor * (newStart % this.config.gridSize);
         }
         
         // Update track if changing
@@ -205,8 +208,11 @@ class AudioMontageView {
         
         // Snap to grid
         if (this.config.snapToGrid) {
+            const snapFactor = this.config.gridSnapIntensity / 100;
             newStart = Math.round(newStart / this.config.gridSize) * this.config.gridSize;
+            newStart += snapFactor * (newStart % this.config.gridSize);
             newDuration = Math.round(newDuration / this.config.gridSize) * this.config.gridSize;
+            newDuration += snapFactor * (newDuration % this.config.gridSize);
         }
         
         // Ensure minimum width
