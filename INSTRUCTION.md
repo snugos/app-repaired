@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Reverse** - Reverse audio/MIDI clips with one click, with preview before applying
-2. **Track Grouping** - Group multiple tracks into folders with nested mixing and collapse/expand
-3. **Step Sequencer Mode** - Classic 16-step drum sequencer grid for programming beats
-4. **Tempo Tap Pad** - Tap to set tempo from rhythmic input with averaging
-5. **Clip Fade Handles** - Drag handles on clip edges to create fade in/out curves
-6. **Track Solo Mode** - Solo button isolates track, replacing global solo behavior
-7. **Audio Normalize** - Auto-normalize audio clips to peak or loudness target
-8. **MIDI CC Automation** - Draw MIDI controller automation lanes on tracks
-9. **Transport Loop Count** - Set number of loop repetitions before stopping playback
-10. **Mixer Snapshot** - Save and recall full mixer states (fader levels, pans, mutes)
+1. **Track Headphone Preview** - Route individual tracks to a dedicated headphone mix with separate volume control
+2. **Audio Tap Tempo** - Tap a button rhythmically to detect and set project tempo from input timing
+3. **Clip Gain Envelope Editor** - Visual envelope editor for clip-level volume automation with drawable curves
+4. **MIDI Note Editor** - Dedicated MIDI note editor window with velocity, duration, and start time per note
+5. **Mixer Routing Matrix** - Visual matrix showing track-to-bus routing with drag-drop connections
+6. **Track Lane Reorder** - Drag tracks to reorder them in the timeline with smooth animation
+7. **Tempo Ramp Automation** - Draw tempo changes over time with smooth ramping between points
+8. **Audio Phase Invert** - One-click phase invert for correcting out-of-phase audio recordings
+9. **Clip Time Stretch** - Time-stretch audio clips with preserved pitch usingws algorithms
+10. **Marker Navigation** - Add markers at specific positions and jump between them during playback
 
 ## Workflow
 

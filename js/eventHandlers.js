@@ -111,6 +111,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "CPU Monitor", action: () => { if(localAppServices.openCpuMonitorPanel) localAppServices.openCpuMonitorPanel(); } },
                     { label: "Spectrum Analyzer", action: () => { if(localAppServices.openSpectrumAnalyzerPanel) localAppServices.openSpectrumAnalyzerPanel(); } },
                     { label: "Mixdown Visualizer", action: () => { if(localAppServices.openMixdownVisualizerPanel) localAppServices.openMixdownVisualizerPanel(); } },
+                    { label: "Headphone Mix", action: () => { if(localAppServices.openHeadphoneMixPanel) localAppServices.openHeadphoneMixPanel(); } },
                     { label: "Keyboard Shortcuts", action: () => { if(localAppServices.openKeyBindingsPanel) localAppServices.openKeyBindingsPanel(); } },
                     { label: "Project Notes", action: () => { if(localAppServices.openProjectNotesPanel) localAppServices.openProjectNotesPanel(); } },
                     { label: "Drum Map Editor", action: () => { if(localAppServices.openDrumMapEditorPanel) localAppServices.openDrumMapEditorPanel(); } },

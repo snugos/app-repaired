@@ -24,6 +24,8 @@ export { openMixerSnapshotPanel, saveMixerSnapshot, loadMixerSnapshot, deleteMix
 export { initPianoRollSequencer, openTrackSequencerWindow, refreshSequencerUI } from './PianoRollSequencer.js';
 // Clip Reverse - Reverse audio/MIDI clips
 export { initClipReverse, reverseAudioClip, reverseMIDISequence, openClipReversePanel } from './ClipReverse.js';
+// Headphone Mix - Route tracks to a dedicated headphone mix with separate volume
+export { initHeadphoneMix, openHeadphoneMixPanel, addTrackToHeadphoneMix, removeTrackFromHeadphoneMix, setHeadphoneMixVolume, getHeadphoneMixVolume, setTrackHeadphoneSendLevel, getTracksInHeadphoneMix } from './HeadphoneMix.js';
 // Auto-Beat Sync - Automatically sync tempo to detected BPM from audio input
 export { initAutoBeatSync, openAutoBeatSyncPanel, getAutoBeatSyncState, isAutoBeatSyncEnabled, getDetectedBpm } from './AutoBeatSync.js';
 // Audio Tap Tempo - Tap-based and audio input beat detection for setting tempo
