@@ -32,6 +32,7 @@ import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { MidiMonitor } from './MidiMonitor.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
+import { initAudioTapTempo, openAudioTapTempoPanel } from './AudioTapTempo.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
 import { AIPatternGenerator, getAIPatternGenerator, openAIPatternGeneratorPanel } from './AIPatternGenerator.js';
@@ -455,7 +456,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -472,7 +473,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -583,8 +584,8 @@ import {
         AVAILABLE_EFFECTS: null, getEffectParamDefinitions: null,
         getEffectDefaultParams: null, synthEngineControlDefinitions: null,
     },
-    getIsReconstructingDAW: () => appServices._isReconstructingDAW_flag === true, 
-    _isReconstructingDAW_flag: false,
+    getIsReconstructingDAW: () => appServices._isReconstructingingDAW_flag === true, 
+    _isReconstructingingDAW_flag: false,
     _transportEventsInitialized_flag: false,
     getTransportEventsInitialized: () => appServices._transportEventsInitialized_flag,
     setTransportEventsInitialized: (value) => { appServices._transportEventsInitialized_flag = !!value; },
@@ -787,6 +788,9 @@ import {
     // Audio Stem Separation
     initAudioStemSeparation,
     openAudioStemSeparationPanel,
+    
+    // Audio Tap Tempo
+    openAudioTapTempoPanel,
     
     // MIDI to Audio Conversion
     initMIDIToAudioConversion,
@@ -1140,6 +1144,7 @@ async function initializeSnugOS() {
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices);
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
+        if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
 
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
