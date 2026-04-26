@@ -4,13 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Freeze** - Render track to audio to save CPU, with defrost
-2. **Groove Templates** - Swing/shuffle patterns with custom groove extraction
-3. **Sidechain Routing** - Visual sidechain connections between tracks
-4. **Project Templates** - Save/load full project setups as templates
-5. **Scale Lock** - Lock MIDI input to a musical scale
-6. **Audio Warping** - Stretch audio clips without changing pitch
-7. **Batch Export** - Export multiple stems/tracks at once
+1. **Track Group Collapse** - Collapse/expand track groups for organized viewing
+2. **BPM Tap Tempo** - Tap to set tempo from audio input timing detection
+3. **Lyrics karaoke highlight** - Word-by-word lyrics highlighting synced to playback
+4. **Auto-Ducking** - Sidechain input for automatic volume reduction based on another track
+5. **Mixer Snapshot** - Save/load complete mixer states (faders, pans, mutes, solos)
+6. **Track Lane Expand/Collapse** - Collapse MIDI tracks to single row view
+7. **MIDI Velocity Curve** - Remap velocity input with customizable curve
+8. **Marker Navigation** - Jump to timeline markers with number keys
+9. **Clip Fade Handles** - Drag handles to adjust fade in/out
+10. **Send Effects Routing** - Visual send/return routing to effect buses
 
 ## Workflow
 
