@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. ~~**Tempo Nudge Controls** - Add +/- buttons for fine tempo adjustment (0.1 BPM steps)~~ ✅
-2. ~~**Clip Opacity Control** - Slider to adjust clip opacity in timeline for visual layering~~ ✅
-3. ~~**Grid Snap Intensity** - Adjustable snap strength (0-100%) for how strongly clips snap to grid~~ ✅
-4. ~~**Playhead Marker Drop** - Double-click/double-tap timeline to create quick marker~~ ✅
-5. ~~**Audio Normalization** - One-click normalize audio clip to peak/RMS level~~ ✅
-6. ~~**Mute Automation** - Automate mute state changes over time on tracks~~ ✅
-7. ~~**Track Reverse Playback** - Play track content backwards in real-time~~ ✅
-8. ~~**Track Height Memory** - Remember custom track heights across sessions~~ ✅
-9. ~~**Marker Navigation** - Jump to timeline markers with number keys (TimelineMarkers already exists)~~ ✅
-10. ~~**Track Lane Expand/Collapse** - Collapse MIDI tracks to single row view (TrackStack already exists)~~ ✅
+1. **BPM Detector** - Detect tempo from audio input in real-time using onset detection
+2. **Track Freezing** - Freeze tracks to audio to save CPU with one-click defrost
+3. **Send Effects (Aux Tracks)** - Add send/aux tracks for reverb, delay send chains
+4. **MIDICC Mapper** - Map MIDI CC messages to any plugin parameter for modulation
+5. **Track Solo/Mute Groups** - Create groups of tracks that solo/mute together
+6. **Plugin Preset Browser** - Browse and manage effect chain presets across the project
+7. **Backup Manager** - Auto-backup projects with version history and cloud export
+8. **Audio-to-MIDI Batch** - Convert multiple audio regions to MIDI patterns at once
+9. **Arrangement Export to Video** - Export arrangement timeline as MP4 video
+10. **Track Grouping Panel** - Visual panel to group and color-code track groups
 
 ## Workflow
 
