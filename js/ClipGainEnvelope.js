@@ -1,137 +1,319 @@
-// js/ClipGainEnvelope.js - Clip Gain Envelope Core Module
-// Visual envelope editor for clip-level volume automation with drawable curves
+// js/ClipGainEnvelope.js - Draw volume automation on audio clips
 
-let localAppServices = {};
-let activeClipId = null;
-let envelopePoints = []; // Array of { time: 0-1 normalized, gain: 0-2 }
-const ENVELOPE_HEIGHT = 80;
-const MIN_GAIN = 0;
-const MAX_GAIN = 2;
-const DEFAULT_GAIN = 1;
+export class ClipGainEnvelope {
+    constructor(clip) {
+        this.clip = clip;
+        // Gain envelope points: { time: 0-1 normalized, value: 0-1 }
+        this.points = clip.gainEnvelope ? JSON.parse(JSON.stringify(clip.gainEnvelope)) : [];
+        this.selectedPointIndex = -1;
+        this.isDragging = false;
+        this.dragPointIndex = -1;
+        this.dragOffsetY = 0;
+        this.hoverPointIndex = -1;
+    }
 
-/**
- * Initialize the clip gain envelope module.
- * @param {Object} appServices - Application services from main.js
- */
-export function initClipGainEnvelope(appServices) {
-    localAppServices = appServices || {};
-    console.log('[ClipGainEnvelope] Core module initialized');
-}
+    // Get point at normalized time, or -1 if not found
+    getPointAtTime(normalizedTime, tolerance = 0.02) {
+        for (let i = 0; i < this.points.length; i++) {
+            if (Math.abs(this.points[i].time - normalizedTime) < tolerance) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
-/**
- * Open the clip gain envelope editor for a specific clip.
- * @param {string} clipId - The ID of the clip to edit
- * @param {number} clipDuration - Duration of the clip in seconds
- */
-export function openClipGainEnvelopeEditor(clipId, clipDuration = 10) {
-    activeClipId = clipId;
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    let clipData = null;
-    
-    // Find the clip in tracks
-    for (const track of tracks) {
-        if (track.timelineClips) {
-            const found = track.timelineClips.find(c => c.id === clipId);
-            if (found) {
-                clipData = found;
+    // Add a new point
+    addPoint(time, value) {
+        // Clamp values
+        time = Math.max(0, Math.min(1, time));
+        value = Math.max(0, Math.min(1, value));
+        
+        // Insert sorted by time
+        const newPoint = { time, value };
+        if (this.points.length === 0) {
+            this.points.push(newPoint);
+        } else {
+            let inserted = false;
+            for (let i = 0; i < this.points.length; i++) {
+                if (time < this.points[i].time) {
+                    this.points.splice(i, 0, newPoint);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                this.points.push(newPoint);
+            }
+        }
+        this.saveToClip();
+        return this.points;
+    }
+
+    // Update point value
+    updatePoint(index, time, value) {
+        if (index < 0 || index >= this.points.length) return;
+        
+        if (time !== undefined) this.points[index].time = Math.max(0, Math.min(1, time));
+        if (value !== undefined) this.points[index].value = Math.max(0, Math.min(1, value));
+        
+        this.saveToClip();
+    }
+
+    // Remove a point (keep at least 2 points)
+    removePoint(index) {
+        if (this.points.length <= 2) return; // Keep minimum 2 points
+        if (index < 0 || index >= this.points.length) return;
+        
+        this.points.splice(index, 1);
+        this.saveToClip();
+    }
+
+    // Get interpolated value at normalized time using bezier curve
+    getValueAtTime(normalizedTime) {
+        if (this.points.length === 0) return 1.0;
+        if (this.points.length === 1) return this.points[0].value;
+        
+        // Find surrounding points
+        let leftIndex = 0;
+        for (let i = 0; i < this.points.length - 1; i++) {
+            if (normalizedTime >= this.points[i].time && normalizedTime <= this.points[i + 1].time) {
+                leftIndex = i;
                 break;
             }
         }
+        
+        const left = this.points[leftIndex];
+        const right = this.points[leftIndex + 1] || left;
+        
+        if (left === right) return left.value;
+        
+        // Linear interpolation (could be upgraded to bezier)
+        const t = (normalizedTime - left.time) / (right.time - left.time);
+        return left.value + (right.value - left.value) * t;
     }
-    
-    // Initialize envelope points from clip data or create default
-    if (clipData && clipData.gainEnvelope) {
-        envelopePoints = JSON.parse(JSON.stringify(clipData.gainEnvelope));
-    } else {
-        envelopePoints = [
-            { time: 0, gain: DEFAULT_GAIN },
-            { time: 1, gain: DEFAULT_GAIN }
+
+    // Save envelope back to clip object
+    saveToClip() {
+        this.clip.gainEnvelope = JSON.parse(JSON.stringify(this.points));
+    }
+
+    // Export serialized data
+    serialize() {
+        return JSON.parse(JSON.stringify(this.points));
+    }
+
+    // Load from serialized data
+    loadFromData(data) {
+        this.points = data ? JSON.parse(JSON.stringify(data)) : [];
+        this.saveToClip();
+    }
+
+    // Clear all points except defaults
+    reset() {
+        this.points = [
+            { time: 0, value: 1.0 },
+            { time: 1, value: 1.0 }
         ];
+        this.saveToClip();
     }
-    
-    // Trigger UI in ui.js
-    if (localAppServices.openClipGainEnvelopePanel) {
-        localAppServices.openClipGainEnvelopePanel(clipId, clipDuration);
+
+    // Get bounds for rendering
+    getBounds(canvasWidth, canvasHeight) {
+        return {
+            padding: 4,
+            handleRadius: 5
+        };
     }
 }
 
-/**
- * Get the gain value at a specific time for a clip.
- * Uses linear interpolation between envelope points.
- * @param {string} clipId - The clip ID
- * @param {number} normalizedTime - Time from 0 to 1
- * @returns {number} Gain value at the given time
- */
-export function getGainAtTime(clipId, normalizedTime) {
-    if (!envelopePoints || envelopePoints.length === 0) return DEFAULT_GAIN;
+// Draw the envelope overlay on a canvas
+export function drawClipGainEnvelope(ctx, envelope, canvasWidth, canvasHeight, isSelected, isHovered) {
+    if (!envelope || !envelope.points || envelope.points.length < 2) return;
+
+    const { padding, handleRadius } = {
+        padding: 4,
+        handleRadius: 5
+    };
+
+    const drawHeight = canvasHeight - padding * 2;
+    const drawY = padding;
+
+    // Draw fill area
+    ctx.beginPath();
+    ctx.moveTo(0, canvasHeight);
     
-    const sortedPoints = [...envelopePoints].sort((a, b) => a.time - b.time);
-    
-    // Before first point
-    if (normalizedTime <= sortedPoints[0].time) {
-        return sortedPoints[0].gain;
+    for (let i = 0; i < envelope.points.length; i++) {
+        const x = envelope.points[i].time * canvasWidth;
+        const y = drawY + (1 - envelope.points[i].value) * drawHeight;
+        if (i === 0) {
+            ctx.lineTo(x, canvasHeight);
+            ctx.lineTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
     }
     
-    // After last point
-    if (normalizedTime >= sortedPoints[sortedPoints.length - 1].time) {
-        return sortedPoints[sortedPoints.length - 1].gain;
-    }
+    ctx.lineTo(canvasWidth, canvasHeight);
+    ctx.closePath();
     
-    // Find surrounding points and interpolate
-    for (let i = 0; i < sortedPoints.length - 1; i++) {
-        if (normalizedTime >= sortedPoints[i].time && normalizedTime <= sortedPoints[i + 1].time) {
-            const t1 = sortedPoints[i].time;
-            const t2 = sortedPoints[i + 1].time;
-            const g1 = sortedPoints[i].gain;
-            const g2 = sortedPoints[i + 1].gain;
+    // Fill with gradient
+    const gradient = ctx.createLinearGradient(0, drawY, 0, drawY + drawHeight);
+    if (isSelected) {
+        gradient.addColorStop(0, 'rgba(255, 200, 50, 0.3)');
+        gradient.addColorStop(1, 'rgba(255, 200, 50, 0.05)');
+    } else if (isHovered) {
+        gradient.addColorStop(0, 'rgba(255, 200, 50, 0.2)');
+        gradient.addColorStop(1, 'rgba(255, 200, 50, 0.02)');
+    } else {
+        gradient.addColorStop(0, 'rgba(255, 200, 50, 0.1)');
+        gradient.addColorStop(1, 'rgba(255, 200, 50, 0.01)');
+    }
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Draw line
+    ctx.beginPath();
+    for (let i = 0; i < envelope.points.length; i++) {
+        const x = envelope.points[i].time * canvasWidth;
+        const y = drawY + (1 - envelope.points[i].value) * drawHeight;
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.strokeStyle = isSelected ? 'rgba(255, 200, 50, 0.9)' : 'rgba(255, 200, 50, 0.5)';
+    ctx.lineWidth = isSelected ? 2 : 1;
+    ctx.stroke();
+
+    // Draw handles for selected clips
+    if (isSelected) {
+        for (let i = 0; i < envelope.points.length; i++) {
+            const x = envelope.points[i].time * canvasWidth;
+            const y = drawY + (1 - envelope.points[i].value) * drawHeight;
             
-            const t = (normalizedTime - t1) / (t2 - t1);
-            return g1 + (g2 - g1) * t;
-        }
-    }
-    
-    return DEFAULT_GAIN;
-}
-
-/**
- * Get the envelope points for a clip.
- * @param {string} clipId - The clip ID
- * @returns {Array} Array of envelope points
- */
-export function getEnvelopePoints(clipId) {
-    return JSON.parse(JSON.stringify(envelopePoints));
-}
-
-/**
- * Set envelope points (used by UI).
- */
-export function setEnvelopePoints(points) {
-    envelopePoints = points ? JSON.parse(JSON.stringify(points)) : [];
-}
-
-/**
- * Get current envelope points.
- */
-export function getCurrentEnvelopePoints() {
-    return JSON.parse(JSON.stringify(envelopePoints));
-}
-
-/**
- * Save the envelope to the clip data.
- */
-export function saveEnvelopeToClip(clipId) {
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    
-    for (const track of tracks) {
-        if (track.timelineClips) {
-            const clipIndex = track.timelineClips.findIndex(c => c.id === clipId);
-            if (clipIndex !== -1) {
-                track.timelineClips[clipIndex].gainEnvelope = JSON.parse(JSON.stringify(envelopePoints));
-                
-                console.log(`[ClipGainEnvelope] Saved envelope to clip ${clipId.substring(0, 12)}...`);
-                return true;
+            ctx.beginPath();
+            ctx.arc(x, y, handleRadius, 0, Math.PI * 2);
+            
+            if (envelope.selectedPointIndex === i) {
+                ctx.fillStyle = '#ffcc00';
+                ctx.strokeStyle = '#ffffff';
+            } else if (envelope.hoverPointIndex === i) {
+                ctx.fillStyle = '#ffdd44';
+                ctx.strokeStyle = '#ffffff';
+            } else {
+                ctx.fillStyle = '#ffaa00';
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
             }
+            
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
         }
     }
-    return false;
+}
+
+// Get envelope from clip, create if needed
+export function getOrCreateClipGainEnvelope(clip) {
+    if (!clip) return null;
+    
+    if (!clip._gainEnvelope || clip._gainEnvelope.clip !== clip) {
+        clip._gainEnvelope = new ClipGainEnvelope(clip);
+        
+        // Initialize with default points if empty
+        if (!clip.gainEnvelope || clip.gainEnvelope.length === 0) {
+            clip.gainEnvelope = [
+                { time: 0, value: 1.0 },
+                { time: 1, value: 1.0 }
+            ];
+        }
+    }
+    
+    return clip._gainEnvelope;
+}
+
+// Apply envelope to a Tone.js player or source during playback
+export function applyClipGainEnvelope(player, envelope, startTime, duration) {
+    if (!player || !envelope || !envelope.points || envelope.points.length < 2) return;
+    
+    const clipStart = startTime;
+    const clipEnd = startTime + duration;
+    
+    // Clear any existing automation
+    player.gain.cancelScheduledValues(clipStart);
+    player.gain.setValueAtTime(player.gain.value, clipStart);
+    
+    // Schedule envelope points
+    for (let i = 0; i < envelope.points.length; i++) {
+        const point = envelope.points[i];
+        const time = clipStart + point.time * duration;
+        const value = point.value;
+        
+        if (i === 0) {
+            player.gain.setValueAtTime(value, time);
+        } else {
+            // Use linear ramp for simplicity
+            player.gain.linearRampToValueAtTime(value, time);
+        }
+    }
+    
+    // Ensure it stays at final value
+    player.gain.setValueAtTime(envelope.points[envelope.points.length - 1].value, clipEnd);
+}
+
+// Double-click to add point at position
+export function handleEnvelopeDoubleClick(envelope, normalizedX, normalizedY) {
+    if (!envelope) return;
+    envelope.addPoint(normalizedX, normalizedY);
+}
+
+// Check if click is on a handle
+export function getEnvelopeHandleAtPoint(envelope, x, y, canvasWidth, canvasHeight) {
+    if (!envelope || !envelope.points) return -1;
+    
+    const { padding, handleRadius } = { padding: 4, handleRadius: 5 };
+    const tolerance = handleRadius * 2;
+    
+    for (let i = 0; i < envelope.points.length; i++) {
+        const px = envelope.points[i].time * canvasWidth;
+        const py = padding + (1 - envelope.points[i].value) * (canvasHeight - padding * 2);
+        
+        if (Math.abs(x - px) < tolerance && Math.abs(y - py) < tolerance) {
+            return i;
+        }
+    }
+    
+    return -1;
+}
+
+// Serialize envelope for saving
+export function serializeClipGainEnvelope(clip) {
+    if (!clip || !clip.gainEnvelope) return null;
+    return JSON.parse(JSON.stringify(clip.gainEnvelope));
+}
+
+// Deserialize and apply
+export function deserializeClipGainEnvelope(clip, data) {
+    if (!clip || !data) return;
+    clip.gainEnvelope = JSON.parse(JSON.stringify(data));
+    clip._gainEnvelope = null; // Reset cache
+}
+
+// Module-level storage for envelope editing state
+window._clipGainEnvelopes = window._clipGainEnvelopes || new Map();
+
+export function getClipEnvelope(clipId) {
+    return window._clipGainEnvelopes.get(clipId);
+}
+
+export function setClipEnvelope(clipId, envelope) {
+    if (envelope) {
+        window._clipGainEnvelopes.set(clipId, envelope);
+    } else {
+        window._clipGainEnvelopes.delete(clipId);
+    }
+}
+
+export function clearAllClipEnvelopes() {
+    window._clipGainEnvelopes.clear();
 }
