@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Lyrics Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
-2. **Auto-Compression** - Analyze audio and suggest/apply compression settings automatically
-3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
-4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
-5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
-6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
-7. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
-8. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
-9. **Project Version Manager** - Manage multiple project versions/snapshots
-10. **MIDI Monitor Panel** - Display MIDI input/output activity in real-time
+1. **Tempo Sync Grid** - Auto-update grid lines when tempo changes to keep beat-aligned
+2. **Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves
+3. **Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)
+4. **Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track
+5. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
+6. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
+7. **Track Solo Groups** - Create solo groups where soloing one mutes others in group
+8. **Export Stem Bundles** - Export multiple stems as a single ZIP archive
+9. **Scale Quantize** - Quantize notes to selected musical scale intervals
+10. **Transport记忆** - Remember and restore transport position, loop region, and tempo on reopen
 
 ## Workflow
 
@@ -54,7 +54,7 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 419+ features already implemented
+- 429+ features already implemented
 
 Generate 10 NEW feature ideas that are:
 1. Achievable in a single session
