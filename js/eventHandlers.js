@@ -394,7 +394,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, beatLfoToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -528,6 +528,18 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Performance Monitor Button ===
+
+    // === Beat-Synced LFO Button ===
+    if (beatLfoToggleBtnGlobal) {
+        beatLfoToggleBtnGlobal.addEventListener('click', () => {
+            if (localAppServices.openBeatSyncedLFOPanel) {
+                localAppServices.openBeatSyncedLFOPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Beat-Synced LFO not available', 2000);
+            }
+        });
+    }
+    // === End Beat-Synced LFO Button ===
 
     // === Scale/Key Selector Controls ===
     function updateScaleNotesDisplay() {
