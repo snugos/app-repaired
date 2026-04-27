@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. ~~**Track Headphone Preview**~~ ✅ - Route individual tracks to a dedicated headphone mix with separate volume control (COMMITTED: af9c20f)
-2. ~~**Audio Tap Tempo**~~ ✅ - Tap a button rhythmically to detect and set project tempo from input timing (COMMITTED: d7c47a5)
-3. **Clip Gain Envelope Editor** - Visual envelope editor for clip-level volume automation with drawable curves
-4. **MIDI Note Editor** - Dedicated MIDI note editor window with velocity, duration, and start time per note
-5. **Mixer Routing Matrix** - Visual matrix showing track-to-bus routing with drag-drop connections
-6. **Track Lane Reorder** - Drag tracks to reorder them in the timeline with smooth animation
-7. **Tempo Ramp Automation** - Draw tempo changes over time with smooth ramping between points
-8. ~~**Audio Phase Invert**~~ ✅ - One-click phase invert for correcting out-of-phase audio recordings (COMMITTED: 5f935ad)
-9. **Clip Time Stretch** - Time-stretch audio clips with preserved pitch using algorithms
-10. **Marker Navigation** - Add markers at specific positions and jump between them during playback
+1. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display
+2. **Step Sequencer View** - Alternative piano roll showing steps/rows for each drum pad or pitch with velocity lanes
+3. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting
+4. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
+5. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
+6. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
+7. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
+8. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
+9. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
+10. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
 
 ## Workflow
 

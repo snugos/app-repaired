@@ -49,3 +49,5 @@ export { initTransportLoopCount, getLoopCount, setLoopCount, getCurrentLoopItera
 export { initClipGainEnvelopeEditor, openClipGainEnvelopeEditorPanel } from './ClipGainEnvelopeEditor.js';
 // Phase Invert Button - One-click phase invert for correcting out-of-phase audio recordings
 export { createPhaseInvertButton, openPhaseInvertButtonPanel } from './PhaseInvertButton.js';
+// Score Editor - Visual staff notation display showing notes as musical notation
+export { initScoreEditor, openScoreEditorWindow, updateScoreEditor } from './ScoreEditor.js';
