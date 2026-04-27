@@ -4,16 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Lane Resizing** - Drag track lane headers to resize track heights in timeline
-2. **Tempo Flick Tap** - Tap tempo using mouse clicks with visual BPM display
-3. **Scale Highlight Mode** - Highlight piano roll notes matching selected musical scale
-4. **Audio Reverse** - Reverse audio clips with preview capability
-5. **Clip Gain Envelope** - Draw volume automation directly on audio clips
-6. **Send Effect Routing** - Route track to multiple tracks as send effects
-7. **Track Solo Defeat** - Allow soloed tracks to be overridden for monitoring
-8. **MIDI Velocity Curve** - Remap MIDI velocity input with customizable curve
-9. **Project Notes Panel** - Freeform text notes field attached to project
-10. **Track Grouping** - Group multiple tracks for collective mute/solo/gain control
+1. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet
+2. **MIDI File Import/Export** - Drag & drop .mid files
+3. **Track Effects Presets** - Save/load effect chain presets per track
+4. **Quantize Selection** - Quantize selected notes to grid
+5. **Undo/Redo Visual Stack** - Show undo history in a panel
+6. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
+7. **Waveform Visualization** - Draw waveform on audio clips
+8. **Track Color Coding** - Assign colors to tracks for visual grouping
+9. **Scale Highlight Mode** - Highlight piano roll notes matching selected musical scale
 
 ## Workflow
 
