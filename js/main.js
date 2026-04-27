@@ -45,6 +45,7 @@ import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './Pe
 import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
 import { openStepSequencerView } from './StepSequencerView.js';
 import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
+import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
@@ -446,7 +447,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -467,7 +468,7 @@ import {
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
                 const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -483,8 +484,8 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -708,7 +709,15 @@ import {
     openStepSequencerView,
     openPianoRollEditor,
     
-    
+    // Audio Recording
+    initAudioRecorder,
+    startRecording,
+    stopRecording,
+    isRecordingActive,
+    requestMicAccess,
+    getRecordingStatus,
+    cleanupRecording,
+
     // Pattern Generation and Frequency Processing
     AIPatternGenerator,
     getAIPatternGenerator,
@@ -1172,6 +1181,7 @@ async function initializeSnugOS() {
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
         if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
+        if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices); // Auto-Beat Sync initialization
