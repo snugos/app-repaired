@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display
-2. **Step Sequencer View** - Alternative piano roll showing steps/rows for each drum pad or pitch with velocity lanes
-3. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting
-4. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
-5. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
-6. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
-7. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
-8. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
-9. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
-10. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
+1. **Step Sequencer View** - Alternative piano roll showing steps/rows for each drum pad or pitch with velocity lanes
+2. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting
+3. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
+4. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
+5. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
+6. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
+7. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
+8. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
+9. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
+10. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display ✅ (implemented c6bd35b)
 
 ## Workflow
 
