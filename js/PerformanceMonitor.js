@@ -1,124 +1,195 @@
-// js/PerformanceMonitor.js - CPU/Memory usage monitor panel
-const PerformanceMonitor = (() => {
-    let isOpen = false;
-    let panel = null;
-    let updateInterval = null;
-    let history = { cpu: [], mem: [], time: [] };
-    const MAX_HISTORY = 60;
+// Performance Monitor - CPU/Memory load indicator
+// Lightweight performance tracking for SnugOS DAW
 
-    function createCanvas(width, height) {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.display = 'block';
-        return canvas;
+let cpuHistory = [];
+let memoryHistory = [];
+const HISTORY_SIZE = 30;
+
+function getCPULoad() {
+    if (performance && performance.memory) {
+        const used = performance.memory.usedJSHeapSize;
+        const total = performance.memory.totalJSHeapSize;
+        if (total > 0) {
+            return Math.round((used / total) * 100);
+        }
     }
+    return null;
+}
 
-    function drawGraph(ctx, data, color, w, h) {
-        if (data.length < 2) return;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        const step = w / (MAX_HISTORY - 1);
-        data.forEach((val, i) => {
-            const x = i * step;
-            const y = h - (val * h);
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+function getMemoryUsageMB() {
+    if (performance && performance.memory) {
+        return Math.round(performance.memory.usedJSHeapSize / 1048576);
+    }
+    return null;
+}
+
+function updatePerformanceMetrics() {
+    const cpu = getCPULoad();
+    if (cpu !== null) {
+        cpuHistory.push(cpu);
+        if (cpuHistory.length > HISTORY_SIZE) cpuHistory.shift();
+    }
+    const mem = getMemoryUsageMB();
+    if (mem !== null) {
+        memoryHistory.push(mem);
+        if (memoryHistory.length > HISTORY_SIZE) memoryHistory.shift();
+    }
+}
+
+function getAverageCPU() {
+    if (cpuHistory.length === 0) return 0;
+    return Math.round(cpuHistory.reduce((a, b) => a + b, 0) / cpuHistory.length);
+}
+
+function getAverageMemory() {
+    if (memoryHistory.length === 0) return 0;
+    return Math.round(memoryHistory.reduce((a, b) => a + b, 0) / memoryHistory.length);
+}
+
+function createPerformanceIndicatorHTML() {
+    const cpu = getCPULoad();
+    const mem = getMemoryUsageMB();
+    const avgCpu = getAverageCPU();
+    const avgMem = getAverageMemory();
+    const timestamp = Date.now();
+    
+    return `
+        <div class="perf-indicator" id="perf-indicator" title="CPU: ${avgCpu}% avg | Mem: ${avgMem}MB avg">
+            <div class="perf-cpu" id="perf-cpu">
+                <span class="perf-label">CPU</span>
+                <span class="perf-value" id="perf-cpu-val">${cpu !== null ? cpu + '%' : 'N/A'}</span>
+            </div>
+            <div class="perf-mem" id="perf-mem">
+                <span class="perf-label">MEM</span>
+                <span class="perf-value" id="perf-mem-val">${mem !== null ? mem + 'MB' : 'N/A'}</span>
+            </div>
+        </div>
+    `;
+}
+
+function initPerformanceMonitor() {
+    updatePerformanceMetrics();
+    setInterval(updatePerformanceMetrics, 2000);
+    console.log('[PerformanceMonitor] Initialized - CPU/Memory tracking active');
+}
+
+function getPerformanceSnapshot() {
+    return {
+        cpuLoad: getCPULoad(),
+        cpuAvg: getAverageCPU(),
+        memoryMB: getMemoryUsageMB(),
+        memoryAvg: getAverageMemory(),
+        cpuHistory: [...cpuHistory],
+        memoryHistory: [...memoryHistory],
+        timestamp: Date.now()
+    };
+}
+
+function openPerformancePanel() {
+    const snapshot = getPerformanceSnapshot();
+    const panelHTML = `
+        <div class="snug-window perf-panel" id="perf-panel-window" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;z-index:10000;">
+            <div class="snug-window-header" style="background:#1a1a2e;color:#fff;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                <span>Performance Monitor</span>
+                <button onclick="closePerformancePanel()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
+            </div>
+            <div class="snug-window-content" style="background:#16213e;color:#eee;padding:16px;">
+                <div style="margin-bottom:12px;">
+                    <strong>Current CPU:</strong> ${snapshot.cpuLoad !== null ? snapshot.cpuLoad + '%' : 'N/A'}
+                </div>
+                <div style="margin-bottom:12px;">
+                    <strong>Average CPU:</strong> ${snapshot.cpuAvg}%
+                </div>
+                <div style="margin-bottom:12px;">
+                    <strong>Current Memory:</strong> ${snapshot.memoryMB !== null ? snapshot.memoryMB + ' MB' : 'N/A'}
+                </div>
+                <div style="margin-bottom:12px;">
+                    <strong>Average Memory:</strong> ${snapshot.memoryAvg} MB
+                </div>
+                <div style="margin-top:16px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                        <span>CPU History (last ${snapshot.cpuHistory.length})</span>
+                    </div>
+                    <div id="perf-chart-cpu" style="height:60px;background:#0f3460;border-radius:4px;padding:4px;display:flex;align-items:flex-end;gap:2px;"></div>
+                </div>
+                <div style="margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                        <span>Memory History (last ${snapshot.memoryHistory.length})</span>
+                    </div>
+                    <div id="perf-chart-mem" style="height:60px;background:#0f3460;border-radius:4px;padding:4px;display:flex;align-items:flex-end;gap:2px;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existing = document.getElementById('perf-panel-window');
+    if (existing) existing.remove();
+    
+    const container = document.createElement('div');
+    container.innerHTML = panelHTML;
+    document.body.appendChild(container);
+    
+    renderPerformanceCharts(snapshot);
+}
+
+function renderPerformanceCharts(snapshot) {
+    const maxCPU = Math.max(...snapshot.cpuHistory, 100);
+    const maxMem = Math.max(...snapshot.memoryHistory, 100);
+    
+    const cpuContainer = document.getElementById('perf-chart-cpu');
+    const memContainer = document.getElementById('perf-chart-mem');
+    
+    if (cpuContainer) {
+        cpuContainer.innerHTML = snapshot.cpuHistory.map(v => {
+            const h = Math.max(2, Math.round((v / maxCPU) * 52));
+            const color = v > 80 ? '#e74c3c' : v > 60 ? '#f39c12' : '#2ecc71';
+            return `<div style="flex:1;height:${h}px;background:${color};border-radius:2px 2px 0 0;" title="${v}%"></div>`;
+        }).join('');
+    }
+    
+    if (memContainer) {
+        memContainer.innerHTML = snapshot.memoryHistory.map(v => {
+            const h = Math.max(2, Math.round((v / maxMem) * 52));
+            return `<div style="flex:1;height:${h}px;background:#3498db;border-radius:2px 2px 0 0;" title="${v}MB"></div>`;
+        }).join('');
+    }
+}
+
+function closePerformancePanel() {
+    const panel = document.getElementById('perf-panel-window');
+    if (panel) panel.remove();
+}
+
+function addPerformanceIndicatorToStatusBar() {
+    const statusBar = document.querySelector('.status-bar');
+    if (!statusBar) return;
+    
+    const indicatorHTML = createPerformanceIndicatorHTML();
+    const existing = document.getElementById('perf-indicator');
+    if (existing) existing.remove();
+    
+    statusBar.insertAdjacentHTML('beforeend', indicatorHTML);
+    
+    setInterval(() => {
+        const cpuEl = document.getElementById('perf-cpu-val');
+        const memEl = document.getElementById('perf-mem-val');
+        if (cpuEl) cpuEl.textContent = (getCPULoad() ?? 'N/A') + '%';
+        if (memEl) memEl.textContent = (getMemoryUsageMB() ?? 'N/A') + 'MB';
+    }, 5000);
+}
+
+function initPerformanceIndicator() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(addPerformanceIndicatorToStatusBar, 1000);
         });
-        ctx.stroke();
+    } else {
+        setTimeout(addPerformanceIndicatorToStatusBar, 1000);
     }
+}
 
-    function openPanel() {
-        if (isOpen) return;
-        isOpen = true;
-
-        panel = WindowManager.createWindow({
-            title: 'Performance Monitor',
-            width: 340,
-            height: 200,
-            x: window.innerWidth - 360,
-            y: 60,
-            closable: true,
-            onClose: () => { isOpen = false; stopMonitoring(); }
-        });
-
-        const container = document.createElement('div');
-        container.style.cssText = 'padding:12px;display:flex;flex-direction:column;gap:8px;';
-
-        const canvas = createCanvas(316, 80);
-        const ctx = canvas.getContext('2d');
-
-        const stats = document.createElement('div');
-        stats.style.cssText = 'font-size:11px;font-family:monospace;color:#aaa;display:flex;justify-content:space-between;';
-
-        container.appendChild(canvas);
-        container.appendChild(stats);
-        panel.content.appendChild(container);
-
-        const draw = () => {
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(0, 0, 316, 80);
-
-            // Grid lines
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 0.5;
-            for (let i = 1; i < 4; i++) {
-                ctx.beginPath();
-                ctx.moveTo(0, i * 20);
-                ctx.lineTo(316, i * 20);
-                ctx.stroke();
-            }
-
-            drawGraph(ctx, history.cpu, '#0f0', 316, 80);
-            drawGraph(ctx, history.mem, '#f80', 316, 80);
-
-            // Labels
-            ctx.fillStyle = '#0f0';
-            ctx.font = '9px monospace';
-            ctx.fillText('CPU', 4, 12);
-            ctx.fillStyle = '#f80';
-            ctx.fillText('MEM', 4, 24);
-
-            const cpu = history.cpu[history.cpu.length - 1] || 0;
-            const mem = history.mem[history.mem.length - 1] || 0;
-            stats.innerHTML = `<span>CPU: ${(cpu * 100).toFixed(1)}%</span><span>MEM: ${(mem * 100).toFixed(1)}%</span>`;
-        };
-
-        const update = () => {
-            if (!isOpen) return;
-
-            // Estimate CPU based on audio context state
-            const cpu = (performance.memory && performance.memory.usedJSHeapSize)
-                ? (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 0.3
-                : 0.1 + Math.random() * 0.05;
-
-            const mem = (performance.memory)
-                ? performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit
-                : 0.5 + Math.random() * 0.1;
-
-            history.cpu.push(Math.min(1, cpu));
-            history.mem.push(Math.min(1, mem));
-            history.time.push(Date.now());
-
-            if (history.cpu.length > MAX_HISTORY) {
-                history.cpu.shift();
-                history.mem.shift();
-                history.time.shift();
-            }
-
-            draw();
-        };
-
-        const stopMonitoring = () => {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-                updateInterval = null;
-            }
-        };
-
-        updateInterval = setInterval(update, 500);
-        update();
-    }
-
-    return { openPanel };
-})();
+window.initPerformanceMonitor = initPerformanceMonitor;
+window.openPerformancePanel = openPerformancePanel;
+window.closePerformancePanel = closePerformancePanel;
+window.initPerformanceIndicator = initPerformanceIndicator;
+window.getPerformanceSnapshot = getPerformanceSnapshot;

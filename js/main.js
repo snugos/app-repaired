@@ -50,6 +50,7 @@ import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, re
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
+import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel, closePerformancePanel, getPerformanceSnapshot } from './PerformanceMonitor.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -123,6 +124,8 @@ import {
     getLoopRegionEnabled, setLoopRegionEnabled, getLoopRegionStart, setLoopRegionStart, getLoopRegionEnd, setLoopRegionEnd, getLoopRegion,
     // Metronome
     getMetronomeEnabled, setMetronomeEnabled, getMetronomeVolume, setMetronomeVolume,
+    // Performance Monitor
+    getPerformanceSnapshot, openPerformancePanel,
     // Core State Actions
     addTrackToStateInternal, removeTrackFromStateInternal, reorderTrackInState,
     captureStateForUndoInternal, undoLastActionInternal, redoLastActionInternal,
@@ -449,7 +452,7 @@ import {
     addMasterEffect: async (effectType) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
                 console.error("effectsRegistryAccess.getEffectDefaultParams not available."); return;
@@ -468,8 +471,8 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
-                if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
+                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
                 if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -486,7 +489,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -1229,6 +1232,10 @@ async function initializeSnugOS() {
         // Initialize sample rate display in status bar
         initSampleRateDisplay();
         startSampleRateDisplayLoop();
+        
+        // Initialize performance monitor and indicator
+        if (typeof initPerformanceMonitor === 'function') initPerformanceMonitor();
+        if (typeof initPerformanceIndicator === 'function') initPerformanceIndicator();
         
         console.log(`[Main initializeSnugOS] SnugOS Version ${Constants.APP_VERSION} Initialized.`);
 
