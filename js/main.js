@@ -42,6 +42,7 @@ import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, op
 // Performance & Workflow - Session 2026-04-26
 import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
 import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
+import { openStepSequencerView } from './StepSequencerView.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 // Effect panel imports - Session 2026-04-24
@@ -701,6 +702,7 @@ import {
     openPerformanceTriggerPadsPanel,
     getPerformanceTriggerPads,
     openTrackHeadphoneMixPanel,
+    openStepSequencerView,
     
     
     // Pattern Generation and Frequency Processing
@@ -1160,6 +1162,7 @@ async function initializeSnugOS() {
         if (typeof initClipReverse === 'function') initClipReverse(appServices); // Clip Reverse feature initialization
         if (typeof initTrackHeadphoneMix === 'function') initTrackHeadphoneMix(appServices); // Headphone Mix initialization
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
+        if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices);
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization

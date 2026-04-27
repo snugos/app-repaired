@@ -1,399 +1,543 @@
-// js/StepSequencerView.js - 16-step drum grid view separate from piano roll
-// Feature: Step Sequencer View - dedicated drum machine style step sequencer
+// js/StepSequencerView.js - Step Sequencer View for Track Editing
+// Alternative to piano roll showing steps/rows with velocity lanes
 
 let localAppServices = {};
-let activeStepSequencerTrackId = null;
+let stepSequencerWindow = null;
+let currentStepSequencerTrackId = null;
+let selectedCells = new Set(); // Track selected cells for batch editing
 
-export function initStepSequencerView(services) {
-    localAppServices = services;
-    console.log('[StepSequencerView] Initialized');
+// Initialize the step sequencer module
+export function initStepSequencerView(appServicesFromMain) {
+    localAppServices = appServicesFromMain || {};
+    console.log('[StepSequencerView] Module initialized');
 }
 
-/**
- * Opens the Step Sequencer View panel
- * @param {number} trackId - The track ID to edit
- * @param {object} savedState - Optional saved window state
- */
-export function openStepSequencerView(trackId = null, savedState = null) {
+// Open the Step Sequencer panel for a track
+export function openStepSequencerView(trackId = null) {
     const windowId = 'stepSequencerView';
     const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
-    
-    // If trackId not provided, use the first DrumSampler track
-    if (trackId === null) {
-        const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
-        const drumTrack = tracks.find(t => t.type === 'DrumSampler' || t.type === 'Drum');
-        if (drumTrack) {
-            trackId = drumTrack.id;
-        }
-    }
     
     if (openWindows.has(windowId) && !savedState) {
         const win = openWindows.get(windowId);
         win.restore();
-        if (trackId !== null) {
-            renderStepSequencerContent(trackId);
-        }
+        renderStepSequencerContent(trackId);
         return win;
     }
-    
+
     const contentContainer = document.createElement('div');
     contentContainer.id = 'stepSequencerContent';
-    contentContainer.className = 'flex flex-col h-full bg-gray-900 text-white';
-    
-    const options = {
-        width: 650,
-        height: 400,
-        minWidth: 500,
-        minHeight: 300,
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-100 dark:bg-slate-800 overflow-hidden';
+
+    const options = { 
+        width: 800, 
+        height: 500, 
+        minWidth: 600, 
+        minHeight: 350,
         initialContentKey: windowId,
-        closable: true,
-        minimizable: true,
-        resizable: true
+        closable: true, 
+        minimizable: true, 
+        resizable: true 
     };
     
-    if (savedState) {
-        Object.assign(options, {
-            x: parseInt(savedState.left, 10),
-            y: parseInt(savedState.top, 10),
-            width: parseInt(savedState.width, 10),
-            height: parseInt(savedState.height, 10),
-            zIndex: savedState.zIndex,
-            isMinimized: savedState.isMinimized
-        });
-    }
-    
     const win = localAppServices.createWindow(windowId, 'Step Sequencer', contentContainer, options);
-    
     if (win?.element) {
-        if (trackId !== null) {
-            activeStepSequencerTrackId = trackId;
-            setTimeout(() => renderStepSequencerContent(trackId), 50);
-        } else {
-            renderNoTrackMessage(contentContainer);
-        }
+        renderStepSequencerContent(trackId);
     }
     
     return win;
 }
 
-/**
- * Renders message when no drum track is available
- */
-function renderNoTrackMessage(container) {
-    container.innerHTML = `
-        <div class="flex items-center justify-center h-full text-gray-400">
-            <div class="text-center">
-                <div class="text-4xl mb-4">🥁</div>
-                <p class="text-lg">No Drum Track Found</p>
-                <p class="text-sm mt-2">Create a Drum Sampler track to use the Step Sequencer</p>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Renders the step sequencer content for a track
- * @param {number} trackId - Track ID
- */
-function renderStepSequencerContent(trackId) {
+// Render the step sequencer content
+function renderStepSequencerContent(trackId = null) {
     const container = document.getElementById('stepSequencerContent');
     if (!container) return;
-    
-    const tracks = localAppServices.getTracksState ? localAppServices.getTracksState() : [];
-    const track = tracks.find(t => t.id === trackId);
+
+    // Get track
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const activeTrackId = trackId || currentStepSequencerTrackId || (tracks.length > 0 ? tracks[0].id : null);
+    const track = tracks.find(t => t.id === activeTrackId);
     
     if (!track) {
-        renderNoTrackMessage(container);
+        container.innerHTML = `
+            <div class="flex items-center justify-center h-full text-gray-500">
+                <p>No track selected. Create a track first.</p>
+            </div>
+        `;
         return;
     }
     
-    activeStepSequencerTrackId = trackId;
+    currentStepSequencerTrackId = track.id;
+
+    // Get active sequence
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq) {
+        container.innerHTML = `
+            <div class="flex items-center justify-center h-full text-gray-500">
+                <p>No sequence found for this track.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const numSteps = activeSeq.data?.[0]?.length || 16;
+    const numRows = activeSeq.data?.length || 16;
     
-    // Get sequence data - 8 pads x 16 steps
-    const sequence = track.getActiveSequence ? track.getActiveSequence() : null;
-    const numPads = 8;
-    const numSteps = 16;
+    // Get track name for display
+    const isDrumTrack = track.type === 'DrumSampler';
+    const isMelodicTrack = track.type === 'Synth' || track.type === 'Sampler';
     
-    // Build header with track selector
-    let html = `
-        <div class="flex items-center justify-between p-3 bg-gray-800 border-b border-gray-700">
+    // Build header HTML
+    let headerHtml = `
+        <div class="mb-3 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center gap-3">
-                <label class="text-sm text-gray-400">Track:</label>
-                <select id="stepSeqTrackSelect" class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
-                    ${tracks.filter(t => t.type === 'DrumSampler' || t.type === 'Drum').map(t => 
-                        `<option value="${t.id}" ${t.id === trackId ? 'selected' : ''}>${t.name}</option>`
-                    ).join('')}
+                <select id="stepSeqTrackSelect" class="px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-800 dark:text-gray-200">
+                    ${tracks.map(t => `<option value="${t.id}" ${t.id === track.id ? 'selected' : ''}>${t.name}</option>`).join('')}
                 </select>
+                <span class="text-xs text-gray-500">${track.type}</span>
             </div>
-            <div class="flex items-center gap-3">
-                <label class="flex items-center gap-2 text-sm text-gray-400">
-                    <span>Tempo:</span>
-                    <input type="number" id="stepSeqTempo" value="120" min="20" max="300" 
-                           class="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-center">
-                </label>
-                <button id="stepSeqPlayBtn" class="px-4 py-1 bg-green-600 hover:bg-green-700 rounded text-sm">
-                    ▶ Play
-                </button>
-                <button id="stepSeqStopBtn" class="px-4 py-1 bg-red-600 hover:bg-red-700 rounded text-sm">
-                    ■ Stop
-                </button>
-                <button id="stepSeqClearBtn" class="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm">
-                    Clear
-                </button>
-            </div>
-        </div>
-        
-        <!-- Step indicators header -->
-        <div class="flex bg-gray-800 border-b border-gray-700" style="padding-left: 80px;">
-            ${Array.from({length: numSteps}, (_, i) => `
-                <div class="flex-1 text-center text-xs text-gray-500 py-1 ${i % 4 === 0 ? 'border-l border-gray-600' : ''}">
-                    ${i + 1}
-                </div>
-            `).join('')}
-        </div>
-        
-        <!-- Pad grid -->
-        <div id="stepSeqGrid" class="flex-1 overflow-y-auto p-2">
-            ${renderPadRows(track, sequence, numPads, numSteps)}
-        </div>
-        
-        <!-- Velocity/Probability panel -->
-        <div class="flex items-center justify-between p-2 bg-gray-800 border-t border-gray-700">
-            <div class="flex items-center gap-2 text-sm text-gray-400">
-                <span>Mode:</span>
-                <select id="stepSeqMode" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
-                    <option value="steps">Steps Only</option>
-                    <option value="velocity">Velocity</option>
-                    <option value="probability">Probability</option>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500">Resolution:</span>
+                <select id="stepSeqResolution" class="px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded">
+                    <option value="8">1/8</option>
+                    <option value="16" selected>1/16</option>
+                    <option value="32">1/32</option>
                 </select>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-400">
-                <span>Current Pad:</span>
-                <span id="currentPadDisplay" class="text-white font-medium">--</span>
+                <button id="stepSeqClear" class="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 rounded text-white">Clear All</button>
             </div>
         </div>
     `;
-    
-    container.innerHTML = html;
-    
-    // Setup event handlers
-    setupStepSequencerEvents(trackId, track);
-}
 
-/**
- * Renders the pad rows (8 pads x 16 steps)
- */
-function renderPadRows(track, sequence, numPads, numSteps) {
-    let html = '';
-    
-    const padLabels = ['Kick', 'Snare', 'HiHat', 'Clap', 'Tom', 'Perc', 'FX1', 'FX2'];
-    
-    for (let pad = 0; pad < numPads; pad++) {
-        html += `
-            <div class="flex items-center mb-1" data-pad="${pad}">
-                <div class="w-20 flex-shrink-0 text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded text-center border border-gray-700">
-                    ${padLabels[pad] || `Pad ${pad + 1}`}
-                </div>
-                <div class="flex flex-1 gap-px">
-                    ${Array.from({length: numSteps}, (_, step) => {
-                        const isBarLine = step % 16 === 0;
-                        const isBeatLine = step % 4 === 0;
-                        const borderClass = isBarLine ? 'border-l-2 border-gray-600' : (isBeatLine ? 'border-l border-gray-700' : '');
-                        
-                        // Get step data
-                        let isActive = false;
-                        let velocity = 0.7;
-                        
-                        if (sequence?.data && sequence.data[pad] && sequence.data[pad][step]) {
-                            const stepData = sequence.data[pad][step];
-                            isActive = stepData?.active || false;
-                            velocity = stepData?.velocity || 0.7;
-                        }
-                        
-                        const velocityColor = velocity > 0.8 ? 'bg-green-500' : (velocity > 0.5 ? 'bg-green-600' : 'bg-green-700');
-                        const activeClass = isActive ? velocityColor : 'bg-gray-800 hover:bg-blue-600';
-                        
-                        return `
-                            <div class="step-cell flex-1 h-8 cursor-pointer rounded-sm transition-colors ${activeClass} ${borderClass}" 
-                                 data-pad="${pad}" data-step="${step}"
-                                 title="Pad ${pad + 1}, Step ${step + 1}">
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
+    // Build step numbers header
+    let stepNumbersHtml = '<div class="flex mb-1 pl-[60px]">';
+    for (let s = 0; s < numSteps; s++) {
+        const isDownbeat = s % 4 === 0;
+        stepNumbersHtml += `
+            <div class="step-number flex-shrink-0 text-center text-xs ${isDownbeat ? 'text-blue-500 font-bold' : 'text-gray-400'}" 
+                 style="width: ${100/numSteps}%;">${s + 1}</div>
+        `;
+    }
+    stepNumbersHtml += '</div>';
+
+    // Build velocity header
+    let velocityHeaderHtml = '<div class="flex mb-1 pl-[60px]">';
+    for (let s = 0; s < numSteps; s++) {
+        velocityHeaderHtml += `
+            <div class="velocity-header flex-shrink-0 text-center text-xs text-gray-500 border-l border-gray-300 dark:border-slate-600" 
+                 style="width: ${100/numSteps}%;">
+                <div class="h-2 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800" data-step="${s}" data-type="velocity"></div>
             </div>
         `;
     }
+    velocityHeaderHtml += '</div>';
+
+    // Build grid rows
+    let gridHtml = '<div class="flex-1 overflow-y-auto overflow-x-hidden">';
     
-    return html;
+    for (let r = 0; r < numRows; r++) {
+        // Row label (note name or drum pad)
+        let rowLabel = '';
+        if (isDrumTrack) {
+            const padNames = ['Kick', 'Snare', 'Clap', 'HH-C', 'HH-O', 'Tom1', 'Tom2', 'Rim', 'Cowbell', 'Crash', 'Ride', 'Shaker', 'Perc1', 'Perc2', 'FX1', 'FX2'];
+            rowLabel = padNames[r] || `Pad ${r + 1}`;
+        } else {
+            // Calculate MIDI note name
+            const noteNum = numRows - 1 - r; // Invert so high notes are at top
+            const octave = Math.floor(noteNum / 12);
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const noteName = noteNames[((noteNum % 12) + 12) % 12];
+            rowLabel = `${noteName}${octave}`;
+        }
+
+        gridHtml += `<div class="flex step-row" data-row="${r}">`;
+        
+        // Row label cell
+        gridHtml += `
+            <div class="flex-shrink-0 w-[60px] flex items-center justify-end pr-2 text-xs text-gray-600 dark:text-gray-400 border-r border-gray-300 dark:border-slate-600">
+                ${rowLabel}
+            </div>
+        `;
+
+        // Step cells
+        for (let s = 0; s < numSteps; s++) {
+            const note = activeSeq.data?.[r]?.[s];
+            const hasNote = note !== null && note !== undefined;
+            const velocity = hasNote ? (note.velocity || 0.8) : 0;
+            const isDownbeat = s % 4 === 0;
+            const isSelected = selectedCells.has(`${r}-${s}`);
+            
+            // Calculate color intensity based on velocity
+            const bgColor = hasNote ? `rgba(59, 130, 246, ${0.3 + velocity * 0.7})` : '';
+            const borderClass = isDownbeat ? 'border-l-2 border-blue-400' : 'border-l border-gray-200 dark:border-slate-700';
+            const selectedClass = isSelected ? 'ring-2 ring-yellow-400' : '';
+            
+            gridHtml += `
+                <div class="step-cell flex-shrink-0 border-r border-gray-200 dark:border-slate-700 ${borderClass} ${selectedClass} cursor-pointer transition-colors hover:bg-blue-100 dark:hover:bg-blue-900"
+                     data-row="${r}" data-step="${s}"
+                     style="width: ${100/numSteps}%; min-height: 32px; background-color: ${bgColor};">
+                    ${hasNote ? `<div class="w-full h-full flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-blue-500 opacity-80"></div></div>` : ''}
+                </div>
+            `;
+        }
+        
+        gridHtml += '</div>';
+    }
+    gridHtml += '</div>';
+
+    // Velocity scale legend
+    let velocityLegendHtml = `
+        <div class="mt-2 pt-2 border-t border-gray-300 dark:border-slate-600 flex items-center gap-4 flex-shrink-0">
+            <span class="text-xs text-gray-500">Velocity:</span>
+            <div class="flex items-center gap-1">
+                <div class="w-4 h-4 rounded" style="background-color: rgba(59, 130, 246, 0.3)"></div>
+                <span class="text-xs text-gray-500">Low</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="w-4 h-4 rounded" style="background-color: rgba(59, 130, 246, 0.7)"></div>
+                <span class="text-xs text-gray-500">Med</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="w-4 h-4 rounded" style="background-color: rgba(59, 130, 246, 1)"></div>
+                <span class="text-xs text-gray-500">High</span>
+            </div>
+            <div class="ml-auto text-xs text-gray-500">
+                Click to add/toggle • Drag to set velocity • Shift+Click to select range
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = headerHtml + stepNumbersHtml + velocityHeaderHtml + gridHtml + velocityLegendHtml;
+
+    // Attach event listeners
+    setupStepSequencerEvents(container, track);
 }
 
-/**
- * Sets up event handlers for step sequencer
- */
-function setupStepSequencerEvents(trackId, track) {
-    const container = document.getElementById('stepSequencerContent');
-    if (!container) return;
-    
-    // Track selector
+// Setup event handlers for the step sequencer
+function setupStepSequencerEvents(container, track) {
+    // Track selection
     const trackSelect = container.querySelector('#stepSeqTrackSelect');
     if (trackSelect) {
         trackSelect.addEventListener('change', (e) => {
-            const newTrackId = parseInt(e.target.value, 10);
+            const newTrackId = parseInt(e.target.value);
+            selectedCells.clear();
             renderStepSequencerContent(newTrackId);
         });
     }
-    
-    // Play button
-    const playBtn = container.querySelector('#stepSeqPlayBtn');
-    if (playBtn) {
-        playBtn.addEventListener('click', () => {
-            const tempo = parseInt(container.querySelector('#stepSeqTempo')?.value || '120', 10);
-            if (localAppServices.showNotification) {
-                localAppServices.showNotification(`Playing step sequencer at ${tempo} BPM`, 1500);
-            }
-            // Play would be handled by the audio system
-        });
-    }
-    
-    // Stop button
-    const stopBtn = container.querySelector('#stepSeqStopBtn');
-    if (stopBtn) {
-        stopBtn.addEventListener('click', () => {
-            if (localAppServices.showNotification) {
-                localAppServices.showNotification('Step sequencer stopped', 1500);
-            }
-        });
-    }
-    
-    // Clear button
-    const clearBtn = container.querySelector('#stepSeqClearBtn');
+
+    // Clear all button
+    const clearBtn = container.querySelector('#stepSeqClear');
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
-            if (confirm('Clear all steps?')) {
-                const sequence = track.getActiveSequence?.();
-                if (sequence?.data) {
-                    const isReconstructing = localAppServices.getIsReconstructingDAW?.() || false;
-                    if (!isReconstructing && localAppServices.captureStateForUndo) {
-                        localAppServices.captureStateForUndo('Clear step sequencer');
-                    }
-                    
-                    for (let pad = 0; pad < 8; pad++) {
-                        for (let step = 0; step < 16; step++) {
-                            sequence.data[pad] = sequence.data[pad] || [];
-                            sequence.data[pad][step] = null;
-                        }
-                    }
-                    
-                    renderStepSequencerContent(trackId);
-                    localAppServices.updateTrackUI?.(trackId, 'sequencerContentChanged');
-                }
+            if (confirm('Clear all notes in this sequence?')) {
+                clearAllNotes(track);
             }
         });
     }
-    
-    // Grid click handling (event delegation)
-    const grid = container.querySelector('#stepSeqGrid');
-    if (grid) {
-        let isMouseDown = false;
-        let paintValue = false;
-        
-        grid.addEventListener('mousedown', (e) => {
-            const cell = e.target.closest('.step-cell');
-            if (cell) {
-                isMouseDown = true;
-                const isActive = cell.classList.contains('bg-green-500') || 
-                                 cell.classList.contains('bg-green-600') || 
-                                 cell.classList.contains('bg-green-700');
-                paintValue = !isActive;
-                toggleStep(track, cell);
-                
-                // Update current pad display
-                const padDisplay = container.querySelector('#currentPadDisplay');
-                if (padDisplay) {
-                    padDisplay.textContent = `Pad ${parseInt(cell.dataset.pad, 10) + 1}`;
+
+    // Step cell click - toggle note
+    let isDragging = false;
+    let isSettingVelocity = false;
+    let dragStartRow = null;
+    let dragStartStep = null;
+
+    container.querySelectorAll('.step-cell').forEach(cell => {
+        cell.addEventListener('mousedown', (e) => {
+            const row = parseInt(cell.dataset.row);
+            const step = parseInt(cell.dataset.step);
+            
+            if (e.shiftKey) {
+                // Shift+click for range selection
+                if (dragStartRow !== null) {
+                    selectRange(dragStartRow, dragStartStep, row, step);
                 }
+            } else {
+                // Normal click - toggle or add note
+                isDragging = true;
+                dragStartRow = row;
+                dragStartStep = step;
+                toggleNote(track, row, step, e.altKey);
+            }
+            
+            e.preventDefault();
+        });
+
+        cell.addEventListener('mouseenter', (e) => {
+            if (isDragging && !isSettingVelocity) {
+                const row = parseInt(cell.dataset.row);
+                const step = parseInt(cell.dataset.step);
+                // Paint mode - add notes while dragging
+                addNoteAt(track, row, step, e.altKey);
             }
         });
-        
-        grid.addEventListener('mousemove', (e) => {
-            if (isMouseDown) {
-                const cell = e.target.closest('.step-cell');
-                if (cell) {
-                    const isActive = cell.classList.contains('bg-green-500') || 
-                                     cell.classList.contains('bg-green-600') || 
-                                     cell.classList.contains('bg-green-700');
-                    
-                    if (paintValue && !isActive) {
-                        toggleStep(track, cell);
-                    } else if (!paintValue && isActive) {
-                        toggleStep(track, cell);
-                    }
-                }
-            }
+
+        cell.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const row = parseInt(cell.dataset.row);
+            const step = parseInt(cell.dataset.step);
+            // Right click - delete note
+            deleteNoteAt(track, row, step);
         });
-        
-        document.addEventListener('mouseup', () => {
-            if (isMouseDown) {
-                isMouseDown = false;
-                localAppServices.updateTrackUI?.(trackId, 'sequencerContentChanged');
-            }
+    });
+
+    // Velocity header click - show velocity slider for step
+    container.querySelectorAll('.velocity-header [data-step]').forEach(header => {
+        header.addEventListener('click', (e) => {
+            const step = parseInt(e.target.dataset.step);
+            showVelocityEditor(track, step);
         });
-        
-        // Mouse leave
-        grid.addEventListener('mouseleave', () => {
-            if (isMouseDown) {
-                isMouseDown = false;
-            }
-        });
-    }
+    });
+
+    // Mouse up to end dragging
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        isSettingVelocity = false;
+        dragStartRow = null;
+        dragStartStep = null;
+    });
+
+    // Keyboard shortcuts
+    container.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            // Delete selected notes
+            deleteSelectedNotes(track);
+        } else if (e.key === 'Escape') {
+            // Clear selection
+            selectedCells.clear();
+            renderStepSequencerContent(track.id);
+        } else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+            // Select all
+            e.preventDefault();
+            selectAll(track);
+        }
+    });
 }
 
-/**
- * Toggles a step in the sequencer
- */
-function toggleStep(track, cell) {
-    const pad = parseInt(cell.dataset.pad, 10);
-    const step = parseInt(cell.dataset.step, 10);
+// Toggle a note at position
+function toggleNote(track, row, step, altKey = false) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    const currentNote = activeSeq.data[row]?.[step];
     
-    const sequence = track.getActiveSequence?.();
-    if (!sequence?.data) return;
-    
-    // Ensure row exists
-    if (!sequence.data[pad]) {
-        sequence.data[pad] = [];
+    // Capture undo state
+    if (track.appServices?.captureStateForUndo) {
+        track.appServices.captureStateForUndo('Toggle note');
     }
-    
-    const currentData = sequence.data[pad][step];
-    
-    if (currentData?.active) {
-        // Turn off
-        sequence.data[pad][step] = null;
-        cell.classList.remove('bg-green-500', 'bg-green-600', 'bg-green-700');
-        cell.classList.add('bg-gray-800');
+
+    if (currentNote !== null && currentNote !== undefined) {
+        // Note exists - delete it
+        if (!activeSeq.data[row]) activeSeq.data[row] = [];
+        activeSeq.data[row][step] = null;
     } else {
-        // Turn on
-        sequence.data[pad][step] = {
-            active: true,
-            velocity: 0.7
+        // Add new note
+        if (!activeSeq.data[row]) activeSeq.data[row] = [];
+        activeSeq.data[row][step] = {
+            velocity: 0.8,
+            duration: 1
         };
-        cell.classList.remove('bg-gray-800');
-        cell.classList.add('bg-green-500');
     }
+
+    // Update track
+    if (track.recreateToneSequence) {
+        track.recreateToneSequence(true);
+    }
+    if (track.appServices?.updateTrackUI) {
+        track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+    }
+
+    renderStepSequencerContent(track.id);
 }
 
-/**
- * Refreshes the step sequencer UI
- */
-export function refreshStepSequencerUI(trackId = null) {
-    const container = document.getElementById('stepSequencerContent');
-    if (!container) return;
+// Add note at position (for drag painting)
+function addNoteAt(track, row, step, altKey = false) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    if (!activeSeq.data[row]) activeSeq.data[row] = [];
     
-    if (trackId !== null && trackId !== activeStepSequencerTrackId) {
-        renderStepSequencerContent(trackId);
-    } else if (activeStepSequencerTrackId !== null) {
-        renderStepSequencerContent(activeStepSequencerTrackId);
+    // Only add if cell is empty
+    if (activeSeq.data[row][step] === null || activeSeq.data[row][step] === undefined) {
+        activeSeq.data[row][step] = {
+            velocity: altKey ? 0.3 : 0.8,
+            duration: 1
+        };
+
+        if (track.recreateToneSequence) {
+            track.recreateToneSequence(true);
+        }
+        if (track.appServices?.updateTrackUI) {
+            track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+        }
     }
 }
 
-console.log('[StepSequencerView] Module loaded');
+// Delete note at position
+function deleteNoteAt(track, row, step) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    if (activeSeq.data[row]?.[step] !== null && activeSeq.data[row]?.[step] !== undefined) {
+        if (track.appServices?.captureStateForUndo) {
+            track.appServices.captureStateForUndo('Delete note');
+        }
+
+        activeSeq.data[row][step] = null;
+
+        if (track.recreateToneSequence) {
+            track.recreateToneSequence(true);
+        }
+        if (track.appServices?.updateTrackUI) {
+            track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+        }
+
+        renderStepSequencerContent(track.id);
+    }
+}
+
+// Clear all notes
+function clearAllNotes(track) {
+    if (track.appServices?.captureStateForUndo) {
+        track.appServices.captureStateForUndo('Clear all notes');
+    }
+
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    // Clear all notes but preserve structure
+    for (let r = 0; r < activeSeq.data.length; r++) {
+        for (let s = 0; s < (activeSeq.data[r]?.length || 0); s++) {
+            activeSeq.data[r][s] = null;
+        }
+    }
+
+    if (track.recreateToneSequence) {
+        track.recreateToneSequence(true);
+    }
+    if (track.appServices?.updateTrackUI) {
+        track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+    }
+
+    renderStepSequencerContent(track.id);
+}
+
+// Select a range of cells
+function selectRange(startRow, startStep, endRow, endStep) {
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minStep = Math.min(startStep, endStep);
+    const maxStep = Math.max(startStep, endStep);
+
+    for (let r = minRow; r <= maxRow; r++) {
+        for (let s = minStep; s <= maxStep; s++) {
+            selectedCells.add(`${r}-${s}`);
+        }
+    }
+
+    renderStepSequencerContent(currentStepSequencerTrackId);
+}
+
+// Select all notes
+function selectAll(track) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    for (let r = 0; r < activeSeq.data.length; r++) {
+        for (let s = 0; s < (activeSeq.data[r]?.length || 0); s++) {
+            if (activeSeq.data[r][s] !== null && activeSeq.data[r][s] !== undefined) {
+                selectedCells.add(`${r}-${s}`);
+            }
+        }
+    }
+
+    renderStepSequencerContent(track.id);
+}
+
+// Delete selected notes
+function deleteSelectedNotes(track) {
+    if (selectedCells.size === 0) return;
+
+    if (track.appServices?.captureStateForUndo) {
+        track.appServices.captureStateForUndo(`Delete ${selectedCells.size} notes`);
+    }
+
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    selectedCells.forEach(key => {
+        const [r, s] = key.split('-').map(Number);
+        if (activeSeq.data[r]) {
+            activeSeq.data[r][s] = null;
+        }
+    });
+
+    selectedCells.clear();
+
+    if (track.recreateToneSequence) {
+        track.recreateToneSequence(true);
+    }
+    if (track.appServices?.updateTrackUI) {
+        track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+    }
+
+    renderStepSequencerContent(track.id);
+}
+
+// Show velocity editor for a step
+function showVelocityEditor(track, step) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+
+    // Find all notes at this step and let user adjust velocity
+    const notesAtStep = [];
+    for (let r = 0; r < activeSeq.data.length; r++) {
+        if (activeSeq.data[r]?.[step] !== null && activeSeq.data[r]?.[step] !== undefined) {
+            notesAtStep.push({ row: r, note: activeSeq.data[r][step] });
+        }
+    }
+
+    if (notesAtStep.length === 0) {
+        if (track.appServices?.showNotification) {
+            track.appServices.showNotification('No notes at this step', 1500);
+        }
+        return;
+    }
+
+    // Simple velocity adjustment - set all notes at this step to same velocity
+    const avgVelocity = notesAtStep.reduce((sum, n) => sum + (n.note.velocity || 0.8), 0) / notesAtStep.length;
+    const newVelocity = prompt(`Set velocity for ${notesAtStep.length} note(s) at step ${step + 1} (current: ${Math.round(avgVelocity * 100)}%):`, Math.round(avgVelocity * 100));
+
+    if (newVelocity !== null) {
+        const velocity = Math.max(0, Math.min(100, parseInt(newVelocity) || 80)) / 100;
+        
+        if (track.appServices?.captureStateForUndo) {
+            track.appServices.captureStateForUndo('Adjust velocity');
+        }
+
+        notesAtStep.forEach(({ row }) => {
+            if (activeSeq.data[row]) {
+                activeSeq.data[row][step].velocity = velocity;
+            }
+        });
+
+        if (track.recreateToneSequence) {
+            track.recreateToneSequence(true);
+        }
+        if (track.appServices?.updateTrackUI) {
+            track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+        }
+
+        renderStepSequencerContent(track.id);
+    }
+}
+
+// Update the step sequencer panel
+export function updateStepSequencerPanel() {
+    const container = document.getElementById('stepSequencerContent');
+    if (container) {
+        renderStepSequencerContent();
+    }
+}
+
+// Get the step sequencer window
+export function getStepSequencerWindow() {
+    return stepSequencerWindow;
+}

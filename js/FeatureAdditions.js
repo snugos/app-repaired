@@ -51,3 +51,4 @@ export { initClipGainEnvelopeEditor, openClipGainEnvelopeEditorPanel } from './C
 export { createPhaseInvertButton, openPhaseInvertButtonPanel } from './PhaseInvertButton.js';
 // Score Editor - Visual staff notation display showing notes as musical notation
 export { initScoreEditor, openScoreEditorWindow, updateScoreEditor } from './ScoreEditor.js';
+export { initStepSequencerView, openStepSequencerView, updateStepSequencerPanel, getStepSequencerWindow } from './StepSequencerView.js';
