@@ -698,6 +698,7 @@ import {
     // Performance & Workflow - Session 2026-04-26
     openPerformanceTriggerPadsPanel,
     getPerformanceTriggerPads,
+    openTrackHeadphoneMixPanel,
     
     
     // Pattern Generation and Frequency Processing
@@ -1154,7 +1155,7 @@ async function initializeSnugOS() {
         if (typeof initializeEventHandlersModule === 'function') initializeEventHandlersModule(appServices); else console.error("initializeEventHandlersModule is not a function");
         if (typeof initPianoRollSequencer === 'function') initPianoRollSequencer(appServices); // Piano Roll Sequencer initialization
         if (typeof initClipReverse === 'function') initClipReverse(appServices); // Clip Reverse feature initialization
-        if (typeof initHeadphoneMix === 'function') initHeadphoneMix(appServices); // Headphone Mix initialization
+        if (typeof initTrackHeadphoneMix === 'function') initTrackHeadphoneMix(appServices); // Headphone Mix initialization
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices);
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
