@@ -1,6 +1,39 @@
 // js/TrackHeadphoneMix.js - Track Headphone Preview Mix Panel
 // Import functions from TrackHeadphoneMix.js module
 
+let localAppServices = {};
+let trackHeadphoneMixModule = {};
+
+// Initialize UI module with app services - called from main.js
+export function initializeUIModule(appServicesFromMain) {
+    localAppServices = appServicesFromMain || {};
+    
+    // Import and initialize the headphone mix module
+    import('./TrackHeadphoneMix.js').then(module => {
+        if (module.initTrackHeadphoneMix) {
+            module.initTrackHeadphoneMix(appServicesFromMain);
+        }
+        trackHeadphoneMixModule = {
+            isHeadphoneMixEnabled: module.isHeadphoneMixEnabled || (() => false),
+            setHeadphoneMixEnabled: module.setHeadphoneMixEnabled || (() => {}),
+            getHeadphoneMixVolume: module.getHeadphoneMixVolume || (() => 0.8),
+            setHeadphoneMixVolume: module.setHeadphoneMixVolume || (() => {}),
+            getHeadphoneMixMeter: module.getHeadphoneMixMeter || (() => -60),
+            getTrackHeadphoneSendLevel: module.getTrackHeadphoneSendLevel || (() => 0),
+            setTrackHeadphoneSendLevel: module.setTrackHeadphoneSendLevel || (() => {}),
+            isTrackHeadphoneSendEnabled: module.isTrackHeadphoneSendEnabled || (() => false),
+            setTrackHeadphoneSendEnabled: module.setTrackHeadphoneSendEnabled || (() => {}),
+            getTrackHeadphoneSendsInfo: module.getTrackHeadphoneSendsInfo || (() => [])
+        };
+        
+        // Wire up to appServices so ui.js can access via localAppServices.trackHeadphoneMix
+        localAppServices.trackHeadphoneMix = trackHeadphoneMixModule;
+        console.log('[UI] Track Headphone Mix module initialized and wired to appServices');
+    }).catch(err => {
+        console.error('[UI] Failed to load TrackHeadphoneMix module:', err);
+    });
+}
+
 /**
  * Opens the Track Headphone Mix panel for routing individual tracks to a dedicated headphone mix.
  */
