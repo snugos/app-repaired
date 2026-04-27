@@ -345,6 +345,19 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openAudioTapTempoPanel?.();
                 } catch(e) { console.error('[Menu] Audio Tap Tempo error:', e); }
             },
+            menuTapHistory: () => {
+                console.log('[Menu] Tap History clicked');
+                try {
+                    if (window.TapHistoryUI && window.TapHistoryUI.showPanel) {
+                        window.TapHistoryUI.showPanel();
+                    } else {
+                        import('./TapHistoryUI.js').then(m => {
+                            if (m.initTapHistoryUI) m.initTapHistoryUI(localAppServices);
+                            if (m.showPanel) m.showPanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Tap History error:', e); }
+            },
             menuHeadphoneMix: () => {
                 console.log('[Menu] Headphone Mix clicked');
                 try {
@@ -402,7 +415,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, beatLfoToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, tapHistoryBtn, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, beatLfoToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -834,7 +847,6 @@ export function attachGlobalControlEvents(elements) {
                 console.error('[EventHandlers midiLearnBtnGlobal] Error:', error);
             }
         });
-    }
 }
 
     // Tap Tempo button handler
@@ -860,6 +872,20 @@ export function attachGlobalControlEvents(elements) {
         });
     }
 
+    // Tap History button handler
+    if (tapHistoryBtn) {
+        tapHistoryBtn.addEventListener('click', () => {
+            if (window.TapHistoryUI && window.TapHistoryUI.toggleHistoryPanel) {
+                window.TapHistoryUI.toggleHistoryPanel();
+            } else {
+                // Try dynamic import
+                import('./TapHistoryUI.js').then(module => {
+                    if (module.initTapHistoryUI) module.initTapHistoryUI(localAppServices);
+                    if (module.toggleHistoryPanel) module.toggleHistoryPanel();
+                }).catch(err => console.error('[EventHandlers] Failed to load TapHistoryUI:', err));
+            }
+    }
+}
 
 
 export function setupMIDI() {
@@ -884,7 +910,7 @@ function onMIDISuccess(midiAccess) {
     const selectElement = localAppServices.uiElementsCache?.midiInputSelectGlobal;
 
     if (!selectElement) {
-        console.warn("[EventHandlers onMIDISuccess] MIDI input select element not found in UI cache.");
+        console.warn("[EventHandlers onMIDISuccess] MIDI input select element not found in uiCache.");
         return;
     }
 
