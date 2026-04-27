@@ -4,16 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Tempo Sync Grid** - Auto-update grid lines when tempo changes to keep beat-aligned
-2. **Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves
-3. **Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)
-4. **Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track
-5. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
-6. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
-7. **Track Solo Groups** - Create solo groups where soloing one mutes others in group
-8. **Export Stem Bundles** - Export multiple stems as a single ZIP archive
-9. **Scale Quantize** - Quantize notes to selected musical scale intervals
-10. **Transport记忆** - Remember and restore transport position, loop region, and tempo on reopen
+1. **Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves
+2. **Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)
+3. **Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track
+4. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
+5. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
+6. **Track Solo Groups** - Create solo groups where soloing one mutes others in group
+7. **Export Stem Bundles** - Export multiple stems as a single ZIP archive
+8. **Scale Quantize** - Quantize notes to selected musical scale intervals
+9. **Transport记忆** - Remember and restore transport position, loop region, and tempo on reopen
 
 ## Workflow
 
@@ -54,7 +53,7 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 429+ features already implemented
+- 430+ features already implemented
 
 Generate 10 NEW feature ideas that are:
 1. Achievable in a single session
