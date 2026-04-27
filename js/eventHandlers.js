@@ -313,6 +313,19 @@ export function initializePrimaryEventListeners(appContext) {
             menuProjectTemplates: () => { console.log('[Menu] Project Templates clicked'); localAppServices.openProjectTemplatesPanel?.(); },
             menuExportPresets: () => { console.log('[Menu] Export Presets clicked'); localAppServices.openExportPresetsPanel?.(); },
             menuTrackTemplates: () => { console.log('[Menu] Track Templates clicked'); localAppServices.openTrackTemplatesPanel?.(); },
+            menuScrubPreview: () => {
+                console.log('[Menu] Scrub Preview clicked');
+                try {
+                    if (window.openScrubPreviewPanel) {
+                        window.openScrubPreviewPanel();
+                    } else {
+                        import('./PlayheadScrubPreview.js').then(m => {
+                            if (m.initPlayheadScrubPreview) m.initPlayheadScrubPreview(localAppServices);
+                            if (m.openScrubPreviewPanel) m.openScrubPreviewPanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Scrub Preview error:', e); }
+            },
             menuToggleFullScreen: () => { console.log('[Menu] Fullscreen clicked'); toggleFullScreen(); },
             menuTetris: () => window.open("https://snugos.github.io/app/tetris.html", "_blank"),
             menuClipReverse: () => {
