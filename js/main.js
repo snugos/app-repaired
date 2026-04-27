@@ -20,7 +20,8 @@ import { initAudioRestorationSuite, openAudioRestorationPanel } from './AudioRes
 import { initMIDIGuitarSupport, openMIDIGuitarPanel } from './MIDIGuitarSupport.js';
 import { initSpatialAudioPanning, openSpatialAudioPanel } from './SpatialAudioPanning.js';
 import { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel } from './CollaborationSessionRecording.js';
-import { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAIMixingSuggestionsPanel } from './AIMixingSuggestions.js';
+import { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAICompositionPanel } from './AIMixingSuggestions.js';
+import { AITempoSuggestion, initAITempoSuggestion, openAITempoSuggestionPanel } from './AITempoSuggestion.js';
 import { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpectrumMatching, openFrequencySpectrumMatchingPanel } from './FrequencySpectrumMatching.js';
 import { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel } from './SmartTrackGrouping.js';
 import { AudioEventDetection, audioEventDetection, initAudioEventDetection, openAudioEventDetectionPanel } from './AudioEventDetection.js';
@@ -456,7 +457,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -493,7 +494,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -796,7 +797,12 @@ import {
     AIMixingSuggestions,
     aiMixingSuggestions,
     initAIMixingSuggestions,
-    openAIMixingSuggestionsPanel,
+    openAICompositionPanel,
+    
+    // AI Tempo Suggestion
+    AITempoSuggestion,
+    initAITempoSuggestion,
+    openAITempoSuggestionPanel,
     
     // Frequency Spectrum Matching
     FrequencySpectrumMatching,
@@ -1207,6 +1213,7 @@ async function initializeSnugOS() {
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
+        if (typeof initAITempoSuggestion === 'function') initAITempoSuggestion(appServices); // AI Tempo Suggestion initialization
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization

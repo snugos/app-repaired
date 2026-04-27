@@ -345,6 +345,14 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openAudioTapTempoPanel?.();
                 } catch(e) { console.error('[Menu] Audio Tap Tempo error:', e); }
             },
+            menuAITempoSuggestion: () => {
+                console.log('[Menu] AI Tempo Suggestion clicked');
+                try {
+                    if (localAppServices.openAITempoSuggestionPanel) {
+                        localAppServices.openAITempoSuggestionPanel();
+                    }
+                } catch(e) { console.error('[Menu] AI Tempo Suggestion error:', e); }
+            },
             menuTapHistory: () => {
                 console.log('[Menu] Tap History clicked');
                 try {
@@ -847,7 +855,7 @@ export function attachGlobalControlEvents(elements) {
                 console.error('[EventHandlers midiLearnBtnGlobal] Error:', error);
             }
         });
-}
+    }
 
     // Tap Tempo button handler
     if (tapBtnGlobal) {
@@ -884,6 +892,7 @@ export function attachGlobalControlEvents(elements) {
                     if (module.toggleHistoryPanel) module.toggleHistoryPanel();
                 }).catch(err => console.error('[EventHandlers] Failed to load TapHistoryUI:', err));
             }
+        });
     }
 }
 
