@@ -357,6 +357,14 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openBeatDetectivePanel?.();
                 } catch(e) { console.error('[Menu] Beat Detective error:', e); }
             },
+            menuCpuPerformance: () => {
+                console.log('[Menu] CPU Performance Mode clicked');
+                try {
+                    if (window.cpuPerformanceMode) {
+                        window.cpuPerformanceMode.toggle();
+                    }
+                } catch(e) { console.error('[Menu] CPU Performance error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
