@@ -12,8 +12,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 6. **Sample Editor** - Detailed waveform editing with cut, copy, normalize
 7. **Track Export Individual** - Export each track as separate audio file
 8. **Step Sequencer Drummer** - Grid-based drum programming with velocity layers
-9. **CPU Performance Mode** - Reduce visual effects for better performance on low-end devices
-10. **Project Notes** - Text notes panel for project documentation
+9. **Project Notes** - Text notes panel for project documentation
 
 ## Workflow
 
