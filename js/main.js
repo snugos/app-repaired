@@ -493,7 +493,7 @@ import {
     reorderMasterEffect: (effectId, newIndex) => {
         try {
             const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
-            if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
+            if (!isReconstructinging && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
             if (appServices.updateMasterEffectsRackUI) appServices.updateMasterEffectsRackUI();
@@ -1206,6 +1206,7 @@ async function initializeSnugOS() {
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
+        if (window.TransportMemory && typeof window.TransportMemory.init === 'function') window.TransportMemory.init(); // Transport Memory restoration
         if (typeof initClipGainEnvelope === 'function') initClipGainEnvelope(appServices); // Clip Gain Envelope Core initialization
         if (typeof initClipGainEnvelopeEditor === 'function') initClipGainEnvelopeEditor(appServices); // Clip Gain Envelope Editor UI initialization
         if (typeof initLoopCountStateReferences === 'function') initLoopCountStateReferences(
