@@ -345,6 +345,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openAudioTapTempoPanel?.();
                 } catch(e) { console.error('[Menu] Audio Tap Tempo error:', e); }
             },
+            menuHeadphoneMix: () => {
+                console.log('[Menu] Headphone Mix clicked');
+                try {
+                    localAppServices.openTrackHeadphoneMixPanel?.();
+                } catch(e) { console.error('[Menu] Headphone Mix error:', e); }
+            },
             menuBeatDetective: () => {
                 console.log('[Menu] Beat Detective clicked');
                 try {
