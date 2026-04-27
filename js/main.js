@@ -75,6 +75,7 @@ import { initSampleRateDisplay, startSampleRateDisplayLoop } from './SampleRateD
 import * as FeatureAdditions from './FeatureAdditions.js';
 // setupGenericDropZoneListeners is imported here but used via appServices by ui.js
 import { showNotification as utilShowNotification, createContextMenu, createDropZoneHTML, setupGenericDropZoneListeners } from './utils.js';
+import { openKeyboardShortcutsPanel } from './ui.js';
 import {
     initializeEventHandlersModule, initializePrimaryEventListeners, setupMIDI, attachGlobalControlEvents,
     selectMIDIInput as eventSelectMIDIInput, 
@@ -471,7 +472,7 @@ import {
             const effects = getMasterEffectsState();
             const effect = effects ? effects.find(e => e.id === effectId) : null;
             if (effect) {
-                const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
+                const isReconstructing = appServices.getIsReconstructingingDAW ? appServices.getIsReconstructingingDAW() : false;
                 if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Remove ${effect.type} from Master`);
                 removeMasterEffectFromState(effectId);
                 await removeMasterEffectFromAudio(effectId);
@@ -655,6 +656,7 @@ import {
     openRandomPatternGeneratorPanel,
     openCpuMonitorPanel,
     openKeyBindingsPanel,
+    openKeyboardShortcutsPanel,
     openProjectNotesPanel,
     openDrumMapEditorPanel,
     openTimelineMarkersPanel,

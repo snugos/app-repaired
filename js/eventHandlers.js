@@ -1327,6 +1327,16 @@ document.addEventListener('keydown', (event) => {
             if (localAppServices.toggleRecordArm) localAppServices.toggleRecordArm(-1);
             return;
         }
+        // ? key - Open keyboard shortcuts panel
+        if (event.key === '?' || event.key === '/') {
+            if (event.shiftKey) {
+                event.preventDefault();
+                if (localAppServices.openKeyboardShortcutsPanel) {
+                    localAppServices.openKeyboardShortcutsPanel();
+                }
+                return;
+            }
+        }
         
         const midNote = keyToMIDIMap[key];
         if (midNote !== undefined) {
