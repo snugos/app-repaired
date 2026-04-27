@@ -4,15 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting
-2. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
-3. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
-4. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
-5. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
-6. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
-7. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
-8. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
-9. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display ✅ (implemented c6bd35b)
+1. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
+2. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
+3. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
+4. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
+5. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
+6. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
+7. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
+8. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display ✅ (implemented c6bd35b)
+9. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting ✅ (implemented 80ba45a)
 
 ## Workflow
 
