@@ -394,7 +394,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -516,6 +516,18 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Metronome Volume Control ===
+
+    // === Performance Monitor Button ===
+    if (performanceMonitorBtn) {
+        performanceMonitorBtn.addEventListener('click', () => {
+            if (typeof PerformanceMonitor !== 'undefined' && PerformanceMonitor.openPanel) {
+                PerformanceMonitor.openPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Performance Monitor not available', 2000);
+            }
+        });
+    }
+    // === End Performance Monitor Button ===
 
     // === Scale/Key Selector Controls ===
     function updateScaleNotesDisplay() {

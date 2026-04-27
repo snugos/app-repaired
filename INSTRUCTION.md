@@ -4,15 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI CC Matrix** - Visual grid for MIDI CC modulation mapping with drag-connect routing
-2. **Clip Fade Editor** - Draw custom fade curves (exponential, S-curve, logarithmic) on audio clips with handles
-3. **BPM Detector** - Auto-detect tempo from imported audio using onset detection and beat tracking
-4. **Track Grouping** - Group tracks into folders with solo/mute hierarchy and color inheritance
-5. **Export Stem per Track** - Export individual track stems as separate audio files with naming templates
-6. **Audio Tonearm Loop** - Scratch-style loop where you can scrub audio like a vinyl turntable
-7. **Scale Highlight Overlay** - Show which keys/notes are in the selected scale as colored overlay on piano roll and keys
-8. **Score Editor** - Visual staff notation display that shows notes as musical notation with transposition and clef display ✅ (implemented c6bd35b)
-9. **Audio Normalizer** - Batch audio normalization with target dB selection and true peak limiting ✅ (implemented 80ba45a)
+1. **Track Lane Resizing** - Drag track lane headers to resize track heights in timeline
+2. **Tempo Flick Tap** - Tap tempo using mouse clicks with visual BPM display
+3. **Scale Highlight Mode** - Highlight piano roll notes matching selected musical scale
+4. **Audio Reverse** - Reverse audio clips with preview capability
+5. **Clip Gain Envelope** - Draw volume automation directly on audio clips
+6. **Send Effect Routing** - Route track to multiple tracks as send effects
+7. **Track Solo Defeat** - Allow soloed tracks to be overridden for monitoring
+8. **MIDI Velocity Curve** - Remap MIDI velocity input with customizable curve
+9. **Project Notes Panel** - Freeform text notes field attached to project
+10. **Track Grouping** - Group multiple tracks for collective mute/solo/gain control
 
 ## Workflow
 
@@ -53,6 +54,7 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
+- 419+ features already implemented
 
 Generate 10 NEW feature ideas that are:
 1. Achievable in a single session
