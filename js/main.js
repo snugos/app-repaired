@@ -52,6 +52,7 @@ import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
 import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel, closePerformancePanel, getPerformanceSnapshot } from './PerformanceMonitor.js';
 import { initUndoHistoryPanel, openUndoHistoryPanel } from './UndoHistoryPanel.js';
+import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnalyzer.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -650,6 +651,7 @@ import {
         if (appServices.renderTimeline && typeof appServices.renderTimeline === 'function') appServices.renderTimeline();
     },
     openUndoHistoryPanel,
+    openSpectrumAnalyzerPanel,
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
@@ -1196,6 +1198,7 @@ async function initializeSnugOS() {
         if (typeof initPerformanceMonitor === 'function') initPerformanceMonitor(); // Performance monitor initialization
         if (typeof initPerformanceIndicator === 'function') initPerformanceIndicator(); // Performance indicator initialization
         if (typeof initUndoHistoryPanel === 'function') initUndoHistoryPanel(); // Undo history panel initialization
+        if (typeof initSpectrumAnalyzer === 'function') initSpectrumAnalyzer(appServices); // Spectrum Analyzer initialization
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices); // Auto-Beat Sync initialization
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
