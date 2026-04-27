@@ -5,7 +5,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 ## Current Feature Queue
 
 1. **Track Headphone Preview** - Route individual tracks to a dedicated headphone mix with separate volume control
-2. **Audio Tap Tempo** - Tap a button rhythmically to detect and set project tempo from input timing
+2. ~~**Audio Tap Tempo**~~ ✅ - Tap a button rhythmically to detect and set project tempo from input timing (COMMITTED: d7c47a5)
 3. **Clip Gain Envelope Editor** - Visual envelope editor for clip-level volume automation with drawable curves
 4. **MIDI Note Editor** - Dedicated MIDI note editor window with velocity, duration, and start time per note
 5. **Mixer Routing Matrix** - Visual matrix showing track-to-bus routing with drag-drop connections
