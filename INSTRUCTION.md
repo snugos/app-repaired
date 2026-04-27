@@ -4,15 +4,13 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. ~~**Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves~~ ✅
-2. ~~**Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)~~ ✅
-3. **Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track
-4. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
-5. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
-6. **Track Solo Groups** - Create solo groups where soloing one mutes others in group
-7. **Export Stem Bundles** - Export multiple stems as a single ZIP archive
-8. **Scale Quantize** - Quantize notes to selected musical scale intervals
-9. **Transport记忆** - Remember and restore transport position, loop region, and tempo on reopen
+1. ~~**Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track~~ ✅
+2. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
+3. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
+4. **Track Solo Groups** - Create solo groups where soloing one mutes others in group
+5. **Export Stem Bundles** - Export multiple stems as a single ZIP archive
+6. **Scale Quantize** - Quantize notes to selected musical scale intervals
+7. **Transport记忆** - Remember and restore transport position, loop region, and tempo on reopen
 
 ## Workflow
 

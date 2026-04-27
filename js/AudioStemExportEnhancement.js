@@ -493,19 +493,40 @@ class AudioStemExportEnhancement {
             + this.formats[this.settings.format].extension;
     }
     
-    async downloadStems(results) {
+    async downloadStems(results, asZip = false) {
         if (!results || results.length === 0) return;
         
-        for (const result of results) {
-            const url = URL.createObjectURL(result.blob);
+        if (asZip && typeof JSZip !== 'undefined') {
+            // Create ZIP bundle
+            const zip = new JSZip();
+            const folder = zip.folder('stems');
+            
+            for (const result of results) {
+                folder.file(result.filename, result.blob);
+            }
+            
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(zipBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = result.filename;
+            a.download = `stems_bundle_${new Date().toISOString().split('T')[0]}.zip`;
             a.click();
             URL.revokeObjectURL(url);
+            
+            console.log('[AudioStemExportEnhancement] Downloaded ZIP bundle with', results.length, 'stems');
+        } else {
+            // Download individual files
+            for (const result of results) {
+                const url = URL.createObjectURL(result.blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = result.filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            console.log('[AudioStemExportEnhancement] Downloaded', results.length, 'stems');
         }
-        
-        console.log('[AudioStemExportEnhancement] Downloaded', results.length, 'stems');
     }
     
     async exportAndDownloadAll(progressCallback) {
@@ -790,6 +811,9 @@ function openAudioStemExportEnhancementPanel() {
         exportManager.settings.normalize = document.getElementById('normalize-stems').checked;
         exportManager.settings.dithering = document.getElementById('dithering-stems').checked;
         
+        // Check if ZIP bundle export
+        const asZip = document.getElementById('export-as-zip')?.checked || false;
+        
         // Show progress
         const progressSection = document.getElementById('progress-section');
         const exportBtn = document.getElementById('export-stems-btn');
@@ -806,13 +830,23 @@ function openAudioStemExportEnhancementPanel() {
         });
         
         if (results) {
-            await exportManager.downloadStems(results);
-            document.getElementById('progress-status').innerHTML = '<span style="color: #10b981;">✓ Export complete!</span>';
+            await exportManager.downloadStems(results, asZip);
+            const exportType = asZip ? 'ZIP bundle' : 'individual files';
+            document.getElementById('progress-status').innerHTML = `<span style="color: #10b981;">✓ Export complete! (${exportType})</span>`;
         }
         
         exportBtn.disabled = false;
         cancelBtn.style.display = 'none';
     };
+    
+    // ZIP bundle checkbox
+    const zipLabel = document.createElement('label');
+    zipLabel.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; margin-top: 12px; padding: 8px; background: #1a1a2e; border-radius: 4px;';
+    zipLabel.innerHTML = `
+        <input type="checkbox" id="export-as-zip" style="accent-color: #10b981;">
+        <span style="color: white;">Export as ZIP bundle (all stems in one file)</span>
+    `;
+    panel.querySelector('.actions-section')?.appendChild(zipLabel) || document.getElementById('export-stems-btn').parentElement.appendChild(zipLabel);
 }
 
 // Helper methods attached to the function
