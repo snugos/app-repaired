@@ -46,6 +46,7 @@ import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadph
 import { openStepSequencerView } from './StepSequencerView.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
+import { initTrackLaneResize } from './TrackLaneResize.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -1030,12 +1031,13 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                     } else if (track.type === 'InstrumentSampler' && typeof drawInstrumentWaveform === 'function') {
                         drawInstrumentWaveform(track);
                     }
-                    const dzContainerId = track.type === 'Sampler' ? `#dropZoneContainer-${track.id}-sampler` : `#dropZoneContainer-${track.id}-instrumentsampler`;
-                    const dzContainer = inspectorElement.querySelector(dzContainerId);
-                    if(dzContainer) {
-                        const audioData = track.type === 'Sampler' ? track.samplerAudioData : track.instrumentSamplerSettings;
-                        const inputId = track.type === 'Sampler' ? `fileInput-${track.id}` : `instrumentFileInput-${track.id}`;
-                        dzContainer.innerHTML = createDropZoneHTML(track.id, inputId, track.type, null, {originalFileName: audioData?.fileName, status: 'loaded'});
+                    const dzKey = track.type === 'Sampler' ? 'sampler' : 'instrumentsampler';
+                    const dzContainer = inspectorElement.querySelector(`#dropZoneContainer-${track.id}-${dzKey}`);
+                    const audioData = track.type === 'Sampler' ? track.samplerAudioData : track.instrumentSamplerSettings;
+                    const inputId = track.type === 'Sampler' ? `fileInput-${track.id}` : `instrumentFileInput-${track.id}`;
+
+                    if(dzContainer && audioData) {
+                        dzContainer.innerHTML = createDropZoneHTML(track.id, inputId, track.type, null, {originalFileName: audioData.fileName, status: 'loaded'});
                         const fileInputEl = dzContainer.querySelector(`#${inputId}`);
                         const loadFn = appServices.loadSampleFile;
                         if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
@@ -1168,7 +1170,8 @@ async function initializeSnugOS() {
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
-        if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices);
+        if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
+        if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices); // Auto-Beat Sync initialization
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
