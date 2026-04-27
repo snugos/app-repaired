@@ -4,7 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-All features completed! See above for new ideas.
+1. **Tempo Ramper** - Smoothly automate tempo changes over time with curve editor
+2. **Track Freeze** - Freeze audio tracks to CPU-friendly buffer to free processing power
+3. **MIDI Arpeggiator** - Built-in arpeggiator with patterns (up, down, ping-pong, random)
+4. **Sidechain Visualizer** - Visual feedback showing which track is triggering ducking
+5. **Clip Fade Handles** - Drag handles on clips to adjust fade in/out curves
+6. **Sample Editor** - Detailed waveform editing with cut, copy, normalize
+7. **Track Export Individual** - Export each track as separate audio file
+8. **Step Sequencer Drummer** - Grid-based drum programming with velocity layers
+9. **CPU Performance Mode** - Reduce visual effects for better performance on low-end devices
+10. **Project Notes** - Text notes panel for project documentation
 
 ## Workflow
 
@@ -45,7 +54,6 @@ Based on SnugOS being a browser-based DAW with:
 - Effects rack
 - Sequencer mode
 - MIDI support
-- 430+ features already implemented
 
 Generate 10 NEW feature ideas that are:
 1. Achievable in a single session
@@ -54,19 +62,6 @@ Generate 10 NEW feature ideas that are:
 
 Output as numbered list and update this instruction.
 ```
-
-## New Feature Queue (2026-04-27)
-
-1. **Clip Reverse Tool** - One-click button to reverse audio/MIDI clips in-place
-2. **Rhythm Pattern Generator** - Generate rhythm patterns with adjustable complexity and style
-3. **Track Color Palette Manager** - Multiple color palettes for visual track grouping
-4. **Auto-Ducking** - Automatic volume reduction when voiceover/dialog is detected
-5. **BPM Tap Pad** - Large touch-friendly pad for tap tempo detection
-6. **Audio Spectrum Analyzer** - Real-time FFT visualization per track
-7. **MIDI CC Learn Remote** - On-screen knob/fader that sends MIDI CC when dragged
-8. **Groove Templates** - Save and apply swing/groove templates to quantize
-9. **Project Auto-Save** - Periodic auto-save with recovery on crash
-10. **Loop Region Presets** - Save/load named loop regions as presets
 
 ## Rules
 
