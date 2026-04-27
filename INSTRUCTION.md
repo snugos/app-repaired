@@ -4,15 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet
-2. **MIDI File Import/Export** - Drag & drop .mid files
-3. **Track Effects Presets** - Save/load effect chain presets per track
-4. **Quantize Selection** - Quantize selected notes to grid
-5. **Undo/Redo Visual Stack** - Show undo history in a panel
-6. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
-7. **Waveform Visualization** - Draw waveform on audio clips
-8. **Track Color Coding** - Assign colors to tracks for visual grouping
-9. **Scale Highlight Mode** - Highlight piano roll notes matching selected musical scale
+1. ~~Scale Highlight Mode~~ - Highlight piano roll notes matching selected musical scale ✅
+2. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet
+3. **MIDI File Import/Export** - Drag & drop .mid files
+4. **Track Effects Presets** - Save/load effect chain presets per track
+5. **Quantize Selection** - Quantize selected notes to grid
+6. **Undo/Redo Visual Stack** - Show undo history in a panel
+7. **Keyboard Shortcuts Panel** - Press `?` to show all shortcuts
+8. **Waveform Visualization** - Draw waveform on audio clips
+9. **Track Color Coding** - Assign colors to tracks for visual grouping
 
 ## Workflow
 
