@@ -455,7 +455,7 @@ import {
 
     addMasterEffect: async (effectType) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Add ${effectType} to Master`);
 
             if (!appServices.effectsRegistryAccess?.getEffectDefaultParams) {
@@ -492,7 +492,7 @@ import {
     },
     reorderMasterEffect: (effectId, newIndex) => {
         try {
-            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingDAW() : false;
+            const isReconstructing = appServices.getIsReconstructingDAW ? appServices.getIsReconstructingingDAW() : false;
             if (!isReconstructing && appServices.captureStateForUndo) appServices.captureStateForUndo(`Reorder Master effect`);
             reorderMasterEffectInState(effectId, newIndex);
             reorderMasterEffectInAudio(effectId, newIndex); 
@@ -781,6 +781,9 @@ import {
     initSpatialAudioPanning,
     openSpatialAudioPanel,
 
+    // MIDI Learn Wizard
+    openMIDILearnWizard,
+
     // Collaboration Session Recording
     CollaborationSessionRecording,
     collaborationSessionRecording,
@@ -1055,18 +1058,12 @@ function handleTrackUIUpdate(trackId, reason, detail) {
                     }
                     const dzKey = track.type === 'Sampler' ? 'sampler' : 'instrumentsampler';
                     const dzContainer = inspectorElement.querySelector(`#dropZoneContainer-${track.id}-${dzKey}`);
-                    const audioData = track.type === 'Sampler' ? track.samplerAudioData : track.instrumentSamplerSettings;
-                    const inputId = track.type === 'Sampler' ? `fileInput-${track.id}` : `instrumentFileInput-${track.id}`;
-
-                    if(dzContainer && audioData) {
-                        dzContainer.innerHTML = createDropZoneHTML(track.id, inputId, track.type, null, {originalFileName: audioData.fileName, status: 'loaded'});
-                        const fileInputEl = dzContainer.querySelector(`#${inputId}`);
-                        const loadFn = appServices.loadSampleFile;
-                        if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
-                        const newDropZoneDiv = dzContainer.querySelector('.drop-zone');
-                        if (newDropZoneDiv && typeof setupGenericDropZoneListeners === 'function') {
-                            setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, loadFn, appServices.getTrackById);
-                        }
+                    const fileInputEl = dzContainer.querySelector(`#fileInput-${track.id}`);
+                    const loadFn = appServices.loadSampleFile;
+                    if (fileInputEl && loadFn) fileInputEl.onchange = (e) => loadFn(e, track.id, track.type);
+                    const newDropZoneDiv = dzContainer.querySelector('.drop-zone');
+                    if (newDropZoneDiv && typeof setupGenericDropZoneListeners === 'function') {
+                        setupGenericDropZoneListeners(newDropZoneDiv, track.id, track.type, null, appServices.loadSoundFromBrowserToTarget, loadFn, appServices.getTrackById);
                     }
                 }
                 break;
@@ -1206,6 +1203,7 @@ async function initializeSnugOS() {
         if (typeof initProjectRecoveryManager === 'function') initProjectRecoveryManager(appServices); // Project crash recovery manager
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
+        if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
         if (typeof initClipGainEnvelope === 'function') initClipGainEnvelope(appServices); // Clip Gain Envelope Core initialization
