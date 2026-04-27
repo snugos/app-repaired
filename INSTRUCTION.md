@@ -4,15 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. ~~Scale Highlight Mode~~ - Highlight piano roll notes matching selected musical scale ✅
-2. **VST Plugin Support** - Load WebAudio plugins via AudioWorklet
-3. **MIDI File Import/Export** - Drag & drop .mid files
-4. **Track Effects Presets** - Save/load effect chain presets per track
-5. **Quantize Selection** - Quantize selected notes to grid
-6. ~~Undo/Redo Visual Stack~~ - Show undo history in a panel ✅
-7. ~~Keyboard Shortcuts Panel~~ - Press `?` to show all shortcuts ✅
-8. **Waveform Visualization** - Draw waveform on audio clips
-9. **Track Color Coding** - Assign colors to tracks for visual grouping
+1. **Lyrics Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
+2. **Auto-Compression** - Analyze audio and suggest/apply compression settings automatically
+3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
+4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
+5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
+6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
+7. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
+8. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
+9. **Project Version Manager** - Manage multiple project versions/snapshots
+10. **MIDI Monitor Panel** - Display MIDI input/output activity in real-time
 
 ## Workflow
 
