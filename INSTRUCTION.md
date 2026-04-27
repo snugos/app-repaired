@@ -4,8 +4,8 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves
-2. **Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)
+1. ~~**Clip Gain Envelope** - Draw volume automation directly on audio clips with bezier curves~~ ✅
+2. ~~**Send Effect Rack** - Dedicated UI for managing send/return effect buses (reverb, delay)~~ ✅
 3. **Audio Spectrum Analyzer** - Real-time FFT display showing frequency content per track
 4. **MIDI Learn Wizard** - Step-by-step guided MIDI mapping for any knob/slider
 5. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out curves
