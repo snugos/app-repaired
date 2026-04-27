@@ -44,6 +44,7 @@ import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, op
 import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
 import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
 import { openStepSequencerView } from './StepSequencerView.js';
+import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
@@ -705,6 +706,7 @@ import {
     getPerformanceTriggerPads,
     openTrackHeadphoneMixPanel,
     openStepSequencerView,
+    openPianoRollEditor,
     
     
     // Pattern Generation and Frequency Processing
@@ -1169,6 +1171,7 @@ async function initializeSnugOS() {
         if (typeof initTrackHeadphoneMix === 'function') initTrackHeadphoneMix(appServices); // Headphone Mix initialization
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
+        if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices); // Auto-Beat Sync initialization
