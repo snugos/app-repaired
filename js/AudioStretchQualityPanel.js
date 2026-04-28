@@ -120,3 +120,8 @@ export function closeAudioStretchQualityPanel() {
         panelInstance = null;
     }
 }
+
+// Alias for main.js service mapping
+export function openStretchQualityPanel() {
+    return openAudioStretchQualityPanel();
+}
