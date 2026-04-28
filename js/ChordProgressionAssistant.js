@@ -371,13 +371,28 @@ async function applyProgression(progression) {
         // Send to chord memory
         if (typeof window?.saveChordToMemory === 'function') {
             for (const chord of chords) {
-                const chordData = buildChord(chord.root, chord.type);
+                const chordData = buildChordData(chord.root, chord.type);
                 window.saveChordToMemory(chord.root + ' ' + chord.type, chordData);
             }
         }
         
         localAppServices.showNotification?.(`Applied ${chords.length} chords`, 2000);
     }
+}
+
+// Helper to build chord data for memory
+function buildChordData(root, type) {
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const rootIndex = noteNames.indexOf(root.replace(/\d+/, ''));
+    if (rootIndex < 0) return null;
+    
+    // Build interval pattern
+    const intervals = { 'maj7': [0,4,7,11], 'min7': [0,3,7,10], '7': [0,4,7,10], 'maj': [0,4,7], 'min': [0,3,7] };
+    const chordIntervals = intervals[type] || [0,4,7];
+    
+    return {
+        notes: chordIntervals.map(i => rootIndex + i + 48) // Middle octave
+    };
 }
 
 /**
@@ -393,7 +408,7 @@ function sendToChordMemory(progression) {
     
     if (typeof window?.saveChordToMemory === 'function') {
         for (const chord of chords) {
-            const chordData = buildChord(chord.root, chord.type);
+            const chordData = buildChordData(chord.root, chord.type);
             window.saveChordToMemory(`${chord.root} ${chord.type}`, chordData);
         }
         localAppServices.showNotification?.(`Sent ${chords.length} chords to Chord Memory`, 2000);

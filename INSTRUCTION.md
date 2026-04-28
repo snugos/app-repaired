@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Chord Progression Assistant** - Visual chord picker that generates progressions based on music theory rules
-2. **Sidechain Visualizer** - Show which tracks are being affected by sidechain compression in real-time
-3. **Track Lane Reorder** - Drag-and-drop to reorder tracks in the timeline lane view
-4. **Export Stem Bypass** - Export individual track stems with effects rendered but mute other tracks
-5. **Adaptive Grid** - Grid lines that adjust density based on zoom level for optimal visibility
-6. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
-7. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
-8. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
-9. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
-10. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
+1. **Sidechain Visualizer** - Show which tracks are being affected by sidechain compression in real-time
+2. **Export Stem Bypass** - Export individual track stems with effects rendered but mute other tracks
+3. **Adaptive Grid** - Grid lines that adjust density based on zoom level for optimal visibility
+4. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
+5. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
+6. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
+7. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
+8. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
+9. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+10. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
 
 ## Workflow
 
