@@ -57,6 +57,8 @@ import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel,
 import { initUndoHistoryPanel, openUndoHistoryPanel } from './UndoHistoryPanel.js';
 import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnalyzer.js';
 import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOPanel.js';
+// Track Color Palette
+import { openTrackColorPalettePanel } from './TrackColorPalette.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -657,6 +659,7 @@ import {
     openUndoHistoryPanel,
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
+    openTrackColorPalettePanel,
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
