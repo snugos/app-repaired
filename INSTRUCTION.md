@@ -4,12 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Opacity Control** ✅ - Already implemented in `js/ClipOpacity.js`
-2. **Quick Rename** ✅ - Already implemented in `js/QuickRename.js`
-3. **Track Delay Compensation** ✅ - Already implemented in `js/TrackDelayCompensation.js`
-4. **Project Auto-Naming** ✅ - Already implemented (auto-naming based on recorded content)
-5. **Sidechain Attack Shape** ✅ - Just completed: `js/SidechainAttackShape.js` + menu integration
-6. **Track Color Coding** ✅ - Already implemented in `js/TrackColorPalette.js`, `js/TrackColorGradient.js`
+1. **Track Freeze** - Freeze a track to audio to save CPU (render effects + instrument to static audio)
+2. **Clip Fade Handles** - Drag handles on clip edges to visually adjust fade in/out curves
+3. **Metronome Accent Patterns** - Customize which beats have accent sounds (e.g., 1 and 3 only)
+4. **CPU Performance Monitor** - Real-time display of CPU load in transport bar
+5. **Timeline Snap Resolution Toggle** - Quick buttons to switch snap between 1/4, 1/8, 1/16, 1/32
+6. **Note Length Default** - Set default sequencer step note length (8th, 16th, etc.)
+7. **Audio Normalization** - Normalize selected audio clips to a target dB level
+8. **Export Selection Range** - Export only a selected time range as WAV instead of entire project
+9. **MIDI CC Learn** - Click a knob in effects rack then move MIDI CC to map it
+10. **Track Grouping** - Group tracks together so solo/mute affects them as a unit
 
 ## Workflow
 
