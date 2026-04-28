@@ -502,6 +502,15 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Track Freeze error:', e); }
             },
+            menuNoteLengthDefault: () => {
+                console.log('[Menu] Note Length Default clicked');
+                try {
+                    import('./NoteLengthDefault.js').then(m => {
+                        if (m.initNoteLengthDefault) m.initNoteLengthDefault(localAppServices);
+                        if (m.openNoteLengthPanel) m.openNoteLengthPanel();
+                    });
+                } catch(e) { console.error('[Menu] Note Length Default error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
@@ -695,6 +704,22 @@ export function attachGlobalControlEvents(elements) {
         });
     }
     // === End Snap Resolution Button ===
+
+    // === Note Length Default Button ===
+    const noteLengthBtn = document.getElementById('noteLengthBtn');
+    if (noteLengthBtn) {
+        noteLengthBtn.addEventListener('click', () => {
+            import('./NoteLengthDefault.js').then(module => {
+                if (module.initNoteLengthDefault) {
+                    module.initNoteLengthDefault(localAppServices);
+                }
+                if (module.openNoteLengthPanel) {
+                    module.openNoteLengthPanel();
+                }
+            }).catch(err => console.error('[EventHandlers] Failed to load NoteLengthDefault:', err));
+        });
+    }
+    // === End Note Length Default Button ===
 
     // === Scale/Key Selector Controls ===
     function updateScaleNotesDisplay() {
