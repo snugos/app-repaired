@@ -4,10 +4,10 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Freeze** ✅ - Just completed: `js/TrackFreeze.js` + menu integration
-2. **Clip Fade Handles** - Drag handles on clip edges to visually adjust fade in/out curves
-3. **Metronome Accent Patterns** - Customize which beats have accent sounds (e.g., 1 and 3 only)
-4. **CPU Performance Monitor** - Real-time display of CPU load in transport bar
+1. **Track Freeze** ✅ - Completed: `js/TrackFreeze.js` + menu integration
+2. **Clip Fade Handles** ✅ - Already implemented: `js/ClipFadeHandles.js` with visual drag handles
+3. **Metronome Accent Patterns** ✅ - Just completed: `js/MetronomeAccentPatterns.js` + menu integration
+4. **CPU Performance Monitor** ✅ - Just completed: `js/PerformanceMonitor.js` + transport bar display
 5. **Timeline Snap Resolution Toggle** - Quick buttons to switch snap between 1/4, 1/8, 1/16, 1/32
 6. **Note Length Default** - Set default sequencer step note length (8th, 16th, etc.)
 7. **Audio Normalization** - Normalize selected audio clips to a target dB level
