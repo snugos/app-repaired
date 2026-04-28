@@ -1462,7 +1462,7 @@ async function restoreDesktopBackground() {
     
     if (bgType === 'video') {
         try {
-            const videoBlob = await this.bgDb.get('desktopVideo');
+            const videoBlob = await bgDb.get('desktopVideo');
             if (videoBlob) {
                 const objectUrl = URL.createObjectURL(videoBlob);
                 applyDesktopBackground(objectUrl, 'video');
