@@ -8,7 +8,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 2. **Clip Fade Handles** ✅ - Already implemented: `js/ClipFadeHandles.js` with visual drag handles
 3. **Metronome Accent Patterns** ✅ - Just completed: `js/MetronomeAccentPatterns.js` + menu integration
 4. **CPU Performance Monitor** ✅ - Just completed: `js/PerformanceMonitor.js` + transport bar display
-5. **Timeline Snap Resolution Toggle** - Quick buttons to switch snap between 1/4, 1/8, 1/16, 1/32
+5. **Timeline Snap Resolution Toggle** ✅ - Just completed: `js/TimelineSnapResolution.js` + transport bar button
 6. **Note Length Default** - Set default sequencer step note length (8th, 16th, etc.)
 7. **Audio Normalization** - Normalize selected audio clips to a target dB level
 8. **Export Selection Range** - Export only a selected time range as WAV instead of entire project
