@@ -266,10 +266,26 @@ class AudioStretchingPresets {
 
     /**
      * Get current preset configuration
+     * Respects global audioStretchingQuality setting from state.js
      * @returns {Object} - Current preset
      */
     getCurrentPresetConfig() {
+        // Use the module-level currentPreset which is updated when user changes quality
         return this.getPreset(this.currentPreset);
+    }
+
+    /**
+     * Set quality level (called by AudioStretchQualityPanel or state.js integration)
+     * @param {string} quality - 'fast' | 'balanced' | 'high'
+     */
+    setQualityLevel(quality) {
+        const qualityToPreset = {
+            'fast': 'fast',
+            'balanced': 'balanced',
+            'high': 'high-quality'
+        };
+        const presetId = qualityToPreset[quality] || 'balanced';
+        this.currentPreset = presetId;
     }
 
     /**

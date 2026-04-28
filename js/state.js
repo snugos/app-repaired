@@ -1126,6 +1126,10 @@ export function setAudioStretchingQuality(quality) {
     if (validQualities.includes(quality)) {
         audioStretchingQuality = quality;
         console.log(`[State] Audio stretching quality set to: ${quality}`);
+        // Sync with AudioStretchingPresets singleton if available
+        if (typeof audioStretchingPresets !== 'undefined' && audioStretchingPresets && typeof audioStretchingPresets.setQualityLevel === 'function') {
+            audioStretchingPresets.setQualityLevel(quality);
+        }
     } else {
         console.warn(`[State] Invalid audio stretching quality: ${quality}. Valid options: ${validQualities.join(', ')}`);
     }
