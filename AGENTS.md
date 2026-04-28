@@ -1,374 +1,522 @@
----
-## Session: 2026-04-28 03:05 UTC (Snaw Repair & Enhancement Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 14TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:573`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-- Git status: Clean after push
-
-### Enhancement Added
-
-**Track Solo Chain** - `js/TrackSoloChain.js` (NEW)
-- Mute all tracks except selected chain of tracks for focused listening
-- Save/restore original mute states when enabling/disabling
-- Toggle individual tracks in/out of the solo chain
-- Floating panel with track list, enable/disable/clear buttons
-- Status indicator showing active state and track count
-- `openSoloChainPanel()` to open the panel
-- Connected to window for external access
-
-**Commit:** `85b0cd8`
-**Total Features: 425+**
-
----
-
-## Session: 2026-04-27 15:45 UTC (Snaw Repair & Enhancement Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 13TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:573`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-- Git status: Clean after push
-
-### Enhancement Added
-
-**Playhead Scrub Preview** - `js/PlayheadScrubPreview.js` (NEW)
-- Audio feedback when scrubbing the timeline playhead
-- Subtle sine wave tone (440Hz) while dragging playhead
-- Toggle checkbox in floating panel to enable/disable
-- Panel shows current scrub preview state
-- Connected to Start Menu "Scrub Preview" item
-- Stops automatically when playback starts
-
-**Commit:** `002d69a`
-**Total Features: 424+**
-
----
-
-## Session: 2026-04-27 15:35 UTC (Snaw Feature Builder Agent Run)
-
-**Status: FEATURE IMPLEMENTED ✅**
-
-### Features Added
-
-**1. Track Template Library** - `js/TrackTemplateLibrary.js` (NEW)
-- Save and browse track templates containing instrument + effects + settings
-- Templates allow quick track creation with pre-configured setups
-- `saveTrackTemplate(trackId, name)` - Save track as template
-- `getTrackTemplateNames()` - List all templates
-- `applyTrackTemplate(name)` - Create new track from template
-- `renameTrackTemplate()`, `deleteTrackTemplate()`, `importTemplates()`, `exportTemplates()`
-- Panel accessible via Start menu → Track Templates
-
-**2. Clip Envelope Shaper** - `js/ClipEnvelopeShaper.js` (NEW)
-- Draw custom amplitude envelopes on audio/MIDI clips for precise dynamics control
-- Canvas-based envelope editor with click-to-add/drag-to-move points
-- Built-in presets: Linear, Fade In, Fade Out, Fade In/Out, Exponential, ADSR Style
-- Save/load custom envelope presets
-- Apply envelopes with adjustable mix amount (0-100%)
-- Right-click to delete points
-- Panel accessible via Start menu → Clip Envelope Shaper
-
-### Files Modified
-- `index.html` - Added TrackTemplateLibrary.js and ClipEnvelopeShaper.js script tags
-- `js/TrackTemplateLibrary.js` (NEW) - Track template library module
-- `js/ClipEnvelopeShaper.js` (NEW) - Clip envelope shaper module
-
-**Commit:** `26c9c6b`
-**Total Features: 424+**
-
-### Updated Feature Queue (2026-04-27 15:35 UTC)
-
-All 10 features from the previous queue were already implemented. New queue:
-
-1. **Auto-Compression** - Analyze audio and suggest/apply compression settings
-2. **Track Solo Chain** - Mute all tracks except selected chain of tracks for focused listening
-3. **Clip Fade Presets** - Save and apply common fade in/out curves (exponential, S-curve, etc.)
-4. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-5. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
-6. **MIDI Arpeggiator Panel** - Visual arpeggiator with pattern editing and direction controls
-7. **Audio Stretch Quality Preset** - Quick buttons to switch between fast/balanced/high quality stretching
-8. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
-9. **Project Comparison View** - Side-by-side comparison of two project versions
-10. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
-
----
-
-## Session: 2026-04-27 12:40 UTC (Snaw Repair & Enhancement Agent Run)
-
-**Status: FALSE POSITIVE ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 12TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:572`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-- Git status: Clean (nothing to commit)
-
-**Total Features: 422+**
-
----
-
-## Session: 2026-04-27 11:10 UTC (Automated Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 11TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:570`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-
-### Enhancement Added
-
-**AutoSaveManager** - `js/AutoSaveManager.js` (NEW)
-- Automatic periodic project saving to prevent data loss
-- Default 60-second save interval
-- Saves project state to localStorage with timestamp
-- `AutoSaveManager.start()`, `stop()`, `save()`, `setInterval(ms)`
-- `getLastSaveInfo()` returns time, count, and msAgo
-- `enable()` and `disable()` methods
-- Script tag added to index.html
-
-**Commit:** `73c5dcf`
-**Total Features: 422+**
-
----
-
-## Session: 2026-04-27 09:45 UTC (Automated Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 10TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:569`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-
-### Enhancement Added
-
-**Track Duplicate** - `js/TrackDuplicate.js` (NEW)
-- Duplicate tracks with all clips, effects, and settings
-- `duplicateTrack(trackId, newName)` to duplicate a specific track
-- `duplicateCurrentTrack()` to duplicate the selected track
-- Generates new IDs for track, clips, and effects
-- Updates track list and saves state
-
-**Commit:** `b7a2b9d`
-**Total Features: 421+**
-
----
-
-## Session: 2026-04-27 04:35 UTC (Automated Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 9TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:569`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all 371 JS files
-
-### Enhancement Added
-
-**Solo/Mute History** - `js/SoloMuteHistory.js` (NEW)
-- Track solo/mute changes with undo stack (max 50 entries)
-- `recordSoloMute(trackId, type, previousState)` to record changes
-- `undoLastSoloMute()` to restore previous solo/mute state
-- `soloMuteHistory.getLast()` to get most recent entry
-- `soloMuteHistory.clear()` to reset history
-- Window exposure for external access
-- Added script tag to index.html
-
-**Total Features: 420+**
-
-**Commit:** `c85a04f`
-
----
-
-## Session: 2026-04-27 03:35 UTC (Automated Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 8TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:564`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-
-### Enhancement Added
-
-**Performance Monitor** - `js/PerformanceMonitor.js` (NEW)
-- CPU load monitoring using FPS-based estimation
-- Memory usage tracking (Chrome's performance.memory)
-- Status bar indicator showing CPU and MEM values
-- Detailed panel view with `openPerformancePanel()`
-- CPU and Memory history sparkline charts
-- `getPerformanceSnapshot()` for programmatic access
-- Auto-refresh every 2 seconds
-
-**Total Features: 419+**
-
-**Commit:** `4f25b15`
-
----
-
-## Session: 2026-04-27 02:20 UTC (Automated Agent Run)
-
-**Status: NO BUGS FOUND ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 7TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:556`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:122`
-- All syntax checks pass for all JS files
-- Git status: Clean
-
-**Total Features: 418+**
-
----
-
-## Session: 2026-04-26 15:25 UTC (Automated Agent Run)
-
-**Status: NO BUGS FOUND ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 5TH TIME) ✅**
-- Same false positive as sessions: 09:30, 09:20, 01:01, 00:40
-- `removeCustomDesktopBackground` IS properly defined at `main.js:554`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:120`
-- All syntax checks pass for all JS files
-- Git status: Clean (nothing to commit/push)
-
-**Total Features: 418+**
-
----
-
-## Session: 2026-04-26 09:20 UTC (Automated Agent Run)
-
-**Status: NO BUGS FOUND ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (AGAIN) ✅**
-- Same false positive as previous sessions - invalid/stale bug report
-- `removeCustomDesktopBackground` IS properly defined at `main.js:554`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:120`
-- All syntax checks pass for all JS files
-- Git status: Clean (nothing to commit/push)
-
-**Total Features: 418+**
-
----
-
-## Session: 2026-04-25 05:40 UTC (Feature Builder Agent Run)
-
-**Status: ALL QUEUED FEATURES ALREADY IMPLEMENTED ✅**
-
-### Feature Queue Analysis
-
-All 10 features in the original queue are already implemented:
-1. **Piano Roll Editor** ✅ - `js/PianoRollSequencer.js`
-2. **Audio Recording** ✅ - `js/AudioRecorder.js`
-3. **VST Plugin Support** ✅ - `js/PluginSystem.js`
-4. **MIDI File Import/Export** ✅ - `js/midiUtils.js`
-5. **Track Effects Presets** ✅ - In state.js
-6. **Quantize Selection** ✅ - In `js/Track.js`
-7. **Undo/Redo Visual Stack** ✅ - `js/ui.js`
-8. **Keyboard Shortcuts Panel** ✅ - `js/ui.js`
-9. **Waveform Visualization** ✅ - In `js/Track.js`
-10. **Track Color Coding** ✅ - `js/ClipColorCoding.js`
-
-### New Feature Queue (2026-04-25 05:40 UTC)
-
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-- 407+ features already implemented
-
-**New Feature Queue:**
-
-1. **Lyrics Display/Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
-2. **Auto-Compression** - Analyze audio and suggest/apply compression settings
-3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
-4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
-5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
-6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
-7. **Loop Region Presets** - Save/load named loop regions as presets ✅ (implemented f71c02d)
-8. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
-9. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
-10. **Project Comparison View** - Side-by-side comparison of two project versions
-
-**Commit:** `6bb9b6c` (all previous features completed)
-
-**Total Features: 417+**
-
----
-
-## Previous Sessions
-## Session: 2026-04-27 01:45 UTC (Automated Agent Run)
-
-**Status: FALSE POSITIVE + ENHANCEMENT ADDED ✅**
-
-### Bug Analysis: `main.js:342 removeCustomDesktopBackground` Error
-
-**Result: FALSE POSITIVE (CONFIRMED 6TH TIME) ✅**
-- `removeCustomDesktopBackground` IS properly defined at `main.js:554`
-- Function is called correctly via `localAppServices.removeCustomDesktopBackground()` from `eventHandlers.js:120`
-- All syntax checks pass for all JS files
-- Git status: Clean
-
-### Enhancement Added
-
-**Metronome Panel** - `js/Metronome.js` (NEW)
-- Audio click sounds using Tone.js or Web Audio API
-- Visual beat indicator with accent highlighting
-- BPM control (20-300 range) with +/-1 and +/-10 buttons
-- Time signature support (2/3/4/5/6/7/8/9/12 beats with 2/4/8/16 denominator)
-- Tap tempo detection (averages last 4 taps)
-- Audio enable/disable toggle
-- CPU saver mode using requestIdleCallback
-- Panel opens via openMetronomePanel() function
-
-**Commit:** `02f8c8b`
-**Total Features: 419+**
----
-
-## Session: 2026-04-27 02:15 UTC (Automated Agent Run)
-
-**Status: BUGS FIXED ✅**
-
-### Bugs Fixed
-
-1. **Typo in `getIsReconstructingingDAW` → `getIsReconstructingDAW`** (lines 443, 480)
-2. **Typo in `isReconstructinging` → `isReconstructing`** (lines 464, 481)
-3. **Wrong function name `initHeadphoneMix` → `initTrackHeadphoneMix`** (line 1158)
-
-These typos would have caused runtime errors when adding/removing/reordering master effects.
-
-### Verification
-- `node --check js/main.js` passed
-- Pushed to `origin LWB-with-Bugs`
-- Note: The `main.js:342 removeCustomDesktopBackground` error reported is a FALSE POSITIVE - the function IS properly defined at main.js:556
-
-**Total Features: 418+**
-
+// js/state.js - Application State Management
+import * as Constants from './constants.js';
+// showNotification, showConfirmationDialog are accessed via appServices
+// import { showNotification, showConfirmationDialog } from './utils.js';
+import { Track } from './Track.js';
+import { createEffectInstance, getEffectDefaultParams as getEffectDefaultParamsFromRegistry } from './effectsRegistry.js';
+import {
+    initAudioContextAndMasterMeter as audioInitAudioContextAndMasterMeter
+} from './audio.js';
+import { encodeSequenceToMidi } from './midiUtils.js';
+// import { getAudio, storeAudio } from './db.js'; // Not directly used in this file after refactor to Track class
+import { storeProjectState, getProjectState, deleteProjectState } from './db.js'; // For auto-save/crash recovery
+
+
+// --- Centralized State Variables ---
+let tracks = [];
+let trackIdCounter = 0;
+
+// Window Management
+let openWindowsMap = new Map();
+let highestZ = 100;
+
+// Master Audio Chain
+let masterEffectsChainState = []; // Array of {id, type, params, toneNode (managed by audio.js)}
+// Use numeric fallback until Tone.js is available (Tone.dbToGain(0) = 1.0 linear)
+let masterGainValueState = (typeof Tone !== 'undefined' && Tone.dbToGain) ? Tone.dbToGain(0) : 1.0; // Linear gain value
+
+// Effect Presets Storage
+let trackEffectsPresets = {}; // { trackId: { presetName: effectsData } }
+let masterEffectPresets = {}; // { presetName: { effects: [...], masterGain: number } }
+
+// --- Groove Template Presets ---
+// Groove templates define timing offsets for even-numbered 16th notes (swing/shuffle)
+const GROOVE_PRESETS = [
+    { id: 'none', name: 'None (Straight)', swingAmount: 0 },
+    { id: 'swing_50', name: '50% Swing', swingAmount: 0.25 },
+    { id: 'swing_66', name: '66% Swing (Triplets)', swingAmount: 0.333 },
+    { id: 'swing_75', name: '75% Swing', swingAmount: 0.5 },
+    { id: 'swing_33', name: '33% Shuffle', swingAmount: 0.166 }
+];
+export function getGroovePresets() { return [...GROOVE_PRESETS]; }
+export function getGroovePresetById(id) { return GROOVE_PRESETS.find(g => g.id === id) || GROOVE_PRESETS[0]; }
+export function getGrooveSwingAmount(grooveId) {
+    const preset = getGroovePresetById(grooveId);
+    return preset ? preset.swingAmount : 0;
+}
+
+// --- Custom Groove Patterns (User-drawn) ---
+// Custom groove patterns allow users to draw custom timing offsets for each 16th note position
+let customGroovePatterns = {}; // { patternName: { name, divisions, points: [{division, offset, velocity}] } }
+
+export function getCustomGroovePatterns() { return JSON.parse(JSON.stringify(customGroovePatterns)); }
+
+export function saveCustomGroovePattern(name, divisions, points) {
+    if (!name || !name.trim()) return false;
+    const patternName = name.trim();
+    customGroovePatterns[patternName] = {
+        name: patternName,
+        divisions: divisions || 16,
+        points: JSON.parse(JSON.stringify(points || [])),
+        createdAt: new Date().toISOString()
+    };
+    console.log(`[State] Saved custom groove pattern "${patternName}" with ${points?.length || 0} points`);
+    return true;
+}
+
+export function deleteCustomGroovePattern(name) {
+    if (customGroovePatterns[name]) {
+        delete customGroovePatterns[name];
+        console.log(`[State] Deleted custom groove pattern "${name}"`);
+        return true;
+    }
+    return false;
+}
+
+export function getCustomGroovePattern(name) {
+    if (customGroovePatterns[name]) {
+        return JSON.parse(JSON.stringify(customGroovePatterns[name]));
+    }
+    return null;
+}
+
+export function getCustomGroovePatternNames() {
+    return Object.keys(customGroovePatterns);
+}
+
+export function applyCustomGrooveToTrack(track, patternName) {
+    const pattern = getCustomGroovePattern(patternName);
+    if (!pattern) {
+        console.warn(`[State] Custom groove pattern "${patternName}" not found`);
+        return false;
+    }
+    if (track && typeof track.setCustomGroovePattern === 'function') {
+        track.setCustomGroovePattern(pattern);
+        return true;
+    }
+    return false;
+}
+
+// Project Templates Storage
+let projectTemplates = {}; // { templateName: templateData }
+
+// MIDI State
+let midiAccessGlobal = null;
+let activeMIDIInputGlobal = null;
+
+// Sound Browser State
+let loadedZipFilesGlobal = {};
+let soundLibraryFileTreesGlobal = {};
+// MODIFICATION START: Add console logs for initialization
+console.log('[State Init] Initializing. loadedZipFilesGlobal created:', loadedZipFilesGlobal);
+console.log('[State Init] Initializing. soundLibraryFileTreesGlobal created:', soundLibraryFileTreesGlobal);
+// MODIFICATION END
+let currentLibraryNameGlobal = null;
+let currentSoundFileTreeGlobal = null;
+let currentSoundBrowserPathGlobal = [];
+let previewPlayerGlobal = null;
+
+// Clipboard
+let clipboardDataGlobal = { type: null, data: null, sourceTrackType: null, sequenceLength: null };
+// Automation clipboard: { param: string, points: Array<{time, value}>, sourceTrackId: number }
+let automationClipboardGlobal = { param: null, points: [], sourceTrackId: null };
+
+// Transport/Sequencing State
+let activeSequencerTrackId = null;
+let soloedTrackId = null;
+let armedTrackId = null;
+let isRecordingGlobal = false;
+let recordingTrackIdGlobal = null;
+let recordingStartTime = 0;
+
+let globalPlaybackMode = 'sequencer'; // 'sequencer' or 'timeline'
+
+// --- Loop Region State ---
+let loopRegionEnabled = false;
+let loopRegionStart = 0; // in seconds
+let loopRegionEnd = 16; // in seconds
+
+// --- Loop Region Getters/Setters ---
+export function getLoopRegionEnabled() { return loopRegionEnabled; }
+export function setLoopRegionEnabled(enabled) { 
+    loopRegionEnabled = !!enabled;
+    console.log(`[State] Loop region ${loopRegionEnabled ? 'enabled' : 'disabled'}`);
+}
+export function getLoopRegionStart() { return loopRegionStart; }
+export function setLoopRegionStart(start) { 
+    loopRegionStart = Math.max(0, parseFloat(start) || 0);
+    console.log(`[State] Loop region start set to: ${loopRegionStart}s`);
+}
+export function getLoopRegionEnd() { return loopRegionEnd; }
+export function setLoopRegionEnd(end) { 
+    loopRegionEnd = Math.max(0.1, parseFloat(end) || 16);
+    console.log(`[State] Loop region end set to: ${loopRegionEnd}s`);
+}
+export function getLoopRegion() {
+    return { 
+        enabled: loopRegionEnabled, 
+        start: loopRegionStart, 
+        end: loopRegionEnd 
+    };
+}
+export function setLoopRegion(enabled, start, end) {
+    loopRegionEnabled = !!enabled;
+    loopRegionStart = Math.max(0, parseFloat(start) || 0);
+    loopRegionEnd = Math.max(0.1, parseFloat(end) || 16);
+    console.log(`[State] Loop region updated: enabled=${loopRegionEnabled}, start=${loopRegionStart}s, end=${loopRegionEnd}s`);
+}
+
+// --- Loop Region Presets ---
+let loopRegionPresets = {}; // { presetName: { enabled, start, end, createdAt } }
+
+export function saveLoopRegionPreset(name) {
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        console.warn('[State] Invalid loop region preset name');
+        return false;
+    }
+    loopRegionPresets[name.trim()] = {
+        enabled: loopRegionEnabled,
+        start: loopRegionStart,
+        end: loopRegionEnd,
+        createdAt: new Date().toISOString()
+    };
+    console.log(`[State] Saved loop region preset "${name.trim()}" (start: ${loopRegionStart}s, end: ${loopRegionEnd}s)`);
+    return true;
+}
+
+export function loadLoopRegionPreset(name) {
+    const preset = loopRegionPresets[name];
+    if (!preset) {
+        console.warn(`[State] Loop region preset "${name}" not found`);
+        return false;
+    }
+    loopRegionEnabled = !!preset.enabled;
+    loopRegionStart = Math.max(0, parseFloat(preset.start) || 0);
+    loopRegionEnd = Math.max(0.1, parseFloat(preset.end) || 16);
+    console.log(`[State] Loaded loop region preset "${name}" (start: ${loopRegionStart}s, end: ${loopRegionEnd}s)`);
+    return true;
+}
+
+export function deleteLoopRegionPreset(name) {
+    if (loopRegionPresets[name]) {
+        delete loopRegionPresets[name];
+        console.log(`[State] Deleted loop region preset "${name}"`);
+        return true;
+    }
+    return false;
+}
+
+export function getLoopRegionPresetNames() {
+    return Object.keys(loopRegionPresets);
+}
+
+export function getLoopRegionPreset(name) {
+    const preset = loopRegionPresets[name];
+    if (!preset) return null;
+    return JSON.parse(JSON.stringify(preset));
+}
+
+// END MODIFICATION
+
+// --- Metronome State ---
+let metronomeEnabled = false;
+let metronomeVolume = 0.5; // 0-1
+
+let adaptiveMetronomeEnabled = false;
+let noteTimingHistory = [];
+const MAX_TIMING_HISTORY = 64;
+
+export function getMetronomeEnabled() { return metronomeEnabled; }
+export function setMetronomeEnabled(enabled) {
+    metronomeEnabled = !!enabled;
+    console.log(`[State] Metronome ${metronomeEnabled ? 'enabled' : 'disabled'}`);
+}
+export function getMetronomeVolume() { return metronomeVolume; }
+export function setMetronomeVolume(volume) {
+    metronomeVolume = Math.max(0, Math.min(1, parseFloat(volume) || 0.5));
+    console.log(`[State] Metronome volume set to: ${metronomeVolume}`);
+}
+export function getAdaptiveMetronomeEnabled() { return adaptiveMetronomeEnabled; }
+export function setAdaptiveMetronomeEnabled(enabled) {
+    adaptiveMetronomeEnabled = !!enabled;
+    if (!enabled) noteTimingHistory = [];
+    console.log(`[State] Adaptive Metronome ${adaptiveMetronomeEnabled ? 'enabled' : 'disabled'}`);
+}
+export function recordNoteTiming(deviationMs) {
+    if (!adaptiveMetronomeEnabled) return;
+    noteTimingHistory.push({ deviation: deviationMs });
+    if (noteTimingHistory.length > MAX_TIMING_HISTORY) {
+        noteTimingHistory.shift();
+}
+export function getAdaptiveTimingOffset() {
+    if (noteTimingHistory.length < 4) return 0;
+    const sum = noteTimingHistory.reduce((acc, item) => acc + item.deviation, 0);
+    return sum / noteTimingHistory.length;
+}
+export function resetAdaptiveTimingHistory() {
+    noteTimingHistory = [];
+}
+
+// --- Tempo Ramps State ---
+// tempoRamps: Array of { id, barPosition: number (in bars), bpm: number, curve: 'linear'|'exponential' }
+let tempoRampsState = [];
+let tempoRampsScheduleId = null;
+
+export function getTempoRampsState() { return tempoRampsState; }
+
+export function addTempoRampPoint(barPosition, bpm, curve = 'linear') {
+    const id = `tempoRamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const validCurves = ['linear', 'exponential', 'stepped'];
+    const curveType = validCurves.includes(curve) ? curve : 'linear';
+    tempoRampsState.push({ id, barPosition: parseFloat(barPosition) || 0, bpm: parseFloat(bpm) || 120, curve: curveType });
+    tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+    console.log(`[State] Added tempo ramp point at bar ${barPosition}: ${bpm} BPM`);
+    return id;
+}
+
+export function removeTempoRampPoint(id) {
+    const idx = tempoRampsState.findIndex(r => r.id === id);
+    if (idx !== -1) {
+        tempoRampsState.splice(idx, 1);
+        console.log(`[State] Removed tempo ramp point ${id}`);
+    }
+}
+
+export function updateTempoRampPoint(id, barPosition, bpm, curve) {
+    const ramp = tempoRampsState.find(r => r.id === id);
+    if (ramp) {
+        if (barPosition !== undefined) ramp.barPosition = parseFloat(barPosition) || 0;
+        if (bpm !== undefined) ramp.bpm = parseFloat(bpm) || 120;
+        if (curve !== undefined) ramp.curve = curve;
+        tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+        console.log(`[State] Updated tempo ramp point ${id}`);
+    }
+}
+
+export function clearTempoRamps() {
+    tempoRampsState = [];
+    console.log('[State] Cleared all tempo ramp points');
+}
+
+export function setTempoRampsState(ramps) {
+    tempoRampsState = Array.isArray(ramps) ? ramps.map(r => ({
+        id: r.id || `tempoRamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        barPosition: parseFloat(r.barPosition) || 0,
+        bpm: parseFloat(r.bpm) || 120,
+        curve: r.curve || 'linear'
+    })) : [];
+    tempoRampsState.sort((a, b) => a.barPosition - b.barPosition);
+    console.log(`[State] Loaded ${tempoRampsState.length} tempo ramp points`);
+}
+
+// --- Chord Memory ---
+let chordMemorySlots = []; // Array of { id, name, notes: [{pitch, velocity}], timestamp }
+
+export function getChordMemorySlots() { return JSON.parse(JSON.stringify(chordMemorySlots)); }
+
+export function storeChordToMemory(name, notes, trackId = null) {
+    if (!name || !Array.isArray(notes)) return null;
+    const id = `chord-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const chord = {
+        id,
+        name,
+        notes: notes.map(n => ({
+            pitch: typeof n === 'object' ? n.pitch : n,
+            velocity: typeof n === 'object' ? (n.velocity || 0.8) : 0.8
+        })),
+        timestamp: Date.now(),
+        trackId
+    };
+    chordMemorySlots.push(chord);
+    console.log(`[State] Stored chord "${name}" with ${notes.length} notes`);
+    return id;
+}
+
+export function getChordById(chordId) {
+    return chordMemorySlots.find(c => c.id === chordId);
+}
+
+export function getChordByName(name) {
+    return chordMemorySlots.find(c => c.name === name);
+}
+
+export function clearChordMemorySlot(chordId) {
+    const idx = chordMemorySlots.findIndex(c => c.id === chordId);
+    if (idx !== -1) {
+        chordMemorySlots.splice(idx, 1);
+        console.log(`[State] Removed chord memory slot ${chordId}`);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Trigger a chord by playing all notes simultaneously.
+ * @param {string} chordId - The ID of the chord to trigger
+ * @param {number} trackId - Optional track ID to play on (uses armed track if null)
+ * @param {number} duration - Duration in seconds (0 = indefinite/legato)
+ * @returns {boolean} True if chord was triggered successfully
+ */
+export function triggerChord(chordId, trackId = null, duration = 0) {
+    const chord = getChordById(chordId);
+    if (!chord) {
+        console.warn(`[State triggerChord] Chord ${chordId} not found`);
+        return false;
+    }
+    
+    const targetTrackId = trackId || armedTrackId || activeSequencerTrackId;
+    if (targetTrackId === null) {
+        console.warn('[State triggerChord] No target track specified');
+        return false;
+    }
+    
+    const track = tracks.find(t => t.id === targetTrackId);
+    if (!track) {
+        console.warn(`[State triggerChord] Track ${targetTrackId} not found`);
+        return false;
+    }
+    
+    // Play all notes in the chord
+    const now = Tone.now();
+    chord.notes.forEach(note => {
+        if (track.playNote) {
+            track.playNote(note.pitch, now, duration > 0 ? duration : undefined, note.velocity);
+        } else if (track.instrument && track.instrument.triggerAttack) {
+            const freq = Tone.Frequency(note.pitch, 'midi').toFrequency();
+            track.instrument.triggerAttack(freq, now, note.velocity);
+            if (duration > 0) {
+                track.instrument.triggerRelease(freq, now + duration);
+            }
+        }
+    });
+    
+    console.log(`[State triggerChord] Triggered chord "${chord.name}" on track ${targetTrackId}`);
+    return true;
+}
+
+/**
+ * Clear all stored chords.
+ */
+export function clearAllChords() {
+    chordMemorySlots = [];
+    console.log('[State] Cleared all chord memory slots');
+}
+
+/**
+ * Rename a stored chord.
+ * @param {string} chordId - The ID of the chord
+ * @param {string} newName - New name for the chord
+ */
+export function renameChord(chordId, newName) {
+    const chord = chordMemorySlots.find(c => c.id === chordId);
+    if (chord) {
+        chord.name = newName;
+        console.log(`[State] Renamed chord to "${newName}"`);
+    }
+}
+
+/**
+ * Import chords from project data.
+ * @param {Array} chords - Array of chord objects to import
+ */
+export function setChordMemoryState(chords) {
+    chordMemorySlots = Array.isArray(chords) ? chords.map(c => ({
+        id: c.id || `chord-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: c.name || 'Unnamed Chord',
+        notes: Array.isArray(c.notes) ? c.notes.map(n => ({
+            pitch: Math.round(n.pitch),
+            velocity: Math.max(0, Math.min(1, n.velocity || 0.8))
+        })) : [],
+        timestamp: c.timestamp || Date.now()
+    })) : [];
+    console.log(`[State] Imported ${chordMemorySlots.length} chord memory slots`);
+}
+
+// --- AppServices Placeholder (will be populated by main.js) ---
+let appServices = {}; // Populated by initializeStateModule
+
+export function initializeStateModule(services) {
+    appServices = services || {}; // Ensure appServices is an object
+    if (!Array.isArray(masterEffectsChainState)) {
+        masterEffectsChainState = [];
+    }
+    // Ensure playback mode services are set up if not already provided
+    if (appServices && typeof appServices.getPlaybackMode !== 'function') {
+        appServices.getPlaybackMode = getPlaybackModeState;
+    }
+    if (appServices && typeof appServices.setPlaybackMode !== 'function') {
+        appServices.setPlaybackMode = setPlaybackModeStateInternal;
+    }
+    console.log("[State] State module initialized. AppServices keys:", Object.keys(appServices));
+}
+
+// --- Audio Stretching Quality Presets ---
+let audioStretchingQuality = 'balanced'; // 'fast' | 'balanced' | 'high'
+
+export function getAudioStretchingQuality() { return audioStretchingQuality; }
+
+export function setAudioStretchingQuality(quality) {
+    const validQualities = ['fast', 'balanced', 'high'];
+    if (validQualities.includes(quality)) {
+        audioStretchingQuality = quality;
+        console.log(`[State] Audio stretching quality set to: ${quality}`);
+    } else {
+        console.warn(`[State] Invalid audio stretching quality: ${quality}. Valid options: ${validQualities.join(', ')}`);
+    }
+}
+
+// --- Getters for Centralized State ---
+export function getTracksState() { return tracks; }
+export function getTrackByIdState(id) { return tracks.find(t => t.id === id); }
+
+export function getOpenWindowsState() { return openWindowsMap; }
+export function getWindowByIdState(id) { return openWindowsMap.get(id); }
+export function getHighestZState() { return highestZ; }
+export function getMasterEffectsState() { return masterEffectsChainState; }
+export function getMasterGainValueState() { return masterGainValueState; }
+
+export function getMidiAccessState() { return midiAccessGlobal; }
+export function getActiveMIDIInputState() { return activeMIDIInputGlobal; }
+
+// MODIFICATION START: Add console logs to getters
+export function getLoadedZipFilesState() {
+    console.log('[State GET] getLoadedZipFilesState. Keys:', loadedZipFilesGlobal ? Object.keys(loadedZipFilesGlobal) : 'null/undefined');
+    return loadedZipFilesGlobal;
+}
+export function getSoundLibraryFileTreesState() {
+    console.log('[State GET] getSoundLibraryFileTreesState. Keys:', soundLibraryFileTreesGlobal ? Object.keys(soundLibraryFileTreesGlobal) : 'null/undefined');
+    if (soundLibraryFileTreesGlobal && soundLibraryFileTreesGlobal["Drums"] && Object.keys(soundLibraryFileTreesGlobal["Drums"]).length > 0) {
+        console.log('[State GET] "Drums" tree exists and is NOT empty.');
+    } else if (soundLibraryFileTreesGlobal && soundLibraryFileTreesGlobal["Drums"]) {
+        console.warn('[State GET] "Drums" tree exists but IS EMPTY!');
+    }
+    return soundLibraryFileTreesGlobal;
+}
+// MODIFICATION END
+export function getCurrentLibraryNameState() { return currentLibraryNameGlobal; }
+export function getCurrentSoundFileTreeState() { return currentSoundFileTreeGlobal; }
+export function getCurrentSoundBrowserPathState() { return currentSoundBrowserPathGlobal; }
+
+export function getClipboardDataState() { return clipboardDataGlobal; }
+export function getAutomationClipboardState() { return automationClipboardGlobal; }
+
+export function getActiveSequencerTrackIdState() { return activeSequencerTrackId; }
+export function getSoloedTrackIdState() { return soloedTrackId; }
+export function getArmedTrackIdState() { return armedTrackId; }
+export function getIsRecordingState() { return isRecordingGlobal; }
+export function getRecordingTrackIdState() { return recordingTrackIdGlobal; }
+export function getRecordingStartTimeState() { return recordingStartTime; }
+
+export function getPlaybackModeState() { return globalPlaybackMode; }
+
+export function getTrackEffectsPresetsState() { return trackEffectsPresets; }
+export function getMasterEffectPresetsState() { return masterEffectPresets; }
+export function getProjectTemplatesState() { return projectTemplates; }
+
+// Undo/Redo Stacks
+let undoStack = [];
+let redoStack = [];
+export function getUndoStackState() { return undoStack; }
+export function getRedoStackState() { return redoStack; }
+export function getCanUndoState() { return undoStack.length > 0; }
+export function getCanRedoState() { return redoStack.length > 0; }
