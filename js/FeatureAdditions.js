@@ -52,3 +52,7 @@ export { createPhaseInvertButton, openPhaseInvertButtonPanel } from './PhaseInve
 // Score Editor - Visual staff notation display showing notes as musical notation
 export { initScoreEditor, openScoreEditorWindow, updateScoreEditor } from './ScoreEditor.js';
 export { initStepSequencerView, openStepSequencerView, updateStepSequencerPanel, getStepSequencerWindow } from './StepSequencerView.js';
+// Track Solo Chain - Mute all tracks except selected chain
+export { initTrackSoloChain, openSoloChainPanel } from './TrackSoloChain.js';
+// Loop Region Presets - Predefined loop regions for quick selection
+export { initLoopRegionPresets, openLoopRegionPresetsPanel } from './LoopRegionPresets.js';
