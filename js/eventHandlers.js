@@ -473,6 +473,22 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Audio Ducker error:', e); }
             },
+            menuSidechainAttackShape: () => {
+                console.log('[Menu] Sidechain Attack Shape clicked');
+                try {
+                    if (window.SidechainAttackShape && window.SidechainAttackShape.openSidechainAttackShapePanel) {
+                        window.SidechainAttackShape.openSidechainAttackShapePanel();
+                    } else {
+                        import('./SidechainAttackShape.js').then(m => {
+                            if (m.initSidechainAttackShape) m.initSidechainAttackShape(localAppServices);
+                            if (m.openSidechainAttackShapePanel) m.openSidechainAttackShapePanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Sidechain Attack Shape error:', e); }
+            },
+            menuAdaptiveGrid: () => {
+                console.log('[Menu] Adaptive Grid clicked');
+            },
         };
 
         for (const menuItemId in menuActions) {
