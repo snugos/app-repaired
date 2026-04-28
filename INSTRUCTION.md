@@ -4,15 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Tempo Ramper** - Smoothly automate tempo changes over time with curve editor
-2. **Track Freeze** - Freeze audio tracks to CPU-friendly buffer to free processing power
-3. **MIDI Arpeggiator** - Built-in arpeggiator with patterns (up, down, ping-pong, random)
-4. **Sidechain Visualizer** - Visual feedback showing which track is triggering ducking
-5. **Clip Fade Handles** - Drag handles on clips to adjust fade in/out curves
-6. **Sample Editor** - Detailed waveform editing with cut, copy, normalize
-7. **Track Export Individual** - Export each track as separate audio file
-8. **Step Sequencer Drummer** - Grid-based drum programming with velocity layers
-9. **Project Notes** - Text notes panel for project documentation
+1. **Auto-Ducking Threshold** - Set automatic threshold for track ducking based on content analysis
+2. **Chord Progression Saver** - Save and recall chord progressions as templates for song sections
+3. **Multi-FX Preset Bank** - Browse and apply bundled multi-effect chain presets
+4. **Region Duplicate Mode** - Duplicate a selected region across the timeline with offset clips
+5. **Track Solo PFL** - Pre-fader solo for isolated monitoring of track signal chain
+6. **Clip Reverse Playback** - Play audio/MIDI clips in reverse for experimental sounds
+7. **Tempo Grid Snap** - Snap note placement to a grid that adjusts with tempo changes
+8. **Mixer Snapshot** - Save and recall complete mixer states (faders, pans, sends, mute/solo)
+9. **Audio Quantize Strength** - Adjustable strength slider for audio beat alignment (0-100%)
+10. **Send Level Envelope** - Draw automation for track send levels over time
 
 ## Workflow
 
