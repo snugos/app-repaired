@@ -63,3 +63,6 @@ export { initChordProgressionAssistant, openChordProgressionPanel, generateProgr
 
 // Sidechain Visualizer - Show which tracks are being affected by sidechain compression in real-time
 export { initSidechainVisualizer, openSidechainVisualizerPanel, triggerSidechainVisualizer, getDuckingLevel, resetDuckingIndicators, updateSidechainVisualizer, closeSidechainVisualizerPanel } from './SidechainVisualizer.js';
+
+// Loopback Audio Routing - Route DAW output back to input for sampling external sources
+export { initLoopbackAudioRouting, openLoopbackRoutingPanel, startLoopbackRouting, stopLoopbackRouting, isLoopbackActive, isLoopbackSupported, setLoopbackGain, getLoopbackStream } from './LoopbackAudioRouting.js';

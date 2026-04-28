@@ -123,6 +123,8 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Remove Custom Background", action: () => { if(localAppServices.removeCustomDesktopBackground) localAppServices.removeCustomDesktopBackground(); } },
                     { label: "Stretch Quality", action: () => { if(localAppServices.openStretchQualityPanel) localAppServices.openStretchQualityPanel(); } },
                     { separator: true },
+                    { label: "Loopback Audio Routing", action: () => { if(localAppServices.openLoopbackRoutingPanel) localAppServices.openLoopbackRoutingPanel(); } },
+                    { separator: true },
                     { label: "Track Export Solo", action: () => { if(localAppServices.openTrackExportSoloPanel) localAppServices.openTrackExportSoloPanel(); } },
                     { label: "Toggle Full Screen", action: toggleFullScreen }
                 ];
