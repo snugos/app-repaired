@@ -1,8 +1,14 @@
 // js/ClipOpacity.js - Clip Opacity Control
 // Adjust visual opacity of clips on timeline
 
+let localAppServices = {};
 let clipOpacities = {}; // { clipId: opacity (0-1) }
 const DEFAULT_OPACITY = 1.0;
+
+export function initClipOpacity(appServices) {
+    localAppServices = appServices || {};
+    console.log('[ClipOpacity] Initialized');
+}
 
 /**
  * Get clip opacity

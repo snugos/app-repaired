@@ -273,6 +273,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTrackColorPalettePanel?.();
                 } catch(e) { console.error("[Menu] Track Color Palette error:", e); }
             },
+            menuClipOpacity: () => {
+                console.log("[Menu] Clip Opacity clicked");
+                try {
+                    localAppServices.openClipOpacityPanel?.();
+                } catch(e) { console.error("[Menu] Clip Opacity error:", e); }
+            },
             menuMuteGroups: () => {
                 console.log("[Menu] Mute Groups clicked");
                 try { localAppServices.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }

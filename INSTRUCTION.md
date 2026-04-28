@@ -5,12 +5,11 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 ## Current Feature Queue
 
 1. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
-2. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
-3. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
-4. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-5. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
-6. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
-7. **Track Color Coding** - Assign colors to tracks for visual grouping
+2. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
+3. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+4. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+5. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
+6. **Track Color Coding** - Assign colors to tracks for visual grouping
 
 ## Workflow
 

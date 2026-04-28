@@ -59,6 +59,8 @@ import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnaly
 import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOPanel.js';
 // Track Color Palette
 import { openTrackColorPalettePanel } from './TrackColorPalette.js';
+// Clip Opacity
+import { initClipOpacity, openClipOpacityPanel } from './ClipOpacity.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -660,6 +662,7 @@ import {
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
     openTrackColorPalettePanel,
+    openClipOpacityPanel,
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
@@ -1220,6 +1223,7 @@ async function initializeSnugOS() {
         if (typeof initAITempoSuggestion === 'function') initAITempoSuggestion(appServices); // AI Tempo Suggestion initialization
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
+        if (typeof initClipOpacity === 'function') initClipOpacity(appServices); // Clip Opacity initialization
         if (typeof initBulkAssign === 'function') initBulkAssign(); // MIDI Bulk Assign initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
