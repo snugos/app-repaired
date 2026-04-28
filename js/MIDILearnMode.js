@@ -242,6 +242,30 @@ function showMidiLearnMenu(x, y, element, info) {
     });
     menu.appendChild(learnItem);
     
+    // Bulk Assign option - NEW
+    const bulkItem = document.createElement('div');
+    bulkItem.className = 'midi-learn-menu-item';
+    bulkItem.innerHTML = isBulkAssignActive() 
+        ? '<span style="color: #ff6b6b;">● Cancel Bulk Assign</span>'
+        : '<span>🎛️ Bulk Assign CCs...</span>';
+    bulkItem.style.cssText = `
+        padding: 10px 16px;
+        cursor: pointer;
+        color: #ddd;
+        font-size: 13px;
+    `;
+    bulkItem.addEventListener('mouseenter', () => bulkItem.style.background = '#2a2a4a');
+    bulkItem.addEventListener('mouseleave', () => bulkItem.style.background = 'transparent');
+    bulkItem.addEventListener('click', () => {
+        if (isBulkAssignActive()) {
+            stopBulkAssign();
+        } else {
+            startBulkAssign(info);
+        }
+        menu.remove();
+    });
+    menu.appendChild(bulkItem);
+    
     // Existing mapping option
     if (existingMapping) {
         const removeItem = document.createElement('div');

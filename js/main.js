@@ -34,6 +34,7 @@ import { MIDIToAudioConversion } from './MIDIToAudioConversion.js';
 import { SmartFXChain } from './SmartFXChain.js';
 import { MidiMonitor } from './MidiMonitor.js';
 import { initMIDILearnWizard, openMIDILearnWizard } from './MIDILearnWizard.js';
+import { initBulkAssign, startBulkAssign, stopBulkAssign, isBulkAssignActive } from './MIDILearnBulkAssign.js';
 import { AudioFingerprinting } from './AudioFingerprinting.js';
 import { initAudioTapTempo } from './AudioTapTempo.js';
 import { initAudioNormalizer, openAudioNormalizerPanel } from './AudioNormalizer.js';
@@ -1216,6 +1217,7 @@ async function initializeSnugOS() {
         if (typeof initAITempoSuggestion === 'function') initAITempoSuggestion(appServices); // AI Tempo Suggestion initialization
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
+        if (typeof initBulkAssign === 'function') initBulkAssign(); // MIDI Bulk Assign initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
         if (typeof initTransportLoopCount === 'function') initTransportLoopCount(appServices); // Transport Loop Count initialization
         if (window.TransportMemory && typeof window.TransportMemory.init === 'function') window.TransportMemory.init(); // Transport Memory restoration
