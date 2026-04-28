@@ -4,15 +4,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
-2. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
-3. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
-4. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
-5. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
-6. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-7. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
-8. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
-9. **Track Color Coding** - Assign colors to tracks for visual grouping
+1. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
+2. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
+3. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
+4. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
+5. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+6. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+7. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
+8. **Track Color Coding** - Assign colors to tracks for visual grouping
 
 ## Workflow
 
