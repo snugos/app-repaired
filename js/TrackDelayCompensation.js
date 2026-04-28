@@ -1,3 +1,5 @@
+import { getTracksState } from './state.js';
+
 /**
  * Track Delay Compensation - Automatically compensate for plugin latency per track
  * Allows users to manually adjust delay offset per track to align with master

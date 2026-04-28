@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Fade Curves** - S-curve and exponential fade presets for clips
-2. **MIDI Learn Range** - Set min/max CC range for MIDI Learn mapping
-3. **Track Freeze Toggle** - Quick freeze/unfreeze individual tracks
-4. **Export Stem Ranges** - Export a selected time range as stems
-5. **Track Delay Sync** - Per-track delay compensation based on plugin latency
-6. **Groove Template Draw** - Draw custom timing offsets for groove templates
-7. **Clip Envelope Shapes** - Apply preset envelope shapes (pyramid, gate, swell)
-8. **Solo Chain Mode** - Solo a chain of tracks together (exclusive solo)
-9. **BPM History Stats** - Show tap tempo history with statistics
-10. **Tempo Sync Helper** ✅ - Just completed: detect BPM from audio and suggest optimal tempo
+1. **MIDI Learn Range** - Set min/max CC range for MIDI Learn mapping
+2. **Track Freeze Toggle** - Quick freeze/unfreeze individual tracks
+3. **Export Stem Ranges** - Export a selected time range as stems
+4. **Track Delay Sync** - Per-track delay compensation based on plugin latency
+5. **Groove Template Draw** - Draw custom timing offsets for groove templates
+6. **Clip Envelope Shapes** - Apply preset envelope shapes (pyramid, gate, swell)
+7. **Solo Chain Mode** - Solo a chain of tracks together (exclusive solo)
+8. **BPM History Stats** - Show tap tempo history with statistics
+9. **Tempo Sync Helper** ✅ - detect BPM from audio and suggest optimal tempo
+10. **Clip Fade Curves** ✅ - S-curve and exponential fade presets for clips (just completed)
 
 ## Workflow
 
