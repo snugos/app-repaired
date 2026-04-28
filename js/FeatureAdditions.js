@@ -66,3 +66,6 @@ export { initSidechainVisualizer, openSidechainVisualizerPanel, triggerSidechain
 
 // Loopback Audio Routing - Route DAW output back to input for sampling external sources
 export { initLoopbackAudioRouting, openLoopbackRoutingPanel, startLoopbackRouting, stopLoopbackRouting, isLoopbackActive, isLoopbackSupported, setLoopbackGain, getLoopbackStream } from './LoopbackAudioRouting.js';
+
+// Tempo Sync Helper - Detect tempo from audio and suggest optimal BPM
+export { initTempoSyncHelper, openTempoSyncHelperPanel, setupTempoSyncMenuItem } from './TempoSyncHelper.js';

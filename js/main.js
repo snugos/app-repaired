@@ -1242,6 +1242,8 @@ async function initializeSnugOS() {
         if (typeof initTrackLaneReorder === 'function') initTrackLaneReorder(appServices); // Track Lane Reorder initialization
         if (typeof initChordProgressionAssistant === 'function') initChordProgressionAssistant(appServices); // Chord Progression Assistant initialization
         if (typeof initLoopbackAudioRouting === 'function') initLoopbackAudioRouting(appServices); // Loopback Audio Routing initialization
+        if (typeof initTempoSyncHelper === 'function') initTempoSyncHelper(appServices); // Tempo Sync Helper initialization
+        if (typeof setupTempoSyncMenuItem === 'function') setupTempoSyncMenuItem(); // Add to start menu
         
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);

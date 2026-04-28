@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Freeze** ✅ - Completed: `js/TrackFreeze.js` + menu integration
-2. **Clip Fade Handles** ✅ - Already implemented: `js/ClipFadeHandles.js` with visual drag handles
-3. **Metronome Accent Patterns** ✅ - Just completed: `js/MetronomeAccentPatterns.js` + menu integration
-4. **CPU Performance Monitor** ✅ - Just completed: `js/PerformanceMonitor.js` + transport bar display
-5. **Timeline Snap Resolution Toggle** ✅ - Just completed: `js/TimelineSnapResolution.js` + transport bar button
-6. **Note Length Default** ✅ - Just completed: `js/NoteLengthDefault.js` + transport button + menu
-7. **Audio Normalization** - Normalize selected audio clips to a target dB level
-8. **Export Selection Range** - Export only a selected time range as WAV instead of entire project
-9. **MIDI CC Learn** - Click a knob in effects rack then move MIDI CC to map it
-10. **Track Grouping** - Group tracks together so solo/mute affects them as a unit
+1. **Tempo Sync Helper** - Detect tempo from audio and suggest matching BPM
+2. **Clip Fade Curves** - S-curve and exponential fade presets for clips
+3. **MIDI Learn Range** - Set min/max CC range for MIDI Learn mapping
+4. **Track Freeze Toggle** - Quick freeze/unfreeze individual tracks
+5. **Export Stem Ranges** - Export a selected time range as stems
+6. **Track Delay Sync** - Per-track delay compensation based on plugin latency
+7. **Groove Template Draw** - Draw custom timing offsets for groove templates
+8. **Clip Envelope Shapes** - Apply preset envelope shapes (pyramid, gate, swell)
+9. **Solo Chain Mode** - Solo a chain of tracks together (exclusive solo)
+10. **BPM History Stats** - Show tap tempo history with statistics
 
 ## Workflow
 
