@@ -837,3 +837,30 @@ input::placeholder,
     box-shadow: 0 0 10px rgba(149, 125, 173, 0.5);
     z-index: 10;
 }
+
+
+/* --- Performance Monitor Indicator in Transport Bar --- */
+.perf-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(20, 20, 30, 0.85);
+    border: 1px solid #3a3a4a;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    color: #c0c0c0;
+    cursor: default;
+    user-select: none;
+}
+
+.perf-indicator .perf-value {
+    font-weight: 500;
+    min-width: 32px;
+    text-align: center;
+}
+
+.perf-indicator .perf-divider {
+    color: #555;
+}

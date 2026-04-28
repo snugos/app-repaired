@@ -161,21 +161,36 @@ function closePerformancePanel() {
 }
 
 function addPerformanceIndicatorToStatusBar() {
-    const statusBar = document.querySelector('.status-bar');
-    if (!statusBar) return;
+    const controlsBar = document.getElementById('globalControlsBar');
+    if (!controlsBar) return;
     
-    const indicatorHTML = createPerformanceIndicatorHTML();
+    const indicatorHTML = `
+        <div id="perf-indicator" class="perf-indicator" title="CPU/Memory Monitor">
+            <span class="perf-value" id="perf-cpu-val">--%</span>
+            <span class="perf-divider">|</span>
+            <span class="perf-value" id="perf-mem-val">--MB</span>
+        </div>
+    `;
     const existing = document.getElementById('perf-indicator');
     if (existing) existing.remove();
     
-    statusBar.insertAdjacentHTML('beforeend', indicatorHTML);
+    controlsBar.insertAdjacentHTML('beforeend', indicatorHTML);
     
-    setInterval(() => {
+    const updateInterval = setInterval(() => {
         const cpuEl = document.getElementById('perf-cpu-val');
         const memEl = document.getElementById('perf-mem-val');
-        if (cpuEl) cpuEl.textContent = (getCPULoad() ?? 'N/A') + '%';
-        if (memEl) memEl.textContent = (getMemoryUsageMB() ?? 'N/A') + 'MB';
-    }, 5000);
+        if (cpuEl) {
+            const cpu = getCPULoad();
+            cpuEl.textContent = cpu !== null ? cpu + '%' : 'N/A';
+            cpuEl.style.color = cpu !== null && cpu > 80 ? '#e74c3c' : cpu !== null && cpu > 60 ? '#f39c12' : '#2ecc71';
+        }
+        if (memEl) {
+            const mem = getMemoryUsageMB();
+            memEl.textContent = mem !== null ? mem + 'MB' : 'N/A';
+        }
+    }, 2000);
+    
+    console.log('[PerformanceMonitor] CPU display added to transport bar');
 }
 
 function initPerformanceIndicator() {
