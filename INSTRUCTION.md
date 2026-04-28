@@ -4,14 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Auto-Compression** - Analyze audio and suggest/apply compression settings
-2. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
-3. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
-4. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
-5. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
-6. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
-7. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
-8. **Project Comparison View** - Side-by-side comparison of two project versions
+1. **Tempo Sync Grid** - Lock timeline grid to musical divisions and adjust swing amount per track
+2. **Batch Clip Effects** - Apply effects (fade, reverse, pitch shift) to multiple selected clips at once
+3. **Track Grouping** - Group tracks with linked solo/mute/fader behavior
+4. **MIDI Learn Mode** - Click any knob/fader to learn MIDI CC mapping for real-time control
+5. **Clip Loop Preview** - Preview loop region without affecting full clip playback position
+6. **Export Stem Preview** - Listen to individual stems before final export
+7. **Grid Snap Probability** - Notes have configurable chance to snap to grid vs stay humanized
+8. **Track Activity Monitor** - Real-time visual of which tracks are producing audio
+9. **Bounce in Place** - Render track to audio with effects applied, replace original clips
+10. **Quick Quantize Menu** - Right-click quantization presets (1/4, 1/8, 1/16, triplet, swing)
 
 ## Workflow
 

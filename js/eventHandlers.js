@@ -437,6 +437,19 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Playback Rate error:', e); }
             },
+            menuAudioDucker: () => {
+                console.log('[Menu] Audio Ducker clicked');
+                try {
+                    if (window.AudioDucker && window.AudioDucker.toggleAudioDuckerPanel) {
+                        window.AudioDucker.toggleAudioDuckerPanel();
+                    } else {
+                        import('./AudioDucker.js').then(m => {
+                            if (m.initAudioDucker) m.initAudioDucker(localAppServices);
+                            if (m.toggleAudioDuckerPanel) m.toggleAudioDuckerPanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Audio Ducker error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
