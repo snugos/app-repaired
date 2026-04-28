@@ -17,6 +17,7 @@ class AudioStemExportEnhancement {
             channels: 'stereo',      // mono, stereo
             includeEffects: true,    // Include track effects in export
             includeMaster: false,    // Include master bus processing
+            muteOtherTracks: true,  // Mute all other tracks during stem export
             normalize: true,         // Normalize peaks to -0.3dB
             dithering: true,         // Apply dithering for bit reduction
             fadeIn: 0,               // Fade in duration in seconds
@@ -284,6 +285,29 @@ class AudioStemExportEnhancement {
         // Create empty buffer
         const buffer = offlineContext.createBuffer(channels, duration * sampleRate, sampleRate);
         
+        // Check if we should mute other tracks
+        const muteOtherTracks = this.settings.muteOtherTracks;
+        const targetTrackId = track.id;
+        
+        // If muteOtherTracks is enabled and we have access to all tracks,
+        // render only the target track
+        if (muteOtherTracks && this.tracks.length > 1) {
+            // Only render the specific track being exported
+            await this.renderSingleTrackToBuffer(track, buffer, offlineContext);
+        } else {
+            // Render all tracks (original behavior)
+            for (const t of this.tracks) {
+                await this.renderSingleTrackToBuffer(t, buffer, offlineContext);
+            }
+        }
+        
+        return buffer;
+    }
+    
+    async renderSingleTrackToBuffer(track, buffer, offlineContext) {
+        const sampleRate = offlineContext.sampleRate;
+        const channels = buffer.numberOfChannels;
+        
         // For audio tracks, copy audio data from clips
         if (track.type === 'Audio' && track.clips) {
             for (const clip of track.clips) {
@@ -332,8 +356,6 @@ class AudioStemExportEnhancement {
                 }
             }
         }
-        
-        return buffer;
     }
     
     midiToFreq(midi) {
@@ -660,6 +682,10 @@ function openAudioStemExportEnhancementPanel() {
                         Include Effects
                     </label>
                     <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="mute-other-tracks" checked style="accent-color: #10b981;">
+                        Mute Other Tracks
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
                         <input type="checkbox" id="normalize-stems" checked style="accent-color: #10b981;">
                         Normalize
                     </label>
@@ -808,6 +834,7 @@ function openAudioStemExportEnhancementPanel() {
         exportManager.settings.bitDepth = parseInt(document.getElementById('stem-bitdepth').value);
         exportManager.settings.channels = document.getElementById('stem-channels').value;
         exportManager.settings.includeEffects = document.getElementById('include-effects').checked;
+        exportManager.settings.muteOtherTracks = document.getElementById('mute-other-tracks').checked;
         exportManager.settings.normalize = document.getElementById('normalize-stems').checked;
         exportManager.settings.dithering = document.getElementById('dithering-stems').checked;
         
