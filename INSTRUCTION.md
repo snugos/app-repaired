@@ -4,16 +4,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Lyrics Display/Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
-2. **Auto-Compression** - Analyze audio and suggest/apply compression settings
-3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
-4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
-5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
-6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
-7. **Loop Region Presets** - Save/load named loop regions as presets
-8. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
-9. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
-10. **Project Comparison View** - Side-by-side comparison of two project versions
+1. **Auto-Compression** - Analyze audio and suggest/apply compression settings
+2. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
+3. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
+4. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
+5. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
+6. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
+7. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
+8. **Project Comparison View** - Side-by-side comparison of two project versions
 
 ## Workflow
 
