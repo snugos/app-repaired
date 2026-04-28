@@ -193,6 +193,14 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openMixerWindow?.();
                 } catch(e) { console.error('[Menu] Mixer error:', e); }
             },
+            menuLoopbackAudio: () => {
+                console.log('[Menu] Loopback Audio clicked');
+                try {
+                    if (typeof toggleLoopbackPanel === 'function') {
+                        toggleLoopbackPanel();
+                    }
+                } catch(e) { console.error('[Menu] Loopback Audio error:', e); }
+            },
             menuMixerSnapshots: () => {
                 console.log('[Menu] Mixer Snapshots clicked');
                 try {
