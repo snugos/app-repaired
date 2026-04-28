@@ -499,7 +499,7 @@ export function attachGlobalControlEvents(elements) {
         console.error('[EventHandlers attachGlobalControlEvents] Elements object is null or undefined.');
         return;
     }
-    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, tapHistoryBtn, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, beatLfoToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
+    const { playBtnGlobal, recordBtnGlobal, stopBtnGlobal, tempoGlobalInput, tempoNudgeDown, tempoNudgeUp, tempoFineNudgeDown, tempoFineNudgeUp, midiInputSelectGlobal, playbackModeToggleBtnGlobal, midiLearnBtnGlobal, tapBtnGlobal, tapHistoryBtn, loopToggleBtnGlobal, loopStartInput, loopEndInput, metronomeToggleBtnGlobal, metronomeVolumeSlider, metronomeVolumeDisplay, metronomeVolumeControl, performanceMonitorBtn, beatLfoToggleBtnGlobal, scaleSelectGlobal, keySelectGlobal, scaleNotesDisplay } = elements;
     // Helper function to toggle play/pause icons
     function setPlayButtonState(isPlaying) {
         if (!playBtnGlobal) return;
@@ -869,6 +869,40 @@ export function attachGlobalControlEvents(elements) {
             if (tempoGlobalInput) tempoGlobalInput.value = newTempo.toFixed(1);
             if (localAppServices.updateTaskbarTempoDisplay) localAppServices.updateTaskbarTempoDisplay(newTempo);
             localAppServices.captureStateForUndo?.(`Tempo to ${newTempo.toFixed(1)}`);
+        });
+    }
+
+    // Fine BPM Nudge handlers (+/- 0.01)
+    if (tempoFineNudgeDown) {
+        tempoFineNudgeDown.addEventListener("mousedown", () => {
+            if (window.BPMNudge?.startBPMNudge) {
+                window.BPMNudge.startBPMNudge(-1, window.BPMNudge.NUDGE_STEP_FINE);
+            }
+        });
+        tempoFineNudgeDown.addEventListener("mouseup", () => {
+            if (window.BPMNudge?.stopBPMNudge) window.BPMNudge.stopBPMNudge();
+        });
+        tempoFineNudgeDown.addEventListener("mouseleave", () => {
+            if (window.BPMNudge?.stopBPMNudge) window.BPMNudge.stopBPMNudge();
+        });
+        tempoFineNudgeDown.addEventListener("click", () => {
+            if (window.BPMNudge?.nudgeBPMFineDown) window.BPMNudge.nudgeBPMFineDown();
+        });
+    }
+    if (tempoFineNudgeUp) {
+        tempoFineNudgeUp.addEventListener("mousedown", () => {
+            if (window.BPMNudge?.startBPMNudge) {
+                window.BPMNudge.startBPMNudge(1, window.BPMNudge.NUDGE_STEP_FINE);
+            }
+        });
+        tempoFineNudgeUp.addEventListener("mouseup", () => {
+            if (window.BPMNudge?.stopBPMNudge) window.BPMNudge.stopBPMNudge();
+        });
+        tempoFineNudgeUp.addEventListener("mouseleave", () => {
+            if (window.BPMNudge?.stopBPMNudge) window.BPMNudge.stopBPMNudge();
+        });
+        tempoFineNudgeUp.addEventListener("click", () => {
+            if (window.BPMNudge?.nudgeBPMFineUp) window.BPMNudge.nudgeBPMFineUp();
         });
     }
 
