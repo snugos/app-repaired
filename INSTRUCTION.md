@@ -6,14 +6,14 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 1. **Pattern Chaining** - Chain multiple patterns/scenes together for arrangement playback
 2. **Track Freeze** - Render track with effects to audio buffer to save CPU
-3. **Step Sequencer Probability** - Per-step chance to trigger notes for generative patterns
-4. **Auto-Save Recovery** - Automatic project backup with crash recovery option
-5. **Live Performance Mode** - Full-screen mode with large trigger pads for live play
-6. **Project Version History** - Browse and restore previous auto-saved project states
-7. **CPU Monitor Overlay** - Real-time display of audio workload and buffer health
-8. **Macro Controls** - Assign multiple parameters to single knobs for live control
-9. **Clip Reverse** - Reverse audio clips with one click for ambient effects
-10. **Track Copy with Effects** - Duplicate track with full effect chain intact
+3. **Auto-Save Recovery** - Automatic project backup with crash recovery option
+4. **Live Performance Mode** - Full-screen mode with large trigger pads for live play
+5. **Project Version History** - Browse and restore previous auto-saved project states
+6. **CPU Monitor Overlay** - Real-time display of audio workload and buffer health
+7. **Macro Controls** - Assign multiple parameters to single knobs for live control
+8. **Clip Reverse** - Reverse audio clips with one click for ambient effects
+9. **Track Copy with Effects** - Duplicate track with full effect chain intact
+10. **Audio Analysis Dashboard** - Visual feedback on frequency, amplitude, and waveform characteristics
 
 ## Workflow
 
