@@ -112,6 +112,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Spectrum Analyzer", action: () => { if(localAppServices.openSpectrumAnalyzerPanel) localAppServices.openSpectrumAnalyzerPanel(); } },
                     { label: "Mixdown Visualizer", action: () => { if(localAppServices.openMixdownVisualizerPanel) localAppServices.openMixdownVisualizerPanel(); } },
                     { label: "Headphone Mix", action: () => { if(localAppServices.openHeadphoneMixPanel) localAppServices.openHeadphoneMixPanel(); } },
+                    { label: "Sidechain Visualizer", action: () => { if(localAppServices.openSidechainVisualizerPanel) localAppServices.openSidechainVisualizerPanel(); } },
                     { label: "Phase Invert", action: () => { if(localAppServices.openPhaseInvertButtonPanel) localAppServices.openPhaseInvertButtonPanel(); } },
                     { label: "Keyboard Shortcuts", action: () => { if(localAppServices.openKeyBindingsPanel) localAppServices.openKeyBindingsPanel(); } },
                     { label: "Project Notes", action: () => { if(localAppServices.openProjectNotesPanel) localAppServices.openProjectNotesPanel(); } },

@@ -60,3 +60,6 @@ export { initLoopRegionPresets, openLoopRegionPresetsPanel } from './LoopRegionP
 export { initTrackLaneReorder, enableTrackLaneReorder, disableTrackLaneReorder, isDragging, getDraggedTrackId } from './TrackLaneReorder.js';
 // Chord Progression Assistant - Visual chord picker with music theory
 export { initChordProgressionAssistant, openChordProgressionPanel, generateProgression, getCommonProgressions } from './ChordProgressionAssistant.js';
+
+// Sidechain Visualizer - Show which tracks are being affected by sidechain compression in real-time
+export { initSidechainVisualizer, openSidechainVisualizerPanel, triggerSidechainVisualizer, getDuckingLevel, resetDuckingIndicators, updateSidechainVisualizer, closeSidechainVisualizerPanel } from './SidechainVisualizer.js';
