@@ -489,6 +489,19 @@ export function initializePrimaryEventListeners(appContext) {
             menuAdaptiveGrid: () => {
                 console.log('[Menu] Adaptive Grid clicked');
             },
+            menuTrackFreeze: () => {
+                console.log('[Menu] Track Freeze clicked');
+                try {
+                    if (window.TrackFreeze && window.TrackFreeze.openTrackFreezePanel) {
+                        window.TrackFreeze.openTrackFreezePanel();
+                    } else {
+                        import('./TrackFreeze.js').then(m => {
+                            if (m.initTrackFreeze) m.initTrackFreeze(localAppServices);
+                            if (m.openTrackFreezePanel) m.openTrackFreezePanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Track Freeze error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {

@@ -1,328 +1,405 @@
-// js/TrackFreeze.js - Track Freeze Feature for SnugOS DAW
-// Feature: Freeze tracks to audio to save CPU, with defrost functionality
+// js/TrackFreeze.js - Track Freeze Feature
+// Renders a track (instrument + effects) to a static audio buffer,
+// converting it to an audio clip to save CPU
 
 let localAppServices = {};
 
-export function initTrackFreeze(services) {
-    localAppServices = services;
+export function initTrackFreeze(appServices) {
+    localAppServices = appServices || {};
     console.log('[TrackFreeze] Initialized');
+    wireUpContextMenu();
 }
 
-/**
- * Check if a track is currently frozen
- * @param {number} trackId 
- * @returns {boolean}
- */
-export function isTrackFrozen(trackId) {
-    const track = localAppServices.getTrack?.(trackId);
-    return track?.frozenData ? true : false;
+function wireUpContextMenu() {
+    // Wait for ClipContextMenu to be ready, then add freeze option
+    const checkInterval = setInterval(() => {
+        if (window.ClipContextMenu && window.ClipContextMenu.addMenuItem) {
+            window.ClipContextMenu.addMenuItem({
+                id: 'freezeTrack',
+                label: 'Freeze Track',
+                icon: '❄️',
+                action: 'freezeTrackFromMenu',
+                category: 'track'
+            });
+            clearInterval(checkInterval);
+        }
+    }, 1000);
 }
 
+// --- Freeze Logic ---
+
 /**
- * Freeze a track: render its audio output to a buffer
- * @param {number} trackId - The track ID to freeze
- * @param {number} duration - Duration in seconds (optional, uses project length if not provided)
- * @returns {Promise<boolean>} Success
+ * Freeze a track: render its audio output offline and replace with audio clip
+ * @param {number} trackId
+ * @param {number} durationBars - How many bars to freeze (default: 4)
+ * @returns {Promise<boolean>}
  */
-export async function freezeTrack(trackId, duration = null) {
-    const track = localAppServices.getTrack?.(trackId);
+export async function freezeTrack(trackId, durationBars = 4) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
     if (!track) {
         console.warn('[TrackFreeze] Track not found:', trackId);
+        if (localAppServices.showNotification) localAppServices.showNotification('Track not found', 2000);
         return false;
     }
 
-    if (!track.audioBuffer && track.type === 'Audio' && !track.clips?.length) {
-        console.warn('[TrackFreeze] Track has no audio to freeze');
+    if (track.type === 'Audio') {
+        if (localAppServices.showNotification) localAppServices.showNotification('Audio tracks cannot be frozen', 2000);
         return false;
     }
 
-    const projectDuration = duration || localAppServices.getProjectDuration?.() || 30;
-    const sampleRate = 44100;
-    const numChannels = 2;
-    const numSamples = Math.ceil(projectDuration * sampleRate);
+    console.log(`[TrackFreeze] Freezing track ${trackId} (${track.name}) for ${durationBars} bars...`);
+    if (localAppServices.showNotification) localAppServices.showNotification(`Freezing ${track.name}...`, 2000);
 
     try {
-        // Create offline context for rendering
-        const offlineContext = new OfflineAudioContext(numChannels, numSamples, sampleRate);
-        
-        // Create a gain node for the track
-        const trackGain = offlineContext.createGain();
-        trackGain.gain.value = track.volume ?? 0.7;
-        trackGain.connect(offlineContext.destination);
+        const bpm = localAppServices.getBPM ? localAppServices.getBPM() : 120;
+        const beatsPerBar = localAppServices.getBeatsPerBar ? localAppServices.getBeatsPerBar() : 4;
+        const durationSeconds = (60 / bpm) * beatsPerBar * durationBars;
 
-        if (track.type === 'Audio' && track.clips?.length) {
-            // Render audio clips
-            for (const clip of track.clips) {
-                if (clip.audioBuffer) {
-                    const source = offlineContext.createBufferSource();
-                    source.buffer = clip.audioBuffer;
-                    source.connect(trackGain);
-                    const startTime = clip.startTime || 0;
-                    const offset = clip.offset || 0;
-                    source.start(Math.max(0, startTime), offset, clip.duration || projectDuration);
+        // Gather all sequences to play
+        const sequences = track.sequences || [];
+        const activeSeqId = track.activeSequenceId;
+        const activeSeq = sequences.find(s => s.id === activeSeqId) || sequences[0];
+
+        if (!activeSeq) {
+            console.warn('[TrackFreeze] No sequences to freeze');
+            if (localAppServices.showNotification) localAppServices.showNotification('No sequences to freeze', 2000);
+            return false;
+        }
+
+        // Use Tone.Offline to render
+        const renderedBuffer = await Tone.Offline(async ({ transport }) => {
+            // Recreate track instrument in offline context
+            let offlineInstrument = null;
+
+            if (track.type === 'Synth') {
+                const synthType = track.synthEngineType || 'MonoSynth';
+                if (synthType === 'MonoSynth') {
+                    offlineInstrument = new Tone.MonoSynth().toDestination();
+                } else if (synthType === 'PolySynth') {
+                    offlineInstrument = new Tone.PolySynth(Tone.Synth).toDestination();
+                } else if (synthType === 'FMSynth') {
+                    offlineInstrument = new Tone.FMSynth().toDestination();
+                } else if (synthType === 'AMSynth') {
+                    offlineInstrument = new Tone.AMSynth().toDestination();
+                } else {
+                    offlineInstrument = new Tone.Synth().toDestination();
                 }
+                
+                // Apply synth params
+                if (track.synthParams && offlineInstrument.set) {
+                    try {
+                        offlineInstrument.set(track.synthParams);
+                    } catch (e) {
+                        console.warn('[TrackFreeze] Could not set synth params:', e);
+                    }
+                }
+            } else if (track.type === 'Sampler' || track.type === 'Slicer') {
+                // For samplers, we can't easily load samples in Offline context
+                // Skip frozen audio for samplers
+                console.warn('[TrackFreeze] Sampler tracks cannot be reliably frozen offline');
             }
-        } else if (track.sequencerPattern?.data) {
-            // Render sequencer pattern (MIDI/instrument tracks)
-            const pattern = track.sequencerPattern;
-            const cols = pattern.data[0]?.length || 16;
-            const rows = pattern.data.length;
-            const secondsPerStep = 60 / (localAppServices.getTempo?.() || 120) / 4;
 
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    const step = pattern.data[row]?.[col];
-                    if (step?.active) {
-                        const noteTime = col * secondsPerStep;
-                        const noteDuration = (step.duration || 1) * secondsPerStep;
-                        const noteGain = offlineContext.createGain();
-                        noteGain.gain.value = step.velocity || 0.8;
-                        noteGain.connect(trackGain);
+            if (!offlineInstrument) {
+                throw new Error('Unsupported track type for freezing');
+            }
 
-                        // Create a simple oscillator for the note
-                        const osc = offlineContext.createOscillator();
-                        const noteFreq = 440 * Math.pow(2, (row - 69) / 12);
-                        osc.frequency.value = noteFreq;
-                        osc.connect(noteGain);
-                        osc.start(noteTime);
-                        osc.stop(noteTime + noteDuration);
+            // Apply effects chain
+            let lastNode = offlineInstrument;
+            if (track.activeEffects && track.activeEffects.length > 0) {
+                for (const effectWrapper of track.activeEffects) {
+                    if (effectWrapper && effectWrapper.toneNode && !effectWrapper.toneNode.disposed) {
+                        const toneNode = createEffectInstance(effectWrapper.type, effectWrapper.params);
+                        if (toneNode) {
+                            lastNode.connect(toneNode);
+                            toneNode.toDestination();
+                            lastNode = toneNode;
+                        }
                     }
                 }
             }
+
+            // Schedule all notes from sequence
+            const stepSize = 60 / bpm / (track.stepsPerBeat || 4);
+            
+            if (activeSeq.data && Array.isArray(activeSeq.data)) {
+                for (let row = 0; row < activeSeq.data.length; row++) {
+                    const rowData = activeSeq.data[row];
+                    if (!rowData) continue;
+                    
+                    for (let col = 0; col < rowData.length; col++) {
+                        const step = rowData[col];
+                        if (step && step.active) {
+                            const time = col * stepSize;
+                            const note = row; // Row represents pitch
+                            const velocity = step.velocity || 0.8;
+                            const duration = (step.duration || 1) * stepSize;
+                            
+                            if (offlineInstrument.triggerAttackRelease) {
+                                offlineInstrument.triggerAttackRelease(
+                                    Tone.Frequency(note, 'midi').toFrequency(),
+                                    duration,
+                                    time,
+                                    velocity
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Loop the sequence to fill durationBars
+            const sequenceDuration = activeSeq.data?.[0]?.length * stepSize || 0;
+            if (sequenceDuration > 0) {
+                const loopsNeeded = Math.ceil(durationSeconds / sequenceDuration);
+                for (let loop = 1; loop < loopsNeeded; loop++) {
+                    for (let row = 0; row < (activeSeq.data?.length || 0); row++) {
+                        const rowData = activeSeq.data[row];
+                        if (!rowData) continue;
+                        
+                        for (let col = 0; col < rowData.length; col++) {
+                            const step = rowData[col];
+                            if (step && step.active) {
+                                const time = loop * sequenceDuration + col * stepSize;
+                                const note = row;
+                                const velocity = step.velocity || 0.8;
+                                const duration = (step.duration || 1) * stepSize;
+                                
+                                if (offlineInstrument.triggerAttackRelease) {
+                                    offlineInstrument.triggerAttackRelease(
+                                        Tone.Frequency(note, 'midi').toFrequency(),
+                                        duration,
+                                        time,
+                                        velocity
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            transport.start(0);
+        }, durationSeconds);
+
+        console.log('[TrackFreeze] Rendered buffer duration:', renderedBuffer.duration);
+
+        // Convert AudioBuffer to WAV blob
+        const wavBlob = await audioBufferToWav(renderedBuffer);
+
+        // Add as audio clip to the track
+        if (typeof track.addAudioClip === 'function') {
+            await track.addAudioClip(wavBlob, 0, { normalize: true, targetDb: -1 });
+            console.log(`[TrackFreeze] Frozen audio added to track ${trackId}`);
+            if (localAppServices.showNotification) localAppServices.showNotification(`Track frozen successfully`, 2000);
+            
+            // Disable instrument to save CPU (track now plays frozen audio)
+            track.isFrozen = true;
+            track.frozenBuffer = renderedBuffer;
+            
+            if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(trackId, 'freezeComplete');
+            return true;
+        } else {
+            throw new Error('Track does not support addAudioClip');
         }
 
-        // Render the audio
-        const renderedBuffer = await offlineContext.startRendering();
-        
-        // Convert to AudioBuffer format for storage
-        const audioData = {
-            channelData: [],
-            sampleRate: renderedBuffer.sampleRate,
-            numberOfChannels: renderedBuffer.numberOfChannels,
-            duration: renderedBuffer.duration
-        };
-        
-        for (let ch = 0; ch < renderedBuffer.numberOfChannels; ch++) {
-            audioData.channelData.push(Array.from(renderedBuffer.getChannelData(ch)));
-        }
-
-        // Store frozen data on the track
-        track.frozenData = {
-            audioData: audioData,
-            originalType: track.type,
-            originalMuted: track.isMuted,
-            originalVolume: track.volume,
-            originalClips: track.clips ? JSON.parse(JSON.stringify(track.clips)) : [],
-            originalSequencerPattern: track.sequencerPattern ? JSON.parse(JSON.stringify(track.sequencerPattern)) : null,
-            frozenAt: new Date().toISOString()
-        };
-
-        // Set up frozen playback - replace with buffer source
-        track.isFrozen = true;
-        track.frozenSource = null;
-
-        console.log('[TrackFreeze] Track', trackId, 'frozen successfully. Duration:', projectDuration, 's');
-        localAppServices.showNotification?.(`Track "${track.name}" frozen`, 2000);
-        
-        // Update UI
-        if (localAppServices.updateTrackUI) {
-            localAppServices.updateTrackUI(trackId);
-        }
-
-        return true;
     } catch (error) {
         console.error('[TrackFreeze] Error freezing track:', error);
-        localAppServices.showNotification?.('Error freezing track', 2000);
+        if (localAppServices.showNotification) localAppServices.showNotification(`Freeze failed: ${error.message}`, 3000);
         return false;
     }
 }
 
 /**
- * Defrost a track: restore original audio/instruments
- * @param {number} trackId - The track ID to defrost
- * @returns {boolean} Success
+ * Unfreeze a track: restore its instrument/effects
+ * @param {number} trackId
  */
-export function defrostTrack(trackId) {
-    const track = localAppServices.getTrack?.(trackId);
-    if (!track) {
-        console.warn('[TrackFreeze] Track not found:', trackId);
-        return false;
-    }
+export function unfreezeTrack(trackId) {
+    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
+    if (!track) return false;
 
-    if (!track.frozenData) {
-        console.warn('[TrackFreeze] Track is not frozen:', trackId);
-        return false;
-    }
-
-    // Restore original state
-    track.type = track.frozenData.originalType;
-    track.isMuted = track.frozenData.originalMuted;
-    track.volume = track.frozenData.originalVolume;
-    track.clips = track.frozenData.originalClips;
-    track.sequencerPattern = track.frozenData.originalSequencerPattern;
-    track.isFrozen = false;
-    track.frozenSource = null;
-    
-    // Clear frozen data
-    const wasFrozen = track.frozenData;
-    track.frozenData = null;
-
-    console.log('[TrackFreeze] Track', trackId, 'defrosted successfully');
-    localAppServices.showNotification?.(`Track "${track.name}" defrosted`, 2000);
-    
-    // Update UI
-    if (localAppServices.updateTrackUI) {
-        localAppServices.updateTrackUI(trackId);
-    }
-
-    return true;
-}
-
-/**
- * Play frozen track audio (used during playback)
- * @param {number} trackId - The frozen track ID
- * @param {number} startTime - Start time in seconds
- * @param {number} duration - Duration to play
- * @returns {boolean} Success
- */
-export function playFrozenTrack(trackId, startTime = 0, duration = null) {
-    const track = localAppServices.getTrack?.(trackId);
-    if (!track || !track.frozenData) {
-        return false;
-    }
-
-    if (track.isMuted) {
-        return false;
-    }
-
-    try {
-        // Create audio context if not exists
-        let audioContext;
-        if (typeof Tone !== 'undefined' && Tone.getContext) {
-            audioContext = Tone.getContext().rawContext;
-        } else {
-            audioContext = new AudioContext();
-        }
-
-        const frozenBuffer = track.frozenData.audioData;
-        
-        // Create buffer for playback
-        const buffer = audioContext.createBuffer(
-            frozenBuffer.numberOfChannels,
-            frozenBuffer.channelData[0].length,
-            frozenBuffer.sampleRate
-        );
-        
-        for (let ch = 0; ch < frozenBuffer.numberOfChannels; ch++) {
-            buffer.copyToChannel(new Float32Array(frozenBuffer.channelData[ch]), ch);
-        }
-
-        // Create and configure source
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = track.volume ?? 0.7;
-
-        source.connect(gainNode);
-        
-        // Connect to track output
-        if (track.outputNode) {
-            gainNode.connect(track.outputNode);
-        } else if (track.gainNode) {
-            gainNode.connect(track.gainNode);
-        } else {
-            gainNode.connect(audioContext.destination);
-        }
-
-        // Stop existing source if playing
-        if (track.frozenSource) {
-            try {
-                track.frozenSource.stop();
-            } catch (e) {}
-        }
-
-        track.frozenSource = source;
-        
-        const playDuration = duration || (frozenBuffer.duration - startTime);
-        source.start(0, startTime, playDuration);
-
-        console.log('[TrackFreeze] Playing frozen track', trackId, 'from', startTime, 'for', playDuration, 's');
+    if (track.isFrozen) {
+        track.isFrozen = false;
+        track.frozenBuffer = null;
+        console.log(`[TrackFreeze] Unfroze track ${trackId}`);
+        if (localAppServices.updateTrackUI) localAppServices.updateTrackUI(trackId, 'unfreezeComplete');
+        if (localAppServices.showNotification) localAppServices.showNotification(`Track unfrozen`, 1500);
         return true;
-    } catch (error) {
-        console.error('[TrackFreeze] Error playing frozen track:', error);
-        return false;
     }
+    return false;
 }
 
-/**
- * Stop frozen track playback
- * @param {number} trackId - The frozen track ID
- */
-export function stopFrozenTrack(trackId) {
-    const track = localAppServices.getTrack?.(trackId);
-    if (!track || !track.frozenSource) {
-        return;
-    }
+// --- AudioBuffer to WAV conversion ---
 
-    try {
-        track.frozenSource.stop();
-        track.frozenSource = null;
-    } catch (error) {
-        console.error('[TrackFreeze] Error stopping frozen track:', error);
-    }
-}
-
-/**
- * Get frozen audio data for export
- * @param {number} trackId - The frozen track ID
- * @returns {Object|null} Frozen audio data
- */
-export function getFrozenAudioData(trackId) {
-    const track = localAppServices.getTrack?.(trackId);
-    if (!track || !track.frozenData) {
-        return null;
-    }
-    return track.frozenData.audioData;
-}
-
-/**
- * Freeze all tracks with audio content
- * @param {number} duration - Duration in seconds
- * @returns {Promise<number>} Number of tracks frozen
- */
-export async function freezeAllTracks(duration = null) {
-    const tracks = localAppServices.getTracks?.() || [];
-    let frozenCount = 0;
-
-    for (const track of tracks) {
-        if (track.type === 'Audio' || track.sequencerPattern?.data) {
-            if (await freezeTrack(track.id, duration)) {
-                frozenCount++;
+async function audioBufferToWav(buffer) {
+    return new Promise((resolve, reject) => {
+        try {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const length = buffer.length;
+            
+            // Interleave channels
+            const interleaved = new Float32Array(length * numChannels);
+            for (let ch = 0; ch < numChannels; ch++) {
+                const channelData = buffer.getChannelData(ch);
+                for (let i = 0; i < length; i++) {
+                    interleaved[i * numChannels + ch] = channelData[i];
+                }
             }
+
+            // Convert to 16-bit PCM
+            const pcmData = new Int16Array(interleaved.length);
+            for (let i = 0; i < interleaved.length; i++) {
+                const s = Math.max(-1, Math.min(1, interleaved[i]));
+                pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+
+            // Build WAV header
+            const wavBuffer = new ArrayBuffer(44 + pcmData.byteLength);
+            const view = new DataView(wavBuffer);
+
+            // RIFF header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.byteLength, true);
+            writeString(view, 8, 'WAVE');
+            
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // chunk size
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numChannels * 2, true); // byte rate
+            view.setUint16(32, numChannels * 2, true); // block align
+            view.setUint16(34, 16, true); // bits per sample
+            
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcmData.byteLength, true);
+            
+            // Write PCM data
+            const dataView = new Int16Array(wavBuffer, 44);
+            dataView.set(pcmData);
+
+            const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+            resolve(blob);
+        } catch (e) {
+            reject(e);
         }
+    });
+}
+
+function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+    }
+}
+
+// --- Import createEffectInstance ---
+import { createEffectInstance } from './effectsRegistry.js';
+
+// --- UI Panel ---
+
+/**
+ * Open the Track Freeze panel
+ */
+export function openTrackFreezePanel() {
+    const windowId = 'trackFreezePanel';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId)) {
+        openWindows.get(windowId).restore();
+        renderFreezeContent();
+        return openWindows.get(windowId);
     }
 
-    console.log('[TrackFreeze] Froze', frozenCount, 'tracks');
-    return frozenCount;
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'trackFreezeContent';
+    contentContainer.className = 'p-3 h-full flex flex-col bg-gray-900 dark:bg-slate-900';
+
+    const win = localAppServices.createWindow(windowId, 'Track Freeze', contentContainer, {
+        width: 400,
+        height: 350,
+        minWidth: 300,
+        minHeight: 280,
+        closable: true,
+        minimizable: true,
+        resizable: true
+    });
+
+    if (win?.element) {
+        renderFreezeContent();
+    }
+    return win;
 }
 
 /**
- * Defrost all frozen tracks
- * @returns {number} Number of tracks defrosted
+ * Render freeze panel content
  */
-export function defrostAllTracks() {
-    const tracks = localAppServices.getTracks?.() || [];
-    let defrostedCount = 0;
+function renderFreezeContent() {
+    const container = document.getElementById('trackFreezeContent');
+    if (!container) return;
 
-    for (const track of tracks) {
-        if (track.frozenData) {
-            if (defrostTrack(track.id)) {
-                defrostedCount++;
-            }
-        }
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const freezableTracks = tracks.filter(t => t.type !== 'Audio');
+
+    container.innerHTML = `
+        <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
+            <p class="text-sm text-gray-300 mb-2">
+                <strong>Track Freeze</strong> renders a track's instrument and effects to audio, 
+                saving CPU. The frozen audio clip replaces the live instrument.
+            </p>
+            <div class="flex items-center gap-2 mb-2">
+                <label class="text-xs text-gray-400">Bars to freeze:</label>
+                <input type="number" id="freezeBars" value="4" min="1" max="32" 
+                    class="w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto" id="freezeTrackList">
+            <div class="text-xs text-gray-500 mb-2">Select a track to freeze:</div>
+            <div id="freezeTrackContainer" class="space-y-1">
+                ${freezableTracks.length === 0 ? '<div class="text-gray-500 text-sm">No freezable tracks (synth/sampler tracks)</div>' : ''}
+            </div>
+        </div>
+    `;
+
+    const trackContainer = container.querySelector('#freezeTrackContainer');
+    if (trackContainer && freezableTracks.length > 0) {
+        trackContainer.innerHTML = freezableTracks.map(track => `
+            <div class="flex items-center justify-between p-2 bg-gray-800 rounded border border-gray-700 hover:border-blue-500">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded" style="background-color: ${track.color || '#666'}"></div>
+                    <div>
+                        <div class="text-sm text-white">${escapeHtml(track.name)}</div>
+                        <div class="text-xs text-gray-500">${track.type}${track.isFrozen ? ' (FROZEN)' : ''}</div>
+                    </div>
+                </div>
+                <button class="freeze-btn px-3 py-1 text-xs ${track.isFrozen ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded" 
+                    data-track-id="${track.id}" ${track.isFrozen ? 'data-unfreeze="true"' : ''}>
+                    ${track.isFrozen ? 'Unfreeze' : 'Freeze'}
+                </button>
+            </div>
+        `).join('');
+
+        // Add click handlers
+        trackContainer.querySelectorAll('.freeze-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const trackId = parseInt(e.target.dataset.trackId, 10);
+                const bars = parseInt(container.querySelector('#freezeBars')?.value || '4', 10);
+                
+                if (e.target.dataset.unfreeze === 'true') {
+                    unfreezeTrack(trackId);
+                } else {
+                    await freezeTrack(trackId, bars);
+                }
+                renderFreezeContent();
+            });
+        });
     }
+}
 
-    console.log('[TrackFreeze] Defrosted', defrostedCount, 'tracks');
-    return defrostedCount;
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
 }
