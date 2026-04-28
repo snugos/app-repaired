@@ -9,7 +9,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 3. **Metronome Accent Patterns** ✅ - Just completed: `js/MetronomeAccentPatterns.js` + menu integration
 4. **CPU Performance Monitor** ✅ - Just completed: `js/PerformanceMonitor.js` + transport bar display
 5. **Timeline Snap Resolution Toggle** ✅ - Just completed: `js/TimelineSnapResolution.js` + transport bar button
-6. **Note Length Default** - Set default sequencer step note length (8th, 16th, etc.)
+6. **Note Length Default** ✅ - Just completed: `js/NoteLengthDefault.js` + transport button + menu
 7. **Audio Normalization** - Normalize selected audio clips to a target dB level
 8. **Export Selection Range** - Export only a selected time range as WAV instead of entire project
 9. **MIDI CC Learn** - Click a knob in effects rack then move MIDI CC to map it
