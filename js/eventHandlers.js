@@ -385,6 +385,23 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTrackHeadphoneMixPanel?.();
                 } catch(e) { console.error('[Menu] Headphone Mix error:', e); }
             },
+            menuAutoThreshold: () => {
+                console.log('[Menu] Auto Threshold clicked');
+                try {
+                    if (window.openAutoThresholdPanel) {
+                        window.openAutoThresholdPanel();
+                    } else {
+                        import('./AutoDuckingThreshold.js').then(m => {
+                            if (m.initAutoDuckingThreshold) m.initAutoDuckingThreshold(localAppServices);
+                            if (m.openAutoThresholdPanel) {
+                                // Default to first track if available
+                                const tracks = localAppServices.getTracks?.() || [];
+                                m.openAutoThresholdPanel(tracks.length > 0 ? tracks[0].id : 0);
+                            }
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Auto Threshold error:', e); }
+            },
             menuBeatDetective: () => {
                 console.log('[Menu] Beat Detective clicked');
                 try {
@@ -470,26 +487,20 @@ export function attachGlobalControlEvents(elements) {
                 setLoopRegionEnabled(!currentEnabled);
                 updateLoopButtonState();
                 showNotification(`Loop region ${!currentEnabled ? 'enabled' : 'disabled'}`, 1500);
-            }
-        });
-    }
-
-    if (loopStartInput) {
-        loopStartInput.addEventListener('change', (e) => {
-            const value = parseFloat(e.target.value) || 0;
-            if (typeof setLoopRegionStart === 'function') {
-                setLoopRegionStart(value);
-                showNotification(`Loop start: ${value}s`, 1500);
-            }
-        });
-    }
-
-    if (loopEndInput) {
-        loopEndInput.addEventListener('change', (e) => {
-            const value = parseFloat(e.target.value) || 16;
-            if (typeof setLoopRegionEnd === 'function') {
-                setLoopRegionEnd(value);
-                showNotification(`Loop end: ${value}s`, 1500);
+                
+                // If enabling, initialize audio context if needed and start scheduling
+                if (!currentEnabled) {
+                    if (localAppServices.initAudioContextAndMasterMeter) {
+                        await localAppServices.initAudioContextAndMasterMeter(true);
+                    }
+                    // Start metronome scheduling if transport is running
+                    if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started') {
+                        startMetronomeScheduling('4n');
+                    }
+                } else {
+                    // If disabling, stop metronome scheduling
+                    stopMetronomeScheduling();
+                }
             }
         });
     }
