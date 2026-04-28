@@ -279,6 +279,11 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openClipOpacityPanel?.();
                 } catch(e) { console.error("[Menu] Clip Opacity error:", e); }
             },
+            menuQuickRename: () => {
+                console.log("[Menu] Quick Rename clicked");
+                // Quick Rename uses double-click on track/clip names - just show notification
+                localAppServices.showNotification?.('Double-click any track or clip name to rename it inline!', 2500);
+            },
             menuMuteGroups: () => {
                 console.log("[Menu] Mute Groups clicked");
                 try { localAppServices.openMuteGroupsPanel?(); } catch(e) { console.error("[Menu] Mute Groups error:", e); }
