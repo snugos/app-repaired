@@ -1,6 +1,6 @@
 // js/constants.js - Shared constants for SnugOS
 
-export const APP_VERSION = "0.2.9"; // Daily merge 2026-04-27 - Fixed remaining typo getIsReconstructingingDAW -> getIsReconstructingDAW in main.js
+export const APP_VERSION = "0.3.0"; // Daily merge 2026-04-28 - Fixed typo isReconstructinging -> isReconstructing in main.js
 
 export const STEPS_PER_BAR = 16;
 export const defaultStepsPerBar = 16; // Default for new tracks
