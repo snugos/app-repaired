@@ -4,7 +4,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Freeze** - Freeze a track to audio to save CPU (render effects + instrument to static audio)
+1. **Track Freeze** ✅ - Just completed: `js/TrackFreeze.js` + menu integration
 2. **Clip Fade Handles** - Drag handles on clip edges to visually adjust fade in/out curves
 3. **Metronome Accent Patterns** - Customize which beats have accent sounds (e.g., 1 and 3 only)
 4. **CPU Performance Monitor** - Real-time display of CPU load in transport bar
