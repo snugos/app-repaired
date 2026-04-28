@@ -129,6 +129,16 @@ export function showStemExportDialog() {
             </select>
         </div>
         
+        <div style="margin-bottom: 16px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="stemMuteOtherTracks" checked style="accent-color: #2563eb; width: 16px; height: 16px;">
+                <span style="color: #e0e0e0; font-size: 13px;">Mute other tracks during export</span>
+            </label>
+            <div style="color: #666; font-size: 11px; margin-top: 4px; margin-left: 24px;">
+                When enabled, other tracks are silenced but effects remain active on exported track
+            </div>
+        </div>
+        
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
             <button id="stemCancelBtn" style="
                 padding: 8px 16px;
@@ -214,10 +224,12 @@ export function showStemExportDialog() {
         }
 
         const format = formatSelect.value;
+        const muteOtherTracks = dialog.querySelector('#stemMuteOtherTracks')?.checked ?? true;
         const options = {
             format,
             mp3Bitrate: parseInt(mp3Bitrate.value),
-            wavBitDepth: parseInt(wavBitDepth.value)
+            wavBitDepth: parseInt(wavBitDepth.value),
+            muteOtherTracks
         };
 
         confirmBtn.disabled = true;
@@ -273,7 +285,7 @@ async function exportStems(trackIds, options, onProgress) {
         onProgress(progress, track.name);
 
         try {
-            const audioBuffer = await renderTrackToBuffer(track);
+            const audioBuffer = await renderTrackToBuffer(track, options);
             if (audioBuffer) {
                 const blob = await encodeTrackAudio(audioBuffer, options);
                 const filename = `${sanitizeFilename(track.name || `Track-${track.id}`)}.${options.format}`;
@@ -287,7 +299,9 @@ async function exportStems(trackIds, options, onProgress) {
     }
 }
 
-async function renderTrackToBuffer(track) {
+async function renderTrackToBuffer(track, options = {}) {
+    const muteOtherTracks = options.muteOtherTracks ?? true;
+    
     // Get the track's output node
     const trackOutput = track.panNode || track.gainNode;
     if (!trackOutput) {
@@ -315,6 +329,17 @@ async function renderTrackToBuffer(track) {
                         const newSynth = new synth.constructor(synth.get());
                         newSynth.connect(trackOutput);
                     }
+                }
+
+                // Mute all other tracks if option enabled
+                const appServices = window.appServices;
+                if (muteOtherTracks && appServices?.getTracks) {
+                    const allTracks = appServices.getTracks();
+                    allTracks.forEach(t => {
+                        if (t.id !== track.id && t.gainNode && !t.gainNode.disposed) {
+                            t.gainNode.gain.setValueAtTime(0, Tone.now());
+                        }
+                    });
                 }
 
                 // Start the transport for the duration
