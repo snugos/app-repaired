@@ -56,3 +56,7 @@ export { initStepSequencerView, openStepSequencerView, updateStepSequencerPanel,
 export { initTrackSoloChain, openSoloChainPanel } from './TrackSoloChain.js';
 // Loop Region Presets - Predefined loop regions for quick selection
 export { initLoopRegionPresets, openLoopRegionPresetsPanel } from './LoopRegionPresets.js';
+// Track Lane Reorder - Drag-and-drop to reorder tracks in timeline lanes
+export { initTrackLaneReorder, enableTrackLaneReorder, disableTrackLaneReorder, isDragging, getDraggedTrackId } from './TrackLaneReorder.js';
+// Chord Progression Assistant - Visual chord picker with music theory
+export { initChordProgressionAssistant, openChordProgressionPanel, generateProgression, getCommonProgressions } from './ChordProgressionAssistant.js';

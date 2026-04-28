@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Pattern Chaining** - Chain multiple patterns/scenes together for arrangement playback
-2. **Track Freeze** - Render track with effects to audio buffer to save CPU
-3. **Auto-Save Recovery** - Automatic project backup with crash recovery option
-4. **Live Performance Mode** - Full-screen mode with large trigger pads for live play
-5. **Project Version History** - Browse and restore previous auto-saved project states
-6. **CPU Monitor Overlay** - Real-time display of audio workload and buffer health
-7. **Macro Controls** - Assign multiple parameters to single knobs for live control
-8. **Clip Reverse** - Reverse audio clips with one click for ambient effects
-9. **Track Copy with Effects** - Duplicate track with full effect chain intact
-10. **Audio Analysis Dashboard** - Visual feedback on frequency, amplitude, and waveform characteristics
+1. **Chord Progression Assistant** - Visual chord picker that generates progressions based on music theory rules
+2. **Sidechain Visualizer** - Show which tracks are being affected by sidechain compression in real-time
+3. **Track Lane Reorder** - Drag-and-drop to reorder tracks in the timeline lane view
+4. **Export Stem Bypass** - Export individual track stems with effects rendered but mute other tracks
+5. **Adaptive Grid** - Grid lines that adjust density based on zoom level for optimal visibility
+6. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
+7. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
+8. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
+9. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
+10. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
 
 ## Workflow
 

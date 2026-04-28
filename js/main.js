@@ -1227,6 +1227,8 @@ async function initializeSnugOS() {
             () => getLoopRegionEnd()
         ); // Connect loop count to state functions
         if (typeof initAutoScrollSync === 'function') initAutoScrollSync(); // Auto-Scroll Sync initialization
+        if (typeof initTrackLaneReorder === 'function') initTrackLaneReorder(appServices); // Track Lane Reorder initialization
+        if (typeof initChordProgressionAssistant === 'function') initChordProgressionAssistant(appServices); // Chord Progression Assistant initialization
         
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
