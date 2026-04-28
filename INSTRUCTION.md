@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Export Stem Bypass** - Export individual track stems with effects rendered but mute other tracks
-2. **Adaptive Grid** - Grid lines that adjust density based on zoom level for optimal visibility
-3. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
-4. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
-5. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
-6. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
-7. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
-8. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-9. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
-10. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
+1. **Adaptive Grid** - Grid lines that adjust density based on zoom level for optimal visibility
+2. **MIDILearn Bulk Assign** - Assign multiple CCs to the same parameter at once for complex routing
+3. **Loopback Audio Routing** - Route audio output back to input for sampling external sources
+4. **Clip Opacity Control** - Adjust timeline clip opacity for easier visual navigation among overlapping clips
+5. **BPM Nudge** - Fine-tune project BPM by ±0.01 BPM increments without opening settings
+6. **Quick Rename** - Double-click track/clip name to instantly edit without properties panel
+7. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+8. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+9. **Sidechain Attack Shape** - Visual editor for sidechain envelope attack/release curve
+10. **Track Color Coding** - Assign colors to tracks for visual grouping
 
 ## Workflow
 
