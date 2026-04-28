@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Grouping** - Group tracks with linked solo/mute/fader behavior
-2. **MIDI Learn Mode** - Click any knob/fader to learn MIDI CC mapping for real-time control
-3. **Clip Loop Preview** - Preview loop region without affecting full clip playback position
-4. **Export Stem Preview** - Listen to individual stems before final export
-5. **Grid Snap Probability** - Notes have configurable chance to snap to grid vs stay humanized
-6. **Track Activity Monitor** - Real-time visual of which tracks are producing audio
-7. **Bounce in Place** - Render track to audio with effects applied, replace original clips
-8. **Quick Quantize Menu** - Right-click quantization presets (1/4, 1/8, 1/16, triplet, swing)
-9. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest the optimal BPM
-10. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
+1. **Pattern Chaining** - Chain multiple patterns/scenes together for arrangement playback
+2. **Track Freeze** - Render track with effects to audio buffer to save CPU
+3. **Step Sequencer Probability** - Per-step chance to trigger notes for generative patterns
+4. **Auto-Save Recovery** - Automatic project backup with crash recovery option
+5. **Live Performance Mode** - Full-screen mode with large trigger pads for live play
+6. **Project Version History** - Browse and restore previous auto-saved project states
+7. **CPU Monitor Overlay** - Real-time display of audio workload and buffer health
+8. **Macro Controls** - Assign multiple parameters to single knobs for live control
+9. **Clip Reverse** - Reverse audio clips with one click for ambient effects
+10. **Track Copy with Effects** - Duplicate track with full effect chain intact
 
 ## Workflow
 

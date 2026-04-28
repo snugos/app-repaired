@@ -1,5 +1,6 @@
 // js/StepSequencerView.js - Step Sequencer View for Track Editing
 // Alternative to piano roll showing steps/rows with velocity lanes
+import { initStepSequencerProbability, setStepProbability, getStepProbability, getProbabilityColor, shouldTriggerStep } from './StepSequencerProbability.js';
 
 let localAppServices = {};
 let stepSequencerWindow = null;
@@ -283,6 +284,14 @@ function setupStepSequencerEvents(container, track) {
         header.addEventListener('click', (e) => {
             const step = parseInt(e.target.dataset.step);
             showVelocityEditor(track, step);
+        });
+    });
+
+    // Probability header click - show probability editor for step
+    container.querySelectorAll('.probability-header [data-step]').forEach(header => {
+        header.addEventListener('click', (e) => {
+            const step = parseInt(e.target.dataset.step);
+            showProbabilityEditor(track, step);
         });
     });
 
