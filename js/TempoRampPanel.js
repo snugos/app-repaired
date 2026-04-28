@@ -13,11 +13,12 @@ export function initTempoRampPanel(appServices) {
     console.log('[TempoRampPanel] Module initialized');
 }
 
-export function openTempoRampPanel() {
+export function openTempoRampPanel(savedState = null) {
     const windowId = 'tempoRamp';
-    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    const getOpenWindows = localAppServices.getOpenWindows || (() => new Map());
+    const openWindows = getOpenWindows();
     
-    if (openWindows.has(windowId)) {
+    if (openWindows.has(windowId) && !savedState) {
         const win = openWindows.get(windowId);
         win.restore();
         renderTempoRampContent();
@@ -56,7 +57,7 @@ function renderTempoRampContent() {
     }
 
     const minBpm = 20, maxBpm = 300;
-    const currentBpm = localAppServices.getTransportBPM ? localAppServices.getTransportBPM() : 120;
+    const currentBpm = localAppServices.getTempo ? localAppServices.getTempo() : 120;
 
     let html = `
         <div class="flex-1 flex flex-col gap-3 min-h-0">
@@ -197,7 +198,7 @@ function drawRampCurve() {
     }
     
     // Draw base line at current BPM
-    const currentBpm = localAppServices.getTransportBPM ? localAppServices.getTransportBPM() : 120;
+    const currentBpm = localAppServices.getTempo ? localAppServices.getTempo() : 120;
     const currentY = height - ((currentBpm - minBpm) / (maxBpm - minBpm)) * height;
     ctx.strokeStyle = '#888';
     ctx.lineWidth = 1;
@@ -440,14 +441,6 @@ function attachListEventListeners() {
 function saveRampPoints() {
     if (localAppServices.setTempoRampsState) {
         localAppServices.setTempoRampsState(rampPoints);
-    }
-    
-    // Apply immediately to transport
-    if (localAppServices.setTransportBPM && rampPoints.length > 0) {
-        const currentBpm = localAppServices.getTransportBPM ? localAppServices.getTransportBPM() : 120;
-        // Apply first point's BPM to transport
-        const sortedPoints = [...rampPoints].sort((a, b) => a.barPosition - b.barPosition);
-        // Don't auto-change BPM here - wait for playback to reach the point
     }
 }
 

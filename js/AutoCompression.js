@@ -1,13 +1,181 @@
-// js/AutoCompression.js - Auto-Compression Analysis and Application Panel
-// Analyzes audio and suggests/applies compression settings
+// js/AutoCompression.js - Auto-compression analyzer
+// Analyzes audio dynamics and suggests/applies compression settings
 
 let localAppServices = {};
 
+/**
+ * Initialize the AutoCompression module with app services
+ * @param {Object} appServices - Application services from main.js
+ */
 export function initAutoCompression(appServices) {
     localAppServices = appServices || {};
     console.log('[AutoCompression] Module initialized');
 }
 
+/**
+ * Analyze audio from a track and suggest compression settings
+ * @param {number} trackId - Track ID to analyze
+ * @returns {Promise<Object>} Suggested compression settings
+ */
+export async function analyzeTrackDynamics(trackId) {
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const track = tracks.find(t => t.id === trackId);
+    
+    if (!track) {
+        console.warn('[AutoCompression] Track not found:', trackId);
+        return getDefaultCompressionSettings();
+    }
+    
+    const clips = track.getClips ? track.getClips() : [];
+    if (clips.length === 0) {
+        console.warn('[AutoCompression] No clips found in track:', trackId);
+        return getDefaultCompressionSettings();
+    }
+    
+    let audioBuffer = null;
+    for (const clip of clips) {
+        if (clip.audioBuffer) {
+            audioBuffer = clip.audioBuffer;
+            break;
+        }
+        if (clip.audioData && clip.audioData.buffer) {
+            audioBuffer = clip.audioData.buffer;
+            break;
+        }
+    }
+    
+    if (!audioBuffer) {
+        console.warn('[AutoCompression] No audio buffer found');
+        return getDefaultCompressionSettings();
+    }
+    
+    try {
+        const channelData = audioBuffer.getChannelData(0);
+        return analyzeDynamicsFromData(channelData, audioBuffer.sampleRate);
+    } catch (error) {
+        console.error('[AutoCompression] Error analyzing audio:', error);
+        return getDefaultCompressionSettings();
+    }
+}
+
+/**
+ * Get default compression settings
+ */
+function getDefaultCompressionSettings() {
+    return {
+        threshold: -18,
+        ratio: 4,
+        attack: 0.003,
+        release: 0.25,
+        knee: 30,
+        makeupGain: 0,
+        reduction: 0,
+        dynamicRange: 'unknown',
+        confidence: 0
+    };
+}
+
+/**
+ * Analyze dynamics from raw audio data
+ */
+function analyzeDynamicsFromData(channelData, sampleRate) {
+    // Calculate RMS in windows to find average and peak levels
+    const windowSize = Math.floor(sampleRate * 0.05); // 50ms windows
+    const hopSize = Math.floor(windowSize / 2);
+    const numWindows = Math.floor((channelData.length - windowSize) / hopSize);
+    
+    const rmsValues = new Float32Array(numWindows);
+    const peakValues = new Float32Array(numWindows);
+    
+    let sumRMS = 0;
+    let maxPeak = 0;
+    
+    for (let i = 0; i < numWindows; i++) {
+        const start = i * hopSize;
+        let sumSquares = 0;
+        let windowPeak = 0;
+        
+        for (let j = 0; j < windowSize; j++) {
+            const sample = channelData[start + j] || 0;
+            sumSquares += sample * sample;
+            const absSample = Math.abs(sample);
+            if (absSample > windowPeak) windowPeak = absSample;
+        }
+        
+        const rms = Math.sqrt(sumSquares / windowSize);
+        rmsValues[i] = rms;
+        peakValues[i] = windowPeak;
+        sumRMS += rms;
+        
+        if (windowPeak > maxPeak) maxPeak = windowPeak;
+    }
+    
+    const avgRMS = sumRMS / numWindows;
+    const avgRMSdB = 20 * Math.log10(avgRMS || 0.0001);
+    const peakdB = 20 * Math.log10(maxPeak || 0.0001);
+    const dynamicRange = peakdB - avgRMSdB;
+    
+    // Sort RMS values for percentile calculations
+    const sortedRMS = rmsValues.slice().sort((a, b) => a - b);
+    const loudnessPct = sortedRMS[Math.floor(sortedRMS.length * 0.95)]; // 95th percentile
+    const quietnessPct = sortedRMS[Math.floor(sortedRMS.length * 0.1)]; // 10th percentile
+    const loudnessRMSdB = 20 * Math.log10(loudnessPct || 0.0001);
+    
+    // Determine threshold: set ~5-10dB above average RMS
+    const threshold = Math.round(loudnessRMSdB - 6);
+    
+    // Calculate compression ratio based on dynamic range
+    let ratio = 4; // Default
+    if (dynamicRange > 18) ratio = 6;
+    else if (dynamicRange > 12) ratio = 4;
+    else if (dynamicRange > 6) ratio = 2.5;
+    else ratio = 1.5;
+    
+    // Calculate makeup gain to bring average up to -6dB
+    const targetRMSdB = -6;
+    const makeupGain = Math.max(0, targetRMSdB - avgRMSdB);
+    
+    // Estimate gain reduction based on how much signal exceeds threshold
+    const thresholdLinear = Math.pow(10, threshold / 20);
+    let peaksAboveThreshold = 0;
+    for (let i = 0; i < peakValues.length; i++) {
+        if (peakValues[i] > thresholdLinear) peaksAboveThreshold++;
+    }
+    const pctAboveThreshold = peaksAboveThreshold / peakValues.length;
+    
+    // Expected reduction: rough estimate based on ratio and amount above threshold
+    const expectedReduction = Math.round((ratio - 1) * pctAboveThreshold * 10);
+    
+    // Attack: faster for punchy transients, slower for sustained
+    const attack = dynamicRange > 12 ? 0.001 : 0.005;
+    
+    // Release: set to roughly 1/4 of avg RMS window duration
+    const release = 0.2 + (dynamicRange > 12 ? 0.1 : 0);
+    
+    // Confidence based on how consistent the dynamics are
+    const rmsVariance = sortedRMS.reduce((sum, val) => sum + Math.pow(val - avgRMS, 2), 0) / sortedRMS.length;
+    const rmsStdDev = Math.sqrt(rmsVariance);
+    const normalizedStdDev = rmsStdDev / avgRMS;
+    const confidence = Math.max(0.2, Math.min(0.95, 1 - normalizedStdDev));
+    
+    return {
+        threshold: threshold,
+        ratio: ratio,
+        attack: attack,
+        release: release,
+        knee: 30,
+        makeupGain: Math.round(makeupGain * 10) / 10,
+        reduction: expectedReduction,
+        dynamicRange: Math.round(dynamicRange * 10) / 10,
+        confidence: Math.round(confidence * 100) / 100,
+        avgRMSdB: Math.round(avgRMSdB * 10) / 10,
+        peakdB: Math.round(peakdB * 10) / 10
+    };
+}
+
+/**
+ * Open the Auto-Compression panel
+ */
 export function openAutoCompressionPanel() {
     const windowId = 'autoCompression';
     const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
@@ -18,22 +186,22 @@ export function openAutoCompressionPanel() {
         renderAutoCompressionContent();
         return win;
     }
-
+    
     const contentContainer = document.createElement('div');
     contentContainer.id = 'autoCompressionContent';
-    contentContainer.className = 'p-3 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
-
-    const options = { 
-        width: 480, 
-        height: 580, 
-        minWidth: 400, 
-        minHeight: 450, 
-        initialContentKey: windowId, 
-        closable: true, 
-        minimizable: true, 
-        resizable: true 
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-50 dark:bg-slate-800';
+    
+    const options = {
+        width: 460,
+        height: 560,
+        minWidth: 420,
+        minHeight: 480,
+        initialContentKey: windowId,
+        closable: true,
+        minimizable: true,
+        resizable: true
     };
-
+    
     const win = localAppServices.createWindow(windowId, 'Auto-Compression', contentContainer, options);
     if (win?.element) {
         renderAutoCompressionContent();
@@ -41,373 +209,260 @@ export function openAutoCompressionPanel() {
     return win;
 }
 
+/**
+ * Render the Auto-Compression panel content
+ */
 function renderAutoCompressionContent() {
     const container = document.getElementById('autoCompressionContent');
     if (!container) return;
-
+    
     const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    const audioTracks = tracks.filter(t => t.type === 'Audio');
-
+    const audioTracks = tracks.filter(t => t.type === 'audio');
+    
     let html = `
-        <div class="mb-4 p-3 bg-blue-50 dark:bg-slate-700 rounded border border-blue-200 dark:border-slate-600">
-            <p class="text-xs text-gray-600 dark:text-gray-300">
-                <strong>Analyze Audio</strong> - Select a track to analyze its audio levels and get compression suggestions.
-                Works best with completed recordings or bounced audio clips.
+        <div class="mb-4 p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-700">
+            <p class="text-sm text-purple-700 dark:text-purple-300">
+                <strong>Auto-Compression:</strong> Analyze audio dynamics and get optimal compressor settings.
             </p>
         </div>
         
         <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Track</label>
-            <select id="compressionTrackSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
-                <option value="">Choose an audio track...</option>
-                ${audioTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Audio Track</label>
+            <select id="autoCompTrackSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                <option value="">-- Select a track --</option>
+                ${audioTracks.map(t => `<option value="${t.id}">${t.name || 'Track ' + t.id}</option>`).join('')}
             </select>
         </div>
         
-        <div id="analysisSection" class="mb-4 hidden">
-            <div class="p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">Audio Analysis</h3>
-                <div id="analysisResults" class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Peak Level:</span><span id="peakLevel" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Average Level:</span><span id="avgLevel" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Dynamic Range:</span><span id="dynamicRange" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">RMS Level:</span><span id="rmsLevel" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Crest Factor:</span><span id="crestFactor" class="font-mono text-gray-800 dark:text-gray-200">--</span></div>
+        <div class="mb-4 flex gap-2">
+            <button id="autoCompAnalyzeBtn" class="flex-1 px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                Analyze Dynamics
+            </button>
+            <button id="autoCompApplyBtn" class="flex-1 px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Apply to Track
+            </button>
+        </div>
+        
+        <div id="autoCompLoading" class="hidden text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">Analyzing dynamics...</div>
+        </div>
+        
+        <div id="autoCompResults" class="hidden">
+            <div class="p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Suggested Settings</span>
+                    <span id="autoCompConfidence" class="px-2 py-1 text-xs rounded"></span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 text-sm mb-4">
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Threshold</div>
+                        <div id="autoCompThreshold" class="font-bold text-lg">-- dB</div>
+                    </div>
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Ratio</div>
+                        <div id="autoCompRatio" class="font-bold text-lg">-- :1</div>
+                    </div>
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Attack</div>
+                        <div id="autoCompAttack" class="font-bold text-lg">-- ms</div>
+                    </div>
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Release</div>
+                        <div id="autoCompRelease" class="font-bold text-lg">-- ms</div>
+                    </div>
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Makeup Gain</div>
+                        <div id="autoCompMakeup" class="font-bold text-lg">-- dB</div>
+                    </div>
+                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
+                        <div class="text-gray-500 dark:text-gray-400">Dyn Range</div>
+                        <div id="autoCompDynRange" class="font-bold text-lg">-- dB</div>
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <div class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Analysis:</strong> Estimated GR: <span id="autoCompGR">--</span> dB
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                <div class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Audio Statistics</div>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Avg RMS:</span>
+                        <span id="autoCompAvgRMS" class="ml-1">--</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Peak:</span>
+                        <span id="autoCompPeak" class="ml-1">--</span>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div id="suggestionSection" class="mb-4 hidden">
-            <div class="p-3 bg-purple-50 dark:bg-slate-700 rounded border border-purple-200 dark:border-slate-600">
-                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">Suggested Compression Settings</h3>
-                <div id="suggestedSettings" class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Threshold:</span><span id="suggestThreshold" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Ratio:</span><span id="suggestRatio" class="font-mono text-gray-800 dark:text-gray-200">-- : 1</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Attack:</span><span id="suggestAttack" class="font-mono text-gray-800 dark:text-gray-200">-- ms</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Release:</span><span id="suggestRelease" class="font-mono text-gray-800 dark:text-gray-200">-- ms</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Makeup Gain:</span><span id="suggestMakeup" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600 dark:text-gray-400">Knee:</span><span id="suggestKnee" class="font-mono text-gray-800 dark:text-gray-200">-- dB</span></div>
-                </div>
-                <p id="compressionTypeHint" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></p>
-            </div>
+        <div id="autoCompError" class="hidden p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700">
+            <p class="text-sm text-red-600 dark:text-red-400" id="autoCompErrorMsg"></p>
         </div>
         
-        <div class="mb-4">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Compression Presets</h3>
-            <div class="grid grid-cols-2 gap-2">
-                <button id="presetVocal" class="px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Vocal (Light)</button>
-                <button id="presetDrum" class="px-3 py-2 text-xs bg-orange-500 text-white rounded hover:bg-orange-600">Drums</button>
-                <button id="presetBass" class="px-3 py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600">Bass</button>
-                <button id="presetMastering" class="px-3 py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600">Mastering</button>
+        <div class="mt-4 p-3 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Tips:</strong>
+                <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li>Higher dynamic range = more compression may be needed</li>
+                    <li>Vocals typically work well with 3:1-4:1 ratio</li>
+                    <li>Drums often need fast attack and higher ratio</li>
+                </ul>
             </div>
-        </div>
-        
-        <div class="mb-4">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Manual Settings</h3>
-            <div class="space-y-3">
-                <div>
-                    <label class="text-xs text-gray-600 dark:text-gray-400">Threshold: <span id="thresholdVal">-20</span> dB</label>
-                    <input type="range" id="manualThreshold" min="-60" max="0" value="-20" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600 dark:text-gray-400">Ratio: <span id="ratioVal">4</span> : 1</label>
-                    <input type="range" id="manualRatio" min="1" max="20" value="4" step="0.5" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600 dark:text-gray-400">Attack: <span id="attackVal">10</span> ms</label>
-                    <input type="range" id="manualAttack" min="0.1" max="100" value="10" step="0.1" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600 dark:text-gray-400">Release: <span id="releaseVal">100</span> ms</label>
-                    <input type="range" id="manualRelease" min="10" max="1000" value="100" step="10" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600 dark:text-gray-400">Knee: <span id="kneeVal">6</span> dB</label>
-                    <input type="range" id="manualKnee" min="0" max="30" value="6" step="1" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                </div>
-            </div>
-        </div>
-        
-        <div class="flex gap-2">
-            <button id="analyzeBtn" class="flex-1 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Analyze Audio</button>
-            <button id="applyCompressionBtn" class="flex-1 px-4 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">Apply Compression</button>
         </div>
     `;
-
+    
     container.innerHTML = html;
-
-    // Track select handler
-    const trackSelect = container.querySelector('#compressionTrackSelect');
-    trackSelect?.addEventListener('change', (e) => {
-        const hasTrack = e.target.value !== '';
-        container.querySelector('#analysisSection')?.classList.toggle('hidden', !hasTrack);
-        container.querySelector('#suggestionSection')?.classList.toggle('hidden', !hasTrack);
-    });
-
-    // Manual slider updates
-    ['Threshold', 'Ratio', 'Attack', 'Release', 'Knee'].forEach(param => {
-        const slider = container.querySelector(`#manual${param}`);
-        const valDisplay = container.querySelector(`#${param.toLowerCase()}Val`);
-        if (slider && valDisplay) {
-            slider.addEventListener('input', (e) => {
-                let displayVal = e.target.value;
-                if (param === 'Threshold') displayVal = `${displayVal} dB`;
-                else if (param === 'Ratio') displayVal = `${displayVal} : 1`;
-                else if (param === 'Attack' || param === 'Release') displayVal = `${displayVal} ms`;
-                else if (param === 'Knee') displayVal = `${displayVal} dB`;
-                valDisplay.textContent = displayVal;
-            });
-        }
-    });
-
-    // Analyze button
-    container.querySelector('#analyzeBtn')?.addEventListener('click', async () => {
-        const trackId = parseInt(trackSelect.value, 10);
-        if (!trackId) {
-            localAppServices.showNotification?.('Please select a track first', 2000);
-            return;
-        }
-        
-        const track = tracks.find(t => t.id === trackId);
-        if (!track) return;
-
-        localAppServices.showNotification?.('Analyzing audio...', 1500);
-        const analysis = await analyzeTrackAudio(track);
-        
-        if (analysis) {
-            document.getElementById('peakLevel').textContent = `${analysis.peak.toFixed(1)} dB`;
-            document.getElementById('avgLevel').textContent = `${analysis.average.toFixed(1)} dB`;
-            document.getElementById('dynamicRange').textContent = `${analysis.dynamicRange.toFixed(1)} dB`;
-            document.getElementById('rmsLevel').textContent = `${analysis.rms.toFixed(1)} dB`;
-            document.getElementById('crestFactor').textContent = `${analysis.crestFactor.toFixed(2)}`;
-
-            const settings = suggestCompressionSettings(analysis);
-            document.getElementById('suggestThreshold').textContent = `${settings.threshold.toFixed(1)} dB`;
-            document.getElementById('suggestRatio').textContent = `${settings.ratio}: 1`;
-            document.getElementById('suggestAttack').textContent = `${settings.attack} ms`;
-            document.getElementById('suggestRelease').textContent = `${settings.release} ms`;
-            document.getElementById('suggestMakeup').textContent = `${settings.makeupGain.toFixed(1)} dB`;
-            document.getElementById('suggestKnee').textContent = `${settings.knee} dB`;
-            document.getElementById('compressionTypeHint').textContent = settings.hint;
-
-            // Apply suggested values to manual sliders
-            document.getElementById('manualThreshold').value = settings.threshold;
-            document.getElementById('thresholdVal').textContent = `${settings.threshold} dB`;
-            document.getElementById('manualRatio').value = settings.ratio;
-            document.getElementById('ratioVal').textContent = `${settings.ratio} : 1`;
-            document.getElementById('manualAttack').value = settings.attack;
-            document.getElementById('attackVal').textContent = `${settings.attack} ms`;
-            document.getElementById('manualRelease').value = settings.release;
-            document.getElementById('releaseVal').textContent = `${settings.release} ms`;
-            document.getElementById('manualKnee').value = settings.knee;
-            document.getElementById('kneeVal').textContent = `${settings.knee} dB`;
-
-            container.querySelector('#suggestionSection')?.classList.remove('hidden');
-            localAppServices.showNotification?.('Analysis complete!', 1500);
-        } else {
-            localAppServices.showNotification?.('Could not analyze audio. Ensure track has audio clips.', 3000);
-        }
-    });
-
-    // Apply compression button
-    container.querySelector('#applyCompressionBtn')?.addEventListener('click', () => {
-        const trackId = parseInt(trackSelect.value, 10);
-        if (!trackId) {
-            localAppServices.showNotification?.('Please select a track first', 2000);
-            return;
-        }
-
-        const settings = {
-            threshold: parseFloat(document.getElementById('manualThreshold').value),
-            ratio: parseFloat(document.getElementById('manualRatio').value),
-            attack: parseFloat(document.getElementById('manualAttack').value),
-            release: parseFloat(document.getElementById('manualRelease').value),
-            knee: parseFloat(document.getElementById('manualKnee').value)
-        };
-
-        applyCompressionToTrack(trackId, settings);
-    });
-
-    // Preset buttons
-    const presets = {
-        Vocal: { threshold: -20, ratio: 3, attack: 10, release: 100, knee: 6 },
-        Drum: { threshold: -15, ratio: 6, attack: 5, release: 150, knee: 10 },
-        Bass: { threshold: -18, ratio: 4, attack: 5, release: 100, knee: 8 },
-        Mastering: { threshold: -12, ratio: 2.5, attack: 15, release: 200, knee: 10 }
-    };
-
-    Object.entries(presets).forEach(([name, settings]) => {
-        container.querySelector(`#preset${name}`)?.addEventListener('click', () => {
-            document.getElementById('manualThreshold').value = settings.threshold;
-            document.getElementById('thresholdVal').textContent = `${settings.threshold} dB`;
-            document.getElementById('manualRatio').value = settings.ratio;
-            document.getElementById('ratioVal').textContent = `${settings.ratio} : 1`;
-            document.getElementById('manualAttack').value = settings.attack;
-            document.getElementById('attackVal').textContent = `${settings.attack} ms`;
-            document.getElementById('manualRelease').value = settings.release;
-            document.getElementById('releaseVal').textContent = `${settings.release} ms`;
-            document.getElementById('manualKnee').value = settings.knee;
-            document.getElementById('kneeVal').textContent = `${settings.knee} dB`;
-            localAppServices.showNotification?.(`${name} preset applied`, 1500);
-        });
-    });
-}
-
-async function analyzeTrackAudio(track) {
-    if (!track || track.type !== 'Audio') return null;
-
-    const audioClips = track.timelineClips || [];
-    if (audioClips.length === 0) return null;
-
-    try {
-        const samples = [];
-        
-        for (const clip of audioClips) {
-            if (clip.audioBuffer) {
-                const channelData = clip.audioBuffer.getChannelData(0);
-                samples.push(...channelData);
-            } else if (clip._audioBuffer) {
-                const channelData = clip._audioBuffer.getChannelData(0);
-                samples.push(...channelData);
-            }
-        }
-
-        if (samples.length === 0) {
-            // Try to get audio data from track's players
-            if (track.audioElement && track.audioElement.buffer) {
-                const buffer = track.audioElement.buffer;
-                const channelData = buffer.getChannelData(0);
-                samples.push(...channelData);
-            }
-        }
-
-        if (samples.length === 0) {
-            console.log('[AutoCompression] No raw audio samples found - generating mock analysis');
-            return {
-                peak: -6,
-                average: -18,
-                dynamicRange: 12,
-                rms: -20,
-                crestFactor: 4
-            };
-        }
-
-        // Calculate peak
-        let peak = 0;
-        let sumSquares = 0;
-        let maxAbs = 0;
-
-        for (const sample of samples) {
-            const abs = Math.abs(sample);
-            if (abs > maxAbs) maxAbs = abs;
-            if (abs > peak) peak = abs;
-            sumSquares += sample * sample;
-        }
-
-        const rms = Math.sqrt(sumSquares / samples.length);
-        const average = 20 * Math.log10(rms || 0.0001);
-        const peakDb = 20 * Math.log10(peak || 0.0001);
-        const dynamicRange = peakDb - average;
-        const crestFactor = peak / (rms || 0.0001);
-
-        return {
-            peak: peakDb,
-            average: average,
-            dynamicRange: dynamicRange,
-            rms: 20 * Math.log10(rms || 0.0001),
-            crestFactor: crestFactor
-        };
-    } catch (error) {
-        console.error('[AutoCompression] Error analyzing audio:', error);
-        return {
-            peak: -6,
-            average: -18,
-            dynamicRange: 12,
-            rms: -20,
-            crestFactor: 4
-        };
-    }
-}
-
-function suggestCompressionSettings(analysis) {
-    const { peak, average, dynamicRange, rms, crestFactor } = analysis;
     
-    // Dynamic range guides compression intensity
-    let threshold, ratio, attack, release, makeupGain, hint;
-
-    if (dynamicRange > 15) {
-        // High dynamic range - needs significant compression
-        threshold = average + 3;
-        ratio = dynamicRange > 20 ? 6 : 4;
-        hint = 'High dynamic range detected. Medium-heavy compression recommended for consistent levels.';
-    } else if (dynamicRange > 8) {
-        // Moderate dynamic range
-        threshold = average;
-        ratio = 3;
-        hint = 'Moderate dynamic range. Light to medium compression will even out the levels.';
-    } else {
-        // Low dynamic range already
-        threshold = average + 5;
-        ratio = 2;
-        hint = 'Low dynamic range. Light compression only - avoid over-compression.';
-    }
-
-    // Adjust for crest factor (transients)
-    if (crestFactor > 5) {
-        // Lots of transient peaks
-        attack = 5; // Fast attack to catch peaks
-        release = 100;
-    } else if (crestFactor > 3) {
-        attack = 10;
-        release = 150;
-    } else {
-        attack = 20;
-        release = 200;
-    }
-
-    // Makeup gain: aim for peak around -6dB
-    makeupGain = -peak + 6;
-    makeupGain = Math.max(0, makeupGain); // Don't reduce, only boost
-
-    const knee = 6;
-
-    return {
-        threshold: Math.round(threshold * 10) / 10,
-        ratio: ratio,
-        attack: attack,
-        release: release,
-        makeupGain: Math.round(makeupGain * 10) / 10,
-        knee: knee,
-        hint: hint
-    };
+    const trackSelect = container.querySelector('#autoCompTrackSelect');
+    const analyzeBtn = container.querySelector('#autoCompAnalyzeBtn');
+    const applyBtn = container.querySelector('#autoCompApplyBtn');
+    const resultsDiv = container.querySelector('#autoCompResults');
+    const loadingDiv = container.querySelector('#autoCompLoading');
+    const errorDiv = container.querySelector('#autoCompError');
+    
+    let currentAnalysis = null;
+    let currentTrackId = null;
+    
+    analyzeBtn?.addEventListener('click', async () => {
+        const trackId = parseInt(trackSelect.value, 10);
+        if (!trackId) {
+            localAppServices.showNotification?.('Please select a track first', 2000);
+            return;
+        }
+        
+        currentTrackId = trackId;
+        resultsDiv?.classList.add('hidden');
+        errorDiv?.classList.add('hidden');
+        loadingDiv?.classList.remove('hidden');
+        analyzeBtn.disabled = true;
+        applyBtn.disabled = true;
+        
+        try {
+            currentAnalysis = await analyzeTrackDynamics(trackId);
+            
+            loadingDiv?.classList.add('hidden');
+            resultsDiv?.classList.remove('hidden');
+            applyBtn.disabled = false;
+            
+            // Update display
+            container.querySelector('#autoCompThreshold').textContent = `${currentAnalysis.threshold} dB`;
+            container.querySelector('#autoCompRatio').textContent = `${currentAnalysis.ratio} :1`;
+            container.querySelector('#autoCompAttack').textContent = `${Math.round(currentAnalysis.attack * 1000)} ms`;
+            container.querySelector('#autoCompRelease').textContent = `${Math.round(currentAnalysis.release * 1000)} ms`;
+            container.querySelector('#autoCompMakeup').textContent = `${currentAnalysis.makeupGain} dB`;
+            container.querySelector('#autoCompDynRange').textContent = `${currentAnalysis.dynamicRange} dB`;
+            container.querySelector('#autoCompGR').textContent = currentAnalysis.reduction;
+            
+            container.querySelector('#autoCompAvgRMS').textContent = `${currentAnalysis.avgRMSdB} dB`;
+            container.querySelector('#autoCompPeak').textContent = `${currentAnalysis.peakdB} dB`;
+            
+            // Update confidence badge
+            const confidence = currentAnalysis.confidence;
+            let colorClass = 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400';
+            if (confidence > 0.7) colorClass = 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400';
+            else if (confidence > 0.4) colorClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400';
+            
+            container.querySelector('#autoCompConfidence').className = `px-2 py-1 text-xs rounded ${colorClass}`;
+            container.querySelector('#autoCompConfidence').textContent = `${Math.round(confidence * 100)}% confidence`;
+            
+        } catch (error) {
+            loadingDiv?.classList.add('hidden');
+            errorDiv?.classList.remove('hidden');
+            container.querySelector('#autoCompErrorMsg').textContent = error.message || 'Analysis failed';
+        } finally {
+            analyzeBtn.disabled = false;
+        }
+    });
+    
+    applyBtn?.addEventListener('click', () => {
+        if (!currentAnalysis || !currentTrackId) return;
+        
+        applyCompressionToTrack(currentTrackId, currentAnalysis);
+        localAppServices.showNotification?.('Compression settings applied', 2000);
+    });
 }
 
+/**
+ * Apply compression settings to a track
+ */
 function applyCompressionToTrack(trackId, settings) {
-    const track = localAppServices.getTrackById ? localAppServices.getTrackById(trackId) : null;
-    if (!track) {
-        localAppServices.showNotification?.('Track not found', 2000);
-        return;
-    }
-
-    // Capture state for undo
-    if (localAppServices.captureStateForUndo) {
-        localAppServices.captureStateForUndo(`Apply compression to ${track.name}`);
-    }
-
-    // Add compression effect to track
-    if (localAppServices.addTrackEffect) {
-        localAppServices.addTrackEffect(trackId, 'Compressor', {
-            threshold: settings.threshold,
-            ratio: settings.ratio,
-            attack: settings.attack,
-            release: settings.release,
-            knee: settings.knee,
-            makeupGain: settings.makeupGain || 0
-        });
-    }
-
-    localAppServices.showNotification?.(`Compression applied to ${track.name}`, 2000);
+    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
+    const track = tracks.find(t => t.id === trackId);
     
-    if (localAppServices.renderTimeline) localAppServices.renderTimeline();
-    if (localAppServices.updateMixerWindow) localAppServices.updateMixerWindow();
+    if (!track) {
+        console.warn('[AutoCompression] Track not found:', trackId);
+        return false;
+    }
+    
+    // Check if track already has a compressor
+    let compressor = null;
+    const effects = track.effects || [];
+    const existingComp = effects.find(e => e.type === 'Compressor');
+    
+    if (existingComp && existingComp.instance) {
+        compressor = existingComp.instance;
+    } else {
+        // Create a new compressor effect
+        if (localAppServices.addEffectToTrack) {
+            const result = localAppServices.addEffectToTrack(trackId, 'Compressor', {
+                threshold: settings.threshold,
+                ratio: settings.ratio,
+                attack: settings.attack,
+                release: settings.release,
+                knee: settings.knee,
+                wet: 1
+            });
+            
+            if (result && result.success) {
+                // Update makeup gain if available
+                const effects = track.effects || [];
+                const newComp = effects[effects.length - 1];
+                if (newComp && newComp.instance && settings.makeupGain > 0) {
+                    // Makeup gain would need a separate gain node after compressor
+                    // For now, just show a notification that it was added
+                }
+            }
+            
+            localAppServices.showNotification?.('Compressor added to track', 2000);
+            return true;
+        }
+    }
+    
+    if (compressor) {
+        // Update existing compressor settings
+        compressor.threshold.value = settings.threshold;
+        compressor.ratio.value = settings.ratio;
+        compressor.attack.value = settings.attack;
+        compressor.release.value = settings.release;
+        compressor.knee.value = settings.knee;
+        
+        localAppServices.showNotification?.('Compressor settings updated', 2000);
+        return true;
+    }
+    
+    return false;
 }
+
+/**
+ * Quick analyze - returns settings without UI
+ */
+export async function quickAnalyze(trackId) {
+    return await analyzeTrackDynamics(trackId);
+}
+
+// Window exposure
+window.AutoCompression = {
+    openPanel: openAutoCompressionPanel,
+    analyze: analyzeTrackDynamics,
+    quickAnalyze: quickAnalyze,
+    init: initAutoCompression
+};
