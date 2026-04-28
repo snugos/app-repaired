@@ -385,6 +385,19 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTrackHeadphoneMixPanel?.();
                 } catch(e) { console.error('[Menu] Headphone Mix error:', e); }
             },
+            menuLoopRegionPresets: () => {
+                console.log('[Menu] Loop Region Presets clicked');
+                try {
+                    if (window.openLoopRegionPresetsPanel) {
+                        window.openLoopRegionPresetsPanel();
+                    } else {
+                        import('./LoopRegionPresets.js').then(m => {
+                            if (m.initLoopRegionPresets) m.initLoopRegionPresets(localAppServices);
+                            if (m.openLoopRegionPresetsPanel) m.openLoopRegionPresetsPanel();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Loop Region Presets error:', e); }
+            },
             menuAutoThreshold: () => {
                 console.log('[Menu] Auto Threshold clicked');
                 try {
