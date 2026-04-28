@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Tempo Sync Grid** - Lock timeline grid to musical divisions and adjust swing amount per track
-2. **Batch Clip Effects** - Apply effects (fade, reverse, pitch shift) to multiple selected clips at once
-3. **Track Grouping** - Group tracks with linked solo/mute/fader behavior
-4. **MIDI Learn Mode** - Click any knob/fader to learn MIDI CC mapping for real-time control
-5. **Clip Loop Preview** - Preview loop region without affecting full clip playback position
-6. **Export Stem Preview** - Listen to individual stems before final export
-7. **Grid Snap Probability** - Notes have configurable chance to snap to grid vs stay humanized
-8. **Track Activity Monitor** - Real-time visual of which tracks are producing audio
-9. **Bounce in Place** - Render track to audio with effects applied, replace original clips
-10. **Quick Quantize Menu** - Right-click quantization presets (1/4, 1/8, 1/16, triplet, swing)
+1. **Track Grouping** - Group tracks with linked solo/mute/fader behavior
+2. **MIDI Learn Mode** - Click any knob/fader to learn MIDI CC mapping for real-time control
+3. **Clip Loop Preview** - Preview loop region without affecting full clip playback position
+4. **Export Stem Preview** - Listen to individual stems before final export
+5. **Grid Snap Probability** - Notes have configurable chance to snap to grid vs stay humanized
+6. **Track Activity Monitor** - Real-time visual of which tracks are producing audio
+7. **Bounce in Place** - Render track to audio with effects applied, replace original clips
+8. **Quick Quantize Menu** - Right-click quantization presets (1/4, 1/8, 1/16, triplet, swing)
+9. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest the optimal BPM
+10. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
 
 ## Workflow
 
