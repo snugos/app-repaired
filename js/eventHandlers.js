@@ -680,6 +680,22 @@ export function attachGlobalControlEvents(elements) {
     }
     // === End Beat-Synced LFO Button ===
 
+    // === Snap Resolution Button ===
+    const snapResolutionBtn = document.getElementById('snapResolutionBtn');
+    if (snapResolutionBtn) {
+        snapResolutionBtn.addEventListener('click', () => {
+            import('./TimelineSnapResolution.js').then(module => {
+                if (module.initTimelineSnapResolution) {
+                    module.initTimelineSnapResolution(localAppServices);
+                }
+                if (module.openSnapResolutionPanel) {
+                    module.openSnapResolutionPanel();
+                }
+            }).catch(err => console.error('[EventHandlers] Failed to load TimelineSnapResolution:', err));
+        });
+    }
+    // === End Snap Resolution Button ===
+
     // === Scale/Key Selector Controls ===
     function updateScaleNotesDisplay() {
         if (!scaleSelectGlobal || !keySelectGlobal || !scaleNotesDisplay) return;
