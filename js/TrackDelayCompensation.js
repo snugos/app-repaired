@@ -1,147 +1,97 @@
-// js/TrackDelayCompensation.js - Track Delay Compensation Panel
+/**
+ * Track Delay Compensation - Automatically compensate for plugin latency per track
+ * Allows users to manually adjust delay offset per track to align with master
+ */
 
-let trackDelayCompensationPanel = null;
+let trackDelayCompensation = {}; // { trackId: compensationMs }
 
-function initTrackDelayCompensation() {
-    // Create panel
-    trackDelayCompensationPanel = document.createElement('div');
-    trackDelayCompensationPanel.id = 'trackDelayCompensationPanel';
-    trackDelayCompensationPanel.className = 'snaw-panel';
-    trackDelayCompensationPanel.style.cssText = `
-        display: none;
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        width: 320px;
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 16px;
-        z-index: 1001;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        font-size: 13px;
-        color: #ddd;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    `;
-
-    trackDelayCompensationPanel.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-weight:600;font-size:14px;">Track Delay Compensation</span>
-            <button id="closeTrackDelayCompensationPanel" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px;line-height:1;">&times;</button>
-        </div>
-        <div id="trackDelayCompensationContent">
-            <div style="color:#888;margin-bottom:8px;">Select a track to adjust its delay compensation.</div>
-        </div>
-    `;
-
-    document.body.appendChild(trackDelayCompensationPanel);
-
-    document.getElementById('closeTrackDelayCompensationPanel').addEventListener('click', closeTrackDelayCompensationPanel);
-
-    console.log('[TrackDelayCompensation] Initialized');
+export function getTrackDelayCompensation(trackId) {
+    return trackDelayCompensation[trackId] || 0;
 }
 
-function openTrackDelayCompensationPanel() {
-    if (!trackDelayCompensationPanel) initTrackDelayCompensation();
-    trackDelayCompensationPanel.style.display = 'block';
-    refreshTrackDelayCompensationContent();
+export function setTrackDelayCompensation(trackId, compensationMs) {
+    const value = parseFloat(compensationMs) || 0;
+    trackDelayCompensation[trackId] = Math.max(-500, Math.min(500, value));
+    console.log(`[TrackDelayCompensation] Track ${trackId} compensation set to ${value}ms`);
 }
 
-function closeTrackDelayCompensationPanel() {
-    if (trackDelayCompensationPanel) trackDelayCompensationPanel.style.display = 'none';
+export function getAllTrackDelayCompensations() {
+    return JSON.parse(JSON.stringify(trackDelayCompensation));
 }
 
-function toggleTrackDelayCompensationPanel() {
-    if (!trackDelayCompensationPanel) initTrackDelayCompensation();
-    if (trackDelayCompensationPanel.style.display === 'none') {
-        openTrackDelayCompensationPanel();
-    } else {
-        closeTrackDelayCompensationPanel();
+export function setAllTrackDelayCompensations(compensations) {
+    trackDelayCompensation = JSON.parse(JSON.stringify(compensations || {}));
+}
+
+export function clearTrackDelayCompensation(trackId) {
+    if (trackId !== undefined) {
+        delete trackDelayCompensation[trackId];
     }
 }
 
-function refreshTrackDelayCompensationContent() {
-    const content = document.getElementById('trackDelayCompensationContent');
-    if (!content) return;
-
-    const tracks = getTracksState();
-    if (!tracks || tracks.length === 0) {
-        content.innerHTML = '<div style="color:#888;">No tracks available.</div>';
+export function openTrackDelayCompensationPanel() {
+    const existingPanel = document.getElementById('trackDelayCompensationPanel');
+    if (existingPanel) {
+        existingPanel.remove();
         return;
     }
 
-    const selectedTrack = window.selectedTrackId ? tracks.find(t => t.id === window.selectedTrackId) : tracks[0];
+    const panel = document.createElement('div');
+    panel.id = 'trackDelayCompensationPanel';
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #1e1e2e;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 20px;
+        min-width: 350px;
+        max-height: 80vh;
+        overflow-y: auto;
+        z-index: 10000;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        color: #ccc;
+        font-family: system-ui, sans-serif;
+    `;
 
-    let html = '<div style="margin-bottom:12px;"><label style="color:#888;font-size:11px;">SELECT TRACK</label><br>';
-    html += '<select id="delayCompTrackSelect" style="width:100%;margin-top:4px;padding:6px;background:#2a2a2a;border:1px solid #444;color:#ddd;border-radius:4px;">';
-    tracks.forEach(t => {
-        const sel = t.id === (selectedTrack?.id || tracks[0].id) ? 'selected' : '';
-        html += `<option value="${t.id}" ${sel}>${t.name || 'Track ' + t.id}</option>`;
-    });
-    html += '</select></div>';
+    const tracks = typeof getTracksState === 'function' ? getTracksState() : [];
+    
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <h3 style="margin:0;font-size:16px;">Track Delay Compensation</h3>
+            <button id="closeDelayPanel" style="background:#333;border:none;color:#fff;padding:5px 10px;cursor:pointer;border-radius:4px;">×</button>
+        </div>
+        <p style="margin:0 0 15px;font-size:12px;color:#888;">Adjust offset (ms) to align track with master. Range: -500 to +500ms</p>
+        <div id="trackDelayList" style="display:flex;flex-direction:column;gap:8px;">
+            ${tracks.map(track => {
+                const compensation = getTrackDelayCompensation(track.id);
+                return `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#2a2a3a;border-radius:4px;">
+                    <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${track.name || 'Track ' + track.id}">${track.name || 'Track ' + track.id}</span>
+                    <input type="number" 
+                        data-track-id="${track.id}" 
+                        value="${compensation}" 
+                        min="-500" max="500" step="0.1"
+                        style="width:80px;padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center;"
+                        onchange="if(window.updateTrackDelayCompensation)window.updateTrackDelayCompensation(${track.id},this.value)">
+                    <span style="color:#888;font-size:12px;">ms</span>
+                </div>`;
+            }).join('')}
+        </div>
+        ${tracks.length === 0 ? '<p style="text-align:center;color:#666;padding:20px;">No tracks available</p>' : ''}
+    `;
 
-    const track = selectedTrack || tracks[0];
-    const currentMs = track?.delayCompensationMs || 0;
+    document.body.appendChild(panel);
 
-    html += '<div style="margin-bottom:12px;"><label style="color:#888;font-size:11px;">DELAY (ms)</label>';
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">`;
-    html += `<input type="number" id="delayCompMsInput" value="${currentMs}" min="-500" max="500" step="1" style="flex:1;padding:6px;background:#2a2a2a;border:1px solid #444;color:#ddd;border-radius:4px;">`;
-    html += `<span style="color:#666;">ms</span></div>`;
-    html += `<div style="display:flex;gap:4px;margin-top:6px;">`;
-    html += `<button id="delayCompApplyBtn" style="flex:1;padding:6px;background:#4a9eff;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:12px;">Apply</button>`;
-    html += `<button id="delayCompResetBtn" style="flex:1;padding:6px;background:#333;border:none;border-radius:4px;color:#ddd;cursor:pointer;font-size:12px;">Reset</button>`;
-    html += `</div></div>`;
+    // Global handler for input changes
+    window.updateTrackDelayCompensation = (trackId, value) => {
+        setTrackDelayCompensation(trackId, parseFloat(value));
+    };
 
-    html += '<div style="color:#666;font-size:11px;">Adjust per-track delay for phase alignment. Range: -500ms to +500ms.</div>';
-
-    content.innerHTML = html;
-
-    document.getElementById('delayCompTrackSelect').addEventListener('change', refreshTrackDelayCompensationContent);
-    document.getElementById('delayCompApplyBtn').addEventListener('click', applyTrackDelayCompensation);
-    document.getElementById('delayCompResetBtn').addEventListener('click', resetTrackDelayCompensation);
+    document.getElementById('closeDelayPanel').onclick = () => panel.remove();
+    panel.onclick = (e) => { if (e.target === panel) panel.remove(); };
 }
 
-function applyTrackDelayCompensation() {
-    const trackSelect = document.getElementById('delayCompTrackSelect');
-    const msInput = document.getElementById('delayCompMsInput');
-    if (!trackSelect || !msInput) return;
-
-    const trackId = trackSelect.value;
-    const ms = parseFloat(msInput.value) || 0;
-
-    const tracks = getTracksState();
-    const track = tracks.find(t => t.id === trackId);
-    if (track && typeof track.setDelayCompensation === 'function') {
-        track.setDelayCompensation(ms);
-        saveState();
-        showNotification(`Track "${track.name}" delay set to ${ms}ms`);
-    }
-}
-
-function resetTrackDelayCompensation() {
-    const trackSelect = document.getElementById('delayCompTrackSelect');
-    if (!trackSelect) return;
-
-    const trackId = trackSelect.value;
-    const tracks = getTracksState();
-    const track = tracks.find(t => t.id === trackId);
-    if (track && typeof track.setDelayCompensation === 'function') {
-        track.setDelayCompensation(0);
-        saveState();
-        if (document.getElementById('delayCompMsInput')) {
-            document.getElementById('delayCompMsInput').value = 0;
-        }
-        showNotification(`Track "${track.name}" delay reset to 0ms`);
-    }
-}
-
-// Initialize on load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initTrackDelayCompensation);
-} else {
-    initTrackDelayCompensation();
-}
-
-window.openTrackDelayCompensationPanel = openTrackDelayCompensationPanel;
-window.closeTrackDelayCompensationPanel = closeTrackDelayCompensationPanel;
-window.toggleTrackDelayCompensationPanel = toggleTrackDelayCompensationPanel;
+console.log('[TrackDelayCompensation] Module loaded');
