@@ -61,6 +61,8 @@ import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOP
 import { openTrackColorPalettePanel } from './TrackColorPalette.js';
 // Clip Opacity
 import { initClipOpacity, openClipOpacityPanel } from './ClipOpacity.js';
+// Clip Loop Preview
+import { initClipLoopPreview, toggleClipLoopPreview, deactivateClipLoopPreview, isClipInLoopPreview } from './ClipLoopPreview.js';
 // Quick Rename
 import { initQuickRename } from './QuickRename.js';
 // Effect panel imports - Session 2026-04-24
@@ -665,6 +667,9 @@ import {
     openBeatSyncedLFOPanel,
     openTrackColorPalettePanel,
     openClipOpacityPanel,
+    toggleClipLoopPreview,
+    deactivateClipLoopPreview,
+    isClipInLoopPreview,
     openMidiMappingsPanel,
     openExportPresetsPanel,
     openAICompositionPanel,
@@ -1226,6 +1231,7 @@ async function initializeSnugOS() {
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initClipOpacity === 'function') initClipOpacity(appServices); // Clip Opacity initialization
+        if (typeof initClipLoopPreview === 'function') initClipLoopPreview(appServices); // Clip Loop Preview - double-click to loop
         if (typeof initQuickRename === 'function') initQuickRename(appServices); // Quick Rename initialization
         if (typeof initBulkAssign === 'function') initBulkAssign(); // MIDI Bulk Assign initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
