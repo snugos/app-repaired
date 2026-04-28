@@ -416,6 +416,14 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] CPU Performance error:', e); }
             },
+            menuPlaybackRate: () => {
+                console.log('[Menu] Playback Rate clicked');
+                try {
+                    if (window.PlaybackRateShifter && window.PlaybackRateShifter.openPanel) {
+                        window.PlaybackRateShifter.openPanel();
+                    }
+                } catch(e) { console.error('[Menu] Playback Rate error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
