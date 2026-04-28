@@ -574,7 +574,7 @@ import {
         try {
             localStorage.removeItem('snugosDesktopBackground');
             localStorage.removeItem('snugosDesktopBgType');
-            const db = await this.bgDb.init();
+            const db = await bgDb.init();
             await new Promise((resolve, reject) => {
                 const tx = db.transaction('backgrounds', 'readwrite');
                 const store = tx.objectStore('backgrounds');
