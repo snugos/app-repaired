@@ -20,7 +20,7 @@ import { initAudioRestorationSuite, openAudioRestorationPanel } from './AudioRes
 import { initMIDIGuitarSupport, openMIDIGuitarPanel } from './MIDIGuitarSupport.js';
 import { initSpatialAudioPanning, openSpatialAudioPanel } from './SpatialAudioPanning.js';
 import { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel } from './CollaborationSessionRecording.js';
-import { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions, openAICompositionPanel } from './AIMixingSuggestions.js';
+import { AIMixingSuggestions, aiMixingSuggestions, initAIMixingSuggestions } from './AIMixingSuggestions.js';
 import { AITempoSuggestion, initAITempoSuggestion, openAITempoSuggestionPanel } from './AITempoSuggestion.js';
 import { FrequencySpectrumMatching, frequencySpectrumMatching, initFrequencySpectrumMatching, openFrequencySpectrumMatchingPanel } from './FrequencySpectrumMatching.js';
 import { SmartTrackGrouping, smartTrackGrouping, initSmartTrackGrouping, openSmartTrackGroupingPanel } from './SmartTrackGrouping.js';
