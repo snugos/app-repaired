@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Auto-Ducking Threshold** - Set automatic threshold for track ducking based on content analysis
-2. **Chord Progression Saver** - Save and recall chord progressions as templates for song sections
-3. **Multi-FX Preset Bank** - Browse and apply bundled multi-effect chain presets
-4. **Region Duplicate Mode** - Duplicate a selected region across the timeline with offset clips
-5. **Track Solo PFL** - Pre-fader solo for isolated monitoring of track signal chain
-6. **Clip Reverse Playback** - Play audio/MIDI clips in reverse for experimental sounds
-7. **Tempo Grid Snap** - Snap note placement to a grid that adjusts with tempo changes
-8. **Mixer Snapshot** - Save and recall complete mixer states (faders, pans, sends, mute/solo)
-9. **Audio Quantize Strength** - Adjustable strength slider for audio beat alignment (0-100%)
-10. **Send Level Envelope** - Draw automation for track send levels over time
+1. **Lyrics Display/Karaoke Mode** - Display lyrics synced to playback with word-by-word highlighting
+2. **Auto-Compression** - Analyze audio and suggest/apply compression settings
+3. **Track Headphone Mix** - Per-track headphone volume control separate from main mix
+4. **MIDI Velocity-to-CC** - Route MIDI velocity to any MIDI CC parameter for modulation
+5. **Audio Ducker** - Sidechain input for automatic volume reduction based on another track
+6. **Chord Keyboard Overlay** - Visual keyboard showing chord shapes in real-time
+7. **Loop Region Presets** - Save/load named loop regions as presets
+8. **Audio Tap Tempo** - Tap to set tempo from audio input timing detection
+9. **Mixer Channel Strip** - Visual channel strip with fader, pan, sends, and routing
+10. **Project Comparison View** - Side-by-side comparison of two project versions
 
 ## Workflow
 
