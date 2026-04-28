@@ -1,115 +1,79 @@
-// js/ClipFadePresets.js - Save and apply common fade curves
-(function() {
-    'use strict';
+// js/ClipFadePresets.js - Clip Fade Preset Management
+export const FADE_PRESETS = [
+    { id: 'linear_in', name: 'Linear In', curve: 'linear', direction: 'in' },
+    { id: 'linear_out', name: 'Linear Out', curve: 'linear', direction: 'out' },
+    { id: 'exponential_in', name: 'Exponential In', curve: 'exponential', direction: 'in' },
+    { id: 'exponential_out', name: 'Exponential Out', curve: 'exponential', direction: 'out' },
+    { id: 's_curve_in', name: 'S-Curve In', curve: 's-curve', direction: 'in' },
+    { id: 's_curve_out', name: 'S-Curve Out', curve: 's-curve', direction: 'out' },
+    { id: 'logarithmic_in', name: 'Logarithmic In', curve: 'logarithmic', direction: 'in' },
+    { id: 'logarithmic_out', name: 'Logarithmic Out', curve: 'logarithmic', direction: 'out' }
+];
 
-    const FADE_PRESETS = {
-        'Linear In': (t) => t,
-        'Linear Out': (t) => 1 - t,
-        'Linear In/Out': (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
-        'Exponential In': (t) => t === 0 ? 0 : Math.pow(2, 10 * (t - 1)),
-        'Exponential Out': (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
-        'S-Curve': (t) => t < 0.5 ? 2 * t * t * (1.5 - t) : 1 - Math.pow(-2 * t + 2, 2) / 2,
-        'Logarithmic In': (t) => t === 0 ? 0 : Math.log(1 + 10 * t) / Math.log(11),
-        'Logarithmic Out': (t) => t === 1 ? 1 : 1 - Math.log(1 + 10 * (1 - t)) / Math.log(11),
-        'Quarter Sine In': (t) => Math.sin((t - 1) * Math.PI / 2) + 1,
-        'Quarter Sine Out': (t) => Math.sin(t * Math.PI / 2),
-        'Half Sine In': (t) => 1 - Math.cos(t * Math.PI / 2),
-        'Half Sine Out': (t) => Math.sin(t * Math.PI / 2),
-    };
+export function getFadePresets() { return [...FADE_PRESETS]; }
 
-    const savedPresets = {};
+export function getFadePresetById(id) {
+    return FADE_PRESETS.find(p => p.id === id) || null;
+}
 
-    function applyFade(curve, duration, type = 'out') {
-        const audioContext = window.audioContext || window.audioCtx;
-        if (!audioContext) return;
-
-        const isFadeIn = type === 'in';
-        const curveFn = FADE_PRESETS[curve] || FADE_PRESETS['Linear Out'];
-        const gainNode = audioContext.createGain();
-
-        gainNode.gain.setValueAtTime(isFadeIn ? 0 : 1, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(isFadeIn ? 1 : 0, audioContext.currentTime + duration);
-
-        if (curve !== 'Linear Out' && curve !== 'Linear In') {
-            for (let i = 0; i <= 100; i++) {
-                const t = i / 100;
-                const value = isFadeIn ? curveFn(t) : curveFn(1 - t);
-                gainNode.gain.setValueAtTime(value, audioContext.currentTime + duration * t);
-            }
+export function applyFadePresetToClip(clip, presetId, fadeTimeMs = 1000) {
+    const preset = getFadePresetById(presetId);
+    if (!preset) return false;
+    
+    if (!clip.fadePoints) clip.fadePoints = { in: [], out: [] };
+    
+    const points = [];
+    const steps = 20;
+    
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        let value;
+        
+        switch (preset.curve) {
+            case 'exponential':
+                value = preset.direction === 'in' ? Math.pow(t, 2) : 1 - Math.pow(1 - t, 2);
+                break;
+            case 's-curve':
+                value = preset.direction === 'in' ? t * t * (3 - 2 * t) : t * t * (3 - 2 * t);
+                value = preset.direction === 'in' ? value : 1 - value;
+                break;
+            case 'logarithmic':
+                value = preset.direction === 'in' ? Math.log(1 + t * (Math.E - 1)) : Math.log(1 + (1 - t) * (Math.E - 1));
+                break;
+            default:
+                value = preset.direction === 'in' ? t : 1 - t;
         }
-
-        return gainNode;
+        
+        points.push({ time: t, value: Math.max(0, Math.min(1, value)) });
     }
-
-    function openFadePresetsPanel() {
-        const existing = document.getElementById('fadePresetsPanel');
-        if (existing) { existing.remove(); return; }
-
-        const panel = document.createElement('div');
-        panel.id = 'fadePresetsPanel';
-        panel.style.cssText = `
-            position: fixed; top: 80px; right: 220px; width: 280px;
-            background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
-            padding: 16px; z-index: 10000; color: #fff; font-family: sans-serif;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        `;
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-size: 14px; font-weight: bold; margin-bottom: 12px;';
-        title.textContent = 'Fade Presets';
-        panel.appendChild(title);
-
-        const presetList = document.createElement('div');
-        presetList.style.cssText = 'max-height: 300px; overflow-y: auto;';
-        presetList.id = 'fadePresetList';
-
-        Object.keys(FADE_PRESETS).forEach(name => {
-            const btn = document.createElement('button');
-            btn.style.cssText = `
-                display: block; width: 100%; padding: 8px 12px; margin-bottom: 6px;
-                background: #252540; border: none; border-radius: 4px; color: #fff;
-                cursor: pointer; text-align: left; font-size: 12px;
-            `;
-            btn.textContent = name;
-            btn.onclick = () => applyPresetToSelected(name);
-            presetList.appendChild(btn);
-        });
-        panel.appendChild(presetList);
-
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
-        closeBtn.style.cssText = `
-            width: 100%; padding: 8px; margin-top: 8px; background: #333;
-            border: none; border-radius: 4px; color: #fff; cursor: pointer;
-        `;
-        closeBtn.onclick = () => panel.remove();
-        panel.appendChild(closeBtn);
-
-        document.body.appendChild(panel);
+    
+    if (preset.direction === 'in') {
+        clip.fadePoints.in = points;
+    } else {
+        clip.fadePoints.out = points;
     }
+    
+    clip.fadeTimeMs = fadeTimeMs;
+    console.log(`[ClipFadePresets] Applied "${preset.name}" to clip`);
+    return true;
+}
 
-    function applyPresetToSelected(presetName) {
-        console.log(`Applying fade preset: ${presetName}`);
-        const event = new CustomEvent('snawFadePreset', { detail: { preset: presetName } });
-        document.dispatchEvent(event);
+export function clearFadePoints(clip) {
+    if (clip.fadePoints) {
+        clip.fadePoints.in = [];
+        clip.fadePoints.out = [];
     }
+}
 
-    function saveCustomPreset(name, curveFn) {
-        savedPresets[name] = curveFn;
-    }
+export function getCustomFadePresets() {
+    const stored = localStorage.getItem('customFadePresets');
+    return stored ? JSON.parse(stored) : [];
+}
 
-    function deleteCustomPreset(name) {
-        delete savedPresets[name];
-    }
-
-    function getPresetNames() {
-        return Object.keys(FADE_PRESETS).concat(Object.keys(savedPresets));
-    }
-
-    window.openFadePresetsPanel = openFadePresetsPanel;
-    window.applyFadePreset = applyPresetToSelected;
-    window.saveCustomFadePreset = saveCustomPreset;
-    window.deleteCustomFadePreset = deleteCustomPreset;
-    window.getFadePresetNames = getPresetNames;
-
-})();
+export function saveCustomFadePreset(name, curve, direction) {
+    const presets = getCustomFadePresets();
+    const id = `custom_${Date.now()}`;
+    presets.push({ id, name, curve, direction });
+    localStorage.setItem('customFadePresets', JSON.stringify(presets));
+    return id;
+}
