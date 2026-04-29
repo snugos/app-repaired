@@ -17,7 +17,7 @@ import { initVideoExportEnhancement, openVideoExportPanel } from './VideoExportE
 import { initCloudSyncEnhancement, openCloudSyncPanel } from './CloudSyncEnhancement.js';
 import { initNotationExportEnhancement, openNotationExportPanel } from './NotationExportEnhancement.js';
 import { initAudioRestorationSuite, openAudioRestorationPanel } from './AudioRestorationSuite.js';
-import { initPitchDriftCorrection, openPitchDriftCorrectionPanel } from './PitchDriftCorrection.js';
+import { openPitchDriftCorrectionPanel } from './PitchDriftCorrection.js';
 import { initMIDIGuitarSupport, openMIDIGuitarPanel } from './MIDIGuitarSupport.js';
 import { initSpatialAudioPanning, openSpatialAudioPanel } from './SpatialAudioPanning.js';
 import { CollaborationSessionRecording, collaborationSessionRecording, initCollaborationSessionRecording, openCollaborationSessionPanel } from './CollaborationSessionRecording.js';
@@ -674,6 +674,7 @@ import {
     openTrackColorPalettePanel,
     openDrumReplacePanel,
     openClipOpacityPanel,
+    openPitchDriftCorrectionPanel,
     toggleClipLoopPreview,
     deactivateClipLoopPreview,
     isClipInLoopPreview,

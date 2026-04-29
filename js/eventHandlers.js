@@ -511,6 +511,12 @@ export function initializePrimaryEventListeners(appContext) {
                     });
                 } catch(e) { console.error('[Menu] Note Length Default error:', e); }
             },
+            menuPitchDriftCorrection: () => {
+                console.log('[Menu] Pitch Drift Correction clicked');
+                try {
+                    openPitchDriftCorrectionPanel();
+                } catch(e) { console.error('[Menu] Pitch Drift Correction error:', e); }
+            },
         };
 
         for (const menuItemId in menuActions) {
