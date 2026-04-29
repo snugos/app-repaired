@@ -208,6 +208,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openMixerSnapshotPanel?.(localAppServices);
                 } catch(e) { console.error('[Menu] Mixer Snapshots error:', e); }
             },
+            menuOpenPianoRoll: () => {
+                console.log('[Menu] Piano Roll Editor clicked');
+                try {
+                    localAppServices.openPianoRollEditor?.();
+                } catch(e) { console.error('[Menu] Piano Roll Editor error:', e); }
+            },
             menuOpenMasterEffects: () => {
                 console.log('[Menu] Master Effects clicked');
                 try {
