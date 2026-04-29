@@ -52,6 +52,7 @@ import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
 import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
+import { initClipGroupManager } from './ClipGroupManager.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackFreezeQuickToggle } from './TrackFreezeQuickToggle.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
@@ -1214,6 +1215,7 @@ async function initializeSnugOS() {
         if (typeof initClipReverse === 'function') initClipReverse(appServices); // Clip Reverse feature initialization
         if (typeof initTrackHeadphoneMix === 'function') initTrackHeadphoneMix(appServices); // Headphone Mix initialization
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
+        if (typeof initClipGroupManager === 'function') initClipGroupManager(appServices); // Clip Group Manager
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
         if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
