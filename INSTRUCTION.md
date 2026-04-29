@@ -4,15 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Spectral Gate** - Frequency-based gate that only allows sounds within a certain range to pass
-2. **Clip Grouping Manager** - Organize and manage groups of clips with shared properties
-3. **Drum Replace** - Replace drum hits in recorded audio with samples from a library
-4. **Pitch Drift Correction** - Correct pitch drift in recordings over time
-5. **Track Headroom Meter** - Show how much headroom each track has before clipping
-6. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
-7. **Groove Extraction** - Extract timing groove from one track and apply to others
-8. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
-9. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
+1. **Clip Grouping Manager** - Organize and manage groups of clips with shared properties
+2. **Drum Replace** - Replace drum hits in recorded audio with samples from a library
+3. **Pitch Drift Correction** - Correct pitch drift in recordings over time
+4. **Track Headroom Meter** - Show how much headroom each track has before clipping
+5. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
+6. **Groove Extraction** - Extract timing groove from one track and apply to others
+7. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
+8. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
+9. **Spectral Gate** ✅ - Frequency-based gate that only allows sounds within a certain range to pass (completed)
 
 ## Workflow
 
