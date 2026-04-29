@@ -376,24 +376,36 @@ export function createTrackHeadroomMeter(audioContext, options = {}) {
 }
 
 export function openTrackHeadroomMeterPanel(services = {}) {
+    // For programmatic use with custom services
     const { audioContext, container, tracks } = services;
-    
     if (!audioContext || !container) {
         console.warn('Missing required services for Track Headroom Meter panel');
         return null;
     }
-    
     const meter = new TrackHeadroomMeter(audioContext);
-    
-    // Add tracks if provided
     if (tracks && Array.isArray(tracks)) {
         for (const track of tracks) {
             meter.addTrack(track.id, { name: track.name, color: track.color });
         }
     }
-    
     const panel = meter.createPanel(container);
     meter.start();
-    
     return { meter, panel };
 }
+
+// Simple panel opener for Start menu / context menu use
+let _headroomPanelInstance = null;
+function _openHeadroomPanel() {
+    if (_headroomPanelInstance) { _headroomPanelInstance.remove(); _headroomPanelInstance = null; return; }
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;';
+    document.body.appendChild(container);
+    const meter = new TrackHeadroomMeter(window.Tone?.context || new AudioContext());
+    _headroomPanelInstance = meter.createPanel(container);
+    meter.start();
+    container.addEventListener('click', (e) => {
+        if (e.target === container) { _headroomPanelInstance.remove(); _headroomPanelInstance = null; }
+    });
+}
+
+window.openTrackHeadroomMeterPanel = _openHeadroomPanel;
