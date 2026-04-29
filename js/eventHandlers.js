@@ -363,6 +363,30 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Clip Reverse error:', e); }
             },
+            menuClipStretchMarkers: () => {
+                console.log('[Menu] Clip Stretch Markers clicked');
+                try {
+                    const tracks = localAppServices.getTracks?.() || [];
+                    if (tracks.length > 0) {
+                        const audioTrack = tracks.find(t => t.type === 'Audio');
+                        if (audioTrack && audioTrack.timelineClips?.length > 0) {
+                            if (window.openClipStretchMarkersPanel) {
+                                window.openClipStretchMarkersPanel(audioTrack.id, audioTrack.timelineClips[0].id);
+                            } else {
+                                import('./ClipStretchMarkers.js').then(m => {
+                                    if (m.toggleClipStretchMarkers) {
+                                        m.toggleClipStretchMarkers(audioTrack, audioTrack.timelineClips[0].id, true);
+                                    }
+                                });
+                            }
+                        } else {
+                            localAppServices.showNotification?.('No audio clips available. Add an audio clip first.', 2000);
+                        }
+                    } else {
+                        localAppServices.showNotification?.('No tracks available. Create a track first.', 2000);
+                    }
+                } catch(e) { console.error('[Menu] Clip Stretch Markers error:', e); }
+            },
             menuAutoBeatSync: () => {
                 console.log('[Menu] Auto-Beat Sync clicked');
                 try {
