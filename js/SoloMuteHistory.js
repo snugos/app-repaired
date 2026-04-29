@@ -1,6 +1,13 @@
 // SnugOS DAW - Track Solo/Mute History
 // Allows undoing solo/mute actions
 
+let localAppServices = {};
+
+export function initSoloMuteHistory(services) {
+    localAppServices = services || {};
+    console.log('[SoloMuteHistory] Initialized');
+}
+
 const soloMuteHistory = {
     undoStack: [],
     maxSize: 50,
@@ -42,7 +49,7 @@ function undoLastSoloMute() {
     const last = soloMuteHistory.undo();
     if (!last) return false;
     
-    const track = getTrackById(last.trackId);
+    const track = localAppServices.getTrackByIdState ? localAppServices.getTrackByIdState(last.trackId) : null;
     if (!track) return false;
     
     if (last.type === 'solo') {
@@ -51,8 +58,8 @@ function undoLastSoloMute() {
         track.muted = last.previousState;
     }
     
-    updateAllTrackVisuals();
-    renderMixer();
+    if (localAppServices.updateAllTrackVisuals) localAppServices.updateAllTrackVisuals();
+    if (localAppServices.renderMixer) localAppServices.renderMixer();
     return true;
 }
 
