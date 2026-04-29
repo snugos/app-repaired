@@ -4,10 +4,322 @@
 let localAppServices = {};
 let detectedHits = []; // Array of {time, duration, confidence, replacedWith}
 let isAnalyzing = false;
+let currentDrumReplaceTrackId = null;
 
 export function initDrumReplace(services) {
     localAppServices = services;
     console.log('[DrumReplace] Initialized');
+}
+
+/**
+ * Open the Drum Replace panel for a track
+ * @param {number|null} trackId - Track ID to analyze (uses selected track if null)
+ */
+export function openDrumReplacePanel(trackId = null) {
+    const windowId = 'drumReplace';
+    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
+    
+    if (openWindows.has(windowId) && !trackId) {
+        const win = openWindows.get(windowId);
+        win.restore();
+        renderDrumReplaceContent();
+        return win;
+    }
+
+    // Get the track to analyze
+    const targetTrackId = trackId || currentDrumReplaceTrackId || localAppServices.getTracks?.()?.[0]?.id;
+    if (!targetTrackId) {
+        localAppServices.showNotification?.('No track available for drum replace', 2000);
+        return null;
+    }
+    currentDrumReplaceTrackId = targetTrackId;
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'drumReplaceContent';
+    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+
+    const options = { 
+        width: 500, 
+        height: 600, 
+        minWidth: 400, 
+        minHeight: 500, 
+        initialContentKey: windowId, 
+        closable: true, 
+        minimizable: true, 
+        resizable: true 
+    };
+    
+    const win = localAppServices.createWindow(windowId, 'Drum Replace', contentContainer, options);
+    if (win?.element) {
+        renderDrumReplaceContent();
+    }
+    return win;
+}
+
+function renderDrumReplaceContent() {
+    const container = document.getElementById('drumReplaceContent');
+    if (!container) return;
+
+    const track = currentDrumReplaceTrackId ? localAppServices.getTrackById?.(currentDrumReplaceTrackId) : null;
+    const tracks = localAppServices.getTracks?.() || [];
+    
+    // Get available drum tracks (DrumSampler type) for sample source
+    const drumTracks = tracks.filter(t => t.type === 'DrumSampler' || t.type === 'Sampler');
+    
+    let html = `
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Drum Replace</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Analyze audio clips to detect drum hits, then replace them with samples from your library.
+            </p>
+        </div>
+        
+        <!-- Track Selection -->
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Track to Analyze</label>
+            <select id="drumReplaceTrackSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded text-gray-700 dark:text-gray-200">
+                ${tracks.filter(t => t.type === 'Audio').map(t => 
+                    `<option value="${t.id}" ${t.id === currentDrumReplaceTrackId ? 'selected' : ''}>${t.name}</option>`
+                ).join('')}
+            </select>
+        </div>
+        
+        <!-- Analyze Section -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Detection Settings</h4>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-gray-500">Threshold: <span id="thresholdVal">30%</span></label>
+                    <input type="range" id="drumReplaceThreshold" min="0" max="100" value="30" class="w-full">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Min Gap: <span id="minGapVal">0.1s</span></label>
+                    <input type="range" id="drumReplaceMinGap" min="50" max="500" value="100" class="w-full">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button id="analyzeDrumBtn" class="flex-1 px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Analyze Audio
+                </button>
+                <button id="clearDrumAnalysisBtn" class="px-3 py-2 text-xs bg-gray-400 text-white rounded hover:bg-gray-500">
+                    Clear
+                </button>
+            </div>
+        </div>
+        
+        <!-- Detected Hits List -->
+        <div class="mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300">Detected Hits (<span id="hitCount">0</span>)</h4>
+                <button id="replaceAllHitsBtn" class="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600" disabled>
+                    Replace All
+                </button>
+            </div>
+            <div id="drumHitsList" class="space-y-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600 p-2">
+                <div class="text-xs text-gray-400 text-center py-4">No hits detected yet</div>
+            </div>
+        </div>
+        
+        <!-- Sample Selection for Replacement -->
+        <div class="mb-4 p-3 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-slate-600">
+            <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Replace With Sample</h4>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-xs text-gray-500">Source Drum Track</label>
+                    <select id="drumSourceTrack" class="w-full p-1 text-xs bg-gray-50 dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                        ${drumTracks.length > 0 ? 
+                            drumTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('') :
+                            `<option value="">No drum tracks</option>`
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Pad (1-8)</label>
+                    <select id="drumReplacePad" class="w-full p-1 text-xs bg-gray-50 dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+                        ${[...Array(8)].map((_, i) => `<option value="${i}">Pad ${i + 1}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-xs text-gray-500">Gain: <span id="gainVal">100%</span></label>
+                    <input type="range" id="drumReplaceGain" min="0" max="150" value="100" class="w-full">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Pitch: <span id="pitchVal">0st</span></label>
+                    <input type="range" id="drumReplacePitch" min="-12" max="12" value="0" class="w-full">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Apply Button -->
+        <div class="flex gap-2">
+            <button id="applyDrumReplaceBtn" class="flex-1 px-4 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600" disabled>
+                Apply Replacements
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Attach event listeners
+    const trackSelect = container.querySelector('#drumReplaceTrackSelect');
+    trackSelect?.addEventListener('change', (e) => {
+        currentDrumReplaceTrackId = parseInt(e.target.value, 10);
+        resetDrumReplace();
+        renderDrumReplaceContent();
+    });
+
+    const thresholdSlider = container.querySelector('#drumReplaceThreshold');
+    const thresholdVal = container.querySelector('#thresholdVal');
+    thresholdSlider?.addEventListener('input', (e) => {
+        thresholdVal.textContent = `${e.target.value}%`;
+    });
+
+    const minGapSlider = container.querySelector('#drumReplaceMinGap');
+    const minGapVal = container.querySelector('#minGapVal');
+    minGapSlider?.addEventListener('input', (e) => {
+        minGapVal.textContent = `${(parseInt(e.target.value) / 1000).toFixed(1)}s`;
+    });
+
+    const analyzeBtn = container.querySelector('#analyzeDrumBtn');
+    analyzeBtn?.addEventListener('click', async () => {
+        const threshold = parseInt(thresholdSlider.value) / 100;
+        const minGap = parseInt(minGapSlider.value) / 1000;
+        
+        const selectedTrack = localAppServices.getTrackById?.(currentDrumReplaceTrackId);
+        if (!selectedTrack) return;
+
+        // Get audio data from track's timeline clips
+        let audioData = null;
+        let sampleRate = 44100;
+
+        if (selectedTrack.timelineClips && selectedTrack.timelineClips.length > 0) {
+            const clip = selectedTrack.timelineClips[0];
+            if (clip.audioBuffer) {
+                audioData = clip.audioBuffer.getChannelData(0);
+                sampleRate = clip.audioBuffer.sampleRate;
+            }
+        }
+
+        if (audioData) {
+            isAnalyzing = true;
+            detectDrumHits(audioData, sampleRate, { threshold, minTimeBetweenHits: minGap });
+            updateHitsListUI();
+            localAppServices.showNotification?.(`Detected ${detectedHits.length} drum hits`, 2000);
+        } else {
+            localAppServices.showNotification?.('No audio data to analyze', 2000);
+        }
+    });
+
+    const clearBtn = container.querySelector('#clearDrumAnalysisBtn');
+    clearBtn?.addEventListener('click', () => {
+        resetDrumReplace();
+        renderDrumReplaceContent();
+    });
+
+    const gainSlider = container.querySelector('#drumReplaceGain');
+    const gainVal = container.querySelector('#gainVal');
+    gainSlider?.addEventListener('input', (e) => {
+        gainVal.textContent = `${e.target.value}%`;
+    });
+
+    const pitchSlider = container.querySelector('#drumReplacePitch');
+    const pitchVal = container.querySelector('#pitchVal');
+    pitchSlider?.addEventListener('input', (e) => {
+        pitchVal.textContent = `${e.target.value}st`;
+    });
+
+    const replaceAllBtn = container.querySelector('#replaceAllHitsBtn');
+    replaceAllBtn?.addEventListener('click', () => {
+        const sourceTrackId = parseInt(container.querySelector('#drumSourceTrack').value);
+        const padIndex = parseInt(container.querySelector('#drumReplacePad').value);
+        const gain = parseInt(gainSlider.value) / 100;
+        const pitch = parseInt(pitchSlider.value);
+
+        if (sourceTrackId && detectedHits.length > 0) {
+            replaceAllHits(
+                { trackId: sourceTrackId, padIndex, sampleName: `Pad ${padIndex + 1}` },
+                { gain, pitchShift: pitch }
+            );
+            updateHitsListUI();
+            localAppServices.showNotification?.(`Replaced all ${detectedHits.length} hits`, 2000);
+        }
+    });
+
+    const applyBtn = container.querySelector('#applyDrumReplaceBtn');
+    applyBtn?.addEventListener('click', async () => {
+        const replacedCount = detectedHits.filter(h => h.replacedWith).length;
+        if (replacedCount === 0) {
+            localAppServices.showNotification?.('No hits to replace', 2000);
+            return;
+        }
+        
+        localAppServices.showNotification?.(`Applied ${replacedCount} replacements`, 2000);
+        // The actual playback would be triggered during transport playback
+    });
+
+    updateHitsListUI();
+}
+
+function updateHitsListUI() {
+    const container = document.getElementById('drumReplaceContent');
+    if (!container) return;
+
+    const hitsList = container.querySelector('#drumHitsList');
+    const hitCountEl = container.querySelector('#hitCount');
+    const replaceAllBtn = container.querySelector('#replaceAllHitsBtn');
+    const applyBtn = container.querySelector('#applyDrumReplaceBtn');
+
+    if (hitCountEl) hitCountEl.textContent = detectedHits.length;
+
+    if (!hitsList) return;
+
+    if (detectedHits.length === 0) {
+        hitsList.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No hits detected yet</div>';
+        if (replaceAllBtn) replaceAllBtn.disabled = true;
+        if (applyBtn) applyBtn.disabled = true;
+        return;
+    }
+
+    const replacedCount = detectedHits.filter(h => h.replacedWith).length;
+    if (replaceAllBtn) replaceAllBtn.disabled = replacedCount === 0;
+    if (applyBtn) applyBtn.disabled = replacedCount === 0;
+
+    hitsList.innerHTML = detectedHits.map((hit, idx) => `
+        <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-600 rounded text-xs ${hit.replacedWith ? 'border border-purple-300' : 'border border-gray-200'}">
+            <div class="flex items-center gap-2">
+                <span class="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-full text-[10px]">${idx + 1}</span>
+                <span class="text-gray-600 dark:text-gray-300">${hit.time.toFixed(3)}s</span>
+                <span class="text-gray-400">${Math.round(hit.confidence * 100)}%</span>
+            </div>
+            <div class="flex items-center gap-2">
+                ${hit.replacedWith ? 
+                    `<span class="text-purple-600 dark:text-purple-300">${hit.replacedWith.sampleName}</span>` :
+                    `<span class="text-gray-400">Not replaced</span>`
+                }
+                <button class="replace-hit-btn px-2 py-0.5 text-[10px] bg-purple-400 text-white rounded hover:bg-purple-500" data-hit-idx="${idx}">
+                    ${hit.replacedWith ? 'Change' : 'Replace'}
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    // Attach click handlers for replace buttons
+    hitsList.querySelectorAll('.replace-hit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const hitIdx = parseInt(e.target.dataset.hitIdx, 10);
+            const sourceTrackId = parseInt(container.querySelector('#drumSourceTrack').value);
+            const padIndex = parseInt(container.querySelector('#drumReplacePad').value);
+            const gain = parseInt(container.querySelector('#drumReplaceGain').value) / 100;
+            const pitch = parseInt(container.querySelector('#drumReplacePitch').value);
+
+            if (sourceTrackId) {
+                replaceHit(hitIdx, { trackId: sourceTrackId, padIndex, sampleName: `Pad ${padIndex + 1}` }, { gain, pitchShift: pitch });
+                updateHitsListUI();
+            }
+        });
+    });
 }
 
 /**

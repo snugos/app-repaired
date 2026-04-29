@@ -62,6 +62,8 @@ import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnaly
 import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOPanel.js';
 // Track Color Palette
 import { openTrackColorPalettePanel } from './TrackColorPalette.js';
+// Drum Replace - Analyze audio and replace drum hits with samples
+import { initDrumReplace, openDrumReplacePanel } from './DrumReplace.js';
 // Clip Opacity
 import { initClipOpacity, openClipOpacityPanel } from './ClipOpacity.js';
 // Clip Loop Preview
@@ -669,6 +671,7 @@ import {
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
     openTrackColorPalettePanel,
+    openDrumReplacePanel,
     openClipOpacityPanel,
     toggleClipLoopPreview,
     deactivateClipLoopPreview,
@@ -1220,6 +1223,7 @@ async function initializeSnugOS() {
         if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
         if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
+        if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
