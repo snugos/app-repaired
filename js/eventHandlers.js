@@ -120,7 +120,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Group Edit Panel", action: () => { if(localAppServices.openGroupEditPanel) localAppServices.openGroupEditPanel('notes'); } },
                     { separator: true },
                     { label: "Upload Custom Background (Image/Video)", action: () => { if(localAppServices.triggerCustomBackgroundUpload) localAppServices.triggerCustomBackgroundUpload(); } },
-                    { label: "Remove Custom Background", action: () => { if(localAppServices.removeCustomDesktopBackground) localAppServices.removeCustomDesktopBackground(); } },
+                    { label: "Remove Custom Background", action: () => { if(localAppServices.removeCustomDesktopBackground) localAppServices.removeCustomDesktopBackground(); else console.warn("[EventHandlers] removeCustomDesktopBackground not available - ensure app services initialized"); } },
                     { label: "Stretch Quality", action: () => { if(localAppServices.openStretchQualityPanel) localAppServices.openStretchQualityPanel(); } },
                     { separator: true },
                     { label: "Loopback Audio Routing", action: () => { if(localAppServices.openLoopbackRoutingPanel) localAppServices.openLoopbackRoutingPanel(); } },
