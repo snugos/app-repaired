@@ -472,6 +472,19 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTempoRamperPanel?.();
                 } catch(e) { console.error('[Menu] Tempo Ramper error:', e); }
             },
+            menuTempoForecast: () => {
+                console.log('[Menu] Tempo Forecast clicked');
+                try {
+                    if (window.openTempoForecastOverlay) {
+                        window.openTempoForecastOverlay();
+                    } else {
+                        import('./TempoForecastOverlay.js').then(m => {
+                            if (m.initTempoForecastOverlay) m.initTempoForecastOverlay(localAppServices);
+                            if (m.openTempoForecastOverlay) m.openTempoForecastOverlay();
+                        });
+                    }
+                } catch(e) { console.error('[Menu] Tempo Forecast error:', e); }
+            },
             menuAutoThreshold: () => {
                 console.log('[Menu] Auto Threshold clicked');
                 try {
