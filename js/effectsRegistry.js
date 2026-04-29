@@ -35,6 +35,7 @@ import { SidechainGate } from './SidechainGate.js';
 import { SpectralFlanger } from './SpectralFlanger.js';
 import { TextureSynth } from './TextureSynth.js';
 import { DriftOscillator } from './DriftOscillator.js';
+import { SpectralGate } from './SpectralGate.js';
 
 if (typeof Tone !== 'undefined') {
     Tone.FrequencySplitter = FrequencySplitter;
@@ -1720,6 +1721,20 @@ export const AVAILABLE_EFFECTS = {
 // Merge ScatterEffect into AVAILABLE_EFFECTS
 Object.assign(AVAILABLE_EFFECTS, ScatterEffectDefinition);
 
+// Add SpectralGate to AVAILABLE_EFFECTS
+AVAILABLE_EFFECTS.SpectralGate = {
+    displayName: 'Spectral Gate',
+    toneClass: 'SpectralGate',
+    params: [
+        { key: 'lowFreq', label: 'Low Freq', type: 'knob', min: 20, max: 20000, step: 10, defaultValue: 250, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+        { key: 'highFreq', label: 'High Freq', type: 'knob', min: 20, max: 20000, step: 10, defaultValue: 4000, decimals: 0, displaySuffix: 'Hz', isSignal: false },
+        { key: 'threshold', label: 'Threshold', type: 'knob', min: -80, max: 0, step: 1, defaultValue: -40, decimals: 0, displaySuffix: 'dB', isSignal: false },
+        { key: 'attack', label: 'Attack', type: 'knob', min: 0.001, max: 0.1, step: 0.001, defaultValue: 0.001, decimals: 3, displaySuffix: 's', isSignal: false },
+        { key: 'release', label: 'Release', type: 'knob', min: 0.01, max: 1, step: 0.01, defaultValue: 0.1, decimals: 2, displaySuffix: 's', isSignal: false },
+        { key: 'wet', label: 'Wet', type: 'knob', min: 0, max: 1, step: 0.01, defaultValue: 1, decimals: 2, isSignal: false },
+    ]
+};
+
 export function createEffectInstance(effectType, initialParams = {}) {
     if (typeof Tone === 'undefined') {
         console.error(`[EffectsRegistry createEffectInstance] Tone.js is not loaded. Cannot create effect "${effectType}".`);
@@ -1959,4 +1974,5 @@ if (typeof Tone !== 'undefined') {
     Tone.SpectralFlanger = SpectralFlanger;
     Tone.TextureSynth = TextureSynth;
     Tone.DriftOscillator = DriftOscillator;
+    Tone.SpectralGate = SpectralGate;
 }
