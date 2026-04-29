@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDIRecordingQuantize** - Auto-quantize MIDI input in real-time as notes are recorded
-2. **AudioCompressorHipass** - Add high-pass filter to compressor for cleaner mixes
-3. **TrackFreezeUndo** - Undo track freeze to restore unfrozen state
-4. **ClipColorByVelocity** - Color-code notes in clips by velocity for visual feedback
-5. **MixerChannelStrip** - Add channel strip controls (EQ, compressor) to mixer panel
-6. **ChordProgressionExport** - Export chord progression as MIDI file
-7. **TransportMarkers** - Add numbered markers to transport for quick navigation
-8. **BPMtapSelection** - Tap tempo applies only to selected tracks for layering
-9. **MetronomePitch** - Pitch metronome click higher on downbeats
-10. **AudioNormalizeOnImport** - Auto-normalize audio clips when imported
+1. **Clip Ghost Trails** - Faint ghost of a clip shown at other positions for comparison/remixing
+2. **Track Noise Gate** - Per-track noise gate with threshold and attack/release controls
+3. **Step Sequencer Grid Copy** - Copy/paste rows or columns in the step sequencer
+4. **MIDIFile Drag Export** - Drag a MIDI clip from the timeline to export as .mid file
+5. **Mixer Routing Lines** - Draw visual connection lines between track outputs in mixer view
+6. **Randomized Pattern Generator** - Generate random but musical patterns based on scale/key
+7. **Track Solo Defeat** - Solo multiple tracks temporarily while holding solo (solo-in-place)
+8. **Audio Saturation Meter** - Show harmonic saturation level on track meters (even/odd harmonics)
+9. **Tempo Forecast Overlay** ✅ - Show upcoming tempo ramp points as translucent markers on timeline (just completed)
+10. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
 
 ## Workflow
 
