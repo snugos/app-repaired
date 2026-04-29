@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI Learn Range** - Set min/max CC range for MIDI Learn mapping
-2. **Track Freeze Toggle** - Quick freeze/unfreeze individual tracks
-3. **Export Stem Ranges** - Export a selected time range as stems
-4. **Track Delay Sync** - Per-track delay compensation based on plugin latency
-5. **Groove Template Draw** - Draw custom timing offsets for groove templates
-6. **Clip Envelope Shapes** - Apply preset envelope shapes (pyramid, gate, swell)
-7. **Solo Chain Mode** - Solo a chain of tracks together (exclusive solo)
-8. **BPM History Stats** - Show tap tempo history with statistics
-9. **Tempo Sync Helper** ✅ - detect BPM from audio and suggest optimal tempo
-10. **Clip Fade Curves** ✅ - S-curve and exponential fade presets for clips (just completed)
+1. **Clip Loop Preview** - Double-click clip header to loop only that clip during playback
+2. **Track Freeze Quick Toggle** - Keyboard shortcut `F` on selected track to freeze/unfreeze
+3. **Automation Fill Mode** - Right-click automation lane to fill with curve types (hold, ramp, decay)
+4. **BPM Nudge Buttons** - +/- 0.1 BPM buttons in transport bar for fine tempo adjustment
+5. **Note Length Scaler** - Select notes in piano roll and scale their length by percentage
+6. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
+7. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
+8. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
+9. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
+10. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
 
 ## Workflow
 
