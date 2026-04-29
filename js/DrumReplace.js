@@ -1,438 +1,236 @@
-// js/DrumReplace.js - Intelligent Drum Replacement System
-// Detects and replaces drum hits (kick, snare, hihat) in audio recordings
+// js/DrumReplace.js - Drum Replace Feature
+// Replace detected drum hits in recorded audio with samples from a library
 
-import { showNotification } from './utils.js';
+let localAppServices = {};
+let detectedHits = []; // Array of {time, duration, confidence, replacedWith}
+let isAnalyzing = false;
 
-// Drum type classification based on frequency characteristics
-const DRUM_TYPES = {
-    KICK: 'kick',
-    SNARE: 'snare',
-    HIHAT_CLOSED: 'hihat_closed',
-    HIHAT_OPEN: 'hihat_open',
-    TOM: 'tom',
-    UNKNOWN: 'unknown'
-};
+export function initDrumReplace(services) {
+    localAppServices = services;
+    console.log('[DrumReplace] Initialized');
+}
 
-// Frequency ranges for drum classification
-const FREQUENCY_BANDS = {
-    KICK: { low: 30, high: 150 },      // Deep bass
-    SNARE: { low: 150, high: 400 },    // Midrange attack
-    HIHAT: { low: 4000, high: 12000 }, // High frequency
-    TOM: { low: 100, high: 300 }        // Low-mid
-};
+/**
+ * Analyze audio buffer to detect drum hits using energy-based onset detection
+ * @param {Float32Array} audioData - Audio sample data
+ * @param {number} sampleRate - Sample rate
+ * @param {Object} options - Detection options
+ * @returns {Array<{time: number, confidence: number}>} Detected hits
+ */
+export function detectDrumHits(audioData, sampleRate, options = {}) {
+    const {
+        threshold = 0.3,        // Energy threshold (0-1)
+        minTimeBetweenHits = 0.1, // Minimum seconds between hits
+        windowSize = 1024,       // Analysis window size
+        hopSize = 512            // Hop size for sliding window
+    } = options;
 
-// Attack threshold for transient detection
-const TRANSIENT_THRESHOLD = 0.3;
-const MIN_INTERVAL_MS = 50; // Minimum time between hits
+    isAnalyzing = true;
+    detectedHits = [];
 
-export class DrumReplace {
-    constructor() {
-        this.audioContext = null;
-        this.analyser = null;
-        this.isAnalyzing = false;
-        this.detectedHits = [];
-        this.replacementSamples = {};
-        this.onHitsDetected = null;
-    }
+    // Calculate energy envelope using short-time energy
+    const energies = [];
+    const numWindows = Math.floor((audioData.length - windowSize) / hopSize);
 
-    async initialize() {
-        if (this.audioContext) return;
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 2048;
-        console.log('[DrumReplace] Initialized');
-    }
-
-    /**
-     * Load an audio buffer from a file or blob
-     */
-    async loadAudioBuffer(source) {
-        await this.initialize();
-        let arrayBuffer;
-        
-        if (source instanceof File || source instanceof Blob) {
-            arrayBuffer = await source.arrayBuffer();
-        } else if (typeof source === 'string') {
-            const response = await fetch(source);
-            arrayBuffer = await response.arrayBuffer();
-        } else {
-            throw new Error('Invalid audio source');
-        }
-        
-        return await this.audioContext.decodeAudioData(arrayBuffer);
-    }
-
-    /**
-     * Detect transients in audio data
-     */
-    detectTransients(audioBuffer) {
-        const data = audioBuffer.getChannelData(0);
-        const sampleRate = audioBuffer.sampleRate;
-        const transients = [];
-        
-        // Calculate energy in short windows
-        const windowSize = Math.floor(sampleRate * 0.005); // 5ms windows
-        const hopSize = Math.floor(windowSize / 2);
-        
-        let prevEnergy = 0;
-        let lastTransientTime = 0;
-        
-        for (let i = 0; i < data.length - windowSize; i += hopSize) {
-            let energy = 0;
-            for (let j = 0; j < windowSize; j++) {
-                energy += data[i + j] * data[i + j];
-            }
-            energy = Math.sqrt(energy / windowSize);
-            
-            // Detect sudden increase in energy (transient)
-            const delta = energy - prevEnergy;
-            if (delta > TRANSIENT_THRESHOLD && energy > 0.05) {
-                const timeMs = (i / sampleRate) * 1000;
-                // Enforce minimum interval between hits
-                if (timeMs - lastTransientTime > MIN_INTERVAL_MS) {
-                    transients.push({
-                        time: i / sampleRate,
-                        timeMs: timeMs,
-                        energy: energy,
-                        delta: delta
-                    });
-                    lastTransientTime = timeMs;
-                }
-            }
-            prevEnergy = energy * 0.9 + prevEnergy * 0.1; // Smooth decay
-        }
-        
-        return transients;
-    }
-
-    /**
-     * Classify a drum hit based on spectral content around the transient
-     */
-    classifyHit(audioBuffer, transientIndex, transients) {
-        if (transientIndex >= transients.length) return DRUM_TYPES.UNKNOWN;
-        
-        const transient = transients[transientIndex];
-        const sampleRate = audioBuffer.sampleRate;
-        const data = audioBuffer.getChannelData(0);
-        
-        // Window around the transient
-        const windowStart = Math.floor((transient.time - 0.01) * sampleRate);
-        const windowEnd = Math.floor((transient.time + 0.05) * sampleRate);
-        const windowLength = windowEnd - windowStart;
-        
-        if (windowStart < 0 || windowEnd > data.length) return DRUM_TYPES.UNKNOWN;
-        
-        // Calculate energy in different frequency bands
-        const fftSize = 1024;
-        const fft = new FFT(fftSize);
-        
-        // Simple frequency analysis using DFT for key bands
-        const bands = {
-            bass: this.calculateBandEnergy(data, windowStart, windowLength, 30, 150, sampleRate),
-            mid: this.calculateBandEnergy(data, windowStart, windowLength, 150, 400, sampleRate),
-            high: this.calculateBandEnergy(data, windowStart, windowLength, 4000, 12000, sampleRate)
-        };
-        
-        // Classification logic
-        if (bands.bass > bands.mid && bands.bass > bands.high && bands.bass > 0.3) {
-            // Strong bass content = kick
-            return DRUM_TYPES.KICK;
-        } else if (bands.mid > bands.bass && bands.mid > bands.high * 0.5) {
-            // Midrange dominant with some high = snare
-            // Check for characteristic snare rattle
-            const midHigh = this.calculateBandEnergy(data, windowStart, windowLength, 400, 2000, sampleRate);
-            if (midHigh > bands.mid * 0.3) {
-                return DRUM_TYPES.SNARE;
-            }
-            return DRUM_TYPES.TOM;
-        } else if (bands.high > bands.mid && bands.high > bands.bass) {
-            // High frequency dominant = hihat
-            // Check duration to distinguish open/closed
-            const duration = this.measureDecayTime(audioBuffer, transient.time, sampleRate);
-            if (duration > 0.15) {
-                return DRUM_TYPES.HIHAT_OPEN;
-            }
-            return DRUM_TYPES.HIHAT_CLOSED;
-        }
-        
-        return DRUM_TYPES.UNKNOWN;
-    }
-
-    /**
-     * Calculate energy in a frequency band using simple Goertzel-like algorithm
-     */
-    calculateBandEnergy(data, start, length, lowFreq, highFreq, sampleRate) {
-        const binSize = sampleRate / length;
-        const lowBin = Math.floor(lowFreq / binSize);
-        const highBin = Math.floor(highFreq / binSize);
-        
+    for (let i = 0; i < numWindows; i++) {
         let energy = 0;
-        for (let i = lowBin; i <= highBin && i < length; i++) {
-            let sumReal = 0, sumImag = 0;
-            const omega = (2 * Math.PI * i) / length;
-            
-            for (let j = 0; j < length; j++) {
-                const angle = omega * j;
-                sumReal += data[start + j] * Math.cos(angle);
-                sumImag += data[start + j] * Math.sin(angle);
-            }
-            energy += (sumReal * sumReal + sumImag * sumImag) / length;
+        const startIdx = i * hopSize;
+        for (let j = 0; j < windowSize; j++) {
+            const sample = audioData[startIdx + j] || 0;
+            energy += sample * sample;
         }
-        
-        return Math.sqrt(energy);
+        energies.push(Math.sqrt(energy / windowSize));
     }
 
-    /**
-     * Measure decay time to distinguish open/closed hihats
-     */
-    measureDecayTime(audioBuffer, startTime, sampleRate) {
-        const data = audioBuffer.getChannelData(0);
-        const startSample = Math.floor(startTime * sampleRate);
-        const initialEnergy = Math.abs(data[startSample]);
-        
-        // Find time until energy drops to 10%
-        for (let i = 1; i < data.length - startSample; i++) {
-            if (Math.abs(data[startSample + i]) < initialEnergy * 0.1) {
-                return i / sampleRate;
-            }
-        }
-        return 0.3; // Default decay time
-    }
+    // Find peaks in energy that exceed threshold
+    const meanEnergy = energies.reduce((a, b) => a + b, 0) / energies.length;
+    const stdEnergy = Math.sqrt(energies.reduce((sum, e) => sum + (e - meanEnergy) ** 2, 0) / energies.length);
+    const adaptiveThreshold = meanEnergy + stdEnergy * (1 - threshold);
 
-    /**
-     * Analyze audio and detect all drum hits
-     */
-    async analyzeAudio(audioSource) {
-        await this.initialize();
-        
-        const audioBuffer = await this.loadAudioBuffer(audioSource);
-        const transients = this.detectTransients(audioBuffer);
-        
-        this.detectedHits = [];
-        
-        for (let i = 0; i < transients.length; i++) {
-            const type = this.classifyHit(audioBuffer, i, transients);
-            this.detectedHits.push({
-                index: i,
-                time: transients[i].time,
-                timeMs: transients[i].timeMs,
-                type: type,
-                energy: transients[i].energy,
-                transientIndex: i
+    let lastHitTime = -Infinity;
+    const hits = [];
+
+    for (let i = 1; i < energies.length - 1; i++) {
+        const energy = energies[i];
+        const prevEnergy = energies[i - 1];
+        const nextEnergy = energies[i + 1];
+
+        // Check if this is a local maximum above threshold
+        const isPeak = energy > prevEnergy && energy > nextEnergy && energy > adaptiveThreshold;
+        const timeInSeconds = (i * hopSize) / sampleRate;
+
+        if (isPeak && (timeInSeconds - lastHitTime) > minTimeBetweenHits) {
+            const confidence = Math.min(1, energy / (adaptiveThreshold * 2));
+            hits.push({
+                time: timeInSeconds,
+                confidence: confidence,
+                energy: energy
             });
+            lastHitTime = timeInSeconds;
         }
-        
-        console.log(`[DrumReplace] Detected ${this.detectedHits.length} drum hits`);
-        
-        if (this.onHitsDetected) {
-            this.onHitsDetected(this.detectedHits);
-        }
-        
-        return this.detectedHits;
     }
 
-    /**
-     * Get hit statistics by type
-     */
-    getHitStats() {
-        const stats = {};
-        for (const type of Object.values(DRUM_TYPES)) {
-            stats[type] = 0;
-        }
-        
-        for (const hit of this.detectedHits) {
-            if (stats[hit.type] !== undefined) {
-                stats[hit.type]++;
-            } else {
-                stats[DRUM_TYPES.UNKNOWN]++;
-            }
-        }
-        
-        return stats;
+    detectedHits = hits;
+    isAnalyzing = false;
+    console.log(`[DrumReplace] Detected ${hits.length} drum hits`);
+    return hits;
+}
+
+/**
+ * Get the detected hits
+ * @returns {Array}
+ */
+export function getDetectedHits() {
+    return detectedHits;
+}
+
+/**
+ * Replace a specific detected hit with a sample from a library
+ * @param {number} hitIndex - Index of the hit to replace
+ * @param {Object} sampleInfo - Sample info {trackId, padIndex, sampleName}
+ * @param {Object} replacementOptions - Options for replacement
+ * @returns {boolean} Success
+ */
+export function replaceHit(hitIndex, sampleInfo, replacementOptions = {}) {
+    if (hitIndex < 0 || hitIndex >= detectedHits.length) {
+        console.warn('[DrumReplace] Invalid hit index:', hitIndex);
+        return false;
     }
 
-    /**
-     * Set replacement sample for a drum type
-     */
-    setReplacementSample(drumType, audioSource) {
-        this.replacementSamples[drumType] = audioSource;
-        console.log(`[DrumReplace] Set replacement for ${drumType}`);
+    const hit = detectedHits[hitIndex];
+    const {
+        gain = 1.0,
+        pitchShift = 0,
+        startTimeOffset = 0,
+        duration = 0.5
+    } = replacementOptions;
+
+    detectedHits[hitIndex] = {
+        ...hit,
+        replacedWith: {
+            trackId: sampleInfo.trackId,
+            padIndex: sampleInfo.padIndex,
+            sampleName: sampleInfo.sampleName || 'Unknown',
+            gain: gain,
+            pitchShift: pitchShift,
+            startTimeOffset: startTimeOffset,
+            duration: duration,
+            replacedAt: Date.now()
+        }
+    };
+
+    console.log(`[DrumReplace] Replaced hit at ${hit.time.toFixed(3)}s with ${sampleInfo.sampleName}`);
+    return true;
+}
+
+/**
+ * Replace all detected hits with a specific sample
+ * @param {Object} sampleInfo - Sample info {trackId, padIndex, sampleName}
+ * @param {Object} replacementOptions - Options for replacement
+ */
+export function replaceAllHits(sampleInfo, replacementOptions = {}) {
+    for (let i = 0; i < detectedHits.length; i++) {
+        replaceHit(i, sampleInfo, replacementOptions);
+    }
+    console.log(`[DrumReplace] Replaced all ${detectedHits.length} hits with ${sampleInfo.sampleName}`);
+}
+
+/**
+ * Clear all replacements
+ */
+export function clearReplacements() {
+    detectedHits.forEach(hit => {
+        if (hit.replacedWith) {
+            delete hit.replacedWith;
+        }
+    });
+    console.log('[DrumReplace] Cleared all replacements');
+}
+
+/**
+ * Get a summary of hits and their replacement status
+ * @returns {Object}
+ */
+export function getDrumReplaceSummary() {
+    return {
+        totalHits: detectedHits.length,
+        replacedHits: detectedHits.filter(h => h.replacedWith).length,
+        hits: detectedHits.map((hit, idx) => ({
+            index: idx,
+            time: hit.time,
+            confidence: hit.confidence,
+            isReplaced: !!hit.replacedWith,
+            replacement: hit.replacedWith || null
+        }))
+    };
+}
+
+/**
+ * Apply drum replacements to a track's audio clips
+ * @param {number} trackId - Track ID
+ * @param {Function} playSampleCallback - Callback to play a sample
+ * @returns {boolean} Success
+ */
+export async function applyDrumReplacements(trackId, playSampleCallback) {
+    const track = localAppServices.getTrackById?.(trackId);
+    if (!track) {
+        console.error('[DrumReplace] Track not found:', trackId);
+        return false;
     }
 
-    /**
-     * Apply drum replacement to audio buffer
-     * Returns a new audio buffer with replacements applied
-     */
-    async applyReplacement(audioSource) {
-        const audioBuffer = await this.loadAudioBuffer(audioSource);
-        const sampleRate = audioBuffer.sampleRate;
-        const numChannels = audioBuffer.numberOfChannels;
-        
-        // Create offline context for rendering
-        const offlineCtx = new OfflineAudioContext(
-            numChannels,
-            audioBuffer.length,
-            sampleRate
-        );
-        
-        // Clone the original buffer
-        const newBuffer = audioBuffer;
-        const newData = [];
-        for (let c = 0; c < numChannels; c++) {
-            newData.push(new Float32Array(audioBuffer.getChannelData(c)));
-        }
-        
-        // Apply replacements at each detected hit
-        for (const hit of this.detectedHits) {
-            if (this.replacementSamples[hit.type]) {
-                await this.spliceSample(
-                    newData,
-                    hit.time,
-                    sampleRate,
-                    this.replacementSamples[hit.type],
-                    offlineCtx
-                );
-            }
-        }
-        
-        console.log(`[DrumReplace] Applied replacements`);
-        return newBuffer;
-    }
-
-    /**
-     * Splice a replacement sample at a specific time position
-     */
-    async spliceSample(data, startTime, sampleRate, replacementSource, audioCtx) {
-        const replacementBuffer = await this.loadAudioBuffer(replacementSource);
-        const startSample = Math.floor(startTime * sampleRate);
-        const replacementData = replacementBuffer.getChannelData(0);
-        
-        // Crossfade parameters
-        const crossfadeSamples = Math.floor(sampleRate * 0.01); // 10ms crossfade
-        
-        for (let channel = 0; channel < data.length; channel++) {
-            const channelData = data[channel];
-            const repChannelData = replacementBuffer.getChannelData(
-                Math.min(channel, replacementBuffer.numberOfChannels - 1)
+    let replacementsApplied = 0;
+    for (const hit of detectedHits) {
+        if (hit.replacedWith && playSampleCallback) {
+            await playSampleCallback(
+                hit.replacedWith.trackId,
+                hit.replacedWith.padIndex,
+                hit.time + hit.replacedWith.startTimeOffset,
+                hit.replacedWith.gain,
+                hit.replacedWith.pitchShift
             );
-            
-            // Calculate splice region
-            const repLength = repChannelData.length;
-            const endSample = Math.min(startSample + repLength, channelData.length);
-            const actualLength = endSample - startSample;
-            
-            // Apply crossfade at start
-            for (let i = 0; i < crossfadeSamples && startSample + i < channelData.length; i++) {
-                const t = i / crossfadeSamples;
-                const origValue = channelData[startSample + i];
-                const repValue = repChannelData[i] || 0;
-                channelData[startSample + i] = origValue * (1 - t) + repValue * t;
-            }
-            
-            // Apply main replacement (after crossfade)
-            for (let i = crossfadeSamples; i < actualLength && startSample + i < channelData.length; i++) {
-                channelData[startSample + i] = repChannelData[i] || 0;
-            }
-            
-            // Apply crossfade at end
-            const endFadeStart = startSample + actualLength - crossfadeSamples;
-            for (let i = 0; i < crossfadeSamples && endFadeStart + i < channelData.length; i++) {
-                const t = i / crossfadeSamples;
-                const repValue = repChannelData[actualLength - crossfadeSamples + i] || 0;
-                channelData[endFadeStart + i] = repValue * (1 - t) + channelData[endFadeStart + i] * t;
-            }
+            replacementsApplied++;
         }
     }
 
-    /**
-     * Export the replaced audio as a WAV blob
-     */
-    async exportAsWav(audioBuffer) {
-        const numChannels = audioBuffer.numberOfChannels;
-        const sampleRate = audioBuffer.sampleRate;
-        const bitsPerSample = 16;
-        const bytesPerSample = bitsPerSample / 8;
-        const blockAlign = numChannels * bytesPerSample;
-        const byteRate = sampleRate * blockAlign;
-        const dataSize = audioBuffer.length * blockAlign;
-        
-        const wavBuffer = new ArrayBuffer(44 + dataSize);
-        const view = new DataView(wavBuffer);
-        
-        // RIFF header
-        this.writeString(view, 0, 'RIFF');
-        view.setUint32(4, 36 + dataSize, true);
-        this.writeString(view, 8, 'WAVE');
-        
-        // fmt chunk
-        this.writeString(view, 12, 'fmt ');
-        view.setUint32(16, 16, true); // chunk size
-        view.setUint16(20, 1, true); // PCM format
-        view.setUint16(22, numChannels, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, byteRate, true);
-        view.setUint16(32, blockAlign, true);
-        view.setUint16(34, bitsPerSample, true);
-        
-        // data chunk
-        this.writeString(view, 36, 'data');
-        view.setUint32(40, dataSize, true);
-        
-        // Write audio data
-        let offset = 44;
-        for (let i = 0; i < audioBuffer.length; i++) {
-            for (let channel = 0; channel < numChannels; channel++) {
-                const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
-                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                view.setInt16(offset, intSample, true);
-                offset += 2;
-            }
-        }
-        
-        return new Blob([wavBuffer], { type: 'audio/wav' });
-    }
+    console.log(`[DrumReplace] Applied ${replacementsApplied} drum replacements`);
+    return true;
+}
 
-    writeString(view, offset, string) {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
-        }
-    }
+/**
+ * Export detection results as JSON for saving with project
+ * @returns {Object}
+ */
+export function exportDrumReplaceData() {
+    return {
+        detectedHits: detectedHits,
+        exportedAt: new Date().toISOString()
+    };
+}
 
-    dispose() {
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
-        this.analyser = null;
-        this.detectedHits = [];
-        this.replacementSamples = {};
+/**
+ * Import detection results from saved project data
+ * @param {Object} data - Previously saved drum replace data
+ */
+export function importDrumReplaceData(data) {
+    if (data && Array.isArray(data.detectedHits)) {
+        detectedHits = data.detectedHits;
+        console.log(`[DrumReplace] Imported ${detectedHits.length} detected hits`);
     }
 }
 
-// Simple FFT implementation for frequency analysis
-class FFT {
-    constructor(size) {
-        this.size = size;
-        this.cosTable = new Float64Array(size / 2);
-        this.sinTable = new Float64Array(size / 2);
-        
-        for (let i = 0; i < size / 2; i++) {
-            this.cosTable[i] = Math.cos(2 * Math.PI * i / size);
-            this.sinTable[i] = Math.sin(2 * Math.PI * i / size);
-        }
-    }
+/**
+ * Reset the drum replace analysis
+ */
+export function resetDrumReplace() {
+    detectedHits = [];
+    isAnalyzing = false;
+    console.log('[DrumReplace] Reset complete');
 }
 
-// Singleton instance
-let drumReplaceInstance = null;
-
-export function getDrumReplace() {
-    if (!drumReplaceInstance) {
-        drumReplaceInstance = new DrumReplace();
-    }
-    return drumReplaceInstance;
-}
-
-export function initDrumReplace() {
-    console.log('[DrumReplace] Module initialized');
+/**
+ * Check if analysis is in progress
+ * @returns {boolean}
+ */
+export function isAnalyzingAudio() {
+    return isAnalyzing;
 }
