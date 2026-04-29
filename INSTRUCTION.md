@@ -4,13 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
-2. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
-3. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
-4. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
-5. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
-6. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-7. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+1. **Spectral Gate** - Frequency-based gate that only allows sounds within a certain range to pass
+2. **Clip Grouping Manager** - Organize and manage groups of clips with shared properties
+3. **Drum Replace** - Replace drum hits in recorded audio with samples from a library
+4. **Pitch Drift Correction** - Correct pitch drift in recordings over time
+5. **Track Headroom Meter** - Show how much headroom each track has before clipping
+6. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
+7. **Groove Extraction** - Extract timing groove from one track and apply to others
+8. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
+9. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
 
 ## Workflow
 
