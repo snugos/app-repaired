@@ -127,6 +127,7 @@ function renderPianoRollContent(trackId = null) {
                     <button id="pianoRollZoomIn" class="px-2 py-1 text-xs bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-500 rounded" title="Zoom In">+</button>
                 </div>
                 <button id="pianoRollDelete" class="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 rounded text-white" title="Delete Selected">Delete</button>
+                <button id="pianoRollScaleLength" class="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 rounded text-white" title="Scale Selected Note Lengths">Scale Len</button>
                 <button id="pianoRollClose" class="px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 rounded text-white">Close</button>
             </div>
         </div>
@@ -291,6 +292,54 @@ function setupPianoRollEvents(container, track, activeSeq) {
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
             deleteSelectedNotes(track, activeSeq);
+        });
+    }
+
+    // Scale Length button
+    const scaleLenBtn = container.querySelector('#pianoRollScaleLength');
+    if (scaleLenBtn) {
+        scaleLenBtn.addEventListener('click', () => {
+            // Expose selected notes globally for the scaler
+            window.selectedNotes = selectedNotes;
+            window.currentPianoRollTrackId = currentPianoRollTrackId;
+            // Open the scale length prompt
+            import('./NoteLengthScaler.js').then(m => {
+                if (m.initNoteLengthScaler) m.initNoteLengthScaler(localAppServices);
+                if (m.openNoteLengthScaler) m.openNoteLengthScaler();
+            }).catch(err => {
+                console.error('[PianoRollEditor] Failed to load NoteLengthScaler:', err);
+                // Fallback: simple prompt
+                const scalePercent = prompt('Scale selected notes length by percentage:\n\nEnter a percentage (e.g., 150 for 150%, 50 for 50%)', '150');
+                if (scalePercent === null) return;
+                const scaleFactor = parseFloat(scalePercent) / 100;
+                if (isNaN(scaleFactor) || scaleFactor <= 0) {
+                    localAppServices.showNotification?.('Invalid scale percentage', 2000);
+                    return;
+                }
+                // Scale notes directly
+                if (selectedNotes.size > 0 && activeSeq?.data) {
+                    if (track.appServices?.captureStateForUndo) {
+                        track.appServices.captureStateForUndo(`Scale note length by ${Math.round(scaleFactor * 100)}%`);
+                    }
+                    let scaledCount = 0;
+                    selectedNotes.forEach(id => {
+                        const [r, s] = id.replace('pr-note-', '').split('-').map(Number);
+                        const note = activeSeq.data?.[r]?.[s];
+                        if (note && typeof note.duration === 'number') {
+                            note.duration = Math.max(0.0625, Math.min(16, note.duration * scaleFactor));
+                            scaledCount++;
+                        }
+                    });
+                    if (scaledCount > 0) {
+                        if (track.recreateToneSequence) track.recreateToneSequence(true);
+                        if (track.appServices?.updateTrackUI) track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+                        renderPianoRollContent(currentPianoRollTrackId);
+                        localAppServices.showNotification?.(`Scaled ${scaledCount} note(s) to ${Math.round(scaleFactor * 100)}%`, 2000);
+                    }
+                } else {
+                    localAppServices.showNotification?.('No notes selected', 2000);
+                }
+            });
         });
     }
 

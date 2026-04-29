@@ -4,15 +4,13 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **BPM Nudge Buttons** - +/- 0.1 BPM buttons in transport bar for fine tempo adjustment
-2. **Note Length Scaler** - Select notes in piano roll and scale their length by percentage
-3. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
-4. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
-5. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
-6. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
-7. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
-8. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-9. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+1. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
+2. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
+3. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
+4. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
+5. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
+6. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+7. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
 
 ## Workflow
 
