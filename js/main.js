@@ -67,6 +67,8 @@ import { openTrackColorPalettePanel } from './TrackColorPalette.js';
 import { initDrumReplace, openDrumReplacePanel } from './DrumReplace.js';
 // Clip Opacity
 import { initClipOpacity, openClipOpacityPanel } from './ClipOpacity.js';
+// Clip Fade Presets
+import { openClipFadePresetsPanel } from './ClipFadePresets.js';
 // Clip Loop Preview
 import { initClipLoopPreview, toggleClipLoopPreview, deactivateClipLoopPreview, isClipInLoopPreview } from './ClipLoopPreview.js';
 // Quick Rename
@@ -674,6 +676,7 @@ import {
     openTrackColorPalettePanel,
     openDrumReplacePanel,
     openClipOpacityPanel,
+    openClipFadePresetsPanel,
     openPitchDriftCorrectionPanel,
     toggleClipLoopPreview,
     deactivateClipLoopPreview,

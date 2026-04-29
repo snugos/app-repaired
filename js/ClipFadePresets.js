@@ -77,3 +77,65 @@ export function saveCustomFadePreset(name, curve, direction) {
     localStorage.setItem('customFadePresets', JSON.stringify(presets));
     return id;
 }
+
+// --- UI Panel Opener ---
+export function openClipFadePresetsPanel(appServices) {
+    const existing = document.getElementById('clipFadePresetsPanel');
+    if (existing) { existing.remove(); return; }
+    
+    const presets = getFadePresets();
+    const panel = document.createElement('div');
+    panel.id = 'clipFadePresetsPanel';
+    panel.style.cssText = 'position:fixed;top:80px;right:20px;width:260px;max-height:70vh;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:16px;z-index:1000;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:14px;color:#e0e0e0;">Clip Fade Presets</h3>
+            <button id="closeClipFadePresetsPanel" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px;line-height:1;">&times;</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;" id="fadePresetButtons">
+            ${presets.map(p => `
+                <button data-preset-id="${p.id}" style="background:#252525;border:1px solid #383838;border-radius:4px;padding:8px 12px;color:#ccc;cursor:pointer;text-align:left;font-size:12px;transition:background 0.15s;">
+                    ${p.name}
+                </button>
+            `).join('')}
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #333;">
+            <label style="color:#888;font-size:11px;">Fade Time (ms)</label>
+            <input type="range" id="clipFadeTimeSlider" min="50" max="5000" value="1000" step="50" style="width:100%;margin-top:4px;">
+            <div id="clipFadeTimeValue" style="color:#aaa;font-size:11px;text-align:center;margin-top:2px;">1000 ms</div>
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    document.getElementById('closeClipFadePresetsPanel').onclick = () => panel.remove();
+    
+    const timeSlider = document.getElementById('clipFadeTimeSlider');
+    const timeValue = document.getElementById('clipFadeTimeValue');
+    timeSlider.oninput = () => { timeValue.textContent = `${timeSlider.value} ms`; };
+    
+    panel.querySelectorAll('[data-preset-id]').forEach(btn => {
+        btn.onclick = () => {
+            const presetId = btn.dataset.presetId;
+            const fadeTime = parseInt(timeSlider.value);
+            const tracks = appServices?.getTracks?.() || [];
+            let applied = 0;
+            tracks.forEach(track => {
+                if (track.sequences) {
+                    Object.values(track.sequences).forEach(seq => {
+                        if (seq.clips) {
+                            seq.clips.forEach(clip => {
+                                if (applyFadePresetToClip(clip, presetId, fadeTime)) applied++;
+                            });
+                        }
+                    });
+                }
+            });
+            if (applied > 0) {
+                appServices?.showNotification?.(`Applied ${presets.find(p=>p.id===presetId)?.name} to ${applied} clip(s)`, 2000);
+            } else {
+                appServices?.showNotification?.('No clips to apply fade to. Select a clip first.', 2000);
+            }
+        };
+    });
+}
