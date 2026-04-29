@@ -52,6 +52,7 @@ import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNote
 import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
+import { initTrackFreezeQuickToggle } from './TrackFreezeQuickToggle.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
 import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel, closePerformancePanel, getPerformanceSnapshot } from './PerformanceMonitor.js';
 import { initUndoHistoryPanel, openUndoHistoryPanel } from './UndoHistoryPanel.js';
@@ -1216,6 +1217,7 @@ async function initializeSnugOS() {
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
         if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
+        if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
         if (typeof initPerformanceMonitor === 'function') initPerformanceMonitor(); // Performance monitor initialization
         if (typeof initPerformanceIndicator === 'function') initPerformanceIndicator(); // Performance indicator initialization
