@@ -46,6 +46,7 @@ import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, op
 // Performance & Workflow - Session 2026-04-26
 import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
 import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
+import { openTrackDelayCompensationPanel } from './TrackDelayCompensation.js';
 import { openStepSequencerView } from './StepSequencerView.js';
 import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
@@ -734,6 +735,7 @@ import {
     openPerformanceTriggerPadsPanel,
     getPerformanceTriggerPads,
     openTrackHeadphoneMixPanel,
+    openTrackDelayCompensationPanel,
     openStepSequencerView,
     openPianoRollEditor,
     openScaleHighlightPanel,
