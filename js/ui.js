@@ -2947,7 +2947,90 @@ function setupAutomationCanvas(canvas, track, param) {
         isDragging = false;
     });
 
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const clickTime = (mouseX / canvas.width) * 60;
+        const clickValue = 1 - (mouseY / canvas.height);
+
+        // Check if clicking on existing point
+        const automation = track?.automation?.[param] || [];
+        let clickedPointIdx = -1;
+        automation.forEach((point, idx) => {
+            const px = (point.time / 60) * canvas.width;
+            const py = canvas.height - (point.value * canvas.height);
+            const dist = Math.sqrt((mouseX - px) ** 2 + (mouseY - py) ** 2);
+            if (dist < 12) clickedPointIdx = idx;
+        });
+
+        // Find nearby points to define fill range
+        const sortedPoints = [...automation].sort((a, b) => a.time - b.time);
+        let rangeStart = 0;
+        let rangeEnd = 60;
+        let startValue = clickValue;
+        let endValue = clickValue;
+
+        if (clickedPointIdx >= 0) {
+            const clickedPoint = automation[clickedPointIdx];
+            // Find next point for range
+            const nextIdx = sortedPoints.findIndex(p => p.time > clickedPoint.time);
+            if (nextIdx > 0) {
+                rangeStart = clickedPoint.time;
+                rangeEnd = sortedPoints[nextIdx].time;
+                startValue = clickedPoint.value;
+                endValue = sortedPoints[nextIdx].value;
+            } else {
+                // Extend to end or end of visible area
+                rangeStart = clickedPoint.time;
+                rangeEnd = Math.min(60, clickedPoint.time + 10);
+                startValue = clickedPoint.value;
+                endValue = clickedPoint.value;
+            }
+        } else {
+            // Use nearest points as range boundaries
+            const before = sortedPoints.filter(p => p.time < clickTime).pop();
+            const after = sortedPoints.find(p => p.time > clickTime);
+            if (before && after) {
+                rangeStart = before.time;
+                rangeEnd = after.time;
+                startValue = before.value;
+                endValue = after.value;
+            } else if (before) {
+                rangeStart = before.time;
+                rangeEnd = Math.min(60, before.time + 10);
+                startValue = before.value;
+                endValue = before.value;
+            } else if (after) {
+                rangeStart = 0;
+                rangeEnd = after.time;
+                startValue = after.value;
+                endValue = after.value;
+            }
+        }
+
+        const menuItems = [
+            { label: `Fill Hold (${rangeStart.toFixed(1)}s - ${rangeEnd.toFixed(1)}s)`, action: () => fillAutomationHold(rangeStart, rangeEnd, startValue) },
+            { label: `Fill Ramp to ${endValue.toFixed(2)}`, action: () => fillAutomationRamp(rangeStart, rangeEnd, startValue, endValue) },
+            { label: `Fill Decay`, action: () => fillAutomationDecay(rangeStart, rangeEnd, startValue, 0.85) },
+            { label: `Fill Exponential to ${endValue.toFixed(2)}`, action: () => fillAutomationRamp(rangeStart, rangeEnd, startValue, endValue) },
+            { separator: true },
+            { label: clickedPointIdx >= 0 ? 'Delete Point' : 'Add Point Here', action: () => {
+                if (clickedPointIdx >= 0) {
+                    const point = automation[clickedPointIdx];
+                    if (track.removeAutomationPoint) track.removeAutomationPoint(param, point.time);
+                } else {
+                    if (track.addAutomationPoint) track.addAutomationPoint(param, clickTime, Math.max(0, Math.min(1, clickValue)), 'linear');
+                }
+                draw();
+            }}
+        ];
+
+        if (typeof createContextMenu === 'function') {
+            createContextMenu(e, menuItems, localAppServices);
+        }
+    });
 
     // Param select change handler
     const paramSelect = document.getElementById('automationParamSelect');
