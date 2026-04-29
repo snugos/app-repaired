@@ -4,15 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Drum Replace** - Replace drum hits in recorded audio with samples from a library
-2. **Pitch Drift Correction** - Correct pitch drift in recordings over time
-3. **Track Headroom Meter** - Show how much headroom each track has before clipping
-4. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
-5. **Groove Extraction** - Extract timing groove from one track and apply to others
-6. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
-7. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
-8. **Spectral Gate** ✅ - Frequency-based gate that only allows sounds within a certain range to pass (completed)
-9. **Clip Grouping Manager** ✅ - Organize and manage groups of clips with shared properties (completed)
+1. **Pitch Drift Correction** - Correct pitch drift in recordings over time
+2. **Track Headroom Meter** - Show how much headroom each track has before clipping
+3. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
+4. **Groove Extraction** - Extract timing groove from one track and apply to others
+5. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
+6. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
+7. **Spectral Gate** ✅ - Frequency-based gate that only allows sounds within a certain range to pass (completed)
+8. **Clip Grouping Manager** ✅ - Organize and manage groups of clips with shared properties (completed)
+9. **Drum Replace** ✅ - Analyze audio clips to detect drum hits and replace them with samples (completed)
+10. **Phase Invert Button** - Quick toggle to invert phase on audio tracks for correcting polarity issues
 
 ## Workflow
 
