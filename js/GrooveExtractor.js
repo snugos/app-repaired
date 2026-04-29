@@ -560,6 +560,46 @@ export class GrooveExtractor {
         panel.querySelector('#gx-sensitivity').addEventListener('input', (e) => {
             this.settings.sensitivity = parseFloat(e.target.value);
         });
+
+        // Apply to Selection button handler
+        panel.querySelector('#gx-apply').addEventListener('click', async () => {
+            // Try to get selected tracks from the app
+            let getSelectedTracks = null;
+            if (typeof localAppServices !== 'undefined' && localAppServices.getSelectedTracks) {
+                getSelectedTracks = localAppServices.getSelectedTracks;
+            } else if (typeof getSelectedTracksForGroove === 'function') {
+                getSelectedTracks = getSelectedTracksForGroove;
+            } else if (typeof window.getSelectedTracksForGroove === 'function') {
+                getSelectedTracks = window.getSelectedTracksForGroove;
+            }
+
+            if (!getSelectedTracks) {
+                // Fallback: try to get tracks from the track list
+                const tracks = typeof getTracksState === 'function' ? getTracksState() : [];
+                if (tracks.length > 0) {
+                    getSelectedTracks = () => tracks.filter(t => t.isSelected);
+                    // If no tracks are selected, apply to all
+                    const selected = getSelectedTracks();
+                    if (selected.length === 0) {
+                        getSelectedTracks = () => tracks;
+                    }
+                }
+            }
+
+            const result = await this.applyGrooveToSelection(getSelectedTracks);
+            if (result) {
+                // Show success feedback
+                const btn = panel.querySelector('#gx-apply');
+                const originalText = btn.textContent;
+                btn.textContent = 'Applied!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }
+        });
+
     }
 
     updatePanel(panel) {
