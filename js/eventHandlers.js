@@ -114,6 +114,7 @@ export function initializePrimaryEventListeners(appContext) {
                     { label: "Headphone Mix", action: () => { if(localAppServices.openHeadphoneMixPanel) localAppServices.openHeadphoneMixPanel(); } },
                     { label: "Sidechain Visualizer", action: () => { if(localAppServices.openSidechainVisualizerPanel) localAppServices.openSidechainVisualizerPanel(); } },
                     { label: "Phase Invert", action: () => { if(localAppServices.openPhaseInvertButtonPanel) localAppServices.openPhaseInvertButtonPanel(); } },
+                    { label: "Chord Voicing Panel", action: () => { if(window.openChordVoicingPanel) window.openChordVoicingPanel(); } },
                     { label: "Keyboard Shortcuts", action: () => { if(localAppServices.openKeyBindingsPanel) localAppServices.openKeyBindingsPanel(); } },
                     { label: "Project Notes", action: () => { if(localAppServices.openProjectNotesPanel) localAppServices.openProjectNotesPanel(); } },
                     { label: "Drum Map Editor", action: () => { if(localAppServices.openDrumMapEditorPanel) localAppServices.openDrumMapEditorPanel(); } },
