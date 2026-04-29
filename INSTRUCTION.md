@@ -4,11 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. ~~**Clip Stretch Markers** - Add markers on audio clips to control stretch points~~ ✅ COMPLETED
-2. ~~**Groove Extraction** - Extract timing groove from one track and apply to others~~ ✅ ENHANCED
-3. **Tempo Ramp Automation** - Automate BPM changes over time with ramps
-4. **Loop Region Quick Set** - Double-click timeline to quickly set loop region
-5. **Phase Invert Button** - Quick toggle to invert phase on audio tracks for correcting polarity issues
+1. **MIDIRecordingQuantize** - Auto-quantize MIDI input in real-time as notes are recorded
+2. **AudioCompressorHipass** - Add high-pass filter to compressor for cleaner mixes
+3. **TrackFreezeUndo** - Undo track freeze to restore unfrozen state
+4. **ClipColorByVelocity** - Color-code notes in clips by velocity for visual feedback
+5. **MixerChannelStrip** - Add channel strip controls (EQ, compressor) to mixer panel
+6. **ChordProgressionExport** - Export chord progression as MIDI file
+7. **TransportMarkers** - Add numbered markers to transport for quick navigation
+8. **BPMtapSelection** - Tap tempo applies only to selected tracks for layering
+9. **MetronomePitch** - Pitch metronome click higher on downbeats
+10. **AudioNormalizeOnImport** - Auto-normalize audio clips when imported
 
 ## Workflow
 
@@ -40,23 +45,12 @@ After successfully implementing a feature:
 
 ## When Queue is Empty
 
-Run this brainstorming process:
-
-```
-Based on SnugOS being a browser-based DAW with:
-- Tone.js audio engine
-- Multi-track timeline
-- Effects rack
-- Sequencer mode
-- MIDI support
-
-Generate 10 NEW feature ideas that are:
-1. Achievable in a single session
+Generate 10 NEW feature ideas that:
+1. Are achievable in a single session
 2. Complement existing features
 3. Enhance creative workflow
 
 Output as numbered list and update this instruction.
-```
 
 ## Rules
 
