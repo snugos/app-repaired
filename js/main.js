@@ -66,6 +66,8 @@ import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnaly
 import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOPanel.js';
 // Track Color Palette
 import { openTrackColorPalettePanel } from './TrackColorPalette.js';
+// Clip Ghost Trails
+import { initClipGhostTrails, openGhostTrailsPanel, getGhostTrails, addGhostTrail, removeGhostTrail, clearAllGhostTrails, createGhostFromClip, renderGhostTrailsOnCanvas, getGhostTrailCount, exportGhostTrailsData, importGhostTrailsData } from './ClipGhostTrails.js';
 // Drum Replace - Analyze audio and replace drum hits with samples
 import { initDrumReplace, openDrumReplacePanel } from './DrumReplace.js';
 // Clip Opacity
@@ -677,6 +679,7 @@ import {
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
     openTrackColorPalettePanel,
+    openGhostTrailsPanel,
     openDrumReplacePanel,
     openClipOpacityPanel,
     openClipFadePresetsPanel,
@@ -1254,6 +1257,7 @@ async function initializeSnugOS() {
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initClipOpacity === 'function') initClipOpacity(appServices); // Clip Opacity initialization
         if (typeof initClipLoopPreview === 'function') initClipLoopPreview(appServices); // Clip Loop Preview - double-click to loop
+        if (typeof initClipGhostTrails === 'function') initClipGhostTrails(appServices); // Clip Ghost Trails initialization
         if (typeof initQuickRename === 'function') initQuickRename(appServices); // Quick Rename initialization
         if (typeof initBulkAssign === 'function') initBulkAssign(); // MIDI Bulk Assign initialization
         if (typeof initBeatDetective === 'function') initBeatDetective(appServices); // Beat Detective initialization
