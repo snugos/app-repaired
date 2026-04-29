@@ -4,16 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Clip Loop Preview** - Double-click clip header to loop only that clip during playback
-2. **Track Freeze Quick Toggle** - Keyboard shortcut `F` on selected track to freeze/unfreeze
-3. **Automation Fill Mode** - Right-click automation lane to fill with curve types (hold, ramp, decay)
-4. **BPM Nudge Buttons** - +/- 0.1 BPM buttons in transport bar for fine tempo adjustment
-5. **Note Length Scaler** - Select notes in piano roll and scale their length by percentage
-6. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
-7. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
-8. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
-9. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
-10. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
+1. **Automation Fill Mode** - Right-click automation lane to fill with curve types (hold, ramp, decay)
+2. **BPM Nudge Buttons** - +/- 0.1 BPM buttons in transport bar for fine tempo adjustment
+3. **Note Length Scaler** - Select notes in piano roll and scale their length by percentage
+4. **Track Duplicate with Offset** - `Ctrl+Shift+D` to duplicate track with 1-bar offset
+5. **Clip Fade Handles** - Drag handles at clip edges to apply fade in/out curves
+6. **Sample-Accurate Grid** - Toggle between beat grid and sample-level grid in timeline
+7. **Velocity Curve Editor** - Draw velocity curve for selected notes in piano roll
+8. **Track Solo Safe** - `Alt+Click` solo to solo track without muting others
+9. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+10. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
 
 ## Workflow
 
