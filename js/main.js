@@ -48,6 +48,7 @@ import { FrequencyBandSplitter, MultibandProcessor, getFrequencyBandSplitter, op
 import { openPerformanceTriggerPadsPanel, getPerformanceTriggerPads } from './PerformanceTriggerPads.js';
 import { initTrackHeadphoneMix, openTrackHeadphoneMixPanel } from './TrackHeadphoneMix.js';
 import { openTrackDelayCompensationPanel } from './TrackDelayCompensation.js';
+import { openGrooveExtractorPanel } from './GrooveExtractor.js';
 import { openStepSequencerView } from './StepSequencerView.js';
 import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
@@ -745,6 +746,7 @@ import {
     getPerformanceTriggerPads,
     openTrackHeadphoneMixPanel,
     openTrackDelayCompensationPanel,
+    openGrooveExtractorPanel,
     openStepSequencerView,
     openPianoRollEditor,
     openScaleHighlightPanel,

@@ -312,6 +312,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openGrooveTemplatesPanel?.();
                 } catch(e) { console.error('[Menu] Groove Templates error:', e); }
             },
+            menuGrooveExtractor: () => {
+                console.log('[Menu] Groove Extractor clicked');
+                try {
+                    localAppServices.openGrooveExtractorPanel?.();
+                } catch(e) { console.error('[Menu] Groove Extractor error:', e); }
+            },
             menuPatternChains: () => {
                 console.log('[Menu] Pattern Chains clicked');
                 try {
