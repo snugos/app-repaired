@@ -459,6 +459,18 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Loop Region Presets error:', e); }
             },
+            menuLoopRegionQuickSet: () => {
+                console.log('[Menu] Loop Region Quick Set clicked');
+                try {
+                    localAppServices.openLoopRegionQuickSetSettings?.();
+                } catch(e) { console.error('[Menu] Loop Region Quick Set error:', e); }
+            },
+            menuTempoRamper: () => {
+                console.log('[Menu] Tempo Ramper clicked');
+                try {
+                    localAppServices.openTempoRamperPanel?.();
+                } catch(e) { console.error('[Menu] Tempo Ramper error:', e); }
+            },
             menuAutoThreshold: () => {
                 console.log('[Menu] Auto Threshold clicked');
                 try {
