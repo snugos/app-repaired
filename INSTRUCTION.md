@@ -4,7 +4,7 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Track Headroom Meter** - Show how much headroom each track has before clipping
+1. ~~**Track Headroom Meter** - Show how much headroom each track has before clipping~~ ✅ INTEGRATED
 2. **Clip Stretch Markers** - Add markers on audio clips to control stretch points
 3. **Groove Extraction** - Extract timing groove from one track and apply to others
 4. **Tempo Ramp Automation** - Automate BPM changes over time with ramps

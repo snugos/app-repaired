@@ -402,6 +402,14 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Tap History error:', e); }
             },
+            menuHeadroomMeter: () => {
+                console.log('[Menu] Track Headroom Meter clicked');
+                try {
+                    if (window.openTrackHeadroomMeterPanel) {
+                        window.openTrackHeadroomMeterPanel();
+                    }
+                } catch(e) { console.error('[Menu] Track Headroom Meter error:', e); }
+            },
             menuHeadphoneMix: () => {
                 console.log('[Menu] Headphone Mix clicked');
                 try {
