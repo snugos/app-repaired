@@ -575,6 +575,80 @@ export class GrooveExtractor {
         panel.querySelector('#gx-apply').disabled = false;
     }
 
+    /**
+     * Apply groove to selected tracks/sequences
+     * @param {Function} getSelectedTracks - Callback to get selected tracks
+     */
+    async applyGrooveToSelection(getSelectedTracks) {
+        if (!this.analysisResult) {
+            console.warn('[GrooveExtractor] No analysis result to apply');
+            return;
+        }
+
+        const selectedTracks = getSelectedTracks ? getSelectedTracks() : [];
+        if (selectedTracks.length === 0) {
+            console.warn('[GrooveExtractor] No tracks selected for groove application');
+            return;
+        }
+
+        const { tempo, groove } = this.analysisResult;
+        const swing = groove.swing || 0;
+
+        // Build custom groove pattern from analysis
+        const groovePattern = this.buildGroovePatternFromAnalysis(tempo, swing);
+        if (!groovePattern) {
+            console.warn('[GrooveExtractor] Failed to build groove pattern');
+            return;
+        }
+
+        // Apply to each selected track
+        for (const track of selectedTracks) {
+            if (track && typeof track.setCustomGroovePattern === 'function') {
+                track.setCustomGroovePattern(groovePattern);
+                console.log(`[GrooveExtractor] Applied groove to track ${track.id}`);
+            }
+        }
+
+        // Also save to state for persistence
+        if (typeof saveCustomGroovePattern === 'function') {
+            saveCustomGroovePattern(`Groove-${Date.now()}`, 16, groovePattern.points);
+        }
+
+        console.log(`[GrooveExtractor] Applied groove (swing: ${(swing * 100).toFixed(0)}%) to ${selectedTracks.length} tracks`);
+        return groovePattern;
+    }
+
+    /**
+     * Build a custom groove pattern from analysis result
+     */
+    buildGroovePatternFromAnalysis(tempo, swing) {
+        const sixteenthDuration = 60 / tempo / 4;
+        const points = [];
+
+        for (let i = 0; i < 16; i++) {
+            // Apply swing only to off-beat 16ths (every other one)
+            let offset = 0;
+            if (i % 2 === 1) {
+                offset = swing * sixteenthDuration;
+            }
+            points.push({
+                id: `gp-${i}`,
+                division: i,
+                offset: offset,
+                velocity: 0.5,
+                duration: 1
+            });
+        }
+
+        return {
+            name: `Extracted Groove (${tempo.bpm?.toFixed(1) || 120} BPM)`,
+            divisions: 16,
+            points: points,
+            swing: swing,
+            tempo: tempo
+        };
+    }
+
     drawWaveform() {
         const canvas = document.querySelector('#gx-waveform');
         if (!canvas || !this.audioBuffer) return;

@@ -69,3 +69,41 @@ Output as numbered list and update this instruction.
 ## Context Files
 - Repo: `/home/workspace/app-repaired`
 - Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
+---
+
+## Session: 2026-04-29 10:15 UTC (Snaw Feature Builder Agent Run)
+
+**Status: FEATURE IMPLEMENTED ✅**
+
+### Feature Added
+
+**Track Delay Compensation** - `js/TrackDelayCompensation.js` (ENHANCED)
+- Enhanced existing module with auto/manual delay compensation modes
+- Shows calculated latency from effect chain for each track
+- Manual offset input for fine-tuning (-500 to +500ms)
+- Auto mode calculates from Track.calculateEffectLatency() based on PitchShift and other effect types
+- Refreshes panel on changes to reflect current state
+- Added to Start Menu for easy access
+
+### Files Modified
+- `js/TrackDelayCompensation.js` (ENHANCED) - Main module with full UI refresh
+- Auto/manual modes use Track's built-in delay compensation methods
+
+**Commit:** `0d59395`
+**Total Features: 431+**
+
+### Updated Feature Queue (2026-04-29)
+
+All 10 features from the previous queue were already implemented. New queue:
+
+1. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest the optimal BPM
+2. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
+3. **Track Template Library** - Save and browse track templates (instrument + effects + settings)
+4. **MIDI Arpeggiator Panel** - Visual arpeggiator with pattern editing and direction controls
+5. **Audio Stretch Quality Preset** - Quick buttons to switch between fast/balanced/high quality stretching
+6. **Track Solo Chain** - Mute all tracks except selected chain of tracks for focused listening
+7. **Clip Fade Presets** - Save and apply common fade in/out curves (exponential, S-curve, etc.)
+8. **Track Delay Compensation** ✅ - Automatically compensate for plugin latency per track (just completed)
+9. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+10. **Chord Memory Visualizer** - Visual grid showing saved chord voicings and one-click recall
+
