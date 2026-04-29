@@ -3,6 +3,7 @@
 
 import { reverseAudioClip } from './ClipReverse.js';
 import { getFadePresets, applyFadePresetToClip, clearFadePoints } from './ClipFadePresets.js';
+import { createClipGroup, getCurrentClipSelections } from './ClipGroupManager.js';
 
 let localAppServices = {};
 let contextMenuListenersInitialized = false;
@@ -110,7 +111,10 @@ function showClipContextMenu(x, y, clipId, trackId) {
     
     const isReversed = clip.reversed || false;
     
-    // Build menu HTML
+    // Build menu HTML - get selected clips count for grouping
+    const selectedClips = getCurrentClipSelections();
+    const selectedCount = selectedClips.length;
+    
     let menuHTML = `
         <div class="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-700">
             ${escapeHtml(clip.name || 'Unnamed Clip')}
@@ -123,6 +127,10 @@ function showClipContextMenu(x, y, clipId, trackId) {
         <button class="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2" data-action="duplicate" data-clip-id="${clipId}" data-track-id="${trackId}">
             <span class="w-4">📋</span>
             <span>Duplicate</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2" data-action="group" data-clip-id="${clipId}" data-track-id="${trackId}">
+            <span class="w-4">📦</span>
+            <span>Group Clips${selectedCount > 1 ? ` (${selectedCount})` : ''}</span>
         </button>
         <div class="border-t border-gray-700 mt-1 pt-1" id="fade-presets-section">
             <div class="px-3 py-1.5 text-xs text-gray-500">Fade Presets</div>
@@ -260,6 +268,18 @@ function handleClipAction(action, clipId, trackId) {
                 track.timelineClips.splice(idx, 1);
                 if (localAppServices.renderTimeline) localAppServices.renderTimeline();
                 localAppServices.showNotification?.('Clip deleted', 1500);
+            }
+            break;
+            
+        case 'group':
+            if (localAppServices.captureStateForUndo) {
+                localAppServices.captureStateForUndo('Group clips');
+            }
+            const selections = getCurrentClipSelections();
+            if (selections.length >= 2) {
+                createClipGroup(selections);
+            } else {
+                localAppServices.showNotification?.('Select at least 2 clips to group', 2000);
             }
             break;
             
