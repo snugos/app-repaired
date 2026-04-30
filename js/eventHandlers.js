@@ -309,6 +309,17 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error("[Menu] Track Color Panel error:", e); }
             },
+            menuTrackIconPicker: () => {
+                console.log("[Menu] Track Icon Picker clicked");
+                try {
+                    const tracks = localAppServices.getTracksState?.() || [];
+                    if (tracks.length > 0) {
+                        localAppServices.openTrackIconPickerPanel?.(tracks[0].id);
+                    } else {
+                        localAppServices.showNotification?.('No tracks available', 2000);
+                    }
+                } catch(e) { console.error("[Menu] Track Icon Picker error:", e); }
+            },
             menuClipOpacity: () => {
                 console.log("[Menu] Clip Opacity clicked");
                 try {

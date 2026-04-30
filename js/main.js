@@ -62,6 +62,7 @@ import { initClipContextMenu } from './ClipContextMenu.js';
 import { initClipGroupManager } from './ClipGroupManager.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackColorPanel, openTrackColorPanel } from './TrackColorPanel.js';
+import { initTrackIconPicker, openTrackIconPickerPanel } from './TrackIconPicker.js';
 import { initChordVoicingModes, openChordVoicingPanel } from './ChordVoicingModes.js';
 import { initTrackFreezeQuickToggle } from './TrackFreezeQuickToggle.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
@@ -703,6 +704,7 @@ import {
     openPhaseCorrelationMeterPanel,
     openTrackColorPalettePanel,
     openTrackColorPanel,
+    openTrackIconPickerPanel,
     openChordVoicingPanel,
     openGhostTrailsPanel,
     openDrumReplacePanel,
@@ -1271,6 +1273,7 @@ async function initializeSnugOS() {
         if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackColorPanel === 'function') initTrackColorPanel(appServices); // Track Color Panel initialization
+        if (typeof initTrackIconPicker === 'function') initTrackIconPicker(appServices); // Track Icon Picker initialization
         if (typeof initChordVoicingModes === 'function') initChordVoicingModes(appServices); // Chord Voicing Modes initialization
         if (typeof initRhythmRandomizer === 'function') initRhythmRandomizer(appServices); // Rhythm Randomizer initialization
         if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze
