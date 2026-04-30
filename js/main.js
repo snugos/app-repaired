@@ -425,6 +425,13 @@ import {
             uiElementsCache.taskbarTempoDisplay.textContent = `${parseFloat(tempo).toFixed(1)} BPM`;
         } else { console.warn("Taskbar tempo display element not found in cache."); }
     },
+    updateStretchQualityDisplay: () => {
+        if (uiElementsCache.stretchQualityDisplay) {
+            const quality = getAudioStretchingQuality();
+            const label = quality === 'fast' ? 'Fast' : quality === 'high' ? 'High' : 'Balanced';
+            uiElementsCache.stretchQualityDisplay.textContent = `${label}`;
+        }
+    },
     updateUndoRedoButtonsUI: (undoState, redoState) => {
         if (uiElementsCache.menuUndo) {
             uiElementsCache.menuUndo.classList.toggle('disabled', !undoState);
