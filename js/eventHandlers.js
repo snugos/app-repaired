@@ -843,6 +843,19 @@ export function attachGlobalControlEvents(elements) {
     }
     // === End Phase Correlation Meter Button ===
 
+    // === Audio Stretch Quality Button ===
+    const stretchQualityBtnGlobal = document.getElementById('stretchQualityBtnGlobal');
+    if (stretchQualityBtnGlobal) {
+        stretchQualityBtnGlobal.addEventListener('click', () => {
+            if (localAppServices.openAudioStretchQualityPanel) {
+                localAppServices.openAudioStretchQualityPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Audio Stretch Quality Panel not available', 2000);
+            }
+        });
+    }
+    // === End Audio Stretch Quality Button ===
+
     // === Snap Resolution Button ===
     const snapResolutionBtn = document.getElementById('snapResolutionBtn');
     if (snapResolutionBtn) {

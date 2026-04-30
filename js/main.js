@@ -40,6 +40,7 @@ import { AudioFingerprinting } from './AudioFingerprinting.js';
 import { initAudioTapTempo } from './AudioTapTempo.js';
 import { initAudioNormalizer, openAudioNormalizerPanel } from './AudioNormalizer.js';
 import { initAudioFadePreset, openAudioFadePresetPanel } from './AudioFadePreset.js';
+import { openAudioStretchQualityPanel, openStretchQualityPanel, closeAudioStretchQualityPanel } from './AudioStretchQualityPanel.js';
 import { initAITempoSuggestion, openAITempoSuggestionPanel } from './AITempoSuggestion.js';
 import { initAutoScrollSync, toggleAutoScroll, autoScrollTimeline } from './AutoScrollSync.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
@@ -908,6 +909,9 @@ import {
     
     // Audio Normalizer
     openAudioNormalizerPanel,
+    
+    // Audio Stretch Quality
+    openAudioStretchQualityPanel,
     
     // MIDI Arpeggiator
     openMIDArpeggiatorPanel,

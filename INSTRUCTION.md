@@ -5,9 +5,9 @@ Run to add new features to the SnugOS DAW (Snugos/snaw).
 
 ## Current Feature Queue
 
-1. **Audio Reverse** - Reverse audio clips with one click
+1. ~~**Track Icon Picker** - Assign icons/emoji to tracks for visual identification~~ ✅ DONE
 2. **Step Velocity Editor** - Visual velocity lanes per step in sequencer
-3. **Track Icon Picker** - Assign icons/emoji to tracks for visual identification
+3. **Audio Reverse** - Reverse audio clips with one click
 4. **Loop Crossfade** - Smooth loop points with crossfade curves
 5. **Keyboard Octave Shift** - Global octave shift for MIDI keyboard input
 6. **Metronome Count-In** - Play count-in beats before recording starts
