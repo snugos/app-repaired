@@ -784,6 +784,19 @@ export function attachGlobalControlEvents(elements) {
     }
     // === End Tempo Sync Visualizer Button ===
 
+    // === Phase Correlation Meter Button ===
+    const phaseCorrToggleBtnGlobal = document.getElementById('phaseCorrToggleBtnGlobal');
+    if (phaseCorrToggleBtnGlobal) {
+        phaseCorrToggleBtnGlobal.addEventListener('click', () => {
+            if (localAppServices.openPhaseCorrelationMeterPanel) {
+                localAppServices.openPhaseCorrelationMeterPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Phase Correlation Meter not available', 2000);
+            }
+        });
+    }
+    // === End Phase Correlation Meter Button ===
+
     // === Snap Resolution Button ===
     const snapResolutionBtn = document.getElementById('snapResolutionBtn');
     if (snapResolutionBtn) {

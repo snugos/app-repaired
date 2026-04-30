@@ -67,6 +67,8 @@ import { initUndoHistoryPanel, openUndoHistoryPanel } from './UndoHistoryPanel.j
 import { initSpectrumAnalyzer, openSpectrumAnalyzerPanel } from './SpectrumAnalyzer.js';
 import { initBeatSyncedLFOPanel, openBeatSyncedLFOPanel } from './BeatSyncedLFOPanel.js';
 import { initTempoSyncVisualizer, openTempoSyncVisualizerPanel } from './TempoSyncVisualizer.js';
+// Phase Correlation Meter
+import { initPhaseCorrelationMeter, openPhaseCorrelationMeterPanel } from './PhaseCorrelationMeter.js';
 // Track Color Palette
 import { openTrackColorPalettePanel } from './TrackColorPalette.js';
 // Clip Ghost Trails
@@ -682,6 +684,7 @@ import {
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
     openTempoSyncVisualizerPanel,
+    openPhaseCorrelationMeterPanel,
     openTrackColorPalettePanel,
     openGhostTrailsPanel,
     openDrumReplacePanel,
@@ -1256,6 +1259,7 @@ async function initializeSnugOS() {
         if (typeof initSpectrumAnalyzer === 'function') initSpectrumAnalyzer(appServices); // Spectrum Analyzer initialization
         if (typeof initBeatSyncedLFOPanel === 'function') initBeatSyncedLFOPanel(appServices); // Beat-synced LFO panel initialization
         if (typeof initTempoSyncVisualizer === 'function') initTempoSyncVisualizer(appServices); // Tempo Sync Visualizer initialization
+        if (typeof initPhaseCorrelationMeter === 'function') initPhaseCorrelationMeter(appServices); // Phase Correlation Meter initialization
         if (typeof initAutoBeatSync === 'function') initAutoBeatSync(appServices); // Auto-Beat Sync initialization
         if (typeof initTimelineMarkers === 'function') initTimelineMarkers(appServices); // Auto-Beat Sync initialization
         if (typeof initPlayheadMarkerDrop === 'function') initPlayheadMarkerDrop(appServices); // Playhead Marker Drop initialization
