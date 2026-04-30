@@ -336,6 +336,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openScaleLockPanel?.();
                 } catch(e) { console.error('[Menu] Scale Lock error:', e); }
             },
+            menuScaleQuantize: () => {
+                console.log('[Menu] Scale Quantize clicked');
+                try {
+                    if (window.openScaleQuantizePanel) window.openScaleQuantizePanel();
+                } catch(e) { console.error('[Menu] Scale Quantize error:', e); }
+            },
             menuMicroTuning: () => {
                 console.log('[Menu] Micro Tuning clicked');
                 try {
