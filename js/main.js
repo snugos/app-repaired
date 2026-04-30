@@ -53,6 +53,7 @@ import { openStepSequencerView } from './StepSequencerView.js';
 import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
 import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
+import { initMIDArpeggiatorPanel, openMIDArpeggiatorPanel } from './MIDArpeggiatorPanel.js';
 import { initLoopRegionQuickSet, openLoopRegionQuickSetSettings } from './LoopRegionQuickSet.js';
 import { openTempoRamperPanel } from './TempoRamperUI.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
@@ -883,6 +884,9 @@ import {
     // Audio Normalizer
     openAudioNormalizerPanel,
     
+    // MIDI Arpeggiator
+    openMIDArpeggiatorPanel,
+    
     // Beat Detective
     openBeatDetectivePanel,
     
@@ -1240,6 +1244,7 @@ async function initializeSnugOS() {
         if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
         if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
+        if (typeof initMIDArpeggiatorPanel === 'function') initMIDArpeggiatorPanel(appServices); // MIDI Arpeggiator Panel initialization
         if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze

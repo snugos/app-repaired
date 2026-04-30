@@ -226,6 +226,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openMidiMappingsPanel?.();
                 } catch(e) { console.error('[Menu] MIDI Mappings error:', e); }
             },
+            menuOpenMIDArpeggiator: () => {
+                console.log('[Menu] MIDI Arpeggiator clicked');
+                try {
+                    localAppServices.openMIDArpeggiatorPanel?.();
+                } catch(e) { console.error('[Menu] MIDI Arpeggiator error:', e); }
+            },
             menuChordMemory: () => {
                 console.log('[Menu] Chord Memory clicked');
                 try {
