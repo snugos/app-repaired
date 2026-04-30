@@ -244,6 +244,18 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openChordProgressionBuilderPanel?.();
                 } catch(e) { console.error('[Menu] Chord Progression Builder error:', e); }
             },
+            menuChordVoicingModes: () => {
+                console.log('[Menu] Chord Voicing Modes clicked');
+                try {
+                    if (typeof openChordVoicingPanel === 'function') {
+                        openChordVoicingPanel();
+                    } else {
+                        import('./ChordVoicingModes.js').then(m => {
+                            if (m.openChordVoicingPanel) m.openChordVoicingPanel();
+                        }).catch(e => console.error('[Menu] Chord Voicing Modes error:', e));
+                    }
+                } catch(e) { console.error('[Menu] Chord Voicing Modes error:', e); }
+            },
             menuMidiChordPlayer: () => {
                 console.log('[Menu] MIDI Chord Player clicked');
                 try {

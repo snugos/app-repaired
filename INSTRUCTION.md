@@ -5,18 +5,16 @@ Run to add new features to the SnugOS DAW (Snugos/snaw).
 
 ## Current Feature Queue
 
-All features from previous queues have been implemented. New queue:
-
-1. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest optimal BPM
-2. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
-3. **Track Template Library** - Save and browse track templates (instrument + effects + settings)
-4. **Clip Fade Presets** - Save and apply common fade in/out curves (exponential, S-curve, etc.)
-5. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-6. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
-7. **MIDI Learn Bulk Assign** - Assign multiple MIDI CCs at once via visual matrix
-8. **Stereo Phase Correction** - Detect and fix phase issues in recorded audio
-9. **BPM/MIDI Sync Lock** - Lock MIDI devices to project BPM for tight sync
-10. **Export Stem Preview** - Preview individual stems before exporting full project
+1. **Chord Voicing Modes** - Change how chords are voiced (close, open, drop 2, drop 3 inversions)
+2. **Scale Quantize** - Snap notes to scale degrees, not just grid
+3. **Rhythm Randomizer** - Apply probability-based randomization to drum patterns
+4. **Audio Reverse** - Reverse audio clips with one click
+5. **Step Velocity Editor** - Visual velocity lanes per step in sequencer
+6. **Track Icon Picker** - Assign icons/emoji to tracks for visual identification
+7. **Loop Crossfade** - Smooth loop points with crossfade curves
+8. **Keyboard Octave Shift** - Global octave shift for MIDI keyboard input
+9. **Metronome Count-In** - Play count-in beats before recording starts
+10. **CPU Usage Panel** - Detailed per-track CPU usage display
 
 ## Workflow
 
