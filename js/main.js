@@ -60,6 +60,7 @@ import { openTempoRamperPanel } from './TempoRamperUI.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initClipGroupManager } from './ClipGroupManager.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
+import { initTrackColorPanel, openTrackColorPanel } from './TrackColorPanel.js';
 import { initTrackFreezeQuickToggle } from './TrackFreezeQuickToggle.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
 import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel, closePerformancePanel, getPerformanceSnapshot } from './PerformanceMonitor.js';
