@@ -7040,6 +7040,47 @@ export function openSmartQuantizePanel() {
                 </select>
             </div>
             
+            <!-- Scale Selector -->
+            <div class="form-group">
+                <label class="text-xs text-gray-400 block mb-1">Scale</label>
+                <select id="sq-scale" class="w-full p-2 text-sm bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="chromatic" selected>Chromatic (All notes)</option>
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
+                    <option value="pentatonic">Pentatonic</option>
+                    <option value="blues">Blues</option>
+                    <option value="dorian">Dorian</option>
+                    <option value="mixolydian">Mixolydian</option>
+                    <option value="locrian">Locrian</option>
+                </select>
+            </div>
+            
+            <!-- Snap to Scale Toggle -->
+            <div class="form-group flex items-center gap-2">
+                <input type="checkbox" id="sq-snap-scale" 
+                    class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-400">
+                <label for="sq-snap-scale" class="text-xs text-gray-400">Snap notes to scale degrees</label>
+            </div>
+            
+            <!-- Root Note -->
+            <div class="form-group flex items-center gap-2">
+                <label class="text-xs text-gray-400">Root:</label>
+                <select id="sq-root-note" class="p-1 text-xs bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="60" selected>C</option>
+                    <option value="61">C#</option>
+                    <option value="62">D</option>
+                    <option value="63">D#</option>
+                    <option value="64">E</option>
+                    <option value="65">F</option>
+                    <option value="66">F#</option>
+                    <option value="67">G</option>
+                    <option value="68">G#</option>
+                    <option value="69">A</option>
+                    <option value="70">A#</option>
+                    <option value="71">B</option>
+                </select>
+            </div>
+            
             <!-- Preset Buttons -->
             <div class="flex flex-wrap gap-2 mt-2">
                 <button class="sq-preset px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded" data-preset="subtle">Subtle</button>
@@ -7159,7 +7200,10 @@ function initSmartQuantizePanelHandlers() {
             humanize: parseInt(humanizeSlider.value) / 100,
             swingAmount: parseInt(swingSlider.value) / 100,
             preserveGroove: preserveGrooveCheck.checked,
-            timeSignature: timeSigSelect?.value || '4/4'
+            timeSignature: timeSigSelect?.value || '4/4',
+            scale: document.getElementById('sq-scale')?.value || 'chromatic',
+            snapToScaleEnabled: document.getElementById('sq-snap-scale')?.checked || false,
+            rootNote: parseInt(document.getElementById('sq-root-note')?.value) || 60
         };
 
         // Import and use SmartQuantize
