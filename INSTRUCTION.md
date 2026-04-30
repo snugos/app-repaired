@@ -19,9 +19,11 @@ Run every 10 minutes to find and fix bugs in the SnugOS DAW codebase (Snaw), or 
 
 ## Current Feature Queue
 
+**All features from the original queue have been implemented. New feature ideas:**
+
 1. **Spectral Gate** - Frequency-based gate based on specific frequency content
 2. **Clip Gain Keyframe** - Automation-style gain points within clips
-3. **Drum Replacement AI** - Analyze and replace drum hits
+3. **Drum Replacement AI** - Analyze and replace drum hits with samples
 4. **Stem Separation Preview** - Preview isolated stems before export
 5. **Adaptive Dynamics** - Compressor that adapts to input
 6. **Mid-Side Encoding** - Encode stereo to mid-side processing
@@ -34,7 +36,7 @@ Run every 10 minutes to find and fix bugs in the SnugOS DAW codebase (Snaw), or 
 1. Pull latest: `cd /home/workspace/app-repaired && git pull origin LWB-with-Bugs`
 2. Fix bugs if any exist (Priority 1 bug above is already resolved - false positive)
 3. Check syntax: `node --check js/main.js`
-4. Commit and push: `git add -A && git commit -m "chore: verify false positive at $(date -u +%H:%M) UTC" && git push origin LWB-with-Bugs`
+4. Commit and push: `git add -A && git commit -m "chore: update feature queue in README" && git push origin LWB-with-Bugs`
 5. Verify deploy: Wait 30s then curl https://snugos.github.io/snaw/js/main.js | head -20
 
 ## Key Files
