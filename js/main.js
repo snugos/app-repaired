@@ -62,6 +62,7 @@ import { initClipContextMenu } from './ClipContextMenu.js';
 import { initClipGroupManager } from './ClipGroupManager.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
 import { initTrackColorPanel, openTrackColorPanel } from './TrackColorPanel.js';
+import { initChordVoicingModes, openChordVoicingPanel } from './ChordVoicingModes.js';
 import { initTrackFreezeQuickToggle } from './TrackFreezeQuickToggle.js';
 import { initTrackLaneResize } from './TrackLaneResize.js';
 import { initPerformanceMonitor, initPerformanceIndicator, openPerformancePanel, closePerformancePanel, getPerformanceSnapshot } from './PerformanceMonitor.js';
@@ -427,6 +428,10 @@ import {
             uiElementsCache.taskbarTempoDisplay.textContent = `${parseFloat(tempo).toFixed(1)} BPM`;
         } else { console.warn("Taskbar tempo display element not found in cache."); }
     },
+    openStretchQualityPanel: () => {
+        if (typeof openAudioStretchQualityPanel === 'function') openAudioStretchQualityPanel();
+        else console.warn('openAudioStretchQualityPanel not available');
+    },
     updateStretchQualityDisplay: () => {
         if (uiElementsCache.stretchQualityDisplay) {
             const quality = getAudioStretchingQuality();
@@ -696,6 +701,7 @@ import {
     openPhaseCorrelationMeterPanel,
     openTrackColorPalettePanel,
     openTrackColorPanel,
+    openChordVoicingPanel,
     openGhostTrailsPanel,
     openDrumReplacePanel,
     openClipOpacityPanel,
