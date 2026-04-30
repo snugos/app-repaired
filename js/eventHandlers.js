@@ -765,6 +765,19 @@ export function attachGlobalControlEvents(elements) {
     }
     // === End Beat-Synced LFO Button ===
 
+    // === Tempo Sync Visualizer Button ===
+    const tempoSyncToggleBtnGlobal = document.getElementById('tempoSyncToggleBtnGlobal');
+    if (tempoSyncToggleBtnGlobal) {
+        tempoSyncToggleBtnGlobal.addEventListener('click', () => {
+            if (localAppServices.openTempoSyncVisualizerPanel) {
+                localAppServices.openTempoSyncVisualizerPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Tempo Sync Visualizer not available', 2000);
+            }
+        });
+    }
+    // === End Tempo Sync Visualizer Button ===
+
     // === Snap Resolution Button ===
     const snapResolutionBtn = document.getElementById('snapResolutionBtn');
     if (snapResolutionBtn) {
