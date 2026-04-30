@@ -73,7 +73,9 @@ import { initTempoSyncVisualizer, openTempoSyncVisualizerPanel } from './TempoSy
 // Phase Correlation Meter
 import { initPhaseCorrelationMeter, openPhaseCorrelationMeterPanel } from './PhaseCorrelationMeter.js';
 // Track Color Palette
-import { openTrackColorPalettePanel } from './TrackColorPalette.js';
+import { initTrackColorPalette, openTrackColorPalettePanel } from './TrackColorPalette.js';
+// Rhythm Randomizer
+import { initRhythmRandomizer, openRhythmRandomizerPanel, getRhythmRandomizerSettings } from './RhythmRandomizer.js';
 // Clip Ghost Trails
 import { initClipGhostTrails, openGhostTrailsPanel, getGhostTrails, addGhostTrail, removeGhostTrail, clearAllGhostTrails, createGhostFromClip, renderGhostTrailsOnCanvas, getGhostTrailCount, exportGhostTrailsData, importGhostTrailsData } from './ClipGhostTrails.js';
 // Drum Replace - Analyze audio and replace drum hits with samples
