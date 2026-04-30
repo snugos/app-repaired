@@ -360,6 +360,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openGrooveExtractorPanel?.();
                 } catch(e) { console.error('[Menu] Groove Extractor error:', e); }
             },
+            menuRhythmRandomizer: () => {
+                console.log('[Menu] Rhythm Randomizer clicked');
+                try {
+                    localAppServices.openRhythmRandomizerPanel?.();
+                } catch(e) { console.error('[Menu] Rhythm Randomizer error:', e); }
+            },
             menuPatternChains: () => {
                 console.log('[Menu] Pattern Chains clicked');
                 try {
