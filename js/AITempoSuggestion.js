@@ -1,247 +1,253 @@
-// js/AITempoSuggestion.js - AI-powered tempo analysis from audio
-// Analyzes the rhythm of recorded audio and suggests optimal BPM
+/**
+ * js/AITempoSuggestion.js - AI-powered tempo suggestion from audio analysis
+ * Analyzes the rhythm of recorded audio to suggest the optimal BPM
+ */
 
 let localAppServices = {};
 
 /**
- * Initialize the AITempoSuggestion module with app services
- * @param {Object} appServices - Application services from main.js
+ * Initialize the AI Tempo Suggestion module
+ * @param {Object} appServices - App services from main.js
  */
 export function initAITempoSuggestion(appServices) {
     localAppServices = appServices || {};
-    console.log('[AITempo] Module initialized');
+    console.log('[AITempoSuggestion] Module initialized');
 }
 
 /**
- * Analyze audio from a track and estimate the BPM
- * Uses onset detection and peak analysis
- * @param {number} trackId - Track ID to analyze
- * @returns {Promise<{bpm: number, confidence: number, method: string}>}
+ * Analyze audio buffer and detect tempo
+ * @param {AudioBuffer} audioBuffer - The audio to analyze
+ * @returns {Object} Tempo analysis result
  */
-export async function analyzeTrackTempo(trackId) {
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    const track = tracks.find(t => t.id === trackId);
-    
-    if (!track) {
-        console.warn('[AITempo] Track not found:', trackId);
-        return { bpm: 120, confidence: 0, method: 'none' };
-    }
-    
-    // Get audio clips from the track
-    const clips = track.getClips ? track.getClips() : [];
-    if (clips.length === 0) {
-        console.warn('[AITempo] No clips found in track:', trackId);
-        return { bpm: 120, confidence: 0, method: 'none' };
-    }
-    
-    // Find first audio clip with buffer data
-    let audioBuffer = null;
-    for (const clip of clips) {
-        if (clip.audioBuffer) {
-            audioBuffer = clip.audioBuffer;
-            break;
-        }
-        // Check for audio data in other formats
-        if (clip.audioData && clip.audioData.buffer) {
-            audioBuffer = clip.audioData.buffer;
-            break;
-        }
-    }
-    
+export function analyzeAudioForTempo(audioBuffer) {
     if (!audioBuffer) {
-        console.warn('[AITempo] No audio buffer found in track clips');
-        return { bpm: 120, confidence: 0, method: 'none' };
+        return { bpm: 120, confidence: 0, method: 'none', error: 'No audio buffer provided' };
     }
-    
+
     try {
-        // Get the raw audio data
+        // Get raw samples from first channel
         const channelData = audioBuffer.getChannelData(0);
-        return detectBPMFromAudioData(channelData, audioBuffer.sampleRate);
+        const sampleRate = audioBuffer.sampleRate;
+
+        // Detect onset events using energy-based onset detection
+        const onsets = detectOnsets(channelData, sampleRate);
+
+        if (onsets.length < 2) {
+            return { bpm: 120, confidence: 0, method: 'onset', error: 'Not enough onsets detected' };
+        }
+
+        // Calculate intervals between onsets
+        const intervals = calculateIntervals(onsets, sampleRate);
+
+        // Cluster intervals to find predominant rhythm
+        const clusters = clusterIntervals(intervals);
+
+        // Find best BPM candidate
+        const bestCluster = findBestCluster(clusters);
+
+        // Convert interval to BPM
+        let bpm = 60 / bestCluster.interval;
+        
+        // Normalize BPM to reasonable range (60-200)
+        bpm = normalizeBPM(bpm);
+
+        // Calculate confidence based on cluster consistency
+        const confidence = calculateConfidence(bestCluster, intervals);
+
+        return {
+            bpm: Math.round(bpm * 10) / 10,
+            confidence: confidence,
+            method: 'onset-detection',
+            onsetsDetected: onsets.length,
+            intervalMs: Math.round(bestCluster.interval * 1000 * 10) / 10,
+            beatPattern: bestCluster.count > 1 ? 'consistent' : 'variable'
+        };
     } catch (error) {
-        console.error('[AITempo] Error analyzing audio:', error);
-        return { bpm: 120, confidence: 0, method: 'error' };
+        console.error('[AITempoSuggestion] Analysis error:', error);
+        return { bpm: 120, confidence: 0, method: 'error', error: error.message };
     }
 }
 
 /**
- * Detect BPM from raw audio data
- * @param {Float32Array} channelData - Raw audio samples
- * @param {number} sampleRate - Sample rate of the audio
- * @returns {Promise<{bpm: number, confidence: number, method: string}>}
+ * Detect onset events in audio using energy-based approach
  */
-export async function detectBPMFromAudioData(channelData, sampleRate) {
-    // Step 1: Calculate energy envelope using onset detection
-    const energyEnvelope = calculateEnergyEnvelope(channelData, sampleRate);
-    
-    // Step 2: Find peaks in the energy envelope
-    const peaks = findPeaks(energyEnvelope);
-    
-    // Step 3: Calculate intervals between peaks
-    const intervals = calculateIntervals(peaks, sampleRate);
-    
-    // Step 4: Find the most common interval (tempo period)
-    const histogram = buildIntervalHistogram(intervals);
-    const dominantInterval = findDominantInterval(histogram);
-    
-    // Step 5: Convert interval to BPM
-    const beatsPerSecond = 1 / dominantInterval;
-    const rawBPM = beatsPerSecond * 60;
-    
-    // Step 6: Normalize BPM to reasonable range (60-200)
-    const normalizedBPM = normalizeBPM(rawBPM);
-    const confidence = calculateConfidence(histogram, dominantInterval, peaks.length);
-    
-    return {
-        bpm: Math.round(normalizedBPM * 10) / 10,
-        confidence: confidence,
-        method: 'onset_detection',
-        rawBPM: Math.round(rawBPM * 10) / 10,
-        interval: Math.round(dominantInterval * 1000) / 1000
-    };
-}
-
-/**
- * Calculate energy envelope using a window-based approach
- */
-function calculateEnergyEnvelope(channelData, sampleRate) {
-    const windowSize = Math.floor(sampleRate * 0.01); // 10ms windows
+function detectOnsets(samples, sampleRate) {
+    const onsets = [];
+    const windowSize = Math.floor(sampleRate * 0.02); // 20ms windows
     const hopSize = Math.floor(windowSize / 2);
-    const numWindows = Math.floor((channelData.length - windowSize) / hopSize);
-    const envelope = new Float32Array(numWindows);
-    
-    for (let i = 0; i < numWindows; i++) {
+    const energyHistory = [];
+
+    // Calculate energy for each window
+    for (let i = 0; i < samples.length - windowSize; i += hopSize) {
         let energy = 0;
-        const start = i * hopSize;
         for (let j = 0; j < windowSize; j++) {
-            const sample = channelData[start + j] || 0;
-            energy += sample * sample;
+            energy += samples[i + j] * samples[i + j];
         }
-        envelope[i] = Math.sqrt(energy / windowSize);
+        energy = Math.sqrt(energy / windowSize);
+        energyHistory.push({ time: i / sampleRate, energy });
     }
-    
-    return envelope;
-}
 
-/**
- * Find peaks in the energy envelope
- */
-function findPeaks(envelope) {
-    const peaks = [];
-    const threshold = calculateAdaptiveThreshold(envelope);
+    // Find peaks in energy (onsets)
+    const threshold = calculateThreshold(energyHistory);
     
-    for (let i = 1; i < envelope.length - 1; i++) {
-        if (envelope[i] > threshold && 
-            envelope[i] > envelope[i - 1] && 
-            envelope[i] > envelope[i + 1]) {
-            peaks.push(i);
+    for (let i = 1; i < energyHistory.length - 1; i++) {
+        const prev = energyHistory[i - 1].energy;
+        const curr = energyHistory[i].energy;
+        const next = energyHistory[i + 1].energy;
+
+        // Peak detection: local maximum above threshold and significant increase
+        if (curr > prev && curr > next && curr > threshold) {
+            const delta = curr - Math.max(prev, next);
+            if (delta > threshold * 0.5) {
+                onsets.push(energyHistory[i].time);
+            }
         }
     }
+
+    return onsets;
+}
+
+/**
+ * Calculate adaptive threshold for onset detection
+ */
+function calculateThreshold(energyHistory) {
+    if (energyHistory.length === 0) return 0;
     
-    return peaks;
+    const energies = energyHistory.map(e => e.energy).sort((a, b) => a - b);
+    const median = energies[Math.floor(energies.length / 2)];
+    const mean = energies.reduce((a, b) => a + b, 0) / energies.length;
+    
+    return (median + mean) / 2;
 }
 
 /**
- * Calculate adaptive threshold for peak detection
+ * Calculate time intervals between consecutive onsets
  */
-function calculateAdaptiveThreshold(envelope) {
-    const mean = envelope.reduce((a, b) => a + b, 0) / envelope.length;
-    const variance = envelope.reduce((a, b) => a + (b - mean) ** 2, 0) / envelope.length;
-    const stdDev = Math.sqrt(variance);
-    return mean + stdDev * 0.5;
-}
-
-/**
- * Calculate time intervals between consecutive peaks
- */
-function calculateIntervals(peaks, sampleRate) {
+function calculateIntervals(onsets, sampleRate) {
     const intervals = [];
-    const msPerSample = 1000 / sampleRate;
-    
-    for (let i = 1; i < peaks.length; i++) {
-        const sampleDiff = peaks[i] - peaks[i - 1];
-        const timeMs = sampleDiff * msPerSample * 2; // Account for hop size
-        
-        // Only consider intervals in a reasonable tempo range (30-300 BPM)
-        const minInterval = 60 / 300 * 1000; // 200ms for 300 BPM
-        const maxInterval = 60 / 30 * 1000;  // 2000ms for 30 BPM
-        
-        if (timeMs >= minInterval && timeMs <= maxInterval) {
-            intervals.push(timeMs);
-        }
+    for (let i = 1; i < onsets.length; i++) {
+        intervals.push(onsets[i] - onsets[i - 1]);
     }
-    
     return intervals;
 }
 
 /**
- * Build histogram of intervals to find dominant tempo
+ * Cluster similar intervals (tolerating rhythmic variations)
  */
-function buildIntervalHistogram(intervals) {
-    const histogram = {};
-    const tolerance = 20; // ms tolerance for grouping
+function clusterIntervals(intervals) {
+    if (intervals.length === 0) return [];
+
+    // Sort intervals
+    const sorted = [...intervals].sort((a, b) => a - b);
     
-    for (const interval of intervals) {
-        const bucket = Math.round(interval / tolerance) * tolerance;
-        histogram[bucket] = (histogram[bucket] || 0) + 1;
+    // Use agglomerative clustering
+    const clusters = [];
+    let currentCluster = { intervals: [sorted[0]], sum: sorted[0] };
+
+    for (let i = 1; i < sorted.length; i++) {
+        const interval = sorted[i];
+        const avgInterval = currentCluster.sum / currentCluster.intervals.length;
+        
+        // If interval is within 30% of current average, add to cluster
+        if (Math.abs(interval - avgInterval) / avgInterval < 0.3) {
+            currentCluster.intervals.push(interval);
+            currentCluster.sum += interval;
+        } else {
+            // Start new cluster
+            clusters.push(currentCluster);
+            currentCluster = { intervals: [interval], sum: interval };
+        }
     }
-    
-    return histogram;
+    clusters.push(currentCluster);
+
+    return clusters.map(c => ({
+        interval: c.sum / c.intervals.length,
+        count: c.intervals.length,
+        stdDev: calculateStdDev(c.intervals)
+    }));
 }
 
 /**
- * Find the dominant interval (most common period)
+ * Calculate standard deviation
  */
-function findDominantInterval(histogram) {
-    let maxCount = 0;
-    let dominantInterval = 500; // Default fallback
+function calculateStdDev(values) {
+    if (values.length <= 1) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+    return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / values.length);
+}
+
+/**
+ * Find the best cluster (most consistent and frequent)
+ */
+function findBestCluster(clusters) {
+    if (clusters.length === 0) {
+        return { interval: 0.5, count: 0, stdDev: 0 };
+    }
+
+    // Score each cluster: prefer high count and low stdDev
+    let bestCluster = clusters[0];
+    let bestScore = -1;
+
+    for (const cluster of clusters) {
+        // Penalize high stdDev, reward high count
+        const score = cluster.count / (1 + cluster.stdDev * 10);
+        if (score > bestScore) {
+            bestScore = score;
+            bestCluster = cluster;
+        }
+    }
+
+    return bestCluster;
+}
+
+/**
+ * Normalize BPM to reasonable musical range
+ */
+function normalizeBPM(bpm) {
+    // If BPM is too low, try doubling
+    while (bpm < 50) bpm *= 2;
+    // If BPM is too high, try halving
+    while (bpm > 200) bpm /= 2;
     
-    for (const [interval, count] of Object.entries(histogram)) {
-        if (count > maxCount) {
-            maxCount = count;
-            dominantInterval = parseFloat(interval);
+    // Round to nearest common musical BPM values
+    const commonBPMSteps = [60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190];
+    
+    // Find nearest common BPM
+    let nearest = commonBPMSteps[0];
+    let minDiff = Math.abs(bpm - nearest);
+    
+    for (const common of commonBPMSteps) {
+        const diff = Math.abs(bpm - common);
+        if (diff < minDiff) {
+            minDiff = diff;
+            nearest = common;
         }
     }
     
-    return dominantInterval;
+    // Only use common BPM if within 10%
+    if (minDiff / bpm < 0.1) {
+        return nearest;
+    }
+    
+    return Math.round(bpm);
 }
 
 /**
- * Normalize BPM to reasonable range
+ * Calculate confidence based on interval consistency
  */
-function normalizeBPM(bpm) {
-    // First, find the closest multiple/division by 2 that fits in 60-200 range
-    let normalized = bpm;
+function calculateConfidence(bestCluster, allIntervals) {
+    if (bestCluster.count < 2) return 0.2;
     
-    // If too fast, halve until in range
-    while (normalized < 60 && normalized > 0) {
-        normalized *= 2;
-    }
+    // Calculate coefficient of variation (lower = more consistent)
+    const cv = bestCluster.stdDev / bestCluster.interval;
     
-    // If too slow, double until in range
-    while (normalized > 200) {
-        normalized /= 2;
-    }
+    // Convert to 0-1 confidence (lower CV = higher confidence)
+    let confidence = Math.max(0, 1 - cv * 5);
     
-    // Clamp to hard limits
-    normalized = Math.max(40, Math.min(240, normalized));
-    
-    return normalized;
-}
-
-/**
- * Calculate confidence based on histogram consistency
- */
-function calculateConfidence(histogram, dominantInterval, numPeaks) {
-    // Calculate how concentrated the histogram is
-    const totalVotes = Object.values(histogram).reduce((a, b) => a + b, 0);
-    const dominantVotes = histogram[dominantInterval] || 0;
-    const concentration = dominantVotes / totalVotes;
-    
-    // Factor in number of peaks detected
-    const peakFactor = Math.min(numPeaks / 20, 1);
-    
-    // Combine factors
-    const confidence = concentration * 0.7 + peakFactor * 0.3;
+    // Boost confidence if we detected many onsets
+    const countBoost = Math.min(0.2, bestCluster.count / 50);
+    confidence = Math.min(1, confidence + countBoost);
     
     return Math.round(confidence * 100) / 100;
 }
@@ -249,213 +255,287 @@ function calculateConfidence(histogram, dominantInterval, numPeaks) {
 /**
  * Open the AI Tempo Suggestion panel
  */
-export function openAITempoPanel() {
-    const windowId = 'aiTempoSuggestion';
-    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
-    
-    if (openWindows.has(windowId)) {
-        const win = openWindows.get(windowId);
-        win.restore();
-        renderAITempoContent();
-        return win;
+export function openAITempoSuggestionPanel() {
+    const existingPanel = document.getElementById('aiTempoSuggestionPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+        return;
     }
-    
-    const contentContainer = document.createElement('div');
-    contentContainer.id = 'aiTempoContent';
-    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-50 dark:bg-slate-800';
-    
-    const options = { 
-        width: 420, 
-        height: 480, 
-        minWidth: 380, 
-        minHeight: 400, 
-        initialContentKey: windowId, 
-        closable: true, 
-        minimizable: true, 
-        resizable: true 
-    };
-    
-    const win = localAppServices.createWindow(windowId, 'AI Tempo Suggestion', contentContainer, options);
-    if (win?.element) {
-        renderAITempoContent();
-    }
-    return win;
-}
 
-/**
- * Render the AI Tempo Suggestion panel content
- */
-function renderAITempoContent() {
-    const container = document.getElementById('aiTempoContent');
-    if (!container) return;
-    
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    const audioTracks = tracks.filter(t => t.type === 'audio');
-    
-    let html = `
-        <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
-            <p class="text-sm text-blue-700 dark:text-blue-300">
-                <strong>AI Tempo Analysis:</strong> Select an audio track to analyze its rhythm and suggest the optimal BPM.
-            </p>
+    const panel = document.createElement('div');
+    panel.id = 'aiTempoSuggestionPanel';
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(180deg, #1e1e2e 0%, #16162a 100%);
+        border: 1px solid #444;
+        border-radius: 12px;
+        padding: 20px;
+        min-width: 450px;
+        max-height: 80vh;
+        overflow-y: auto;
+        z-index: 10000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        color: #eee;
+        font-family: system-ui, -apple-system, sans-serif;
+    `;
+
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:20px;">🎵</span>
+                <h3 style="margin:0;font-size:18px;font-weight:600;">AI Tempo Suggestion</h3>
+            </div>
+            <button id="closeTempoPanel" style="background:#333;border:none;color:#fff;padding:5px 12px;cursor:pointer;border-radius:4px;font-size:14px;">×</button>
         </div>
         
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Audio Track</label>
-            <select id="aiTempoTrackSelect" class="w-full p-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
+        <p style="margin:0 0 16px;font-size:13px;color:#888;line-height:1.5;">
+            Analyze recorded audio to detect the rhythm and suggest the optimal BPM.
+            Works best with clear rhythmic content like drums or percussion.
+        </p>
+        
+        <div id="trackSelectionSection" style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;color:#888;margin-bottom:6px;">Select Track to Analyze</label>
+            <select id="tempoAnalysisTrack" style="
+                width: 100%;
+                padding: 10px 12px;
+                background: #2a2a3e;
+                border: 1px solid #444;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+            ">
                 <option value="">-- Select a track --</option>
-                ${audioTracks.map(t => `<option value="${t.id}">${t.name || 'Track ' + t.id}</option>`).join('')}
             </select>
         </div>
         
-        <div class="mb-4 flex gap-2">
-            <button id="aiTempoAnalyzeBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                Analyze Tempo
-            </button>
-            <button id="aiTempoApplyBtn" class="flex-1 px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Apply Suggested BPM
-            </button>
+        <div id="audioClipSelection" style="margin-bottom:16px;display:none;">
+            <label style="display:block;font-size:12px;color:#888;margin-bottom:6px;">Select Clip</label>
+            <select id="tempoAnalysisClip" style="
+                width: 100%;
+                padding: 10px 12px;
+                background: #2a2a3e;
+                border: 1px solid #444;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+            ">
+                <option value="">-- Select a clip --</option>
+            </select>
         </div>
         
-        <div id="aiTempoResults" class="hidden">
-            <div class="p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
-                <div class="flex items-center justify-between mb-4">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Analysis Results</span>
-                    <span id="aiTempoConfidence" class="px-2 py-1 text-xs rounded"></span>
+        <button id="analyzeBtn" style="
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(180deg, #4a9eff 0%, #2a6eff 100%);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+        ">Analyze Audio</button>
+        
+        <div id="analysisResults" style="display:none;">
+            <div style="
+                background: #0a0a1e;
+                border: 1px solid #333;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+            ">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="color:#888;font-size:12px;">Detected BPM</span>
+                    <span id="detectedBpm" style="font-size:32px;font-weight:700;color:#4a9eff;">--</span>
                 </div>
                 
-                <div class="text-center mb-4">
-                    <div id="aiTempoSuggestedBPM" class="text-5xl font-bold text-blue-600 dark:text-blue-400">--</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Suggested BPM</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">Confidence</span>
+                    <span id="confidenceScore" style="font-size:16px;color:#4ade80;">--</span>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
-                        <div class="text-gray-500 dark:text-gray-400">Raw Detection</div>
-                        <div id="aiTempoRaw" class="font-medium">--</div>
-                    </div>
-                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
-                        <div class="text-gray-500 dark:text-gray-400">Beat Interval</div>
-                        <div id="aiTempoInterval" class="font-medium">--</div>
-                    </div>
-                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
-                        <div class="text-gray-500 dark:text-gray-400">Method</div>
-                        <div id="aiTempoMethod" class="font-medium">--</div>
-                    </div>
-                    <div class="p-2 bg-gray-50 dark:bg-slate-600 rounded">
-                        <div class="text-gray-500 dark:text-gray-400">Peaks Found</div>
-                        <div id="aiTempoPeaks" class="font-medium">--</div>
-                    </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="color:#888;font-size:12px;">Method</span>
+                    <span id="analysisMethod" style="font-size:12px;color:#888;">--</span>
                 </div>
+                
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="color:#888;font-size:12px;">Beat Pattern</span>
+                    <span id="beatPattern" style="font-size:12px;color:#888;">--</span>
+                </div>
+            </div>
+            
+            <div style="display:flex;gap:8px;">
+                <button id="applyBpmBtn" style="
+                    flex: 1;
+                    padding: 10px;
+                    background: #22c55e;
+                    border: none;
+                    border-radius: 6px;
+                    color: #fff;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">Apply BPM</button>
+                <button id="discardBpmBtn" style="
+                    flex: 1;
+                    padding: 10px;
+                    background: #444;
+                    border: none;
+                    border-radius: 6px;
+                    color: #fff;
+                    font-size: 13px;
+                    cursor: pointer;
+                ">Discard</button>
             </div>
         </div>
         
-        <div id="aiTempoLoading" class="hidden text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">Analyzing audio...</div>
-        </div>
-        
-        <div id="aiTempoError" class="hidden p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700">
-            <p class="text-sm text-red-600 dark:text-red-400" id="aiTempoErrorMsg"></p>
-        </div>
-        
-        <div class="mt-4 p-3 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-                <strong>Tips:</strong>
-                <ul class="list-disc list-inside mt-1 space-y-1">
-                    <li>Tracks with clear beats work best</li>
-                    <li>Longer recordings = more accurate analysis</li>
-                    <li>Low confidence suggests complexpolyrhythmic content</li>
-                </ul>
-            </div>
+        <div id="errorMessage" style="display:none;color:#ef4444;font-size:13px;text-align:center;padding:12px;background:#2a1a1a;border-radius:6px;margin-bottom:16px;">
         </div>
     `;
-    
-    container.innerHTML = html;
-    
-    // Add event listeners
-    const trackSelect = container.querySelector('#aiTempoTrackSelect');
-    const analyzeBtn = container.querySelector('#aiTempoAnalyzeBtn');
-    const applyBtn = container.querySelector('#aiTempoApplyBtn');
-    const resultsDiv = container.querySelector('#aiTempoResults');
-    const loadingDiv = container.querySelector('#aiTempoLoading');
-    const errorDiv = container.querySelector('#aiTempoError');
-    const confidenceBadge = container.querySelector('#aiTempoConfidence');
-    
-    let currentAnalysis = null;
-    
-    analyzeBtn?.addEventListener('click', async () => {
+
+    document.body.appendChild(panel);
+
+    // Populate track dropdown
+    const trackSelect = panel.querySelector('#tempoAnalysisTrack');
+    const clipSelect = panel.querySelector('#audioClipSelection');
+    const analyzeBtn = panel.querySelector('#analyzeBtn');
+    const resultsDiv = panel.querySelector('#analysisResults');
+    const errorDiv = panel.querySelector('#errorMessage');
+
+    // Load tracks
+    const loadTracks = () => {
+        const tracks = localAppServices.getTracks?.() || [];
+        trackSelect.innerHTML = '<option value="">-- Select a track --</option>';
+        
+        tracks.filter(t => t.type === 'Audio' || t.timelineClips?.length > 0).forEach(track => {
+            const option = document.createElement('option');
+            option.value = track.id;
+            option.textContent = `${track.name || 'Track ' + track.id} (${track.type})`;
+            trackSelect.appendChild(option);
+        });
+    };
+
+    // Load clips for selected track
+    const loadClips = (trackId) => {
+        const tracks = localAppServices.getTracks?.() || [];
+        const track = tracks.find(t => t.id === trackId);
+        
+        if (track?.timelineClips?.length > 0) {
+            clipSelect.style.display = 'block';
+            clipSelect.innerHTML = '<option value="">-- Select a clip --</option>';
+            
+            track.timelineClips.forEach(clip => {
+                const option = document.createElement('option');
+                option.value = clip.id;
+                option.textContent = clip.name || `Clip ${clip.id.slice(-4)}`;
+                clipSelect.appendChild(option);
+            });
+        } else {
+            clipSelect.style.display = 'none';
+        }
+    };
+
+    // Analyze audio
+    let analysisResult = null;
+
+    const performAnalysis = async () => {
         const trackId = parseInt(trackSelect.value, 10);
+        const clipId = clipSelect.value;
+
         if (!trackId) {
-            localAppServices.showNotification?.('Please select a track first', 2000);
+            errorDiv.textContent = 'Please select a track first';
+            errorDiv.style.display = 'block';
             return;
         }
-        
-        resultsDiv?.classList.add('hidden');
-        errorDiv?.classList.add('hidden');
-        loadingDiv?.classList.remove('hidden');
+
+        const tracks = localAppServices.getTracks?.() || [];
+        const track = tracks.find(t => t.id === trackId);
+
+        if (!track) {
+            errorDiv.textContent = 'Track not found';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Find audio buffer from clip or track
+        let audioBuffer = null;
+
+        if (clipId) {
+            const clip = track.timelineClips?.find(c => c.id === clipId);
+            audioBuffer = clip?.audioBuffer;
+        }
+
+        if (!audioBuffer && track.audioBuffer) {
+            audioBuffer = track.audioBuffer;
+        }
+
+        if (!audioBuffer && track.samplerAudioData) {
+            // Try to get audio from sampler
+            audioBuffer = track.samplerAudioData;
+        }
+
+        if (!audioBuffer) {
+            errorDiv.textContent = 'No audio data found in this track. Please record audio first.';
+            errorDiv.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        errorDiv.style.display = 'none';
+        analyzeBtn.textContent = 'Analyzing...';
         analyzeBtn.disabled = true;
-        applyBtn.disabled = true;
-        
-        try {
-            currentAnalysis = await analyzeTrackTempo(trackId);
-            
-            loadingDiv?.classList.add('hidden');
-            resultsDiv?.classList.remove('hidden');
-            applyBtn.disabled = false;
-            
-            // Update display
-            container.querySelector('#aiTempoSuggestedBPM').textContent = currentAnalysis.bpm;
-            container.querySelector('#aiTempoRaw').textContent = `${currentAnalysis.rawBPM} BPM`;
-            container.querySelector('#aiTempoInterval').textContent = `${currentAnalysis.interval} ms`;
-            container.querySelector('#aiTempoMethod').textContent = currentAnalysis.method;
-            container.querySelector('#aiTempoPeaks').textContent = 'Multiple';
-            
-            // Update confidence badge
-            const confidence = currentAnalysis.confidence;
-            let colorClass = 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400';
-            if (confidence > 0.6) colorClass = 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400';
-            else if (confidence > 0.3) colorClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400';
-            
-            confidenceBadge.className = `px-2 py-1 text-xs rounded ${colorClass}`;
-            confidenceBadge.textContent = `${Math.round(confidence * 100)}% confidence`;
-            
-        } catch (error) {
-            loadingDiv?.classList.add('hidden');
-            errorDiv?.classList.remove('hidden');
-            container.querySelector('#aiTempoErrorMsg').textContent = error.message || 'Analysis failed';
-        } finally {
+
+        // Perform analysis (could be async for more complex analysis)
+        setTimeout(() => {
+            analysisResult = analyzeAudioForTempo(audioBuffer);
+
+            // Update UI
+            panel.querySelector('#detectedBpm').textContent = analysisResult.bpm;
+            panel.querySelector('#confidenceScore').textContent = `${(analysisResult.confidence * 100).toFixed(0)}%`;
+            panel.querySelector('#analysisMethod').textContent = analysisResult.method;
+            panel.querySelector('#beatPattern').textContent = analysisResult.beatPattern || 'N/A';
+
+            resultsDiv.style.display = 'block';
+            analyzeBtn.textContent = 'Analyze Again';
             analyzeBtn.disabled = false;
+        }, 500);
+    };
+
+    // Apply BPM to project
+    const applyBPM = () => {
+        if (analysisResult && localAppServices.setTempo) {
+            localAppServices.setTempo(analysisResult.bpm);
+            localAppServices.showNotification?.(`BPM set to ${analysisResult.bpm}`, 2000);
+            panel.remove();
         }
+    };
+
+    // Event listeners
+    trackSelect.addEventListener('change', (e) => {
+        loadClips(parseInt(e.target.value, 10));
+        resultsDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
     });
-    
-    applyBtn?.addEventListener('click', () => {
-        if (!currentAnalysis) return;
-        
-        const currentBPM = localAppServices.getBPM ? localAppServices.getBPM() : 120;
-        localAppServices.setBPM?.(currentAnalysis.bpm);
-        localAppServices.showNotification?.(`BPM changed from ${currentBPM} to ${currentAnalysis.bpm}`, 2000);
-        
-        // Update UI
-        if (localAppServices.updateTransportDisplay) {
-            localAppServices.updateTransportDisplay();
-        }
-    });
+
+    analyzeBtn.addEventListener('click', performAnalysis);
+
+    panel.querySelector('#applyBpmBtn').addEventListener('click', applyBPM);
+    panel.querySelector('#discardBpmBtn').addEventListener('click', () => panel.remove());
+    panel.querySelector('#closeTempoPanel').addEventListener('click', () => panel.remove());
+
+    // Initial load
+    loadTracks();
 }
 
-/**
- * Quick analyze - returns suggested BPM without UI
- * @param {number} trackId - Track ID to analyze
- * @returns {Promise<number>} Suggested BPM
- */
-export async function quickAnalyze(trackId) {
-    const result = await analyzeTrackTempo(trackId);
-    return result.bpm;
-}
-
-// Window exposure
-window.AITempoSuggestion = {
-    openPanel: openAITempoPanel,
-    analyze: analyzeTrackTempo,
-    quickAnalyze: quickAnalyze,
-    init: initAITempoSuggestion
+// Export for use in other modules
+export default {
+    initAITempoSuggestion,
+    analyzeAudioForTempo,
+    openAITempoSuggestionPanel
 };

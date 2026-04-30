@@ -40,6 +40,7 @@ import { AudioFingerprinting } from './AudioFingerprinting.js';
 import { initAudioTapTempo } from './AudioTapTempo.js';
 import { initAudioNormalizer, openAudioNormalizerPanel } from './AudioNormalizer.js';
 import { initAudioFadePreset, openAudioFadePresetPanel } from './AudioFadePreset.js';
+import { initAITempoSuggestion, openAITempoSuggestionPanel } from './AITempoSuggestion.js';
 import { initAutoScrollSync, toggleAutoScroll, autoScrollTimeline } from './AutoScrollSync.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
