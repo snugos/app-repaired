@@ -1,49 +1,52 @@
-# Snaw Repair & Enhancement Agent Instructions
+# Snaw Feature Builder Agent Instructions
 
 ## Purpose
-Run every 10 minutes to find and fix bugs in the SnugOS DAW codebase (Snaw), or implement small enhancements if no bugs found.
-
-## Current Status
-
-**LATEST BUG REPORT (Priority 1) — FALSE POSITIVE CONFIRMED**
-
-**Console Error:** `main.js:342 Uncaught ReferenceError: removeCustomDesktopBackground is not defined`
-
-**Investigation Results:**
-- Function `removeCustomDesktopBackground` IS properly defined at `main.js:596` within `appServices`
-- `eventHandlers.js:124` correctly guards the call with `if(localAppServices.removeCustomDesktopBackground)`
-- The error was a false positive from a stale browser cache or incorrect line number reference
-- All JS files pass `node --check` syntax validation
-
-**Conclusion:** No code changes required. False positive confirmed.
+Run to add new features to the SnugOS DAW (Snugos/snaw).
 
 ## Current Feature Queue
 
-**All features from the original queue have been implemented. New feature ideas:**
+All features from previous queues have been implemented. New queue:
 
-1. **Spectral Gate** - Frequency-based gate based on specific frequency content
-2. **Clip Gain Keyframe** - Automation-style gain points within clips
-3. **Drum Replacement AI** - Analyze and replace drum hits with samples
-4. **Stem Separation Preview** - Preview isolated stems before export
-5. **Adaptive Dynamics** - Compressor that adapts to input
-6. **Mid-Side Encoding** - Encode stereo to mid-side processing
-7. **Formant Shift** - Shift formants independently of pitch
-8. **Granular Reverb** - Granular synthesis reverb
-9. **Clip Stretch Markers** - Visual markers for manual time-stretching points
-10. **Phase Correlation Meter** ✅ - Real-time stereo phase correlation display (-1 to +1) *(just completed)*
+1. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest optimal BPM
+2. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
+3. **Track Template Library** - Save and browse track templates (instrument + effects + settings)
+4. **Clip Fade Presets** - Save and apply common fade in/out curves (exponential, S-curve, etc.)
+5. **Track Delay Compensation** - Automatically compensate for plugin latency per track
+6. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+7. **MIDI Learn Bulk Assign** - Assign multiple MIDI CCs at once via visual matrix
+8. **Stereo Phase Correction** - Detect and fix phase issues in recorded audio
+9. **BPM/MIDI Sync Lock** - Lock MIDI devices to project BPM for tight sync
+10. **Export Stem Preview** - Preview individual stems before exporting full project
 
 ## Workflow
-1. Pull latest: `cd /home/workspace/app-repaired && git pull origin LWB-with-Bugs`
-2. Fix bugs if any exist (Priority 1 bug above is already resolved - false positive)
-3. Check syntax: `node --check js/main.js`
-4. Commit and push: `git add -A && git commit -m "chore: update feature queue in README" && git push origin LWB-with-Bugs`
-5. Verify deploy: Wait 30s then curl https://snugos.github.io/snaw/js/main.js | head -20
 
-## Key Files
-- `/home/workspace/app-repaired/js/main.js` - main services and app initialization
-- `/home/workspace/app-repaired/js/state.js` - application state management
-- `/home/workspace/app-repaired/js/eventHandlers.js` - event handling (calls appServices)
-- `/home/workspace/app-repaired/index.html` - main HTML entry point
+### Step 1: Pick Next Feature
+- Work on features IN ORDER (1, then 2, then 3...)
 
-## If No Bugs Found
-Add one small enhancement feature (e.g., new UI panel, improved visualizer, etc.)
+### Step 2: Implement Feature
+- Keep it SIMPLE and MINIMAL
+- Follow existing code patterns
+- Add necessary UI, state, and audio logic
+
+### Step 3: Commit & Push
+- Commit: `feat: [feature name]`
+- Push to `LWB-with-Bugs` branch
+
+### Step 4: Verify
+- Open https://snugos.github.io/snaw/ in browser
+- Test the new feature works
+
+### Step 5: Update Queue
+After successfully implementing a feature:
+- Remove it from the queue
+- Renumber the remaining features
+- Update this instruction with new queue
+
+## Context Files
+- Repo: `/home/workspace/app-repaired`
+- Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
+
+## Rules
+- ONE feature per run
+- Always commit working code
+- Keep features minimal and focused
