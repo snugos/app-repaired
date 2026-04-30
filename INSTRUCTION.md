@@ -5,16 +5,16 @@ Run to add new features to the SnugOS DAW (Snugos/snaw).
 
 ## Current Feature Queue
 
-1. **Chord Voicing Modes** - Change how chords are voiced (close, open, drop 2, drop 3 inversions)
-2. **Scale Quantize** - Snap notes to scale degrees, not just grid
-3. **Rhythm Randomizer** - Apply probability-based randomization to drum patterns
-4. **Audio Reverse** - Reverse audio clips with one click
-5. **Step Velocity Editor** - Visual velocity lanes per step in sequencer
-6. **Track Icon Picker** - Assign icons/emoji to tracks for visual identification
-7. **Loop Crossfade** - Smooth loop points with crossfade curves
-8. **Keyboard Octave Shift** - Global octave shift for MIDI keyboard input
-9. **Metronome Count-In** - Play count-in beats before recording starts
-10. **CPU Usage Panel** - Detailed per-track CPU usage display
+1. **Scale Quantize** - Snap notes to scale degrees, not just grid
+2. **Rhythm Randomizer** - Apply probability-based randomization to drum patterns
+3. **Audio Reverse** - Reverse audio clips with one click
+4. **Step Velocity Editor** - Visual velocity lanes per step in sequencer
+5. **Track Icon Picker** - Assign icons/emoji to tracks for visual identification
+6. **Loop Crossfade** - Smooth loop points with crossfade curves
+7. **Keyboard Octave Shift** - Global octave shift for MIDI keyboard input
+8. **Metronome Count-In** - Play count-in beats before recording starts
+9. **CPU Usage Panel** - Detailed per-track CPU usage display
+10. **Chord Voicing Modes** ✅ - Change how chords are voiced (close, open, drop 2, drop 3 inversions) - COMPLETED
 
 ## Workflow
 
