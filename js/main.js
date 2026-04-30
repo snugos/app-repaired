@@ -694,6 +694,7 @@ import {
     openTempoSyncVisualizerPanel,
     openPhaseCorrelationMeterPanel,
     openTrackColorPalettePanel,
+    openTrackColorPanel,
     openGhostTrailsPanel,
     openDrumReplacePanel,
     openClipOpacityPanel,
@@ -1259,6 +1260,7 @@ async function initializeSnugOS() {
         if (typeof initMIDArpeggiatorPanel === 'function') initMIDArpeggiatorPanel(appServices); // MIDI Arpeggiator Panel initialization
         if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
+        if (typeof initTrackColorPanel === 'function') initTrackColorPanel(appServices); // Track Color Panel initialization
         if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
         if (typeof initPerformanceMonitor === 'function') initPerformanceMonitor(); // Performance monitor initialization

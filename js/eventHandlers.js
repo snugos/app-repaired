@@ -286,6 +286,17 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTrackColorPalettePanel?.();
                 } catch(e) { console.error("[Menu] Track Color Palette error:", e); }
             },
+            menuTrackColorPanel: () => {
+                console.log("[Menu] Track Color Panel clicked");
+                try {
+                    const tracks = localAppServices.getTracksState?.() || [];
+                    if (tracks.length > 0) {
+                        localAppServices.openTrackColorPanel?.(tracks[0].id);
+                    } else {
+                        localAppServices.showNotification?.('No tracks available', 2000);
+                    }
+                } catch(e) { console.error("[Menu] Track Color Panel error:", e); }
+            },
             menuClipOpacity: () => {
                 console.log("[Menu] Clip Opacity clicked");
                 try {
