@@ -1,390 +1,438 @@
-// js/RhythmRandomizer.js - Rhythm Randomizer Panel for SnugOS DAW
-// Apply probability-based randomization to drum patterns for humanization and variation
+/**
+ * js/RhythmRandomizer.js - Probability-based randomization for drum patterns
+ * Apply randomized probability to each step in a pattern for humanization
+ */
 
 let localAppServices = {};
-let rhythmRandomizerState = {
-    enabled: false,
-    stepProbability: 0.5,      // 0-1 chance each step stays active
-    density: 0.7,              // 0-1 overall density multiplier
-    timingVariation: 0.15,      // 0-1 timing swing amount
-    velocityVariation: 0.2,    // 0-1 velocity randomization
-    accentProbability: 0.3,    // 0-1 chance of accenting beats
-    humanize: true,             // Apply humanization
-    preserveDownbeats: true,  // Keep beat 1 and 3 strong
-    shuffleMode: false,        // Shuffle note order instead of random remove
-    swingAmount: 0.25          // 0-1 swing amount for off-beats
-};
 
-/**
- * Initialize the Rhythm Randomizer module
- */
-export function initRhythmRandomizer(appServicesFromMain) {
-    localAppServices = appServicesFromMain || {};
+export function initRhythmRandomizer(appServices) {
+    localAppServices = appServices || {};
     console.log('[RhythmRandomizer] Module initialized');
-}
-
-/**
- * Get current settings
- */
-export function getRhythmRandomizerSettings() {
-    return { ...rhythmRandomizerState };
-}
-
-/**
- * Set a specific setting
- */
-export function setRhythmRandomizerSetting(key, value) {
-    if (key in rhythmRandomizerState) {
-        rhythmRandomizerState[key] = value;
-        console.log(`[RhythmRandomizer] Setting ${key} = ${value}`);
-    }
-}
-
-/**
- * Apply rhythm randomization to a track's active sequence
- */
-export function applyRhythmRandomization(trackId) {
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    const track = tracks.find(t => t.id === trackId);
-    if (!track || !track.sequences || track.sequences.length === 0) {
-        console.warn('[RhythmRandomizer] No track or sequence found');
-        return false;
-    }
-
-    const activeSeq = track.sequences.find(s => s.id === track.activeSequenceId) || track.sequences[0];
-    if (!activeSeq.data || !activeSeq.data.length) {
-        console.warn('[RhythmRandomizer] No sequence data found');
-        return false;
-    }
-
-    const originalData = activeSeq.data;
-    const numRows = originalData.length;
-    const numSteps = originalData[0]?.length || 16;
-    const stepsPerBeat = 4;
-
-    // Deep copy the original data
-    const newData = originalData.map(row => row.map(step => {
-        if (!step || !step.active) return { ...step };
-        
-        const newStep = { ...step };
-        
-        // Apply density - chance to remove note entirely
-        if (Math.random() > rhythmRandomizerState.density) {
-            newStep.active = false;
-            return newStep;
-        }
-        
-        // Apply step probability
-        if (Math.random() > rhythmRandomizerState.stepProbability) {
-            newStep.active = false;
-            return newStep;
-        }
-        
-        // Preserve downbeats if enabled
-        const stepInBeat = newStep.step !== undefined ? newStep.step % stepsPerBeat : 0;
-        const isDownbeat = stepInBeat === 0 || stepInBeat === 2;
-        if (rhythmRandomizerState.preserveDownbeats && isDownbeat) {
-            // Keep but can still vary velocity
-        } else {
-            // Apply velocity variation
-            if (rhythmRandomizerState.velocityVariation > 0) {
-                const variation = (Math.random() - 0.5) * 2 * rhythmRandomizerState.velocityVariation;
-                newStep.velocity = Math.max(0.1, Math.min(1, (newStep.velocity || 0.8) + variation));
-            }
-        }
-        
-        // Apply timing variation (stored as timing offset in seconds)
-        if (rhythmRandomizerState.humanize && rhythmRandomizerState.timingVariation > 0) {
-            const variationMs = (Math.random() - 0.5) * rhythmRandomizerState.timingVariation * 50; // +/- ms
-            newStep.timingOffset = (newStep.timingOffset || 0) + variationMs / 1000; // Convert to seconds
-        }
-        
-        // Accent probability
-        if (!isDownbeat && Math.random() < rhythmRandomizerState.accentProbability) {
-            newStep.accent = true;
-            newStep.velocity = Math.min(1, (newStep.velocity || 0.8) * 1.2);
-        }
-        
-        return newStep;
-    }));
-
-    activeSeq.data = newData;
-    
-    // Trigger UI update
-    if (localAppServices.renderTrackSequencer) {
-        localAppServices.renderTrackSequencer(trackId);
-    }
-    if (localAppServices.showNotification) {
-        localAppServices.showNotification('Rhythm randomization applied', 1500);
-    }
-    
-    console.log('[RhythmRandomizer] Applied randomization to track', trackId);
-    return true;
 }
 
 /**
  * Open the Rhythm Randomizer panel
  */
-export function openRhythmRandomizerPanel(savedState = null) {
-    const windowId = 'rhythmRandomizer';
-    const openWindows = localAppServices.getOpenWindows ? localAppServices.getOpenWindows() : new Map();
-    
-    if (openWindows.has(windowId) && !savedState) {
-        const win = openWindows.get(windowId);
-        win.restore();
-        renderRhythmRandomizerContent();
-        return win;
+export function openRhythmRandomizerPanel() {
+    const existingPanel = document.getElementById('rhythmRandomizerPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+        return;
     }
 
-    const contentContainer = document.createElement('div');
-    contentContainer.id = 'rhythmRandomizerContent';
-    contentContainer.className = 'p-4 h-full overflow-y-auto bg-gray-100 dark:bg-slate-800';
+    const panel = document.createElement('div');
+    panel.id = 'rhythmRandomizerPanel';
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(180deg, #1e1e2e 0%, #16162a 100%);
+        border: 1px solid #444;
+        border-radius: 12px;
+        padding: 20px;
+        min-width: 500px;
+        max-height: 85vh;
+        overflow-y: auto;
+        z-index: 10000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        color: #eee;
+        font-family: system-ui, -apple-system, sans-serif;
+    `;
 
-    const options = { 
-        width: 450, 
-        height: 520, 
-        minWidth: 380, 
-        minHeight: 450, 
-        initialContentKey: windowId, 
-        closable: true, 
-        minimizable: true, 
-        resizable: true 
-    };
-    
-    if (savedState) {
-        Object.assign(options, { 
-            x: parseInt(savedState.left, 10), 
-            y: parseInt(savedState.top, 10), 
-            width: parseInt(savedState.width, 10), 
-            height: parseInt(savedState.height, 10), 
-            zIndex: savedState.zIndex, 
-            isMinimized: savedState.isMinimized 
-        });
-    }
-
-    const win = localAppServices.createWindow(windowId, 'Rhythm Randomizer', contentContainer, options);
-    
-    if (win?.element) {
-        renderRhythmRandomizerContent();
-    }
-    
-    return win;
-}
-
-/**
- * Render the rhythm randomizer panel content
- */
-function renderRhythmRandomizerContent() {
-    const container = document.getElementById('rhythmRandomizerContent');
-    if (!container) return;
-
-    const tracks = localAppServices.getTracks ? localAppServices.getTracks() : [];
-    const drumTracks = tracks.filter(t => 
-        t.type === 'DrumSampler' || 
-        t.type === 'Synth' || 
-        (t.sequences && t.sequences.length > 0)
-    );
-
-    const s = rhythmRandomizerState;
-
-    let html = `
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Rhythm Randomizer</h3>
-                <button id="closeRhythmRandomizerBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+    panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:20px;">🎲</span>
+                <h3 style="margin:0;font-size:18px;font-weight:600;">Rhythm Randomizer</h3>
             </div>
-            
-            <div class="p-3 bg-blue-50 dark:bg-slate-700 rounded text-xs text-gray-600 dark:text-gray-400">
-                Apply probability-based randomization to drum patterns. Each step has a chance to be removed, varied in velocity, or timing-shifted.
-            </div>
-            
-            <!-- Track Selection -->
-            <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Target Track:</label>
-                <select id="rhythmRandomizerTrack" class="w-full p-2 text-sm bg-white dark:bg-slate-600 border border-gray-200 dark:border-slate-500 rounded text-gray-700 dark:text-gray-200">
-                    <option value="">Select a track...</option>
-                    ${drumTracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
-                </select>
-            </div>
-            
-            <!-- Probability Controls -->
-            <div class="border-t border-gray-200 dark:border-slate-600 pt-3">
-                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Probability</h4>
-                
-                <div class="space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Step Probability</span>
-                            <span>${Math.round(s.stepProbability * 100)}%</span>
-                        </div>
-                        <input type="range" id="stepProbability" min="0" max="100" value="${Math.round(s.stepProbability * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Chance each step stays active</div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Density</span>
-                            <span>${Math.round(s.density * 100)}%</span>
-                        </div>
-                        <input type="range" id="density" min="0" max="100" value="${Math.round(s.density * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Overall note density</div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Accent Probability</span>
-                            <span>${Math.round(s.accentProbability * 100)}%</span>
-                        </div>
-                        <input type="range" id="accentProbability" min="0" max="100" value="${Math.round(s.accentProbability * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Chance of accenting off-beats</div>
-                    </div>
+            <button id="closeRandomizerPanel" style="background:#333;border:none;color:#fff;padding:5px 12px;cursor:pointer;border-radius:4px;font-size:14px;">×</button>
+        </div>
+        
+        <p style="margin:0 0 16px;font-size:13px;color:#888;line-height:1.5;">
+            Apply probability-based randomization to drum patterns. Each step can be randomly 
+            enabled/disabled based on its probability setting.
+        </p>
+        
+        <div id="trackSelectionSection" style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;color:#888;margin-bottom:6px;">Select Track</label>
+            <select id="randomizerTrackSelect" style="
+                width: 100%;
+                padding: 10px 12px;
+                background: #2a2a3e;
+                border: 1px solid #444;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+            ">
+                <option value="">-- Select a track --</option>
+            </select>
+        </div>
+        
+        <div id="sequenceSelection" style="margin-bottom:16px;display:none;">
+            <label style="display:block;font-size:12px;color:#888;margin-bottom:6px;">Select Sequence</label>
+            <select id="randomizerSequenceSelect" style="
+                width: 100%;
+                padding: 10px 12px;
+                background: #2a2a3e;
+                border: 1px solid #444;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+            ">
+                <option value="">-- Select a sequence --</option>
+            </select>
+        </div>
+        
+        <div id="probabilityControls" style="margin-bottom:16px;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <label style="font-size:14px;font-weight:500;">Default Probability</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="range" id="defaultProbability" min="0" max="100" value="75" 
+                        style="width:150px;cursor:pointer;">
+                    <span id="defaultProbValue" style="min-width:40px;text-align:right;color:#4a9eff;">75%</span>
                 </div>
             </div>
             
-            <!-- Variation Controls -->
-            <div class="border-t border-gray-200 dark:border-slate-600 pt-3">
-                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Variation</h4>
-                
-                <div class="space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Timing Variation</span>
-                            <span>${Math.round(s.timingVariation * 100)}%</span>
-                        </div>
-                        <input type="range" id="timingVariation" min="0" max="100" value="${Math.round(s.timingVariation * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Humanize timing</div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Velocity Variation</span>
-                            <span>${Math.round(s.velocityVariation * 100)}%</span>
-                        </div>
-                        <input type="range" id="velocityVariation" min="0" max="100" value="${Math.round(s.velocityVariation * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Randomize note velocities</div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Swing Amount</span>
-                            <span>${Math.round(s.swingAmount * 100)}%</span>
-                        </div>
-                        <input type="range" id="swingAmount" min="0" max="100" value="${Math.round(s.swingAmount * 100)}" 
-                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1">Swing applied to off-beats</div>
-                    </div>
-                </div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button id="applyToAllBtn" style="
+                    flex:1;
+                    padding: 10px;
+                    background: #3a3a5e;
+                    border: 1px solid #555;
+                    border-radius: 6px;
+                    color: #fff;
+                    font-size: 13px;
+                    cursor: pointer;
+                ">Apply to All Steps</button>
+                <button id="applyToActiveBtn" style="
+                    flex:1;
+                    padding: 10px;
+                    background: #3a4a6e;
+                    border: 1px solid #555;
+                    border-radius: 6px;
+                    color: #fff;
+                    font-size: 13px;
+                    cursor: pointer;
+                ">Apply to Active Only</button>
             </div>
             
-            <!-- Options -->
-            <div class="border-t border-gray-200 dark:border-slate-600 pt-3">
-                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Options</h4>
-                
-                <div class="space-y-2">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="humanize" ${s.humanize ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Apply Humanization</span>
-                    </label>
-                    
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="preserveDownbeats" ${s.preserveDownbeats ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Preserve Downbeats</span>
-                    </label>
-                    
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="shuffleMode" ${s.shuffleMode ? 'checked' : ''} class="w-4 h-4 accent-blue-500">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">Shuffle Mode</span>
-                    </label>
-                </div>
+            <div style="display:flex;gap:8px;">
+                <button id="randomizeProbBtn" style="
+                    flex:1;
+                    padding: 12px;
+                    background: linear-gradient(180deg, #f97316 0%, #c2410c 100%);
+                    border: none;
+                    border-radius: 6px;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">🎲 Randomize Probabilities</button>
             </div>
-            
-            <!-- Presets -->
-            <div class="border-t border-gray-200 dark:border-slate-600 pt-3">
-                <h4 class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Presets</h4>
-                <div class="flex flex-wrap gap-2">
-                    <button class="preset-btn px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 rounded hover:bg-gray-300 dark:hover:bg-slate-500" data-preset="subtle">Subtle</button>
-                    <button class="preset-btn px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 rounded hover:bg-gray-300 dark:hover:bg-slate-500" data-preset="medium">Medium</button>
-                    <button class="preset-btn px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 rounded hover:bg-gray-300 dark:hover:bg-slate-500" data-preset="extreme">Extreme</button>
-                    <button class="preset-btn px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 rounded hover:bg-gray-300 dark:hover:bg-slate-500" data-preset="funky">Funky</button>
-                    <button class="preset-btn px-3 py-1 text-xs bg-gray-200 dark:bg-slate-600 rounded hover:bg-gray-300 dark:hover:bg-slate-500" data-preset="loose">Loose</button>
-                </div>
+        </div>
+        
+        <div id="stepPreview" style="display:none;margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label style="font-size:12px;color:#888;">Preview (Original → Random)</label>
+                <button id="previewAgainBtn" style="
+                    background:#333;
+                    border:1px solid #444;
+                    color:#888;
+                    padding:4px 10px;
+                    border-radius:4px;
+                    font-size:11px;
+                    cursor:pointer;
+                ">Preview Again</button>
             </div>
-            
-            <!-- Apply Button -->
-            <button id="applyRhythmRandomizer" class="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
-                Apply to Sequence
-            </button>
+            <div id="previewGrid" style="
+                background:#0a0a1e;
+                border:1px solid #333;
+                border-radius:6px;
+                padding:8px;
+                overflow-x:auto;
+            "></div>
+        </div>
+        
+        <div style="display:flex;gap:8px;margin-top:16px;">
+            <button id="applyRandomizeBtn" style="
+                flex:1;
+                padding: 12px;
+                background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+                border: none;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+            ">Apply to Pattern</button>
+            <button id="cancelRandomizeBtn" style="
+                flex:1;
+                padding: 12px;
+                background: #444;
+                border: none;
+                border-radius: 6px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+            ">Cancel</button>
         </div>
     `;
 
-    container.innerHTML = html;
+    document.body.appendChild(panel);
 
-    // Close button
-    container.querySelector('#closeRhythmRandomizerBtn')?.addEventListener('click', () => {
-        const win = localAppServices.getWindowByIdState?.(windowId);
-        win?.close();
-    });
+    const trackSelect = panel.querySelector('#randomizerTrackSelect');
+    const seqSelect = panel.querySelector('#randomizerSequenceSelect');
+    const probControls = panel.querySelector('#probabilityControls');
+    const defaultProbSlider = panel.querySelector('#defaultProbability');
+    const defaultProbValue = panel.querySelector('#defaultProbValue');
+    const previewGrid = panel.querySelector('#previewGrid');
+    const stepPreview = panel.querySelector('#stepPreview');
 
-    // Slider event listeners
-    const sliders = ['stepProbability', 'density', 'accentProbability', 'timingVariation', 'velocityVariation', 'swingAmount'];
-    sliders.forEach(id => {
-        const slider = container.querySelector(`#${id}`);
-        if (slider) {
-            slider.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value, 10) / 100;
-                setRhythmRandomizerSetting(id, value);
-                renderRhythmRandomizerContent();
-            });
-        }
-    });
+    // Track selection
+    let selectedTrack = null;
+    let selectedSequence = null;
+    let originalData = null;
+    let randomizedData = null;
 
-    // Checkbox event listeners
-    const checkboxes = ['humanize', 'preserveDownbeats', 'shuffleMode'];
-    checkboxes.forEach(id => {
-        const checkbox = container.querySelector(`#${id}`);
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                setRhythmRandomizerSetting(id, e.target.checked);
-            });
-        }
-    });
-
-    // Preset buttons
-    const presets = {
-        subtle: { stepProbability: 0.7, density: 0.8, timingVariation: 0.1, velocityVariation: 0.1, accentProbability: 0.2, swingAmount: 0.1, humanize: true, preserveDownbeats: true },
-        medium: { stepProbability: 0.5, density: 0.6, timingVariation: 0.2, velocityVariation: 0.2, accentProbability: 0.3, swingAmount: 0.25, humanize: true, preserveDownbeats: true },
-        extreme: { stepProbability: 0.3, density: 0.4, timingVariation: 0.4, velocityVariation: 0.4, accentProbability: 0.5, swingAmount: 0.4, humanize: true, preserveDownbeats: false },
-        funky: { stepProbability: 0.6, density: 0.7, timingVariation: 0.3, velocityVariation: 0.3, accentProbability: 0.6, swingAmount: 0.5, humanize: true, preserveDownbeats: false },
-        loose: { stepProbability: 0.4, density: 0.5, timingVariation: 0.35, velocityVariation: 0.25, accentProbability: 0.25, swingAmount: 0.15, humanize: true, preserveDownbeats: true }
-    };
-
-    container.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const presetName = btn.dataset.preset;
-            const preset = presets[presetName];
-            if (preset) {
-                Object.entries(preset).forEach(([key, value]) => {
-                    setRhythmRandomizerSetting(key, value);
-                });
-                localAppServices.showNotification?.(`Applied "${presetName}" preset`, 1000);
-                renderRhythmRandomizerContent();
+    const loadTracks = () => {
+        const tracks = localAppServices.getTracks?.() || [];
+        trackSelect.innerHTML = '<option value="">-- Select a track --</option>';
+        
+        tracks.forEach(track => {
+            if (track.type === 'DrumSampler' || track.type === 'Synth' || 
+                (track.sequences && track.sequences.length > 0)) {
+                const option = document.createElement('option');
+                option.value = track.id;
+                option.textContent = `${track.name || 'Track ' + track.id} (${track.type})`;
+                trackSelect.appendChild(option);
             }
         });
-    });
+    };
 
-    // Apply button
-    container.querySelector('#applyRhythmRandomizer')?.addEventListener('click', () => {
-        const trackSelect = container.querySelector('#rhythmRandomizerTrack');
-        const trackId = parseInt(trackSelect?.value, 10);
-        if (!trackId) {
-            localAppServices.showNotification?.('Please select a track first', 2000);
+    const loadSequences = (trackId) => {
+        const tracks = localAppServices.getTracks?.() || [];
+        const track = tracks.find(t => t.id === trackId);
+        
+        if (track && track.sequences && track.sequences.length > 0) {
+            seqSelect.style.display = 'block';
+            seqSelect.innerHTML = '<option value="">-- Select a sequence --</option>';
+            
+            track.sequences.forEach(seq => {
+                const option = document.createElement('option');
+                option.value = seq.id;
+                option.textContent = seq.name || `Sequence ${seq.id.slice(-4)}`;
+                seqSelect.appendChild(option);
+            });
+            
+            if (track.sequences.length === 1) {
+                seqSelect.value = track.sequences[0].id;
+                selectedSequence = track.sequences[0];
+                updateProbabilityControls(track);
+            }
+        } else {
+            seqSelect.style.display = 'none';
+            selectedSequence = null;
+        }
+    };
+
+    const updateProbabilityControls = (track) => {
+        if (!selectedSequence) {
+            probControls.style.display = 'none';
             return;
         }
-        applyRhythmRandomization(trackId);
+        probControls.style.display = 'block';
+        originalData = JSON.parse(JSON.stringify(selectedSequence.data || []));
+    };
+
+    const applyProbabilityToStep = (value, probability) => {
+        if (value === null || value === undefined) return null;
+        return Math.random() * 100 < probability ? value : null;
+    };
+
+    const randomizeProbabilities = () => {
+        if (!originalData) return;
+        
+        const defaultProb = parseInt(defaultProbSlider.value, 10);
+        randomizedData = originalData.map(row => 
+            row.map(step => applyProbabilityToStep(step, defaultProb))
+        );
+        
+        renderPreview();
+    };
+
+    const renderPreview = () => {
+        if (!originalData || !randomizedData) return;
+        
+        stepPreview.style.display = 'block';
+        previewGrid.innerHTML = '';
+        
+        const stepWidth = 20;
+        const rowHeight = 24;
+        const numSteps = originalData[0]?.length || 16;
+        
+        // Create two rows side by side
+        const container = document.createElement('div');
+        container.style.cssText = 'display:flex;gap:8px;';
+        
+        // Original
+        const originalDiv = document.createElement('div');
+        originalDiv.innerHTML = '<div style="font-size:10px;color:#666;margin-bottom:4px;">ORIGINAL</div>';
+        const originalCanvas = document.createElement('canvas');
+        originalCanvas.width = numSteps * stepWidth + 40;
+        originalCanvas.height = originalData.length * rowHeight + 4;
+        const origCtx = originalCanvas.getContext('2d');
+        origCtx.fillStyle = '#0a0a1e';
+        origCtx.fillRect(0, 0, originalCanvas.width, originalCanvas.height);
+        
+        originalData.forEach((row, rowIdx) => {
+            row.forEach((step, stepIdx) => {
+                if (step !== null) {
+                    origCtx.fillStyle = '#4a9eff';
+                    origCtx.fillRect(40 + stepIdx * stepWidth, rowIdx * rowHeight + 2, stepWidth - 2, rowHeight - 4);
+                }
+            });
+        });
+        
+        // Step numbers
+        origCtx.fillStyle = '#444';
+        origCtx.font = '9px monospace';
+        for (let i = 0; i < numSteps; i++) {
+            if (i % 4 === 0) {
+                origCtx.fillText(i.toString(), 40 + i * stepWidth, originalCanvas.height - 2);
+            }
+        }
+        
+        originalDiv.appendChild(originalCanvas);
+        
+        // Randomized
+        const randomDiv = document.createElement('div');
+        randomDiv.innerHTML = '<div style="font-size:10px;color:#f97316;margin-bottom:4px;">RANDOMIZED</div>';
+        const randomCanvas = document.createElement('canvas');
+        randomCanvas.width = numSteps * stepWidth + 40;
+        randomCanvas.height = randomizedData.length * rowHeight + 4;
+        const randCtx = randomCanvas.getContext('2d');
+        randCtx.fillStyle = '#0a0a1e';
+        randCtx.fillRect(0, 0, randomCanvas.width, randomCanvas.height);
+        
+        randomizedData.forEach((row, rowIdx) => {
+            row.forEach((step, stepIdx) => {
+                if (step !== null) {
+                    randCtx.fillStyle = '#22c55e';
+                    randCtx.fillRect(40 + stepIdx * stepWidth, rowIdx * rowHeight + 2, stepWidth - 2, rowHeight - 4);
+                }
+            });
+        });
+        
+        // Step numbers
+        randCtx.fillStyle = '#444';
+        randCtx.font = '9px monospace';
+        for (let i = 0; i < numSteps; i++) {
+            if (i % 4 === 0) {
+                randCtx.fillText(i.toString(), 40 + i * stepWidth, randomCanvas.height - 2);
+            }
+        }
+        
+        randomDiv.appendChild(randomCanvas);
+        
+        container.appendChild(originalDiv);
+        container.appendChild(randomDiv);
+        previewGrid.appendChild(container);
+    };
+
+    const applyToPattern = () => {
+        if (!randomizedData || !selectedSequence) return;
+        
+        const tracks = localAppServices.getTracks?.() || [];
+        const track = tracks.find(t => t.id === parseInt(trackSelect.value, 10));
+        
+        if (track && localAppServices.captureStateForUndo) {
+            localAppServices.captureStateForUndo(`Rhythm Randomize on ${track.name}`);
+        }
+        
+        // Update the sequence data
+        selectedSequence.data = randomizedData;
+        
+        // Recreate the Tone sequence for playback
+        if (track && track.recreateToneSequence) {
+            track.recreateToneSequence(true);
+        }
+        
+        // Update UI
+        if (localAppServices.updateTrackUI) {
+            localAppServices.updateTrackUI(parseInt(trackSelect.value, 10), 'sequenceChanged');
+        }
+        
+        if (localAppServices.showNotification) {
+            localAppServices.showNotification('Rhythm randomization applied!', 2000);
+        }
+        
+        panel.remove();
+    };
+
+    // Event listeners
+    trackSelect.addEventListener('change', (e) => {
+        const trackId = parseInt(e.target.value, 10);
+        selectedTrack = localAppServices.getTracks?.().find(t => t.id === trackId);
+        seqSelect.innerHTML = '<option value="">-- Select a sequence --</option>';
+        probControls.style.display = 'none';
+        stepPreview.style.display = 'none';
+        randomizedData = null;
+        
+        if (trackId) {
+            loadSequences(trackId);
+        }
     });
+
+    seqSelect.addEventListener('change', (e) => {
+        const seqId = e.target.value;
+        selectedSequence = selectedTrack?.sequences?.find(s => s.id === seqId);
+        updateProbabilityControls(selectedTrack);
+        stepPreview.style.display = 'none';
+        randomizedData = null;
+    });
+
+    defaultProbSlider.addEventListener('input', (e) => {
+        defaultProbValue.textContent = e.target.value + '%';
+    });
+
+    panel.querySelector('#applyToAllBtn').addEventListener('click', () => {
+        if (!originalData) return;
+        const defaultProb = parseInt(defaultProbSlider.value, 10);
+        randomizedData = originalData.map(row => 
+            row.map(step => applyProbabilityToStep(step, defaultProb))
+        );
+        renderPreview();
+    });
+
+    panel.querySelector('#applyToActiveBtn').addEventListener('click', () => {
+        if (!originalData) return;
+        const defaultProb = parseInt(defaultProbSlider.value, 10);
+        
+        // Only apply to steps that have values
+        randomizedData = originalData.map(row => 
+            row.map(step => step !== null ? applyProbabilityToStep(step, defaultProb) : null)
+        );
+        renderPreview();
+    });
+
+    panel.querySelector('#randomizeProbBtn').addEventListener('click', randomizeProbabilities);
+
+    panel.querySelector('#previewAgainBtn').addEventListener('click', randomizeProbabilities);
+
+    panel.querySelector('#applyRandomizeBtn').addEventListener('click', applyToPattern);
+
+    panel.querySelector('#cancelRandomizeBtn').addEventListener('click', () => panel.remove());
+    panel.querySelector('#closeRandomizerPanel').addEventListener('click', () => panel.remove());
+
+    // Initial load
+    loadTracks();
 }
+
+// Export for use in other modules
+export default {
+    initRhythmRandomizer,
+    openRhythmRandomizerPanel
+};
