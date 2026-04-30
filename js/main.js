@@ -1268,6 +1268,7 @@ async function initializeSnugOS() {
         if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackColorPanel === 'function') initTrackColorPanel(appServices); // Track Color Panel initialization
+        if (typeof initChordVoicingModes === 'function') initChordVoicingModes(appServices); // Chord Voicing Modes initialization
         if (typeof initTrackFreezeQuickToggle === 'function') initTrackFreezeQuickToggle(appServices); // Track Freeze Quick Toggle - F key to freeze
         if (typeof initTrackLaneResize === 'function') initTrackLaneResize(appServices); // Track lane resize
         if (typeof initPerformanceMonitor === 'function') initPerformanceMonitor(); // Performance monitor initialization
