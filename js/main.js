@@ -39,6 +39,7 @@ import { initBulkAssign, startBulkAssign, stopBulkAssign, isBulkAssignActive } f
 import { AudioFingerprinting } from './AudioFingerprinting.js';
 import { initAudioTapTempo } from './AudioTapTempo.js';
 import { initAudioNormalizer, openAudioNormalizerPanel } from './AudioNormalizer.js';
+import { initAudioFadePreset, openAudioFadePresetPanel } from './AudioFadePreset.js';
 import { initAutoScrollSync, toggleAutoScroll, autoScrollTimeline } from './AutoScrollSync.js';
 import { initProjectRecoveryManager, createManualBackup, listBackups, restoreBackup, setRecoveryEnabled, getRecoveryStatus } from './ProjectRecoveryManager.js';
 // Pattern Generation & Frequency Processing
@@ -1262,6 +1263,7 @@ async function initializeSnugOS() {
         if (typeof initAudioTapTempo === 'function') initAudioTapTempo(appServices); // Audio Tap Tempo initialization
         if (typeof initAITempoSuggestion === 'function') initAITempoSuggestion(appServices); // AI Tempo Suggestion initialization
         if (typeof initAudioNormalizer === 'function') initAudioNormalizer(); // Audio Normalizer initialization
+        if (typeof initAudioFadePreset === 'function') initAudioFadePreset(); // Audio Fade Preset initialization
         if (typeof initMIDILearnWizard === 'function') initMIDILearnWizard(appServices); // MIDI Learn Wizard initialization
         if (typeof initClipOpacity === 'function') initClipOpacity(appServices); // Clip Opacity initialization
         if (typeof initClipLoopPreview === 'function') initClipLoopPreview(appServices); // Clip Loop Preview - double-click to loop

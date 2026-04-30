@@ -586,4 +586,63 @@ export function openAudioFadePresetPanel(services = {}) {
     return panel;
 }
 
+/**
+ * Initialize the Audio Fade Preset
+ */
+export function initAudioFadePreset() {
+    // Add menu item listener
+    const menuItem = document.getElementById('menuAudioFadePreset');
+    if (menuItem) {
+        menuItem.addEventListener('click', () => openAudioFadePresetPanel({
+            getSelectedClips: () => {
+                if (typeof getSelectedObjects === 'function') {
+                    const selected = getSelectedObjects();
+                    return selected.filter(obj => obj && obj.type === 'clip');
+                }
+                return [];
+            },
+            applyFadeToClip: (clipId, buffer) => {
+                if (typeof updateClipAudio === 'function') {
+                    updateClipAudio(clipId, buffer);
+                }
+            }
+        }));
+    }
+    
+    // Add to start menu
+    const startMenu = document.getElementById('startMenu');
+    if (startMenu && !document.getElementById('menuAudioFadePreset')) {
+        const menuItem = document.createElement('li');
+        menuItem.id = 'menuAudioFadePreset';
+        menuItem.textContent = 'Audio Fade Presets';
+        menuItem.addEventListener('click', () => {
+            startMenu.classList.add('hidden');
+            openAudioFadePresetPanel({
+                getSelectedClips: () => {
+                    if (typeof getSelectedObjects === 'function') {
+                        const selected = getSelectedObjects();
+                        return selected.filter(obj => obj && obj.type === 'clip');
+                    }
+                    return [];
+                },
+                applyFadeToClip: (clipId, buffer) => {
+                    if (typeof updateClipAudio === 'function') {
+                        updateClipAudio(clipId, buffer);
+                    }
+                }
+            });
+        });
+        
+        // Insert after audio normalizer
+        const normalizerItem = startMenu.querySelector('#menuAudioNormalizer');
+        if (normalizerItem && normalizerItem.nextSibling) {
+            startMenu.insertBefore(menuItem, normalizerItem.nextSibling);
+        } else {
+            startMenu.appendChild(menuItem);
+        }
+    }
+    
+    console.log('[AudioFadePreset] Initialized');
+}
+
 export default AudioFadePreset;
