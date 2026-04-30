@@ -19,16 +19,16 @@ Run every 10 minutes to find and fix bugs in the SnugOS DAW codebase (Snaw), or 
 
 ## Current Feature Queue
 
-1. **Phase Correlation Meter** - Real-time stereo phase correlation display (-1 to +1)
-2. **Spectral Gate** - Frequency-based gate based on specific frequency content
-3. **Clip Gain Keyframe** - Automation-style gain points within clips
-4. **Drum Replacement AI** - Analyze and replace drum hits
-5. **Stem Separation Preview** - Preview isolated stems before export
-6. **Adaptive Dynamics** - Compressor that adapts to input
-7. **Mid-Side Encoding** - Encode stereo to mid-side processing
-8. **Formant Shift** - Shift formants independently of pitch
-9. **Granular Reverb** - Granular synthesis reverb
-10. **Clip Stretch Markers** - Visual markers for manual time-stretching points
+1. **Spectral Gate** - Frequency-based gate based on specific frequency content
+2. **Clip Gain Keyframe** - Automation-style gain points within clips
+3. **Drum Replacement AI** - Analyze and replace drum hits
+4. **Stem Separation Preview** - Preview isolated stems before export
+5. **Adaptive Dynamics** - Compressor that adapts to input
+6. **Mid-Side Encoding** - Encode stereo to mid-side processing
+7. **Formant Shift** - Shift formants independently of pitch
+8. **Granular Reverb** - Granular synthesis reverb
+9. **Clip Stretch Markers** - Visual markers for manual time-stretching points
+10. **Phase Correlation Meter** ✅ - Real-time stereo phase correlation display (-1 to +1) *(just completed)*
 
 ## Workflow
 1. Pull latest: `cd /home/workspace/app-repaired && git pull origin LWB-with-Bugs`
