@@ -1,11 +1,19 @@
 // js/StepSequencerView.js - Step Sequencer View for Track Editing
-// Alternative to piano roll showing steps/rows with velocity lanes
+// Alternative to piano roll showing steps/rows with visual velocity lanes
 import { initStepSequencerProbability, setStepProbability, getStepProbability, getProbabilityColor, shouldTriggerStep } from './StepSequencerProbability.js';
 
 let localAppServices = {};
 let stepSequencerWindow = null;
 let currentStepSequencerTrackId = null;
 let selectedCells = new Set(); // Track selected cells for batch editing
+
+// Velocity lane drag state
+let velocityDragState = {
+    active: false,
+    step: null,
+    startY: 0,
+    startVelocity: 0
+};
 
 // Initialize the step sequencer module
 export function initStepSequencerView(appServicesFromMain) {
@@ -119,17 +127,44 @@ function renderStepSequencerContent(trackId = null) {
     }
     stepNumbersHtml += '</div>';
 
-    // Build velocity header
-    let velocityHeaderHtml = '<div class="flex mb-1 pl-[60px]">';
+    // Build VISUAL velocity lane - draggable velocity bars per step
+    let velocityLaneHtml = `
+        <div class="flex mb-1 pl-[60px]">
+            <div class="flex-shrink-0 w-[60px] flex items-end justify-end pr-2 text-xs text-gray-500 border-r border-gray-300 dark:border-slate-600">
+                <span class="text-[10px]">VEL</span>
+            </div>
+    `;
     for (let s = 0; s < numSteps; s++) {
-        velocityHeaderHtml += `
-            <div class="velocity-header flex-shrink-0 text-center text-xs text-gray-500 border-l border-gray-300 dark:border-slate-600" 
-                 style="width: ${100/numSteps}%;">
-                <div class="h-2 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800" data-step="${s}" data-type="velocity"></div>
+        // Calculate average velocity at this step from all rows
+        let totalVel = 0, count = 0;
+        for (let r = 0; r < numRows; r++) {
+            if (activeSeq.data[r]?.[s] !== null && activeSeq.data[r]?.[s] !== undefined) {
+                totalVel += activeSeq.data[r][s].velocity || 0.8;
+                count++;
+            }
+        }
+        const avgVel = count > 0 ? totalVel / count : 0;
+        const velHeight = Math.round(avgVel * 100);
+        const isDownbeat = s % 4 === 0;
+        const borderClass = isDownbeat ? 'border-l-2 border-blue-400' : 'border-l border-gray-300 dark:border-slate-600';
+        
+        velocityLaneHtml += `
+            <div class="velocity-lane flex-shrink-0 relative border-r ${borderClass} dark:border-slate-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900"
+                 data-step="${s}"
+                 style="width: ${100/numSteps}%; height: 40px;">
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-600 to-blue-400 opacity-70 transition-all duration-75"
+                     data-step="${s}"
+                     data-velocity="${avgVel}"
+                     style="height: ${velHeight}%; min-height: ${avgVel > 0 ? '4' : '0'}px;">
+                </div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-[9px] text-white font-medium drop-shadow-sm opacity-0 hover:opacity-100 transition-opacity" 
+                          style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${avgVel > 0 ? Math.round(avgVel * 100) : ''}</span>
+                </div>
             </div>
         `;
     }
-    velocityHeaderHtml += '</div>';
+    velocityLaneHtml += '</div>';
 
     // Build grid rows
     let gridHtml = '<div class="flex-1 overflow-y-auto overflow-x-hidden">';
@@ -201,15 +236,16 @@ function renderStepSequencerContent(trackId = null) {
                 <span class="text-xs text-gray-500">High</span>
             </div>
             <div class="ml-auto text-xs text-gray-500">
-                Click to add/toggle • Drag to set velocity • Shift+Click to select range
+                Click to add/toggle • Drag velocity bars to adjust • Shift+Click to select range
             </div>
         </div>
     `;
 
-    container.innerHTML = headerHtml + stepNumbersHtml + velocityHeaderHtml + gridHtml + velocityLegendHtml;
-
+    container.innerHTML = headerHtml + stepNumbersHtml + velocityLaneHtml + gridHtml + velocityLegendHtml;
+    
     // Attach event listeners
     setupStepSequencerEvents(container, track);
+    setupVelocityLaneEvents(container, track);
 }
 
 // Setup event handlers for the step sequencer
@@ -549,4 +585,119 @@ export function updateStepSequencerPanel() {
 // Get the step sequencer window
 export function getStepSequencerWindow() {
     return stepSequencerWindow;
+}
+
+// Setup event handlers for the visual velocity lane
+function setupVelocityLaneEvents(container, track) {
+    const velocityLanes = container.querySelectorAll('.velocity-lane');
+    const velocityBars = container.querySelectorAll('.velocity-lane > div[data-step]');
+    
+    let isDragging = false;
+    let dragStep = null;
+    let startY = 0;
+    let startVelocity = 0;
+
+    velocityBars.forEach(bar => {
+        bar.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isDragging = true;
+            dragStep = parseInt(bar.dataset.step);
+            startY = e.clientY;
+            const currentVel = parseFloat(bar.dataset.velocity) || 0.8;
+            startVelocity = currentVel;
+            velocityDragState.active = true;
+            velocityDragState.step = dragStep;
+            velocityDragState.startY = startY;
+            velocityDragState.startVelocity = startVelocity;
+        });
+    });
+
+    velocityLanes.forEach(lane => {
+        lane.addEventListener('mousedown', (e) => {
+            // If clicking on empty area of velocity lane, create note with default velocity
+            const step = parseInt(lane.dataset.step);
+            const notesAtStep = getNotesAtStep(track, step);
+            if (notesAtStep.length === 0) {
+                // Add a note with default velocity 0.8 at this step
+                const row = Math.floor(track.sequences?.[0]?.data?.length / 2) || 0;
+                toggleNote(track, row, step, false);
+            }
+        });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging || dragStep === null) return;
+        
+        const deltaY = velocityDragState.startY - e.clientY; // Invert: drag up = increase
+        const containerHeight = 40; // height of velocity lane
+        const sensitivity = 0.005;
+        const deltaVel = deltaY * sensitivity;
+        let newVelocity = velocityDragState.startVelocity + deltaVel;
+        newVelocity = Math.max(0, Math.min(1, newVelocity));
+        
+        // Update the velocity bar visually
+        const bar = container.querySelector(`.velocity-lane > div[data-step="${dragStep}"]`);
+        if (bar) {
+            bar.style.height = `${Math.round(newVelocity * 100)}%`;
+            bar.dataset.velocity = newVelocity;
+            const label = bar.parentElement.querySelector('span');
+            if (label) label.textContent = Math.round(newVelocity * 100);
+        }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        if (isDragging && dragStep !== null) {
+            const bar = container.querySelector(`.velocity-lane > div[data-step="${dragStep}"]`);
+            if (bar) {
+                const newVelocity = parseFloat(bar.dataset.velocity);
+                if (!isNaN(newVelocity) && newVelocity !== velocityDragState.startVelocity) {
+                    // Apply velocity to all notes at this step
+                    applyVelocityToStep(track, dragStep, newVelocity);
+                }
+            }
+        }
+        
+        isDragging = false;
+        dragStep = null;
+        velocityDragState.active = false;
+        velocityDragState.step = null;
+    });
+}
+
+// Get all notes at a specific step across all rows
+function getNotesAtStep(track, step) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return [];
+    
+    const notes = [];
+    for (let r = 0; r < activeSeq.data.length; r++) {
+        if (activeSeq.data[r]?.[step] !== null && activeSeq.data[r]?.[step] !== undefined) {
+            notes.push({ row: r, note: activeSeq.data[r][step] });
+        }
+    }
+    return notes;
+}
+
+// Apply velocity to all notes at a step
+function applyVelocityToStep(track, step, velocity) {
+    const activeSeq = track.sequences?.find(s => s.id === track.activeSequenceId) || track.sequences?.[0];
+    if (!activeSeq || !activeSeq.data) return;
+    
+    if (track.appServices?.captureStateForUndo) {
+        track.appServices.captureStateForUndo('Adjust velocity');
+    }
+    
+    for (let r = 0; r < activeSeq.data.length; r++) {
+        if (activeSeq.data[r]?.[step] !== null && activeSeq.data[r]?.[step] !== undefined) {
+            activeSeq.data[r][step].velocity = velocity;
+        }
+    }
+    
+    if (track.recreateToneSequence) {
+        track.recreateToneSequence(true);
+    }
+    if (track.appServices?.updateTrackUI) {
+        track.appServices.updateTrackUI(track.id, 'sequenceChanged');
+    }
 }
