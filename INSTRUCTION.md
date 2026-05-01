@@ -57,17 +57,17 @@ After implementing a feature, remove it from the queue and renumber.
 
 ---
 
-## Updated Feature Queue (2026-04-30)
+## Updated Feature Queue (2026-05-01)
 
 All 10 features from the previous queue were already implemented. New queue:
 
-1. **AI Tempo Suggestion** - Analyze the rhythm of recorded audio and suggest the optimal BPM
-2. **Clip Envelope Shaper** - Draw custom amplitude envelopes on clips for precise dynamics control
-3. **Track Template Library** - Save and browse track templates (instrument + effects + settings)
-4. **MIDI Arpeggiator Panel** - Visual arpeggiator with pattern editing and direction controls
-5. **Audio Stretch Quality Preset** - Quick buttons to switch between fast/balanced/high quality stretching
-6. **Track Solo Chain** - Mute all tracks except selected chain of tracks for focused listening
-7. **Clip Fade Presets** - Save and apply common fade in/out curves (exponential, S-curve, etc.)
-8. **BPM Tap History** ✅ - Show recent tap tempo values to help identify the right tempo (just completed)
-9. **Track Delay Compensation** - Automatically compensate for plugin latency per track
-10. **Project Auto-Naming** - Smart naming for clips and tracks based on recorded content
+1. **Track Lane Reorder** - Drag and drop to reorder tracks in the arrangement view
+2. **Clip Reverse Playback** - Reverse audio clips for glitch/creative effects
+3. **MIDI CC Learn shortcuts** - Assign MIDI CC messages to toggle features
+4. **Loop Region Markers** - Named markers for quick loop region selection
+5. **Track Freeze with FX** - Render track including effects to audio to save CPU
+6. **Multi-Select Edit** - Select multiple clips/tracks and edit properties together
+7. **BPM Range Presets** - Quick switch between tempo ranges (fast/slow practice)
+8. **Export Selection** - Export only the selected region of the timeline
+9. **Note Velocity Edit** - Visual velocity ramp editor for selected notes
+10. **Project Version History** - Save snapshots and compare project versions
