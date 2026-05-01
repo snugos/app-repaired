@@ -78,6 +78,8 @@ import { initPhaseCorrelationMeter, openPhaseCorrelationMeterPanel } from './Pha
 import { initTrackColorPalette, openTrackColorPalettePanel } from './TrackColorPalette.js';
 // Rhythm Randomizer
 import { initRhythmRandomizer, openRhythmRandomizerPanel, getRhythmRandomizerSettings } from './RhythmRandomizer.js';
+// Arrangement Snap Grid
+import { initArrangementSnapGrid, openSnapGridPanel, getSnapValue, setSnapValue, snapTimeToGrid, toggleSnapEnabled, getSnapInfo } from './ArrangementSnapGrid.js';
 // Clip Ghost Trails
 import { initClipGhostTrails, openGhostTrailsPanel, getGhostTrails, addGhostTrail, removeGhostTrail, clearAllGhostTrails, createGhostFromClip, renderGhostTrailsOnCanvas, getGhostTrailCount, exportGhostTrailsData, importGhostTrailsData } from './ClipGhostTrails.js';
 // Drum Replace - Analyze audio and replace drum hits with samples
@@ -704,6 +706,7 @@ import {
     openSpectrumAnalyzerPanel,
     openBeatSyncedLFOPanel,
     openTempoSyncVisualizerPanel,
+    openSnapGridPanel,
     openPhaseCorrelationMeterPanel,
     openTrackColorPalettePanel,
     openTrackColorPanel,
@@ -1326,6 +1329,7 @@ async function initializeSnugOS() {
         if (typeof initLoopbackAudioRouting === 'function') initLoopbackAudioRouting(appServices); // Loopback Audio Routing initialization
         if (typeof initTempoSyncHelper === 'function') initTempoSyncHelper(appServices); // Tempo Sync Helper initialization
         if (typeof setupTempoSyncMenuItem === 'function') setupTempoSyncMenuItem(); // Add to start menu
+        if (typeof initArrangementSnapGrid === 'function') initArrangementSnapGrid(appServices); // Arrangement Snap Grid initialization
         
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);

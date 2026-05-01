@@ -830,6 +830,19 @@ export function attachGlobalControlEvents(elements) {
     }
     // === End Tempo Sync Visualizer Button ===
 
+    // === Snap Grid Button ===
+    const snapGridToggleBtnGlobal = document.getElementById('snapGridToggleBtnGlobal');
+    if (snapGridToggleBtnGlobal) {
+        snapGridToggleBtnGlobal.addEventListener('click', () => {
+            if (localAppServices.openSnapGridPanel) {
+                localAppServices.openSnapGridPanel();
+            } else if (localAppServices.showNotification) {
+                localAppServices.showNotification('Snap Grid not available', 2000);
+            }
+        });
+    }
+    // === End Snap Grid Button ===
+
     // === Phase Correlation Meter Button ===
     const phaseCorrToggleBtnGlobal = document.getElementById('phaseCorrToggleBtnGlobal');
     if (phaseCorrToggleBtnGlobal) {

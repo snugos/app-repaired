@@ -71,3 +71,6 @@ export { initLoopbackAudioRouting, openLoopbackRoutingPanel, startLoopbackRoutin
 export { initTempoSyncHelper, openTempoSyncHelperPanel, setupTempoSyncMenuItem } from './TempoSyncHelper.js';
 // Scale Preview Keys - Play scale notes when hovering over piano keys
 export { initScalePreviewKeys, setScalePreviewEnabled, isScalePreviewEnabled, openScalePreviewSettings, setupPianoKeyHoverListeners } from './ScalePreviewKeys.js';
+
+// Arrangement Snap Grid - Customizable snap grid with visual subdivisions
+export { initArrangementSnapGrid, openSnapGridPanel, getSnapValue, setSnapValue, snapTimeToGrid, toggleSnapEnabled, getSnapInfo } from './ArrangementSnapGrid.js';
