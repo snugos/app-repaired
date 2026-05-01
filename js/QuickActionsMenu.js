@@ -39,7 +39,7 @@ class QuickActionsMenu {
                 { id: 'exportStems', label: 'Export Stems', shortcut: 'Ctrl+Shift+E', action: () => this.trigger('exportStems') },
                 { id: 'separator6', label: '---', action: null },
                 { id: 'openMIDIMonitor', label: 'MIDI Monitor', shortcut: 'Ctrl+Shift+M', action: () => this.trigger('openMIDIMonitor') },
-                { id: 'separator5', label: '---', action: null },
+                { id: 'separator7', label: '---', action: null },
                 { id: 'openSettings', label: 'Settings', shortcut: 'Ctrl+,', action: () => this.trigger('openSettings') },
                 { id: 'showShortcuts', label: 'Keyboard Shortcuts', shortcut: '?', action: () => this.trigger('showShortcuts') },
                 { id: 'openQuickActions', label: 'Quick Actions', shortcut: 'Ctrl+K', action: () => this.trigger('openQuickActions') }
