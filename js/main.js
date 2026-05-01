@@ -57,6 +57,9 @@ import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
 import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
 import { initMIDArpeggiatorPanel, openMIDArpeggiatorPanel } from './MIDArpeggiatorPanel.js';
+import { initTrackTemplateLibrary, openTrackTemplateLibraryPanel, getTrackTemplateNames, getTrackTemplate, saveTrackTemplate, deleteTrackTemplate, exportTemplates, importTemplates } from './TrackTemplateLibrary.js';
+import { showClipEnvelopeShaper } from './ClipEnvelopeShaper.js';
+import { enableSoloChain, disableSoloChain, toggleTrackInChain, clearChain, getSoloedTrackIds, getIsActive } from './TrackSoloChain.js';
 import { initLoopRegionQuickSet, openLoopRegionQuickSetSettings } from './LoopRegionQuickSet.js';
 import { openTempoRamperPanel } from './TempoRamperUI.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
@@ -926,6 +929,20 @@ import {
     // MIDI Arpeggiator
     openMIDArpeggiatorPanel,
     
+    // Track Template Library
+    openTrackTemplateLibraryPanel,
+    
+    // Clip Envelope Shaper
+    showClipEnvelopeShaper,
+    
+    // Track Solo Chain
+    enableSoloChain,
+    disableSoloChain,
+    toggleTrackInChain,
+    clearChain,
+    getSoloedTrackIds,
+    getIsActive,
+    
     // Beat Detective
     openBeatDetectivePanel,
     
@@ -1284,6 +1301,8 @@ async function initializeSnugOS() {
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
         if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
         if (typeof initMIDArpeggiatorPanel === 'function') initMIDArpeggiatorPanel(appServices); // MIDI Arpeggiator Panel initialization
+        if (typeof initTrackTemplateLibrary === 'function') initTrackTemplateLibrary(appServices); // Track Template Library initialization
+        
         if (typeof initDrumReplace === 'function') initDrumReplace(appServices); // Drum Replace initialization
         if (typeof initTrackContextMenu === 'function') initTrackContextMenu(appServices); // Track context menu with duplicate
         if (typeof initTrackColorPanel === 'function') initTrackColorPanel(appServices); // Track Color Panel initialization
