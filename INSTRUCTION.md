@@ -5,13 +5,16 @@ Run to add new features to the SnugOS DAW (Snugos/snaw).
 
 ## Current Feature Queue
 
-1. ~~**Track Icon Picker** - Assign icons/emoji to tracks for visual identification~~ ✅ DONE
-2. **Step Velocity Editor** - Visual velocity lanes per step in sequencer
-3. **Audio Reverse** - Reverse audio clips with one click
-4. **Loop Crossfade** - Smooth loop points with crossfade curves
-5. **Keyboard Octave Shift** - Global octave shift for MIDI keyboard input
-6. **Metronome Count-In** - Play count-in beats before recording starts
-7. **CPU Usage Panel** - Detailed per-track CPU usage display
+1. **Phase Correlation Meter** - Real-time stereo phase correlation display (-1 to +1)
+2. **Spectral Gate** - Frequency-based gate that opens based on specific frequency content
+3. **Clip Gain Keyframe** - Automation-style gain points within audio clips
+4. **Drum Replacement AI** - Analyze and replace drum hits with alternate samples
+5. **Stem Separation Preview** - Preview isolated stems (vocals/bass/drums/etc) before export
+6. **Adaptive Dynamics** - Compressor that adapts threshold and ratio to input
+7. **Mid-Side Encoding** - Encode stereo track to mid-side for processing
+8. **Formant Shift** - Shift formants independently of pitch for robotic/vocal effects
+9. **Granular Reverb** - Granular synthesis-based reverb with grain size controls
+10. **Clip Stretch Markers** - Visual markers for manual time-stretching points on clips
 
 ## Workflow
 
