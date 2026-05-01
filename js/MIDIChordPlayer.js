@@ -1,6 +1,7 @@
 // js/MIDIChordPlayer.js - On-screen MIDI Chord Player
 import * as Constants from './constants.js';
 import { getTracksState as getTracks, getScaleHighlightEnabled, setScaleHighlightEnabled, getScaleLockRoot, getScaleLockType, isNoteInScale, getScaleHighlightNotes } from './state.js';
+import { setupScalePreview } from './ScalePreviewKeys.js';
 
 // --- Local App Services ---
 let localAppServices = {};
@@ -316,6 +317,12 @@ function attachChordPlayerEventListeners(container) {
         scaleToggle.textContent = `Scale: ${newState ? 'ON' : 'OFF'}`;
         localAppServices.showNotification?.(`Scale Highlight: ${newState ? 'ON' : 'OFF'}`, 1000);
     });
+    
+    // Scale preview on hover
+    const pianoContainer = container.querySelector('#chordPlayerPianoContainer');
+    if (pianoContainer) {
+        setupScalePreview(pianoContainer);
+    }
 }
 
 // --- Open MIDI Chord Player Panel ---

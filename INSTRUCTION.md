@@ -54,3 +54,18 @@ After implementing a feature, remove it from the queue and renumber.
 - ONE feature per run
 - Always commit working code
 - Keep features minimal and focused
+
+---
+
+## Current Feature Queue
+
+1. **Tempo Sync Visualizer** - Animated display showing beat/tempo sync status across tracks
+2. **Clip Reverse Playback** - Play audio clips backwards with a single click
+3. **Track Lane Collapse** - Collapse/expand track lanes for better overview
+4. **MIDI Velocity Curve** - Adjust velocity response curve for MIDI input
+5. **Loop Region Markers** - Visual markers on timeline for loop region boundaries
+6. **Quick Audio Slice** - Divide audio clip at transients with one click
+7. **Track Duplicate with Offset** - Duplicate track with clips offset by one bar
+8. **Note Length Normalize** - Normalize all note lengths in a selection to equal values
+9. **Effect Bypass Preset** - Save effect chain with specific effects bypassed
+10. ~~**Scale Preview Keys** - Play scale notes on virtual piano when hovering over keys~~ ✅

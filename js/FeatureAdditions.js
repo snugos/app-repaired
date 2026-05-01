@@ -69,3 +69,5 @@ export { initLoopbackAudioRouting, openLoopbackRoutingPanel, startLoopbackRoutin
 
 // Tempo Sync Helper - Detect tempo from audio and suggest optimal BPM
 export { initTempoSyncHelper, openTempoSyncHelperPanel, setupTempoSyncMenuItem } from './TempoSyncHelper.js';
+// Scale Preview Keys - Play scale notes when hovering over piano keys
+export { initScalePreviewKeys, setScalePreviewEnabled, isScalePreviewEnabled, openScalePreviewSettings, setupPianoKeyHoverListeners } from './ScalePreviewKeys.js';
