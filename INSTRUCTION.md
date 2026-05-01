@@ -1,73 +1,76 @@
-# Snaw Feature Builder Agent Instructions
+## Task: Snaw Feature Builder Agent
 
-## Purpose
-Run to add new features to the SnugOS DAW (Snugos/snaw).
+You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job is to add new features — no bug fixing.
 
-## Status: Feature Queue Exhausted ✅
+## Current Feature Queue
 
-All previously queued features have been implemented across previous sessions. The codebase is considered feature-complete for browser-based DAW functionality.
+1. **Audio Recording** - Record audio from microphone into tracks
+2. **Ghost Notes Preview** - Preview how a drum track sounds with different velocity layers before committing
+3. **Clip Loop Stretch** - Non-destructively loop and stretch audio clips to different lengths
+4. **MIDI CC Step Sequencer** - Step sequencer for MIDI continuous controllers (knobs, faders)
+5. **Adaptive Metronome Pitch** - Metronome changes pitch based on beat position (hi-hat on offbeats)
+6. **Track Quick Duplicate** - Double-click track header to duplicate entire track instantly
+7. **Arrangement Markers** - Add colored markers on timeline for section labels (Verse, Chorus, etc.)
+8. **MIDI Velocity Curve** - Remap incoming MIDI velocity through a custom curve
+9. **Audio Bit Depth Selector** - Choose export bit depth (16-bit, 24-bit, 32-bit float)
+10. **Session Timer** - Track how long you've been working on a project
 
-### Previously Implemented Features (430+)
-The following categories are fully implemented:
-- Audio Engine (effect chains, sidechain routing, audio context recovery)
-- Track System (track creation, instrument types, recording)
-- Sequencer (pattern recording, step editing, playback sync)
-- Timeline (clip arrangement, drag-drop, loop regions)
-- MIDI Support (input selection, note mapping, recording)
-- Project Management (save/load, export, auto-save)
-- Effects (master effects, track effects, automation)
-- UI Windows (Inspector, Mixer, Effects rack, Browser)
+## Workflow
 
-### Features Not Implementable (Browser Limitation)
-- VST3 Plugin Loading (requires native bridge)
-- AU Plugin Support (requires native bridge)
-- ReWire Support (requires native bridge)
-
-## Workflow (When Adding New Features)
-
-### Step 1: Brainstorm New Features
-When the queue is empty, generate 10 new feature ideas that:
-1. Are achievable in a single session
-2. Complement existing features
-3. Enhance creative workflow
+### Step 1: Pick Next Feature
+- Read this instruction to see which feature you're on
+- Work on features IN ORDER (1, then 2, then 3...)
 
 ### Step 2: Implement Feature
 - Keep it SIMPLE and MINIMAL
 - Follow existing code patterns
+- Add necessary UI, state, and audio logic
+- Test locally before committing
 
 ### Step 3: Commit & Push
 - Commit: `feat: [feature name]`
 - Push to `LWB-with-Bugs` branch
+- Wait ~60 seconds for GitHub Pages deploy
 
 ### Step 4: Verify
 - Open https://snugos.github.io/snaw/ in browser
 - Test the new feature works
+- Check console for errors
 
-### Step 5: Update This File
-After implementing a feature, remove it from the queue and renumber.
+### Step 5: Update Queue
+After successfully implementing a feature:
+- Remove it from the queue
+- Renumber the remaining features
+- Update this instruction with new queue
+
+## When Queue is Empty
+
+Run this brainstorming process:
+
+```
+Based on SnugOS being a browser-based DAW with:
+- Tone.js audio engine
+- Multi-track timeline
+- Effects rack
+- Sequencer mode
+- MIDI support
+
+Generate 10 NEW feature ideas that are:
+1. Achievable in a single session
+2. Complement existing features
+3. Enhance creative workflow
+
+Output as numbered list and update this instruction.
+```
+
+## Rules
+
+- ONE feature per run
+- NO bug fixing (that's the other agent's job)
+- If you can't complete a feature, skip it and move to next
+- Always commit working code
+- Keep features minimal and focused
 
 ## Context Files
 - Repo: `/home/workspace/app-repaired`
 - Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
-
-## Rules
-- ONE feature per run
-- Always commit working code
-- Keep features minimal and focused
-
----
-
-## Updated Feature Queue (2026-05-01)
-
-All 10 features from the previous queue were already implemented. New queue:
-
-1. **Track Lane Reorder** - Drag and drop to reorder tracks in the arrangement view
-2. **Clip Reverse Playback** - Reverse audio clips for glitch/creative effects
-3. **MIDI CC Learn shortcuts** - Assign MIDI CC messages to toggle features
-4. **Loop Region Markers** - Named markers for quick loop region selection
-5. **Track Freeze with FX** - Render track including effects to audio to save CPU
-6. **Multi-Select Edit** - Select multiple clips/tracks and edit properties together
-7. **BPM Range Presets** - Quick switch between tempo ranges (fast/slow practice)
-8. **Export Selection** - Export only the selected region of the timeline
-9. **Note Velocity Edit** - Visual velocity ramp editor for selected notes
-10. **Project Version History** - Save snapshots and compare project versions
