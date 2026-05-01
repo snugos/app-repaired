@@ -57,15 +57,15 @@ After implementing a feature, remove it from the queue and renumber.
 
 ---
 
-## Current Feature Queue
+## Updated Feature Queue (2026-04-30)
 
-1. **Tempo Sync Visualizer** - Animated display showing beat/tempo sync status across tracks
-2. **Clip Reverse Playback** - Play audio clips backwards with a single click
-3. **Track Lane Collapse** - Collapse/expand track lanes for better overview
-4. **MIDI Velocity Curve** - Adjust velocity response curve for MIDI input
-5. **Loop Region Markers** - Visual markers on timeline for loop region boundaries
-6. **Quick Audio Slice** - Divide audio clip at transients with one click
-7. **Track Duplicate with Offset** - Duplicate track with clips offset by one bar
-8. **Note Length Normalize** - Normalize all note lengths in a selection to equal values
-9. **Effect Bypass Preset** - Save effect chain with specific effects bypassed
-10. ~~**Scale Preview Keys** - Play scale notes on virtual piano when hovering over keys~~ ✅
+1. **Arrangement Snap Grid** - Customizable snap grid with visual subdivisions
+2. **Track Fade Curves** - Apply fade in/out curves (exponential, S-curve, etc.) to tracks
+3. **Step Sequencer Grid** - Classic step sequencer with probability per step
+4. **MIDI Channel Manager** - Route MIDI notes to different channels per track
+5. **Audio Normalization** - Auto-normalize clip levels to peak/dB standard
+6. **Project Comparison Tool** - Side-by-side comparison of two project versions
+7. **Track Freeze** - Render track with effects to audio to save CPU
+8. **MIDI CC Automation** - Draw automation curves for MIDI CC messages
+9. **Clip Fade Handles** - Drag handles on clip edges to set fade in/out points
+10. **BPM Nudge Fine** - Fine-tune tempo with arrow keys in small increments
