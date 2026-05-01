@@ -90,6 +90,8 @@ import { openClipFadePresetsPanel } from './ClipFadePresets.js';
 import { initClipLoopPreview, toggleClipLoopPreview, deactivateClipLoopPreview, isClipInLoopPreview } from './ClipLoopPreview.js';
 // Quick Rename
 import { initQuickRename } from './QuickRename.js';
+// Project Auto-Naming - Auto-name clips and tracks based on content type
+import { ProjectAutoNaming } from './ProjectAutoNaming.js';
 // Effect panel imports - Session 2026-04-24
 import { openTubeSaturationPanel } from './DynamicTubeSaturation.js';
 import { openMultibandGatePanel } from './MultibandGate.js';
@@ -733,6 +735,11 @@ import {
     
     // Pattern Chains
     openPatternChainsPanel,
+    
+    // Quick Rename & Auto-Naming
+    openQuickRenamePanel,
+    initQuickRename,
+    ProjectAutoNaming,
     
     // Micro Tuning
     getMicroTuningEnabled, setMicroTuningEnabled, getMicroTuningPreset, setMicroTuningPreset,
