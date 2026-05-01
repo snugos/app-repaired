@@ -59,3 +59,25 @@ _None queued; stable feature set confirmed._
 - **Placeholder returns:** `grep -rn "return null|return undefined|return {}|return []" js/` returned no actionable guard clauses
 - **Syntax validation:** Prior `node --check` sweeps still valid for the audited JS files
 - **JS files scanned:** ~432 (core modules verified)
+
+---
+
+## Session: 2026-05-01 03:20 UTC (Snaw Feature Builder Agent Run)
+
+**Status: FEATURE WIRING COMPLETED ✅**
+
+### Feature Action Taken
+
+**Wired Existing Features to appServices**
+The following features were already implemented in their respective modules but weren't wired into the main appServices object:
+
+- **TrackTemplateLibrary** - Wired `initTrackTemplateLibrary`, `openTrackTemplateLibraryPanel` to appServices
+- **ClipEnvelopeShaper** - Wired `showClipEnvelopeShaper` to appServices
+- **TrackSoloChain** - Wired `enableSoloChain`, `disableSoloChain`, `toggleTrackInChain`, `clearChain`, `getSoloedTrackIds`, `getIsActive` to appServices
+
+### Files Modified
+- `js/main.js` - Added imports and appServices wiring for the three features
+- `INSTRUCTION.md` - Updated feature queue with 10 new ideas
+
+**Commits:** `8baebde` (feat: wire up...), `890849b` (docs: update queue)
+**Total Features: 433+**
