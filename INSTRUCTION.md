@@ -4,16 +4,15 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **Audio Recording** - Record audio from microphone into tracks
-2. **Ghost Notes Preview** - Preview how a drum track sounds with different velocity layers before committing
-3. **Clip Loop Stretch** - Non-destructively loop and stretch audio clips to different lengths
-4. **MIDI CC Step Sequencer** - Step sequencer for MIDI continuous controllers (knobs, faders)
-5. **Adaptive Metronome Pitch** - Metronome changes pitch based on beat position (hi-hat on offbeats)
-6. **Track Quick Duplicate** - Double-click track header to duplicate entire track instantly
-7. **Arrangement Markers** - Add colored markers on timeline for section labels (Verse, Chorus, etc.)
-8. **MIDI Velocity Curve** - Remap incoming MIDI velocity through a custom curve
-9. **Audio Bit Depth Selector** - Choose export bit depth (16-bit, 24-bit, 32-bit float)
-10. **Session Timer** - Track how long you've been working on a project
+1. **Ghost Notes Preview** - Preview how a drum track sounds with different velocity layers before committing
+2. **Clip Loop Stretch** - Non-destructively loop and stretch audio clips to different lengths
+3. **MIDI CC Step Sequencer** - Step sequencer for MIDI continuous controllers (knobs, faders)
+4. **Adaptive Metronome Pitch** - Metronome changes pitch based on beat position (hi-hat on offbeats)
+5. **Track Quick Duplicate** - Double-click track header to duplicate entire track instantly
+6. **Arrangement Markers** - Add colored markers on timeline for section labels (Verse, Chorus, etc.)
+7. **MIDI Velocity Curve** - Remap incoming MIDI velocity through a custom curve
+8. **Audio Bit Depth Selector** - Choose export bit depth (16-bit, 24-bit, 32-bit float)
+9. **Session Timer** - Track how long you've been working on a project
 
 ## Workflow
 
