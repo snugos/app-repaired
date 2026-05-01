@@ -59,7 +59,7 @@ After implementing a feature, remove it from the queue and renumber.
 
 ## Updated Feature Queue (2026-04-30)
 
-1. **Arrangement Snap Grid** - Customizable snap grid with visual subdivisions
+1. ~~**Arrangement Snap Grid** - Customizable snap grid with visual subdivisions~~ ✅
 2. **Track Fade Curves** - Apply fade in/out curves (exponential, S-curve, etc.) to tracks
 3. **Step Sequencer Grid** - Classic step sequencer with probability per step
 4. **MIDI Channel Manager** - Route MIDI notes to different channels per track
