@@ -1,0 +1,10 @@
+--- js/AudioStretchQualityPanel.js
++++ js/AudioStretchQualityPanel.js
+@@ -57,6 +57,7 @@ export function openAudioStretchQualityPanel() {
+             btn.style.background = '#4a4a8a';
+             btn.style.borderColor = '#6a6aaa';
++            stretchQualityBtnGlobal.textContent = q.label;
+         } else {
+             btn.style.background = '#2a2a4a';
+             btn.style.borderColor = '#3a3a6a';
+ 
