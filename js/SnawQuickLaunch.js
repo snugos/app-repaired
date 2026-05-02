@@ -41,6 +41,7 @@ class SnawQuickLaunch {
             { id: 'openEffects', label: 'Open Effects Rack', category: 'Window', shortcut: 'Ctrl+E', action: () => this.executeOpenEffects() },
             { id: 'openBrowser', label: 'Open Browser', category: 'Window', shortcut: 'Ctrl+B', action: () => this.executeOpenBrowser() },
             { id: 'openPianoRoll', label: 'Open Piano Roll', category: 'Window', shortcut: 'Ctrl+P', action: () => this.executeOpenPianoRoll() },
+            { id: 'openCCSequencer', label: 'Open CC Step Sequencer', category: 'Window', shortcut: 'Ctrl+Shift+C', action: () => this.executeOpenCCSequencer() },
             { id: 'openMetronome', label: 'Open Metronome', category: 'Window', shortcut: 'Ctrl+Shift+M', action: () => this.executeOpenMetronome() },
 
             // Edit operations
@@ -161,6 +162,7 @@ class SnawQuickLaunch {
     executeOpenEffects() { if (typeof openEffectsRack === 'function') openEffectsRack(); }
     executeOpenBrowser() { if (typeof openBrowser === 'function') openBrowser(); }
     executeOpenPianoRoll() { if (typeof openPianoRoll === 'function') openPianoRoll(); else if (window.SnugWindow?.getById) { const pr = window.SnugWindow.getById('pianoroll'); if (pr) pr.show(); } }
+    executeOpenCCSequencer() { if (typeof openCCStepSequencer === 'function') openCCStepSequencer(); }
     executeOpenMetronome() { if (typeof openMetronomePanel === 'function') openMetronomePanel(); }
     executeUndo() { if (typeof undo === 'function') undo(); }
     executeRedo() { if (typeof redo === 'function') redo(); }

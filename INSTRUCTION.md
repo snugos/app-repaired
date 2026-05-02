@@ -4,13 +4,12 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-1. **MIDI CC Step Sequencer** - Step sequencer for MIDI continuous controllers (knobs, faders)
-2. **Adaptive Metronome Pitch** - Metronome changes pitch based on beat position (hi-hat on offbeats)
-3. **Track Quick Duplicate** - Double-click track header to duplicate entire track instantly
-4. **Arrangement Markers** - Add colored markers on timeline for section labels (Verse, Chorus, etc.)
-5. **MIDI Velocity Curve** - Remap incoming MIDI velocity through a custom curve
-6. **Audio Bit Depth Selector** - Choose export bit depth (16-bit, 24-bit, 32-bit float)
-7. **Session Timer** - Track how long you've been working on a project
+1. **Adaptive Metronome Pitch** - Metronome changes pitch based on beat position (hi-hat on offbeats)
+2. **Track Quick Duplicate** - Double-click track header to duplicate entire track instantly
+3. **Arrangement Markers** - Add colored markers on timeline for section labels (Verse, Chorus, etc.)
+4. **MIDI Velocity Curve** - Remap incoming MIDI velocity through a custom curve
+5. **Audio Bit Depth Selector** - Choose export bit depth (16-bit, 24-bit, 32-bit float)
+6. **Session Timer** - Track how long you've been working on a project
 
 ## Workflow
 
