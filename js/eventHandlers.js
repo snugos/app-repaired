@@ -624,6 +624,21 @@ export function initializePrimaryEventListeners(appContext) {
                     }
                 } catch(e) { console.error('[Menu] Track Freeze error:', e); }
             },
+            menuGhostNotesPreview: () => {
+                console.log('[Menu] Ghost Notes Preview clicked');
+                try {
+                    if (window.ghostNotesPreview) {
+                        // Get the selected drum track or first drum track
+                        const tracks = window.tracks || [];
+                        const drumTrack = tracks.find(t => t.type === 'DrumSampler');
+                        if (drumTrack) {
+                            window.ghostNotesPreview.openPanel(drumTrack.id);
+                        } else {
+                            window.appServices?.showNotification?.('No Drum Sampler track found', 3000);
+                        }
+                    }
+                } catch(e) { console.error('[Menu] Ghost Notes Preview error:', e); }
+            },
             menuNoteLengthDefault: () => {
                 console.log('[Menu] Note Length Default clicked');
                 try {
