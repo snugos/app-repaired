@@ -54,6 +54,7 @@ import { openTrackDelayCompensationPanel } from './TrackDelayCompensation.js';
 import { openGrooveExtractorPanel } from './GrooveExtractor.js';
 import { openStepSequencerView } from './StepSequencerView.js';
 import { openPianoRollEditor, initPianoRollEditor } from './PianoRollEditor.js';
+import { initCCStepSequencer, openCCStepSequencer, getCCPatternData, setCCPatternData } from './CCStepSequencer.js';
 import { initScaleHighlightMode, openScaleHighlightPanel, isNoteInScale, getNoteScaleClass, quantizeNoteToScale } from './ScaleHighlightMode.js';
 import { initAudioRecorder, startRecording, stopRecording, isRecordingActive, requestMicAccess, getRecordingStatus, cleanupRecording } from './AudioRecorder.js';
 import { initMIDArpeggiatorPanel, openMIDArpeggiatorPanel } from './MIDArpeggiatorPanel.js';
@@ -797,6 +798,9 @@ import {
     openGrooveExtractorPanel,
     openStepSequencerView,
     openPianoRollEditor,
+    openCCStepSequencer,
+    getCCPatternData,
+    setCCPatternData,
     openScaleHighlightPanel,
     openRhythmRandomizerPanel,
     
@@ -1298,6 +1302,7 @@ async function initializeSnugOS() {
         if (typeof initClipGroupManager === 'function') initClipGroupManager(appServices); // Clip Group Manager
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
         if (typeof initPianoRollEditor === 'function') initPianoRollEditor(appServices); // Piano Roll Editor initialization
+        if (typeof initCCStepSequencer === 'function') initCCStepSequencer(appServices); // CC Step Sequencer initialization
         if (typeof initScaleHighlightMode === 'function') initScaleHighlightMode(appServices); // Scale Highlight Mode initialization
         if (typeof initAudioRecorder === 'function') initAudioRecorder(appServices); // Audio Recorder initialization
         if (typeof initMIDArpeggiatorPanel === 'function') initMIDArpeggiatorPanel(appServices); // MIDI Arpeggiator Panel initialization
