@@ -530,6 +530,12 @@ export function initializePrimaryEventListeners(appContext) {
                     localAppServices.openTempoRamperPanel?.();
                 } catch(e) { console.error('[Menu] Tempo Ramper error:', e); }
             },
+            menuTempoRamperVisual: () => {
+                console.log('[Menu] Tempo Ramper Visual clicked');
+                try {
+                    localAppServices.openTempoRamperVisual?.();
+                } catch(e) { console.error('[Menu] Tempo Ramper Visual error:', e); }
+            },
             menuTempoForecast: () => {
                 console.log('[Menu] Tempo Forecast clicked');
                 try {

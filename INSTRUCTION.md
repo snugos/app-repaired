@@ -4,7 +4,16 @@ You are the feature addition agent for SnugOS DAW (snugos/snaw). Your ONLY job i
 
 ## Current Feature Queue
 
-> All 10 features from the previous queue have been implemented. Brainstorming new features...
+1. **Tempo Ramper Visual Editor** - Draw tempo automation curves on a timeline for gradual BPM changes
+2. **Lyrics Track Timeline** - Display lyrics synced to the timeline for vocal recording/visualization
+3. **Time Signature Per Track** - Allow different time signatures per track for polyrhythmic compositions
+4. **Sidechain Volume Envelope** - Draw ducking volume curves directly on clips for sidechain effects
+5. **Clip Gain Envelope Quick** - Double-click clip top to add gain envelope points without opening full editor
+6. **Track Freeze Export** - One-click export of frozen track stems to audio files
+7. **MIDI Chord Display** - Show chord names (Cmaj7, D7, etc.) above MIDI clip sections
+8. **Loop Region Markers** - Add named markers at loop boundaries for section referencing
+9. **BPM Tap Avg Display** - Show rolling average of last N tap tempo values in transport bar
+10. **Audio Clip Stretch Markers** - Visual markers showing where audio was time-stretched
 
 ## Workflow
 
@@ -65,19 +74,3 @@ Output as numbered list and update this instruction.
 ## Context Files
 - Repo: `/home/workspace/app-repaired`
 - Main files: `js/main.js`, `js/state.js`, `js/ui.js`, `js/audio.js`, `index.html`
-
----
-
-## Updated Feature Queue (2026-05-02)
-
-1. **Track Lane Reorder Drag** - Drag to reorder track lanes in the arrangement view with visual drop indicators
-2. **Clip Fade Handles** - Drag handles on clip edges to adjust fade in/out with visual curve preview
-3. **Tempo Nudge Buttons** - +/- buttons next to BPM display to nudge tempo by 1 BPM increments
-4. **Track Duplicate** - Right-click track menu to duplicate track with all clips and settings
-5. **Mute Group Assignment** - Assign tracks to mute groups so muting one mutes others in the group
-6. **Clip Split at Playhead** - Keyboard shortcut `S` splits selected clip at playhead position
-7. **Velocity Draw Tool** - Draw velocity values directly on MIDI/audio clips with a pencil tool
-8. **Master Limiter** - Add a brickwall limiter to the master chain for loudness control
-9. **Track Solo Defeat** - Hold Alt+click solo to solo ONLY that track, defeating other solo states
-10. **Auto-Save Interval Setting** - User-configurable auto-save interval (30s, 1min, 2min, 5min, off)
-

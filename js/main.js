@@ -63,6 +63,7 @@ import { showClipEnvelopeShaper } from './ClipEnvelopeShaper.js';
 import { enableSoloChain, disableSoloChain, toggleTrackInChain, clearChain, getSoloedTrackIds, getIsActive } from './TrackSoloChain.js';
 import { initLoopRegionQuickSet, openLoopRegionQuickSetSettings } from './LoopRegionQuickSet.js';
 import { openTempoRamperPanel } from './TempoRamperUI.js';
+import { initTempoRamperVisual, openTempoRamperVisual } from './TempoRamperVisual.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
 import { initClipGroupManager } from './ClipGroupManager.js';
 import { initTrackContextMenu } from './TrackContextMenu.js';
@@ -722,6 +723,7 @@ import {
     openClipFadePresetsPanel,
     openPitchDriftCorrectionPanel,
     openTempoRamperPanel,
+    openTempoRamperVisual,
     openLoopRegionQuickSetSettings,
     toggleClipLoopPreview,
     deactivateClipLoopPreview,
@@ -1354,6 +1356,7 @@ async function initializeSnugOS() {
         if (typeof initTempoSyncHelper === 'function') initTempoSyncHelper(appServices); // Tempo Sync Helper initialization
         if (typeof setupTempoSyncMenuItem === 'function') setupTempoSyncMenuItem(); // Add to start menu
         if (typeof initArrangementSnapGrid === 'function') initArrangementSnapGrid(appServices); // Arrangement Snap Grid initialization
+        if (typeof initTempoRamperVisual === 'function') initTempoRamperVisual(appServices); // Tempo Ramper Visual initialization
         
         if (typeof initializePrimaryEventListeners === 'function') {
              initializePrimaryEventListeners(appServices);
