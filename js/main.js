@@ -62,6 +62,8 @@ import { initTrackTemplateLibrary, openTrackTemplateLibraryPanel, getTrackTempla
 import { showClipEnvelopeShaper } from './ClipEnvelopeShaper.js';
 import { enableSoloChain, disableSoloChain, toggleTrackInChain, clearChain, getSoloedTrackIds, getIsActive } from './TrackSoloChain.js';
 import { initLoopRegionQuickSet, openLoopRegionQuickSetSettings } from './LoopRegionQuickSet.js';
+import { initLoopRegionMarkers, openLoopRegionMarkersPanel, addLoopRegionMarker } from './LoopRegionMarkers.js';
+import { initLyricsTrack, openLyricsTrackPanel, getLyrics, addLyric, importLyricsText, setLyricsTrackEnabled, getCurrentLyric } from './LyricsTrack.js';
 import { openTempoRamperPanel } from './TempoRamperUI.js';
 import { initTempoRamperVisual, openTempoRamperVisual } from './TempoRamperVisual.js';
 import { initClipContextMenu } from './ClipContextMenu.js';
@@ -725,6 +727,8 @@ import {
     openTempoRamperPanel,
     openTempoRamperVisual,
     openLoopRegionQuickSetSettings,
+    openLoopRegionMarkersPanel,
+    openLyricsTrackPanel,
     toggleClipLoopPreview,
     deactivateClipLoopPreview,
     isClipInLoopPreview,
@@ -1300,6 +1304,8 @@ async function initializeSnugOS() {
         if (typeof initClipReverse === 'function') initClipReverse(appServices); // Clip Reverse feature initialization
         if (typeof initTrackHeadphoneMix === 'function') initTrackHeadphoneMix(appServices); // Headphone Mix initialization
         if (typeof initLoopRegionQuickSet === 'function') initLoopRegionQuickSet(appServices); // Loop Region Quick Set initialization
+        if (typeof initLoopRegionMarkers === 'function') initLoopRegionMarkers(appServices); // Loop Region Markers initialization
+        if (typeof initLyricsTrack === 'function') initLyricsTrack(appServices); // Lyrics Track initialization
         if (typeof initClipContextMenu === 'function') initClipContextMenu(appServices); // Clip context menu with reverse
         if (typeof initClipGroupManager === 'function') initClipGroupManager(appServices); // Clip Group Manager
         if (typeof openStepSequencerView === 'function') openStepSequencerView(appServices); // Step Sequencer View initialization
